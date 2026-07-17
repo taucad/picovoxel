@@ -4,9 +4,9 @@
 // disposal registry, and the raw cwrap table. Wrapper files (voxels/mesh/…) receive
 // it and never touch the module directly.
 
-import type { RawTable } from './bindings.ts';
 import { DISPOSE } from './dispose.ts';
 import { PicoGkError } from './errors.ts';
+import type { PicoGkRaw } from './raw.generated.ts';
 import type { HandleRegistry } from './registry.ts';
 import type { PicoGkWasmModule, SdfFunction, Vec3 } from './types.ts';
 
@@ -22,7 +22,7 @@ export interface SessionContext {
   module: PicoGkWasmModule;
   lib: bigint;
   voxelSize: number;
-  raw: RawTable;
+  raw: PicoGkRaw;
   registry: HandleRegistry;
   /** D4 — session teardown wins races; wrappers consult this before freeing. */
   dead: { value: boolean };
@@ -39,14 +39,53 @@ export interface Disposable {
   dispose(): void;
 }
 
+/** Which session a wrapper belongs to — the SG10 cross-instance guard's memory. */
+const WRAPPER_SESSION = new WeakMap<object, SessionContext>();
+
 /**
  * D5/D6 — the single registration point. Every wrapper factory calls this exactly
- * once: registers the handle for GC-driven free (token = the wrapper itself, D2)
- * and wires `[Symbol.dispose]` to the public dispose.
+ * once: registers the handle for GC-driven free (token = the wrapper itself, D2),
+ * wires `[Symbol.dispose]` to the public dispose, and records session ownership.
  */
 export function adoptHandle(ctx: SessionContext, wrapper: Disposable, handle: bigint, free: FreeFn): void {
   ctx.registry.register(wrapper, { lib: ctx.lib, handle, free }, wrapper);
   (wrapper as unknown as Record<symbol, unknown>)[DISPOSE] = wrapper.dispose;
+  WRAPPER_SESSION.set(wrapper, ctx);
+}
+
+/** SG10 — operands from another Library instance corrupt nothing, they just throw. */
+export function assertSameSession(ctx: SessionContext, other: object, what: string): void {
+  if (WRAPPER_SESSION.get(other) !== ctx) {
+    throw new PicoGkError(
+      'PICOGK_SESSION_MISMATCH',
+      `${what} belongs to a different PicoGK session (or is not a picogk-js wrapper). ` +
+        'Objects cannot cross Library instances — recreate it in this session.',
+    );
+  }
+}
+
+/**
+ * Runs `body` with NUL-terminated UTF-8 copies of `texts` in wasm memory.
+ * Buffers are freed on the way out; copy results before returning.
+ */
+export function withStrings<T>(ctx: SessionContext, texts: readonly string[], body: (...pointers: number[]) => T): T {
+  const { module } = ctx;
+  const pointers = texts.map((text) => {
+    const bytes = module.lengthBytesUTF8(text) + 1;
+    const pointer = module._malloc(bytes);
+    module.stringToUTF8(text, pointer, bytes);
+    return pointer;
+  });
+  try {
+    return body(...pointers);
+  } finally {
+    for (const pointer of pointers) module._free(pointer);
+  }
+}
+
+/** Reads a length-`bytes` C string a call just wrote into `pointer`. */
+export function readCString(ctx: SessionContext, pointer: number): string {
+  return ctx.module.UTF8ToString(pointer);
 }
 
 /** SG14 — every allocating call is checked; a null handle means allocation failed. */

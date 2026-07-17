@@ -11,22 +11,22 @@ const COMPONENT_UINT = 5125;
 const TARGET_ARRAY_BUFFER = 34962;
 const TARGET_ELEMENT_ARRAY_BUFFER = 34963;
 
-const pad4 = (n) => (n + 3) & ~3;
+const pad4 = (n: number): number => (n + 3) & ~3;
 
 /**
- * @param {Float32Array} vertices xyz triples
- * @param {Uint32Array} indices triangle corner indices
- * @returns {Uint8Array} GLB bytes
+ * @param vertices xyz triples
+ * @param indices triangle corner indices
+ * @returns GLB bytes
  */
-export function createGlb(vertices, indices) {
+export function createGlb(vertices: Float32Array, indices: Uint32Array): Uint8Array {
   // glTF requires accessor min/max on POSITION — viewers use it for framing.
   const min = [Infinity, Infinity, Infinity];
   const max = [-Infinity, -Infinity, -Infinity];
   for (let i = 0; i < vertices.length; i += 3) {
     for (let k = 0; k < 3; k++) {
-      const v = vertices[i + k];
-      if (v < min[k]) min[k] = v;
-      if (v > max[k]) max[k] = v;
+      const v = vertices[i + k]!;
+      if (v < min[k]!) min[k] = v;
+      if (v > max[k]!) max[k] = v;
     }
   }
 

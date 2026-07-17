@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { loadPicoGK } from '../src/raw.mjs';
-import { buildGearMesh } from '../src/gear.mjs';
+import { buildGearMesh } from '../src/gear.ts';
 
 const pk = await loadPicoGK();
 

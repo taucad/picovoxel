@@ -70,8 +70,8 @@ test('R7 — native `using` still works for power users (feature-detected)', asy
     assert.ok(mesh.triangleCount > 0);
   }
   // `using` ran both disposers at scope exit — counters prove it.
-  assert.equal(picogk.allocated.Voxels, 0, 'leaked Voxels after using-scope');
-  assert.equal(picogk.allocated.Meshes, 0, 'leaked Meshes after using-scope');
+  assert.equal(picogk.allocated.voxels, 0, 'leaked Voxels after using-scope');
+  assert.equal(picogk.allocated.meshes, 0, 'leaked Meshes after using-scope');
   picogk.dispose();
 });
 
@@ -80,7 +80,7 @@ test('R12 — double dispose is idempotent, not a double free', async () => {
   const sphere = picogk.createVoxels({ shape: 'sphere', radius: 5 });
   sphere.dispose();
   sphere.dispose(); // must be a no-op, not a crash
-  assert.equal(picogk.allocated.Voxels, 0);
+  assert.equal(picogk.allocated.voxels, 0);
   picogk.dispose();
 });
 

@@ -9,8 +9,8 @@ import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { writeFile } from 'node:fs/promises';
 import { loadPicoGK } from '../src/raw.mjs';
-import { buildGearMesh, GEAR_DEFAULTS } from '../src/gear.mjs';
-import { createGlb } from '../src/glb.mjs';
+import { buildGearMesh, GEAR_DEFAULTS } from '../src/gear.ts';
+import { createGlb } from '../src/glb.ts';
 
 const pk = await loadPicoGK();
 const OUT = process.env.TIER1_OUT ?? null;

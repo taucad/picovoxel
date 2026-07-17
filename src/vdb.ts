@@ -1,0 +1,162 @@
+// OpenVDB container files (SG5). All IO is bytes-in/bytes-out over MEMFS temp
+// files — no real filesystem paths cross the API. Field order inside a .vdb is NOT
+// stable (upstream VoxelsIo.cs:48-52 documents this), which is why "first
+// compatible field wins" is the documented loading semantic.
+
+import { adoptHandle, assertSameSession, expectHandle, withStrings, readCString, type SessionContext } from './context.ts';
+import { assertLive, guard, PicoGkError } from './errors.ts';
+import { wrapScalarField, wrapVectorField, type ScalarField, type VectorField } from './fields.ts';
+import { wrapVoxels, type Voxels } from './voxels.ts';
+
+export type VdbFieldType = 'voxels' | 'scalarField' | 'vectorField' | 'unsupported';
+
+const FIELD_TYPES: Record<number, VdbFieldType> = { 0: 'voxels', 1: 'scalarField', 2: 'vectorField' };
+
+export interface VdbFile {
+  readonly fieldCount: number;
+  /** Name + type of every field, index order. */
+  fields(): Array<{ name: string; type: VdbFieldType }>;
+  /** Adds a field under `name`; returns its index. */
+  add(field: Voxels | ScalarField | VectorField, name?: string): number;
+  getVoxels(indexOrName: number | string): Voxels;
+  getScalarField(indexOrName: number | string): ScalarField;
+  getVectorField(indexOrName: number | string): VectorField;
+  /** Serialises the container to .vdb bytes. */
+  toBytes(): Uint8Array;
+  /** Raw ABI handle — escape hatch (§10). */
+  readonly handle: bigint;
+  /** Optional: GC reclaims un-disposed files. Idempotent. */
+  dispose(): void;
+  [Symbol.dispose](): void;
+}
+
+let temporaryCounter = 0;
+/** A unique MEMFS scratch path per operation (sessions may interleave). */
+export function temporaryVdbPath(): string {
+  return `/picogk-tmp-${++temporaryCounter}.vdb`;
+}
+
+/** Writes bytes into MEMFS, runs body on the path, always unlinks. */
+export function withVdbBytes<T>(ctx: SessionContext, bytes: Uint8Array, body: (path: string) => T): T {
+  const path = temporaryVdbPath();
+  ctx.module.FS.writeFile(path, bytes);
+  try {
+    return body(path);
+  } finally {
+    ctx.module.FS.unlink(path);
+  }
+}
+
+export function wrapVdbFile(ctx: SessionContext, handle: bigint): VdbFile {
+  let disposed = false;
+  const live = () => {
+    assertLive(disposed, 'VdbFile');
+    return handle;
+  };
+
+  const typeAt = (index: number): VdbFieldType => FIELD_TYPES[ctx.raw.VdbFile_nFieldType(ctx.lib, handle, index)] ?? 'unsupported';
+
+  const nameAt = (index: number): string => {
+    // GetFieldName fills a PKINFOSTRINGLEN buffer; scratch is sized for it.
+    ctx.raw.VdbFile_GetFieldName(ctx.lib, handle, index, ctx.scratch);
+    return readCString(ctx, ctx.scratch);
+  };
+
+  const resolveIndex = (indexOrName: number | string, wantType: VdbFieldType): number => {
+    const count = vdb.fieldCount;
+    let index: number;
+    if (typeof indexOrName === 'number') {
+      if (!Number.isInteger(indexOrName) || indexOrName < 0 || indexOrName >= count) {
+        throw new PicoGkError('PICOGK_INVALID_ARGUMENT', `Field index ${indexOrName} out of range [0, ${count}).`);
+      }
+      index = indexOrName;
+    } else {
+      // Name lookup is a linear scan, exactly as C# does.
+      index = -1;
+      for (let i = 0; i < count; i++) {
+        if (nameAt(i) === indexOrName) {
+          index = i;
+          break;
+        }
+      }
+      if (index === -1) {
+        throw new PicoGkError(
+          'PICOGK_INVALID_ARGUMENT',
+          `No field named '${indexOrName}' in this .vdb (has: ${Array.from({ length: count }, (_, i) => nameAt(i)).join(', ') || 'none'}).`,
+        );
+      }
+    }
+    const actual = typeAt(index);
+    if (actual !== wantType) {
+      throw new PicoGkError(
+        'PICOGK_INVALID_ARGUMENT',
+        `Field ${typeof indexOrName === 'string' ? `'${indexOrName}'` : indexOrName} is a ${actual}, not a ${wantType}.`,
+      );
+    }
+    return index;
+  };
+
+  const vdb = {
+    get fieldCount() {
+      return guard('VdbFile_nFieldCount', () => ctx.raw.VdbFile_nFieldCount(ctx.lib, live()))();
+    },
+    fields() {
+      const count = vdb.fieldCount;
+      return Array.from({ length: count }, (_, i) => ({ name: nameAt(i), type: typeAt(i) }));
+    },
+    add(field: Voxels | ScalarField | VectorField, name = ''): number {
+      live();
+      assertSameSession(ctx, field, 'vdb.add field');
+      const kind = fieldKind(ctx, field);
+      return withStrings(ctx, [name], (namePtr) => {
+        if (kind === 'voxels') return ctx.raw.VdbFile_nAddVoxels(ctx.lib, handle, namePtr, field.handle);
+        if (kind === 'scalarField') return ctx.raw.VdbFile_nAddScalarField(ctx.lib, handle, namePtr, field.handle);
+        return ctx.raw.VdbFile_nAddVectorField(ctx.lib, handle, namePtr, field.handle);
+      });
+    },
+    getVoxels(indexOrName: number | string): Voxels {
+      const index = resolveIndex(indexOrName, 'voxels');
+      return wrapVoxels(ctx, expectHandle('VdbFile_hGetVoxels', ctx.raw.VdbFile_hGetVoxels(ctx.lib, handle, index)));
+    },
+    getScalarField(indexOrName: number | string): ScalarField {
+      const index = resolveIndex(indexOrName, 'scalarField');
+      return wrapScalarField(ctx, expectHandle('VdbFile_hGetScalarField', ctx.raw.VdbFile_hGetScalarField(ctx.lib, handle, index)));
+    },
+    getVectorField(indexOrName: number | string): VectorField {
+      const index = resolveIndex(indexOrName, 'vectorField');
+      return wrapVectorField(ctx, expectHandle('VdbFile_hGetVectorField', ctx.raw.VdbFile_hGetVectorField(ctx.lib, handle, index)));
+    },
+    toBytes(): Uint8Array {
+      live();
+      const path = temporaryVdbPath();
+      const saved = withStrings(ctx, [path], (pathPtr) => ctx.raw.VdbFile_bSaveToFile(ctx.lib, handle, pathPtr));
+      if (!saved) {
+        throw new PicoGkError('PICOGK_CALL_FAILED', 'VdbFile_bSaveToFile failed — the container could not be serialised.');
+      }
+      try {
+        return ctx.module.FS.readFile(path);
+      } finally {
+        ctx.module.FS.unlink(path);
+      }
+    },
+    get handle() {
+      return handle;
+    },
+    dispose() {
+      if (disposed) return; // D3
+      disposed = true;
+      ctx.registry.unregister(vdb); // D2
+      if (!ctx.dead.value) ctx.raw.VdbFile_Destroy(ctx.lib, handle); // D4
+    },
+  };
+  adoptHandle(ctx, vdb, handle, ctx.raw.VdbFile_Destroy);
+  return vdb as VdbFile; // adoptHandle added [Symbol.dispose] (D6)
+}
+
+/** Discriminates a field wrapper by its surface (structural, no brands on the API). */
+export function fieldKind(ctx: SessionContext, field: object): 'voxels' | 'scalarField' | 'vectorField' {
+  if ('isEmpty' in field && 'union' in field) return 'voxels';
+  if ('signedDistanceAt' in field) return 'scalarField';
+  if ('traverse' in field) return 'vectorField';
+  throw new PicoGkError('PICOGK_INVALID_ARGUMENT', 'Expected a Voxels, ScalarField, or VectorField wrapper.');
+}

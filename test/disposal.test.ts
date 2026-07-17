@@ -52,7 +52,7 @@ test('D2 — explicit dispose unregisters first; the GC path can never double-fr
   assert.ok(fake.entries.has(sphere as object));
   sphere.dispose();
   assert.ok(!fake.entries.has(sphere as object), 'dispose() must unregister its token');
-  assert.equal(pk.allocated.Voxels, 0, 'the handle must actually be freed');
+  assert.equal(pk.allocated.voxels, 0, 'the handle must actually be freed');
   assert.throws(() => fake.collect(sphere as object), /not registered/, 'a late GC callback has nothing to fire');
   pk.dispose();
 });
@@ -61,10 +61,10 @@ test('GC-callback path (driven by hand) frees the native handle', async () => {
   const fake = createFakeRegistry();
   const pk = await createPicoGK({ registry: fake });
   const sphere = pk.createVoxels({ shape: 'sphere', radius: 5 });
-  assert.equal(pk.allocated.Voxels, 1);
+  assert.equal(pk.allocated.voxels, 1);
 
   fake.collect(sphere as object); // what a real collection would do
-  assert.equal(pk.allocated.Voxels, 0, 'collect must free through the held cwrap');
+  assert.equal(pk.allocated.voxels, 0, 'collect must free through the held cwrap');
   pk.dispose();
 });
 
@@ -76,8 +76,8 @@ test('D3 — dispose is idempotent on every wrapper type', async () => {
     wrapper.dispose();
     wrapper.dispose(); // no-op, not a double free
   }
-  assert.equal(pk.allocated.Voxels, 0);
-  assert.equal(pk.allocated.Meshes, 0);
+  assert.equal(pk.allocated.voxels, 0);
+  assert.equal(pk.allocated.meshes, 0);
   const use = () => sphere.volume;
   const error = (() => {
     try {
@@ -106,9 +106,9 @@ test('real GC integration — dropped wrappers are reclaimed (counter oracle)', 
     for (let i = 0; i < N; i++) pk.createVoxels({ shape: 'sphere', radius: 3 });
   };
   allocate();
-  assert.equal(pk.allocated.Voxels, N, 'all spheres alive before GC');
+  assert.equal(pk.allocated.voxels, N, 'all spheres alive before GC');
 
-  const reclaimed = await gcUntil(() => pk.allocated.Voxels < N);
+  const reclaimed = await gcUntil(() => pk.allocated.voxels < N);
   assert.ok(reclaimed, `GC never reclaimed any of ${N} dropped Voxels wrappers`);
   pk.dispose();
 });

@@ -9,6 +9,22 @@ export interface Bounds {
   max: Vec3;
 }
 
+/** float32 FLT_MAX — the ABI's empty-bounds sentinel component (SG15). */
+export const FLOAT_MAX = 3.4028234663852886e38;
+
+/**
+ * SG15 — the empty-bounds sentinel the ABI structs use (`BBox3()` default:
+ * min = +FLT_MAX, max = −FLT_MAX). Never NaN.
+ */
+export function emptyBounds(): Bounds {
+  return { min: [FLOAT_MAX, FLOAT_MAX, FLOAT_MAX], max: [-FLOAT_MAX, -FLOAT_MAX, -FLOAT_MAX] };
+}
+
+/** True for the SG15 sentinel (an empty mesh/field produced it). */
+export function isEmptyBounds(bounds: Bounds): boolean {
+  return bounds.min[0] === FLOAT_MAX;
+}
+
 /** Signed distance in millimetres at (x, y, z) — scalars, never a vector object. */
 export type SdfFunction = (x: number, y: number, z: number) => number;
 
