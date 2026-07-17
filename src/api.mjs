@@ -14,7 +14,7 @@
 // calls, against multi-second compute. See the blueprint.
 
 import createPicoGKModule from './picogk.mjs';
-import { PicoGkError, assertLive, guard } from './errors.mjs';
+import { PicoGkError, assertLive, guard } from './errors.ts';
 
 const VEC3_BYTES = 12;
 const BBOX_BYTES = 24; // PKBBox3 = 2 x PKVector3

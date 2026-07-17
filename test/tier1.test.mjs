@@ -6,7 +6,7 @@
 // the original PoC target (gear -> GLB) and touches ZERO voxels by design.
 
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { test } from 'vitest';
 import { writeFile } from 'node:fs/promises';
 import { loadPicoGK } from '../src/raw.mjs';
 import { buildGearMesh, GEAR_DEFAULTS } from '../src/gear.mjs';

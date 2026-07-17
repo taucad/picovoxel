@@ -3,7 +3,7 @@
 // bulk must be BYTE-IDENTICAL to it, or it is just a fast way to be wrong.
 
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { test } from 'vitest';
 import { loadPicoGK } from '../src/raw.mjs';
 import { buildGearMesh } from '../src/gear.mjs';
 

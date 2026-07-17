@@ -4,9 +4,25 @@
   "private": true,
   "type": "module",
   "description": "PicoGK (voxel/implicit CAD on OpenVDB) compiled to WebAssembly",
-  "exports": { ".": "./src/index.mjs" },
-  "scripts": {
-    "test": "node --test test/*.test.mjs"
+  "exports": {
+    ".": "./src/index.ts"
   },
-  "files": ["src", "shim", "scripts"]
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "files": [
+    "src",
+    "shim",
+    "scripts"
+  ],
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "@vitest/coverage-v8": "^4.1.10",
+    "tsdown": "^0.22.2",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  }
 }

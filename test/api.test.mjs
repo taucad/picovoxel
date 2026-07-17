@@ -1,8 +1,8 @@
 // Phase 2 — R10 (typed errors), R12 (policy-conformant API), R13 (SDF trampoline).
 
 import assert from 'node:assert/strict';
-import test from 'node:test';
-import { createPicoGK, PicoGkError } from '../src/index.mjs';
+import { test } from 'vitest';
+import { createPicoGK, PicoGkError } from '../src/index.ts';
 
 /** assert.throws() returns undefined, so capture the error to inspect .code/.message. */
 function grab(fn, what = 'call') {

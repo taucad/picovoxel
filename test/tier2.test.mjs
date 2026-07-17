@@ -8,7 +8,7 @@
 // invented Voxels_Gaussian, Mesh_nAddQuad and *_GetSliceBounds, none of which exist.
 
 import assert from 'node:assert/strict';
-import test, { after } from 'node:test';
+import { test, afterAll as after } from 'vitest';
 import { loadInstrumented } from '../src/coverage.mjs';
 
 const pk = await loadInstrumented();

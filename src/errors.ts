@@ -9,11 +9,23 @@
 // So this layer exists for legibility, not survival: an opaque WebAssembly.Exception
 // tells a caller nothing. One higher-order wrapper beats 140 C++ try/catch blocks.
 
-/** @typedef {'PICOGK_INVALID_HANDLE'|'PICOGK_WASM_INIT_FAILED'|'PICOGK_OUT_OF_MEMORY'|'PICOGK_DISPOSED'|'PICOGK_CALL_FAILED'} PicoGkErrorCode */
+export type PicoGkErrorCode =
+  | 'PICOGK_INVALID_HANDLE'
+  | 'PICOGK_WASM_INIT_FAILED'
+  | 'PICOGK_OUT_OF_MEMORY'
+  | 'PICOGK_DISPOSED'
+  | 'PICOGK_CALL_FAILED'
+  | 'PICOGK_INVALID_ARGUMENT'
+  | 'PICOGK_SESSION_MISMATCH'
+  | 'PICOGK_ALLOC_FAILED'
+  | 'PICOGK_RESERVED_METADATA'
+  | 'PICOGK_VDB_NO_COMPATIBLE_FIELD'
+  | 'PICOGK_NOT_IMPLEMENTED';
 
 export class PicoGkError extends Error {
-  /** @param {PicoGkErrorCode} code */
-  constructor(code, message, options = {}) {
+  code: PicoGkErrorCode;
+
+  constructor(code: PicoGkErrorCode, message: string, options?: ErrorOptions) {
     super(message, options);
     this.name = 'PicoGkError';
     this.code = code;
@@ -24,8 +36,12 @@ export class PicoGkError extends Error {
  * Wraps a raw ABI call so C++ exceptions become typed, actionable JS errors.
  * `operation` names the export; `describe` renders the arguments for the message.
  */
-export function guard(operation, fn, describe = () => '') {
-  return (...args) => {
+export function guard<A extends unknown[], R>(
+  operation: string,
+  fn: (...args: A) => R,
+  describe: (...args: A) => string = () => '',
+): (...args: A) => R {
+  return (...args: A): R => {
     try {
       return fn(...args);
     } catch (cause) {
@@ -58,12 +74,17 @@ export function guard(operation, fn, describe = () => '') {
 }
 
 /** Throws a typed, actionable error when a disposed wrapper is used. */
-export function assertLive(disposed, kind) {
+export function assertLive(disposed: boolean, kind: string): void {
   if (disposed) {
     throw new PicoGkError(
       'PICOGK_DISPOSED',
       `This ${kind} has already been disposed. Handles are not reusable after dispose(); ` +
-        `create a new ${kind}, or use \`using\` so disposal happens at the end of scope rather than early.`,
+        `create a new ${kind} — in ordinary use you never need to dispose at all.`,
     );
   }
+}
+
+/** R3 placeholder thrown by subpath stubs until their phases land. */
+export function notImplemented(what: string): never {
+  throw new PicoGkError('PICOGK_NOT_IMPLEMENTED', `${what} is not implemented yet — it lands in a later charter phase.`);
 }
