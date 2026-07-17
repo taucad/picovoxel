@@ -2,8 +2,10 @@
 // JSON-serialisable, spread-friendly, interops with three.js fromArray and gl-matrix
 // without adopting either. All lengths are millimetres.
 
+/** A 3D coordinate or direction, `[x, y, z]`, in millimetres unless noted. */
 export type Vec3 = readonly [number, number, number];
 
+/** An axis-aligned box in millimetres. See {@link emptyBounds} for the empty sentinel. */
 export interface Bounds {
   min: Vec3;
   max: Vec3;

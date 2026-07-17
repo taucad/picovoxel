@@ -34,7 +34,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "MIGRATING-FROM-CSHARP.md"
   ],
   "sideEffects": [
     "./dist/dispose.js"
@@ -68,5 +69,13 @@
     "tsdown": "^0.22.2",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/taucad/picogk-js.git"
+  },
+  "homepage": "https://github.com/taucad/picogk-js#readme",
+  "bugs": {
+    "url": "https://github.com/taucad/picogk-js/issues"
   }
 }
