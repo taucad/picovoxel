@@ -24,7 +24,7 @@ const byId = <T extends HTMLElement>(id: string): T => document.getElementById(i
 const controls = byId<HTMLFieldSetElement>('controls');
 const modelSelect = byId<HTMLSelectElement>('model');
 const voxelSlider = byId<HTMLInputElement>('voxel');
-const voxelValue = byId<HTMLSpanElement>('voxelValue');
+const voxelNumber = byId<HTMLInputElement>('voxelNumber');
 const wireframeToggle = byId<HTMLInputElement>('wireframe');
 const stats = byId<HTMLSpanElement>('stats');
 const viewport = byId<HTMLDivElement>('viewport');
@@ -129,9 +129,12 @@ let lastModel = '';
 async function rebuild(): Promise<void> {
   controls.disabled = true;
   stats.textContent = 'building…';
-  await new Promise(requestAnimationFrame); // let the disabled state paint before the sync build
+  // Yield one task so the disabled state can paint before the sync build. Not
+  // requestAnimationFrame — RAF never fires in background tabs/embedded panes,
+  // which would park the rebuild forever.
+  await new Promise((resume) => setTimeout(resume, 0));
   try {
-    const voxelSize = Number(voxelSlider.value);
+    const voxelSize = currentVoxelSize();
     const startedAt = performance.now();
     const { mesh, note, flat } = builders[modelSelect.value]!(await session(voxelSize));
     const geometry = toBufferGeometry(mesh);
@@ -159,13 +162,24 @@ async function rebuild(): Promise<void> {
   }
 }
 
+// The number input is the source of truth; the slider mirrors it.
+const currentVoxelSize = () => Math.min(1, Math.max(0.05, Number(voxelNumber.value) || 0.5));
+
 modelSelect.addEventListener('change', rebuild);
-voxelSlider.addEventListener('change', rebuild);
 voxelSlider.addEventListener('input', () => {
-  voxelValue.textContent = `${Number(voxelSlider.value).toFixed(2)} mm`;
+  voxelNumber.value = voxelSlider.value;
+});
+voxelSlider.addEventListener('change', rebuild);
+voxelNumber.addEventListener('change', () => {
+  voxelNumber.value = String(currentVoxelSize());
+  voxelSlider.value = voxelNumber.value;
+  void rebuild();
 });
 wireframeToggle.addEventListener('change', () => {
   material.wireframe = wireframeToggle.checked;
 });
+
+// Debug/console handle — also handy for users poking at the scene.
+(globalThis as { __demo?: unknown }).__demo = { scene, camera, renderer, displayed, material, orbit };
 
 await rebuild();
