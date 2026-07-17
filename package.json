@@ -47,7 +47,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage",
     "test:fast": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:browser": "node scripts/browser-gate.mjs"
   },
   "peerDependencies": {
     "three": ">=0.160"
@@ -61,6 +62,7 @@
     "@types/node": "^26.1.1",
     "@types/three": "^0.185.1",
     "@vitest/coverage-v8": "^4.1.10",
+    "playwright": "^1.61.1",
     "three": "^0.185.1",
     "tsdown": "^0.22.2",
     "typescript": "^6.0.3",

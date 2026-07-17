@@ -12,3 +12,4 @@ src/picogk.wasm
 test/browser/vendor/
 .DS_Store
 coverage/
+test/browser/gate-dist/
