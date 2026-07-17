@@ -7,7 +7,7 @@ import { defineConfig } from 'tsdown';
 export default defineConfig({
   entry: {
     index: 'src/index.ts',
-    raw: 'src/raw.mjs',
+    raw: 'src/raw.ts',
     slicing: 'src/slicing.ts',
     three: 'src/three.ts',
     // Own entry so dist/dispose.js exists at a stable path package.json's
