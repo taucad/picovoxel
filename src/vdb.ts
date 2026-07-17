@@ -128,6 +128,7 @@ export function wrapVdbFile(ctx: SessionContext, handle: bigint): VdbFile {
     },
     toBytes(): Uint8Array {
       live();
+      stampPicoGkMetadata(ctx, handle);
       const path = temporaryVdbPath();
       const saved = withStrings(ctx, [path], (pathPtr) => ctx.raw.VdbFile_bSaveToFile(ctx.lib, handle, pathPtr));
       if (!saved) {
@@ -151,6 +152,50 @@ export function wrapVdbFile(ctx: SessionContext, handle: bigint): VdbFile {
   };
   adoptHandle(ctx, vdb, handle, ctx.raw.VdbFile_Destroy);
   return vdb as VdbFile; // adoptHandle added [Symbol.dispose] (D6)
+}
+
+/**
+ * The C# SaveToFile contract (OpenVdbFile.cs:165-181): before serialising, every
+ * field gets PicoGK.Library / PicoGK.Version / PicoGK.VoxelSize stamped into its
+ * metadata (SI units — voxel size in METRES). This is what makes the SG5 voxel-size
+ * handshake work when the bytes reach desktop PicoGK or come back to us.
+ */
+function stampPicoGkMetadata(ctx: SessionContext, vdbHandle: bigint): void {
+  const { raw, lib, module } = ctx;
+  raw.Library_GetName(ctx.scratch);
+  const libraryName = readCString(ctx, ctx.scratch);
+  raw.Library_GetVersion(ctx.scratch);
+  const libraryVersion = readCString(ctx, ctx.scratch);
+
+  const count = raw.VdbFile_nFieldCount(lib, vdbHandle);
+  for (let i = 0; i < count; i++) {
+    const type = raw.VdbFile_nFieldType(lib, vdbHandle, i);
+    const field =
+      type === 0
+        ? raw.VdbFile_hGetVoxels(lib, vdbHandle, i)
+        : type === 1
+          ? raw.VdbFile_hGetScalarField(lib, vdbHandle, i)
+          : type === 2
+            ? raw.VdbFile_hGetVectorField(lib, vdbHandle, i)
+            : 0n;
+    if (!field) continue; // unsupported field types are saved untouched
+    const meta =
+      type === 0
+        ? raw.Metadata_hFromVoxels(lib, field)
+        : type === 1
+          ? raw.Metadata_hFromScalarField(lib, field)
+          : raw.Metadata_hFromVectorField(lib, field);
+    try {
+      withStrings(ctx, ['PicoGK.Library', libraryName], (n, v) => raw.Metadata_SetStringValue(lib, meta, n, v));
+      withStrings(ctx, ['PicoGK.Version', libraryVersion], (n, v) => raw.Metadata_SetStringValue(lib, meta, n, v));
+      withStrings(ctx, ['PicoGK.VoxelSize'], (n) => raw.Metadata_SetFloatValue(lib, meta, n, ctx.voxelSize / 1000));
+    } finally {
+      raw.Metadata_Destroy(lib, meta);
+      const destroyField = type === 0 ? raw.Voxels_Destroy : type === 1 ? raw.ScalarField_Destroy : raw.VectorField_Destroy;
+      destroyField(lib, field);
+    }
+  }
+  void module;
 }
 
 /** Discriminates a field wrapper by its surface (structural, no brands on the API). */
