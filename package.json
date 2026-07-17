@@ -48,7 +48,8 @@
     "test": "vitest run --coverage",
     "test:fast": "vitest run",
     "test:watch": "vitest",
-    "test:browser": "node scripts/browser-gate.mjs"
+    "test:browser": "node scripts/browser-gate.mjs",
+    "bench": "node bench/run.mjs"
   },
   "peerDependencies": {
     "three": ">=0.160"
