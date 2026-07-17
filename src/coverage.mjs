@@ -32,10 +32,13 @@ export async function loadInstrumented(options = {}) {
     };
   }
 
-  // R11's two additions are ours, not in upstream's header — bind them explicitly.
+  // The bulk TU's additions (R11 exports + R8 imports) are ours, not in upstream's
+  // header — bind them explicitly so the gate covers them too.
   for (const [name, ret, args] of [
     ['Mesh_GetVertices', 'number', ['bigint', 'bigint', 'number', 'number']],
     ['Mesh_GetTriangles', 'number', ['bigint', 'bigint', 'number', 'number']],
+    ['Mesh_AddVertices', 'number', ['bigint', 'bigint', 'number', 'number']],
+    ['Mesh_AddTriangles', 'number', ['bigint', 'bigint', 'number', 'number']],
   ]) {
     const bound = module.cwrap(name, ret, args);
     calls.set(name, 0);

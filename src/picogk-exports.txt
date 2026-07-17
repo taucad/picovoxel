@@ -142,3 +142,5 @@ _malloc
 _free
 _Mesh_GetVertices
 _Mesh_GetTriangles
+_Mesh_AddVertices
+_Mesh_AddTriangles

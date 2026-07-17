@@ -334,6 +334,20 @@ test('C9 — manual mesh construction, element access, bulk readback', () => {
       assert.deepEqual(readVec(bulk + VEC3), [10, 0, 0], 'bulk vertex 1');
       assert.equal(fns.Mesh_GetTriangles(lib, mesh, bulk, 4), 4);
       assert.equal(i32(bulk + 3), 0 || i32(bulk), i32(bulk), 'bulk triangles readable');
+
+      // R8 bulk imports: append two vertices + one triangle in bulk, then read the
+      // appended range back per-element — indices must be contiguous from the return.
+      module.HEAPF32.set([1, 2, 3, 4, 5, 6], bulk >> 2);
+      const firstVertex = fns.Mesh_AddVertices(lib, mesh, bulk, 2);
+      assert.equal(firstVertex, 4, 'bulk vertices must append after the 4 existing');
+      assert.equal(fns.Mesh_nVertexCount(lib, mesh), 6);
+      fns.Mesh_GetVertex(lib, mesh, 5, scratch);
+      assert.deepEqual(readVec(scratch), [4, 5, 6], 'bulk-appended vertex readable');
+
+      module.HEAP32.set([4, 5, 0], bulk >> 2);
+      const firstTriangle = fns.Mesh_AddTriangles(lib, mesh, bulk, 1);
+      assert.equal(firstTriangle, 4, 'bulk triangle must append after the 4 existing');
+      assert.equal(fns.Mesh_nTriangleCount(lib, mesh), 5);
     } finally {
       _free(bulk);
     }

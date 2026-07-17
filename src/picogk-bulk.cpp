@@ -80,3 +80,48 @@ PICOGK_API int32_t Mesh_GetTriangles(PKINSTANCE  hLib,
     return nCount;
 }
 
+// R8 — the import mirror of the two exports above: one ABI crossing carries the
+// whole array in. Elements go through Mesh::nAddVertex/nAddTriangle rather than a
+// raw vector insert because those maintain the mesh's bounding box and memUsage
+// bookkeeping (PicoGKMesh.h:76-93) — bulk-inserting behind their back would corrupt
+// Mesh_GetBoundingBox. The per-element cost is a few ns in-wasm; the win was never
+// the loop, it was not crossing the ABI 100k times.
+
+/// Appends nCount vertices from a caller-supplied buffer.
+/// Returns the index of the FIRST appended vertex (they are contiguous).
+PICOGK_API int32_t Mesh_AddVertices(PKINSTANCE       hLib,
+                                    PKMESH           hThis,
+                                    const PKVector3* pvecBuffer,
+                                    int32_t          nCount)
+{
+    if (pvecBuffer == nullptr || nCount <= 0)
+        return -1;
+
+    PicoGK::Library::Instance::Ptr roLib = PicoGK::Library::oLib().roGetInstance(hLib);
+    PicoGK::Mesh::Ptr roMesh = roLib->m_oMeshes.roGet(hThis);
+
+    const int32_t nFirst = roMesh->nAddVertex(pvecBuffer[0]);
+    for (int32_t n = 1; n < nCount; n++)
+        roMesh->nAddVertex(pvecBuffer[n]);
+    return nFirst;
+}
+
+/// Appends nCount triangles (vertex-index triples) from a caller-supplied buffer.
+/// Returns the index of the FIRST appended triangle (they are contiguous).
+PICOGK_API int32_t Mesh_AddTriangles(PKINSTANCE       hLib,
+                                     PKMESH           hThis,
+                                     const PKTriangle* psBuffer,
+                                     int32_t           nCount)
+{
+    if (psBuffer == nullptr || nCount <= 0)
+        return -1;
+
+    PicoGK::Library::Instance::Ptr roLib = PicoGK::Library::oLib().roGetInstance(hLib);
+    PicoGK::Mesh::Ptr roMesh = roLib->m_oMeshes.roGet(hThis);
+
+    const int32_t nFirst = roMesh->nAddTriangle(psBuffer[0]);
+    for (int32_t n = 1; n < nCount; n++)
+        roMesh->nAddTriangle(psBuffer[n]);
+    return nFirst;
+}
+

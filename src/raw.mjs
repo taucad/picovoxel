@@ -62,9 +62,11 @@ export async function loadPicoGK(options = {}) {
     getVertex: cwrap('Mesh_GetVertex', null, [h, h, 'number', 'number']),
     getTriangle: cwrap('Mesh_GetTriangle', null, [h, h, 'number', 'number']),
     destroyMesh: cwrap('Mesh_Destroy', null, [h, h]),
-    // R11 bulk exports — picogk-js additions (src/picogk-bulk.cpp), not upstream.
+    // R11/R8 bulk exports+imports — picogk-js additions (src/picogk-bulk.cpp), not upstream.
     getVertices: cwrap('Mesh_GetVertices', 'number', [h, h, 'number', 'number']),
     getTriangles: cwrap('Mesh_GetTriangles', 'number', [h, h, 'number', 'number']),
+    addVertices: cwrap('Mesh_AddVertices', 'number', [h, h, 'number', 'number']),
+    addTriangles: cwrap('Mesh_AddTriangles', 'number', [h, h, 'number', 'number']),
   };
 
   const counters = [
@@ -146,6 +148,26 @@ export async function loadPicoGK(options = {}) {
           vertices: new Float32Array(module.HEAPF32.subarray(vertBuf >> 2, (vertBuf >> 2) + nv * 3)),
           indices: new Uint32Array(module.HEAPU32.subarray(triBufBulk >> 2, (triBufBulk >> 2) + nt * 3)),
         };
+      } finally {
+        _free(vertBuf);
+        _free(triBufBulk);
+      }
+    },
+
+    // R8: the import mirror — the whole mesh crosses the ABI in two calls.
+    // Buffers are written then handed over immediately; nothing here can grow
+    // memory between .set and the call, so the views stay valid.
+    writeMesh(lib, mesh, vertices, indices) {
+      const nv = vertices.length / 3;
+      const nt = indices.length / 3;
+      const vertBuf = _malloc(nv * VEC3_BYTES);
+      const triBufBulk = _malloc(nt * TRI_BYTES);
+      try {
+        module.HEAPF32.set(vertices, vertBuf >> 2);
+        const firstVertex = fn.addVertices(lib, mesh, vertBuf, nv);
+        module.HEAPU32.set(indices, triBufBulk >> 2);
+        const firstTriangle = fn.addTriangles(lib, mesh, triBufBulk, nt);
+        return { firstVertex, firstTriangle };
       } finally {
         _free(vertBuf);
         _free(triBufBulk);

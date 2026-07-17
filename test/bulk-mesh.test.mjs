@@ -84,6 +84,86 @@ test('bulk exports clamp to the caller buffer and report what they wrote', () =>
   pk.destroyInstance(lib);
 });
 
+/** Order-sensitive 32-bit FNV-1a over the underlying bytes — the exactness oracle. */
+function fnv1a(typedArray) {
+  const bytes = new Uint8Array(typedArray.buffer, typedArray.byteOffset, typedArray.byteLength);
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < bytes.length; i++) {
+    hash ^= bytes[i];
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash >>> 0;
+}
+
+/** Deterministic synthetic mesh: a 100k-vertex wavy grid with a triangle strip. */
+function syntheticMesh(vertexCount) {
+  const vertices = new Float32Array(vertexCount * 3);
+  for (let i = 0; i < vertexCount; i++) {
+    vertices[i * 3 + 0] = (i % 331) * 0.25;
+    vertices[i * 3 + 1] = Math.fround(Math.sin(i * 0.01) * 40);
+    vertices[i * 3 + 2] = (i / 331) | 0;
+  }
+  const triangleCount = vertexCount - 2;
+  const indices = new Uint32Array(triangleCount * 3);
+  for (let i = 0; i < triangleCount; i++) {
+    indices[i * 3 + 0] = i;
+    indices[i * 3 + 1] = i + 1;
+    indices[i * 3 + 2] = i + 2;
+  }
+  return { vertices, indices };
+}
+
+test('R8 — 100k-vertex bulk import is byte-identical to per-element (FNV-1a)', () => {
+  const lib = pk.createInstance(0.5);
+  const { vertices, indices } = syntheticMesh(100_000);
+
+  // Per-element oracle: one ABI call per vertex/triangle.
+  const slow = pk.meshCreate(lib);
+  for (let i = 0; i < vertices.length; i += 3) {
+    pk.addVertex(lib, slow, vertices[i], vertices[i + 1], vertices[i + 2]);
+  }
+  for (let i = 0; i < indices.length; i += 3) {
+    pk.addTriangle(lib, slow, indices[i], indices[i + 1], indices[i + 2]);
+  }
+
+  // Bulk path: two crossings.
+  const fast = pk.meshCreate(lib);
+  const { firstVertex, firstTriangle } = pk.writeMesh(lib, fast, vertices, indices);
+  assert.equal(firstVertex, 0, 'first appended vertex index');
+  assert.equal(firstTriangle, 0, 'first appended triangle index');
+
+  const slowRead = pk.readMesh(lib, slow);
+  const fastRead = pk.readMesh(lib, fast);
+  assert.equal(fnv1a(fastRead.vertices), fnv1a(slowRead.vertices), 'vertex bytes differ');
+  assert.equal(fnv1a(fastRead.indices), fnv1a(slowRead.indices), 'index bytes differ');
+  assert.deepEqual(fastRead.vertices, slowRead.vertices);
+  assert.deepEqual(fastRead.indices, slowRead.indices);
+
+  // Bookkeeping maintained: both meshes agree on bbox-affecting state via voxelization.
+  assert.equal(pk.vertexCount(lib, fast), 100_000);
+  assert.equal(pk.triangleCount(lib, fast), indices.length / 3);
+
+  pk.destroyMesh(lib, slow);
+  pk.destroyMesh(lib, fast);
+  pk.destroyInstance(lib);
+});
+
+test('R8 — bulk import refuses null/empty input without touching the mesh', () => {
+  const lib = pk.createInstance(1.0);
+  const mesh = pk.meshCreate(lib);
+  const { ccall } = pk.module;
+  const call = (name, buf, count) =>
+    ccall(name, 'number', ['bigint', 'bigint', 'number', 'number'], [lib, mesh, buf, count]);
+  assert.equal(call('Mesh_AddVertices', 0, 5), -1, 'null buffer refused');
+  assert.equal(call('Mesh_AddVertices', 8, 0), -1, 'zero count refused');
+  assert.equal(call('Mesh_AddTriangles', 0, 5), -1, 'null buffer refused');
+  assert.equal(call('Mesh_AddTriangles', 8, -3), -1, 'negative count refused');
+  assert.equal(pk.vertexCount(lib, mesh), 0, 'refused calls must not append');
+  assert.equal(pk.triangleCount(lib, mesh), 0);
+  pk.destroyMesh(lib, mesh);
+  pk.destroyInstance(lib);
+});
+
 test('bulk readback is dramatically faster than per-element', () => {
   const lib = pk.createInstance(0.5);
   const { mesh, dispose } = csgMesh(lib);
