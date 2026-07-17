@@ -4,10 +4,10 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import { loadPicoGK } from '../src/raw.mjs';
+import { loadRawHarness } from './raw-harness.ts';
 import { buildGearMesh } from '../src/gear.ts';
 
-const pk = await loadPicoGK();
+const pk = await loadRawHarness();
 
 /** sphere ∪ capsule − sphere: a real marching-cubes mesh, not a hand-built one. */
 function csgMesh(lib) {

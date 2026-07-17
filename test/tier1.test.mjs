@@ -8,11 +8,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { writeFile } from 'node:fs/promises';
-import { loadPicoGK } from '../src/raw.mjs';
+import { loadRawHarness } from './raw-harness.ts';
 import { buildGearMesh, GEAR_DEFAULTS } from '../src/gear.ts';
 import { createGlb } from '../src/glb.ts';
 
-const pk = await loadPicoGK();
+const pk = await loadRawHarness();
 const OUT = process.env.TIER1_OUT ?? null;
 
 test('S1 — instance lifecycle; openvdb::initialize() survived', () => {

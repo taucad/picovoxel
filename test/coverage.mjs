@@ -6,7 +6,7 @@
 // fails to bind. Both are things a hand-maintained list would hide. Routing through
 // raw.generated.ts means the gate also proves every generated binding is callable.
 
-import { loadPicoGkRaw } from './raw.generated.ts';
+import { loadPicoGkRaw } from '../src/raw.generated.ts';
 
 /** Binds all 144 exports (140 core + 4 bulk TU), counting calls per name. */
 export async function loadInstrumented(options = {}) {

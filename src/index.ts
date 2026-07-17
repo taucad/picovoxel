@@ -27,4 +27,3 @@ export { PicoGkError } from './errors.ts';
 export type { PicoGkErrorCode } from './errors.ts';
 export { emptyBounds, isEmptyBounds } from './types.ts';
 export type { Bounds, Color, Mat4, SdfFunction, Vec3 } from './types.ts';
-export { loadPicoGK } from './raw.mjs';

@@ -5,6 +5,3 @@
 // API — this subpath is the escape hatch and the conformance suite's substrate.
 export { bindPicoGkRaw, loadPicoGkRaw } from './raw.generated.ts';
 export type { PicoGkHandle, PicoGkRaw } from './raw.generated.ts';
-
-// Legacy helper loader (scratch-buffer conveniences). Shim until P3 removes it.
-export { loadPicoGK } from './raw.mjs';

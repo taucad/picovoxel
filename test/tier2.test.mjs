@@ -9,7 +9,7 @@
 
 import assert from 'node:assert/strict';
 import { test, afterAll as after } from 'vitest';
-import { loadInstrumented } from '../src/coverage.mjs';
+import { loadInstrumented } from './coverage.mjs';
 
 const pk = await loadInstrumented();
 const { fns, module } = pk;
