@@ -1,0 +1,12 @@
+{
+  "name": "@taucad/picogk",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PicoGK (voxel/implicit CAD on OpenVDB) compiled to WebAssembly",
+  "exports": { ".": "./src/index.mjs" },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "files": ["src", "shim", "scripts"]
+}

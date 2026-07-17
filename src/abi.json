@@ -1,0 +1,4005 @@
+{
+ "header": "/Users/rifont/git/tau/repos/PicoGKRuntime/API/PicoGK.h",
+ "total": 173,
+ "viewer": 33,
+ "core": 140,
+ "functions": [
+  {
+   "name": "Library_GetName",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "char*",
+     "name": "psz",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_GetVersion",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "char*",
+     "name": "psz",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_GetBuildInfo",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "char*",
+     "name": "psz",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_hCreateInstance",
+   "viewer": false,
+   "returnType": "PKINSTANCE",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "float",
+     "name": "fVoxelSizeMM",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_DestroyInstance",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_nTotalMemUsage",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_nMeshesMemUsage",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_nLatticesMemUsage",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_nPolyLinesMemUsage",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_nVoxelsMemUsage",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_nVdbFilesMemUsage",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_nScalarFieldsMemUsage",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_nVectorFieldsMemUsage",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_nVdbMetasMemUsage",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_nMeshesAllocated",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_nLatticesAllocated",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_nPolyLinesAllocated",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_nVoxelsAllocated",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_nVdbFilesAllocated",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_nScalarFieldsAllocated",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_nVectorFieldsAllocated",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_nVdbMetasAllocated",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_VoxelsToMm",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "pvecVoxelCoordinate",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKVector3*",
+     "name": "pvecMmCoordinate",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Library_MmToVoxels",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "pvecMmCoordinate",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKVector3*",
+     "name": "pvecVoxelCoordinate",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Mesh_hCreate",
+   "viewer": false,
+   "returnType": "PKMESH",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Mesh_hCreateFromVoxels",
+   "viewer": false,
+   "returnType": "PKMESH",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hVoxels",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Mesh_bIsValid",
+   "viewer": false,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMESH",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Mesh_Destroy",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMESH",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Mesh_nMemUsage",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMESH",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Mesh_nAddVertex",
+   "viewer": false,
+   "returnType": "int32_t",
+   "cwrapReturn": "number",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMESH",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "pvecVertex",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Mesh_nVertexCount",
+   "viewer": false,
+   "returnType": "int32_t",
+   "cwrapReturn": "number",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMESH",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Mesh_GetVertex",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMESH",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "int32_t",
+     "name": "nVertex",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKVector3*",
+     "name": "pvecVertex",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Mesh_nAddTriangle",
+   "viewer": false,
+   "returnType": "int32_t",
+   "cwrapReturn": "number",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMESH",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKTriangle*",
+     "name": "psTri",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Mesh_nTriangleCount",
+   "viewer": false,
+   "returnType": "int32_t",
+   "cwrapReturn": "number",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMESH",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Mesh_GetTriangle",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMESH",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "int32_t",
+     "name": "nTriangle",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKTriangle*",
+     "name": "psTri",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Mesh_GetTriangleV",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMESH",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "int32_t",
+     "name": "nTriangle",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKVector3*",
+     "name": "pvecA",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKVector3*",
+     "name": "pvecB",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKVector3*",
+     "name": "pvecC",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Mesh_GetBoundingBox",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMESH",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKBBox3*",
+     "name": "poBox",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Lattice_hCreate",
+   "viewer": false,
+   "returnType": "PKLATTICE",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Lattice_nMemUsage",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKLATTICE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Lattice_bIsValid",
+   "viewer": false,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKLATTICE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Lattice_Destroy",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKLATTICE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Lattice_AddSphere",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKLATTICE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "vecCenter",
+     "cwrap": "number"
+    },
+    {
+     "type": "float",
+     "name": "fRadius",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Lattice_AddBeam",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKLATTICE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "pvecA",
+     "cwrap": "number"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "pvecB",
+     "cwrap": "number"
+    },
+    {
+     "type": "float",
+     "name": "fRadiusA",
+     "cwrap": "number"
+    },
+    {
+     "type": "float",
+     "name": "fRadiusB",
+     "cwrap": "number"
+    },
+    {
+     "type": "bool",
+     "name": "bRoundCap",
+     "cwrap": "boolean"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_hCreate",
+   "viewer": false,
+   "returnType": "PKVOXELS",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_hCreateCopy",
+   "viewer": false,
+   "returnType": "PKVOXELS",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hSource",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_hCreateSphere",
+   "viewer": false,
+   "returnType": "PKVOXELS",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "pvecCenter",
+     "cwrap": "number"
+    },
+    {
+     "type": "float",
+     "name": "fRadius",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_hCreateCapsule",
+   "viewer": false,
+   "returnType": "PKVOXELS",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "pvecStart",
+     "cwrap": "number"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "pvecStop",
+     "cwrap": "number"
+    },
+    {
+     "type": "float",
+     "name": "fRadius1",
+     "cwrap": "number"
+    },
+    {
+     "type": "float",
+     "name": "fRadius2",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_hCreateMeshShell",
+   "viewer": false,
+   "returnType": "PKVOXELS",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hLib",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMESH",
+     "name": "hMesh",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "float",
+     "name": "fRadius",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_bIsValid",
+   "viewer": false,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_Destroy",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_bDiagnose",
+   "viewer": false,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "char*",
+     "name": "psz",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_bIsEmpty",
+   "viewer": false,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_nMemUsage",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_fVoxelSize",
+   "viewer": false,
+   "returnType": "float",
+   "cwrapReturn": "number",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hVoxels",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_BoolAdd",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hOther",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_BoolSubtract",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hOther",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_BoolIntersect",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hOther",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_Offset",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "float",
+     "name": "fDist",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_DoubleOffset",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "float",
+     "name": "fDist1",
+     "cwrap": "number"
+    },
+    {
+     "type": "float",
+     "name": "fDist2",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_TripleOffset",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "float",
+     "name": "fDist",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_RenderMesh",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMESH",
+     "name": "hMesh",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_RenderImplicit",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKBBox3*",
+     "name": "poBBox",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKPFnfSdf",
+     "name": "pfnSDF",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": true
+  },
+  {
+   "name": "Voxels_IntersectImplicit",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKPFnfSdf",
+     "name": "pfnSDF",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": true
+  },
+  {
+   "name": "Voxels_RenderLattice",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKLATTICE",
+     "name": "hLattice",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_ProjectZSlice",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "float",
+     "name": "fStartZ",
+     "cwrap": "number"
+    },
+    {
+     "type": "float",
+     "name": "fEndZ",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_bIsInside",
+   "viewer": false,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "pvecTestPoint",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_bIsEqual",
+   "viewer": false,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hOther",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_fCalculateVolume",
+   "viewer": false,
+   "returnType": "float",
+   "cwrapReturn": "number",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_GetSurfaceNormal",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "pvecSurfacePoint",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKVector3*",
+     "name": "pvecNormal",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_bClosestPointOnSurface",
+   "viewer": false,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "pvecSearch",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKVector3*",
+     "name": "pvecSurfacePoint",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_bRayCastToSurface",
+   "viewer": false,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "pvecSearch",
+     "cwrap": "number"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "pvecDirection",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKVector3*",
+     "name": "pvecSurfacePoint",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_GetVoxelDimensions",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "int32_t*",
+     "name": "pnXOrigin",
+     "cwrap": "number"
+    },
+    {
+     "type": "int32_t*",
+     "name": "pnYOrigin",
+     "cwrap": "number"
+    },
+    {
+     "type": "int32_t*",
+     "name": "pnZOrigin",
+     "cwrap": "number"
+    },
+    {
+     "type": "int32_t*",
+     "name": "pnXSize",
+     "cwrap": "number"
+    },
+    {
+     "type": "int32_t*",
+     "name": "pnYSize",
+     "cwrap": "number"
+    },
+    {
+     "type": "int32_t*",
+     "name": "pnZSize",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_GetXSlice",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "int32_t",
+     "name": "nXSlice",
+     "cwrap": "number"
+    },
+    {
+     "type": "float*",
+     "name": "pfBuffer",
+     "cwrap": "number"
+    },
+    {
+     "type": "float*",
+     "name": "pfBackgroundValue",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_GetYSlice",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "int32_t",
+     "name": "nYSlice",
+     "cwrap": "number"
+    },
+    {
+     "type": "float*",
+     "name": "pfBuffer",
+     "cwrap": "number"
+    },
+    {
+     "type": "float*",
+     "name": "pfBackgroundValue",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_GetZSlice",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "int32_t",
+     "name": "nZSlice",
+     "cwrap": "number"
+    },
+    {
+     "type": "float*",
+     "name": "pfBuffer",
+     "cwrap": "number"
+    },
+    {
+     "type": "float*",
+     "name": "pfBackgroundValue",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Voxels_GetInterpolatedZSlice",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hLib",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "float",
+     "name": "fZSlice",
+     "cwrap": "number"
+    },
+    {
+     "type": "float*",
+     "name": "pfBuffer",
+     "cwrap": "number"
+    },
+    {
+     "type": "float*",
+     "name": "pfBackgroundValue",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "PolyLine_hCreate",
+   "viewer": false,
+   "returnType": "PKPOLYLINE",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKColorFloat*",
+     "name": "pclr",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "PolyLine_bIsValid",
+   "viewer": false,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKPOLYLINE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "PolyLine_Destroy",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKPOLYLINE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "PolyLine_nMemUsage",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKPOLYLINE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "PolyLine_nAddVertex",
+   "viewer": false,
+   "returnType": "int32_t",
+   "cwrapReturn": "number",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKPOLYLINE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "pvec",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "PolyLine_nVertexCount",
+   "viewer": false,
+   "returnType": "int32_t",
+   "cwrapReturn": "number",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKPOLYLINE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "PolyLine_GetVertex",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKPOLYLINE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "int32_t",
+     "name": "nIndex",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKVector3*",
+     "name": "pvec",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "PolyLine_GetColor",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKPOLYLINE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKColorFloat*",
+     "name": "pclr",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "PolyLine_GetBoundingBox",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hLib",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKPOLYLINE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKBBox3*",
+     "name": "poBox",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VdbFile_hCreate",
+   "viewer": false,
+   "returnType": "PKVDBFILE",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VdbFile_hCreateFromFile",
+   "viewer": false,
+   "returnType": "PKVDBFILE",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const char*",
+     "name": "pszFileName",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VdbFile_bIsValid",
+   "viewer": false,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVDBFILE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VdbFile_Destroy",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVDBFILE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VdbFile_nMemUsage",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVDBFILE",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VdbFile_bSaveToFile",
+   "viewer": false,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVDBFILE",
+     "name": "hVdbFile",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const char*",
+     "name": "pszFileName",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VdbFile_hGetVoxels",
+   "viewer": false,
+   "returnType": "PKVOXELS",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVDBFILE",
+     "name": "hVdbFile",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "int32_t",
+     "name": "nIndex",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VdbFile_nAddVoxels",
+   "viewer": false,
+   "returnType": "int32_t",
+   "cwrapReturn": "number",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVDBFILE",
+     "name": "hVdbFile",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const char*",
+     "name": "pszFieldName",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hVoxels",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VdbFile_hGetScalarField",
+   "viewer": false,
+   "returnType": "PKSCALARFIELD",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVDBFILE",
+     "name": "hVdbFile",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "int32_t",
+     "name": "nIndex",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VdbFile_nAddScalarField",
+   "viewer": false,
+   "returnType": "int32_t",
+   "cwrapReturn": "number",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVDBFILE",
+     "name": "hVdbFile",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const char*",
+     "name": "pszFieldName",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKSCALARFIELD",
+     "name": "hScalarField",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VdbFile_hGetVectorField",
+   "viewer": false,
+   "returnType": "PKVECTORFIELD",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVDBFILE",
+     "name": "hVdbFile",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "int32_t",
+     "name": "nIndex",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VdbFile_nAddVectorField",
+   "viewer": false,
+   "returnType": "int32_t",
+   "cwrapReturn": "number",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVDBFILE",
+     "name": "hVdbFile",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const char*",
+     "name": "pszFieldName",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKVECTORFIELD",
+     "name": "hVectorField",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VdbFile_nFieldCount",
+   "viewer": false,
+   "returnType": "int32_t",
+   "cwrapReturn": "number",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVDBFILE",
+     "name": "hVdbFile",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VdbFile_GetFieldName",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVDBFILE",
+     "name": "hVdbFile",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "int32_t",
+     "name": "nIndex",
+     "cwrap": "number"
+    },
+    {
+     "type": "char*",
+     "name": "psz",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VdbFile_nFieldType",
+   "viewer": false,
+   "returnType": "int32_t",
+   "cwrapReturn": "number",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVDBFILE",
+     "name": "hVdbFile",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "int32_t",
+     "name": "nIndex",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "ScalarField_hCreate",
+   "viewer": false,
+   "returnType": "PKSCALARFIELD",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "ScalarField_hCreateCopy",
+   "viewer": false,
+   "returnType": "PKSCALARFIELD",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKSCALARFIELD",
+     "name": "hSource",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "ScalarField_hCreateFromVoxels",
+   "viewer": false,
+   "returnType": "PKSCALARFIELD",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hVoxels",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "ScalarField_hBuildFromVoxels",
+   "viewer": false,
+   "returnType": "PKSCALARFIELD",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hVoxels",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "float",
+     "name": "fScalarValue",
+     "cwrap": "number"
+    },
+    {
+     "type": "float",
+     "name": "fSdThreshold",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "ScalarField_bIsValid",
+   "viewer": false,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKSCALARFIELD",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "ScalarField_Destroy",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKSCALARFIELD",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "ScalarField_nMemUsage",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKSCALARFIELD",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "ScalarField_SetValue",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKSCALARFIELD",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "pvecPosition",
+     "cwrap": "number"
+    },
+    {
+     "type": "float",
+     "name": "fValue",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "ScalarField_bGetValue",
+   "viewer": false,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKSCALARFIELD",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "pvecPosition",
+     "cwrap": "number"
+    },
+    {
+     "type": "float*",
+     "name": "pfValue",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "ScalarField_RemoveValue",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVECTORFIELD",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "pvecPosition",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "ScalarField_GetVoxelDimensions",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKSCALARFIELD",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "int32_t*",
+     "name": "pnXOrigin",
+     "cwrap": "number"
+    },
+    {
+     "type": "int32_t*",
+     "name": "pnYOrigin",
+     "cwrap": "number"
+    },
+    {
+     "type": "int32_t*",
+     "name": "pnZOrigin",
+     "cwrap": "number"
+    },
+    {
+     "type": "int32_t*",
+     "name": "pnXSize",
+     "cwrap": "number"
+    },
+    {
+     "type": "int32_t*",
+     "name": "pnYSize",
+     "cwrap": "number"
+    },
+    {
+     "type": "int32_t*",
+     "name": "pnZSize",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "ScalarField_GetSlice",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKSCALARFIELD",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "int32_t",
+     "name": "nZSlice",
+     "cwrap": "number"
+    },
+    {
+     "type": "float*",
+     "name": "pfBuffer",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "ScalarField_TraverseActive",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKSCALARFIELD",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKFnTraverseActiveS",
+     "name": "pfnCallback",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VectorField_hCreate",
+   "viewer": false,
+   "returnType": "PKVECTORFIELD",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VectorField_hCreateCopy",
+   "viewer": false,
+   "returnType": "PKVECTORFIELD",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVECTORFIELD",
+     "name": "hSource",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VectorField_hCreateFromVoxels",
+   "viewer": false,
+   "returnType": "PKVECTORFIELD",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hVoxels",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VectorField_hBuildFromVoxels",
+   "viewer": false,
+   "returnType": "PKVECTORFIELD",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hVoxels",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "vecValue",
+     "cwrap": "number"
+    },
+    {
+     "type": "float",
+     "name": "fSdThreshold",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VectorField_bIsValid",
+   "viewer": false,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVECTORFIELD",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VectorField_Destroy",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVECTORFIELD",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VectorField_nMemUsage",
+   "viewer": false,
+   "returnType": "int64_t",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVECTORFIELD",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VectorField_SetValue",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVECTORFIELD",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "pvecPosition",
+     "cwrap": "number"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "pvecValue",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VectorField_bGetValue",
+   "viewer": false,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVECTORFIELD",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "pvecPosition",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKVector3*",
+     "name": "pvecValue",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VectorField_RemoveValue",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVECTORFIELD",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "pvecPosition",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "VectorField_TraverseActive",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVECTORFIELD",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKFnTraverseActiveV",
+     "name": "pfnCallback",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Metadata_hFromVoxels",
+   "viewer": false,
+   "returnType": "PKMETADATA",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hVoxels",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Metadata_hFromScalarField",
+   "viewer": false,
+   "returnType": "PKMETADATA",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKSCALARFIELD",
+     "name": "hScalarField",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Metadata_hFromVectorField",
+   "viewer": false,
+   "returnType": "PKMETADATA",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVECTORFIELD",
+     "name": "hVectorField",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Metadata_Destroy",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMETADATA",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Metadata_nCount",
+   "viewer": false,
+   "returnType": "int32_t",
+   "cwrapReturn": "number",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMETADATA",
+     "name": "hThis",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Metadata_nNameLengthAt",
+   "viewer": false,
+   "returnType": "int32_t",
+   "cwrapReturn": "number",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMETADATA",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "int32_t",
+     "name": "nIndex",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Metadata_bGetNameAt",
+   "viewer": false,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMETADATA",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "int32_t",
+     "name": "nIndex",
+     "cwrap": "number"
+    },
+    {
+     "type": "char*",
+     "name": "psz",
+     "cwrap": "number"
+    },
+    {
+     "type": "int32_t",
+     "name": "nMaxStringLen",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Metadata_nTypeAt",
+   "viewer": false,
+   "returnType": "int32_t",
+   "cwrapReturn": "number",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMETADATA",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const char*",
+     "name": "psz",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Metadata_nStringLengthAt",
+   "viewer": false,
+   "returnType": "int32_t",
+   "cwrapReturn": "number",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMETADATA",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const char*",
+     "name": "psz",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Metadata_bGetStringAt",
+   "viewer": false,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMETADATA",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const char*",
+     "name": "psz",
+     "cwrap": "number"
+    },
+    {
+     "type": "char*",
+     "name": "pszValue",
+     "cwrap": "number"
+    },
+    {
+     "type": "int32_t",
+     "name": "nMaxStringLen",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Metadata_bGetFloatAt",
+   "viewer": false,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMETADATA",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const char*",
+     "name": "psz",
+     "cwrap": "number"
+    },
+    {
+     "type": "float*",
+     "name": "pfValue",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Metadata_bGetVectorAt",
+   "viewer": false,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMETADATA",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const char*",
+     "name": "psz",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKVector3*",
+     "name": "pvecValue",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Metadata_SetStringValue",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMETADATA",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const char*",
+     "name": "pszFieldName",
+     "cwrap": "number"
+    },
+    {
+     "type": "const char*",
+     "name": "pszValue",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Metadata_SetFloatValue",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMETADATA",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const char*",
+     "name": "pszFieldName",
+     "cwrap": "number"
+    },
+    {
+     "type": "float",
+     "name": "fValue",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Metadata_SetVectorValue",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMETADATA",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const char*",
+     "name": "pszFieldName",
+     "cwrap": "number"
+    },
+    {
+     "type": "const PKVector3*",
+     "name": "pvecValue",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "MetaData_RemoveValue",
+   "viewer": false,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKMETADATA",
+     "name": "hThis",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const char*",
+     "name": "pszFieldName",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_hCreate",
+   "viewer": true,
+   "returnType": "PKVIEWER",
+   "cwrapReturn": "number",
+   "args": [
+    {
+     "type": "const char*",
+     "name": "pszWindowTitle",
+     "cwrap": "number"
+    },
+    {
+     "type": "const PKVector2*",
+     "name": "pvecSize",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKFInfo",
+     "name": "pfnInfoCallback",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKPFUpdateRequested",
+     "name": "pfnUpdateCallback",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKPFKeyPressed",
+     "name": "pfnKeyPressedCallback",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKPFMouseMoved",
+     "name": "pfnMouseMoveCallback",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKPFMouseButton",
+     "name": "pfnMouseButtonCallback",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKPFScrollWheel",
+     "name": "pfnScrollWheelCallback",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKPFWindowSize",
+     "name": "pfnWindowSize",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": true
+  },
+  {
+   "name": "Viewer_bIsValid",
+   "viewer": true,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_Destroy",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_RequestUpdate",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_bPoll",
+   "viewer": true,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_RequestScreenShot",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "const char*",
+     "name": "pszScreenShotPath",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_EnableExperimental",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "bool",
+     "name": "bEnable",
+     "cwrap": "boolean"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_RequestClose",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_bLoadLightSetup",
+   "viewer": true,
+   "returnType": "bool",
+   "cwrapReturn": "boolean",
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "const char*",
+     "name": "pDiffTextureDDS",
+     "cwrap": "number"
+    },
+    {
+     "type": "int32_t",
+     "name": "nDiffTextureSize",
+     "cwrap": "number"
+    },
+    {
+     "type": "const char*",
+     "name": "pSpecTextureDDS",
+     "cwrap": "number"
+    },
+    {
+     "type": "int32_t",
+     "name": "nSpecTextureSize",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_AddMesh",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hLib",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "int32_t",
+     "name": "nGroupID",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKMESH",
+     "name": "hMesh",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_RemoveMesh",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hLib",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKMESH",
+     "name": "hMesh",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_SetMeshMatrix",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hLib",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKMESH",
+     "name": "hMesh",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKMatrix4x4*",
+     "name": "pmat",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_AddVoxels",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hLib",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "int32_t",
+     "name": "nGroupID",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hVoxels",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_RemoveVoxels",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hLib",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hVoxels",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_SetVoxelsMatrix",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hLib",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hVoxels",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKMatrix4x4*",
+     "name": "pmat",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_AddPolyLine",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hLib",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "int32_t",
+     "name": "nGroupID",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKPOLYLINE",
+     "name": "hPolyLine",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_RemovePolyLine",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hLib",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKPOLYLINE",
+     "name": "hPolyLine",
+     "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_SetPolyLineMatrix",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hLib",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKPOLYLINE",
+     "name": "hPolyLine",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "const PKMatrix4x4*",
+     "name": "pmat",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_RemoveAllObjects",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_SetGroupVisible",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "int32_t",
+     "name": "nGroupID",
+     "cwrap": "number"
+    },
+    {
+     "type": "bool",
+     "name": "bVisible",
+     "cwrap": "boolean"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_SetGroupMaterial",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "int32_t",
+     "name": "nGroupID",
+     "cwrap": "number"
+    },
+    {
+     "type": "const PKColorFloat*",
+     "name": "pclr",
+     "cwrap": "number"
+    },
+    {
+     "type": "float",
+     "name": "fMetallic",
+     "cwrap": "number"
+    },
+    {
+     "type": "float",
+     "name": "fRoughness",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_SetGroupMatrix",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "int32_t",
+     "name": "nGroupID",
+     "cwrap": "number"
+    },
+    {
+     "type": "const PKMatrix4x4*",
+     "name": "pmat",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_EnableGroupWarnOverhang",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "int32_t",
+     "name": "nGroupID",
+     "cwrap": "number"
+    },
+    {
+     "type": "float",
+     "name": "fWarning",
+     "cwrap": "number"
+    },
+    {
+     "type": "float",
+     "name": "fError",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_DisableGroupWarnOverhang",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "int32_t",
+     "name": "nGroupID",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_GetBoundingBox",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKBBox3*",
+     "name": "poBox",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_GpuTex_hCreate",
+   "viewer": true,
+   "returnType": "PKGPUTEX",
+   "cwrapReturn": "number",
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "int",
+     "name": "nWidth",
+     "cwrap": "number"
+    },
+    {
+     "type": "int",
+     "name": "nHeight",
+     "cwrap": "number"
+    },
+    {
+     "type": "const char*",
+     "name": "pRgba8",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_GpuTex_Refresh",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKGPUTEX",
+     "name": "hTex",
+     "cwrap": "number"
+    },
+    {
+     "type": "const char*",
+     "name": "pRgba8",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_GpuTex_MarkForCleanup",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "",
+     "name": "PKGPUTEX",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_Quad_hCreate",
+   "viewer": true,
+   "returnType": "PKQUAD",
+   "cwrapReturn": "number",
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKGPUTEX",
+     "name": "hTexDefault",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKColorFloat",
+     "name": "clrDefault",
+     "cwrap": "number"
+    },
+    {
+     "type": "float",
+     "name": "fAlpha",
+     "cwrap": "number"
+    },
+    {
+     "type": "const PKMatrix4x4*",
+     "name": "pmat",
+     "cwrap": "number"
+    },
+    {
+     "type": "bool",
+     "name": "bFlipX",
+     "cwrap": "boolean"
+    },
+    {
+     "type": "bool",
+     "name": "bFlipY",
+     "cwrap": "boolean"
+    },
+    {
+     "type": "bool",
+     "name": "bDoubleSided",
+     "cwrap": "boolean"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_Quad_Destroy",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKQUAD",
+     "name": "hQuad",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_Quad_SetMatrix",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKQUAD",
+     "name": "hQuad",
+     "cwrap": "number"
+    },
+    {
+     "type": "const PKMatrix4x4*",
+     "name": "pmat",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_SideBar_hCreate",
+   "viewer": true,
+   "returnType": "PKGUI",
+   "cwrapReturn": "number",
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "bool",
+     "name": "bLeft",
+     "cwrap": "boolean"
+    },
+    {
+     "type": "int",
+     "name": "nMin",
+     "cwrap": "number"
+    },
+    {
+     "type": "int",
+     "name": "nMax",
+     "cwrap": "number"
+    },
+    {
+     "type": "int",
+     "name": "nDef",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKColorFloat",
+     "name": "clrBackground",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKColorFloat",
+     "name": "clrBackgroundHv",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Viewer_SideBar_Destroy",
+   "viewer": true,
+   "returnType": "void",
+   "cwrapReturn": null,
+   "args": [
+    {
+     "type": "PKVIEWER",
+     "name": "hThis",
+     "cwrap": "number"
+    },
+    {
+     "type": "PKGUI",
+     "name": "hSideBar",
+     "cwrap": "number"
+    }
+   ],
+   "takesCallback": false
+  }
+ ]
+}

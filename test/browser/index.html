@@ -1,0 +1,134 @@
+<!doctype html>
+<!-- Phase-2 gate: gear -> GLB in a browser, plus S4 (OpenVDB actually running) there.
+     The serial build needs no SharedArrayBuffer, so no COOP/COEP headers are required —
+     a plain static server is enough. That is a real property of the serial rung. -->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>picogk-js — browser gate</title>
+    <style>
+      body { margin: 0; background: #14161a; color: #d8dee9; font: 14px/1.6 ui-monospace, monospace; }
+      #log { padding: 12px 16px; white-space: pre; }
+      .ok { color: #a3be8c; } .fail { color: #bf616a; } .dim { color: #6b7280; }
+      canvas { display: block; margin: 0 16px; border: 1px solid #2b303b; }
+    </style>
+  </head>
+  <body>
+    <div id="log"></div>
+    <canvas id="view" width="880" height="520"></canvas>
+
+    <script type="importmap">
+      { "imports": { "three": "/test/browser/vendor/three/build/three.module.js", "three/addons/": "/test/browser/vendor/three/examples/jsm/" } }
+    </script>
+    <script type="module">
+      import { createPicoGK } from '/src/index.mjs';
+      import { buildGearMesh, GEAR_DEFAULTS } from '/src/gear.mjs';
+      import { createGlb } from '/src/glb.mjs';
+      import { loadPicoGK } from '/src/raw.mjs';
+      import * as THREE from 'three';
+      import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+      const results = [];
+      const logEl = document.getElementById('log');
+      const say = (cls, text) => {
+        logEl.innerHTML += `<span class="${cls}">${text}</span>\n`;
+      };
+      const check = (name, condition, detail = '') => {
+        results.push({ name, pass: !!condition, detail });
+        say(condition ? 'ok' : 'fail', `${condition ? '✔' : '✖'} ${name}${detail ? `  ${detail}` : ''}`);
+        return condition;
+      };
+
+      try {
+        say('dim', `userAgent: ${navigator.userAgent}`);
+        say('dim', `crossOriginIsolated: ${self.crossOriginIsolated} (serial build needs no SAB)`);
+
+        // ── S1/S2: module loads and the ABI answers ──
+        const picogk = await createPicoGK({ voxelSize: 0.5 });
+        check('S1 wasm instantiated in the browser', true, picogk.version);
+        check('S2 string marshalling', /^PicoGK Core Library/.test(picogk.name), picogk.name);
+
+        // ── S4: OpenVDB actually ran (the gate a stub cannot fake) ──
+        const sphere = picogk.createVoxels({ shape: 'sphere', radius: 10 });
+        const sphereMesh = sphere.toMesh();
+        const analytic = (4 / 3) * Math.PI * 1000;
+        check('S4 OpenVDB ran: sphere -> triangles > 0', sphereMesh.triangleCount > 0,
+          `${sphereMesh.triangleCount} tris`);
+        check('S4 sphere volume within 2% of analytic', Math.abs(sphere.volume - analytic) / analytic < 0.02,
+          `${sphere.volume.toFixed(0)} vs ${analytic.toFixed(0)} mm³`);
+        sphereMesh.dispose();
+        sphere.dispose();
+
+        // ── R13: the implicit path, in a browser ──
+        const s = (2 * Math.PI) / 10;
+        const gyroid = picogk.createVoxels({
+          shape: 'implicit',
+          boundsMin: [-12, -12, -12], boundsMax: [12, 12, 12],
+          sdf: (x, y, z) => Math.abs(
+            Math.sin(x * s) * Math.cos(y * s) + Math.sin(y * s) * Math.cos(z * s) + Math.sin(z * s) * Math.cos(x * s)) - 0.4,
+        });
+        const gyroidMesh = gyroid.toMesh();
+        check('R13 JS SDF callback drives RenderImplicit in a browser', gyroidMesh.triangleCount > 5000,
+          `gyroid: ${gyroidMesh.triangleCount} tris`);
+        gyroidMesh.dispose();
+        gyroid.dispose();
+
+        // ── THE GATE: gear -> GLB ──
+        const raw = await loadPicoGK();
+        const lib = raw.createInstance(0.5);
+        const t0 = performance.now();
+        const { mesh: gearHandle, outlineCount } = buildGearMesh(raw, lib);
+        const { vertices, indices } = raw.readMesh(lib, gearHandle);
+        const glb = createGlb(vertices, indices);
+        const ms = performance.now() - t0;
+
+        check('S5 gear built through the C ABI', vertices.length / 3 === outlineCount * 2,
+          `${vertices.length / 3} verts, ${indices.length / 3} tris, ${ms.toFixed(0)}ms`);
+        const view = new DataView(glb.buffer, glb.byteOffset, glb.byteLength);
+        check('S5 GLB magic + version', view.getUint32(0, true) === 0x46546c67 && view.getUint32(4, true) === 2,
+          `${glb.byteLength} bytes`);
+
+        // ── Leak oracle ──
+        raw.destroyMesh(lib, gearHandle);
+        const leaked = raw.allocated(lib);
+        check('no leaked handles', Object.values(leaked).every((n) => n === 0), JSON.stringify(leaked));
+        raw.destroyInstance(lib);
+        picogk.dispose();
+
+        // ── Render it: proves the GLB is real, not just well-formed ──
+        const url = URL.createObjectURL(new Blob([glb], { type: 'model/gltf-binary' }));
+        const gltf = await new GLTFLoader().loadAsync(url);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('view'), antialias: true });
+        renderer.setClearColor(0x14161a);
+        const scene = new THREE.Scene();
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const key = new THREE.DirectionalLight(0xffffff, 1.4); key.position.set(1, -1, 1); scene.add(key);
+        let tris = 0;
+        gltf.scene.traverse((o) => {
+          if (!o.isMesh) return;
+          tris += o.geometry.index.count / 3;
+          o.material = new THREE.MeshStandardMaterial({ color: 0x8ab4f8, metalness: 0.25, roughness: 0.45, side: THREE.DoubleSide });
+        });
+        const box = new THREE.Box3().setFromObject(gltf.scene);
+        const centre = box.getCenter(new THREE.Vector3());
+        const radius = box.getSize(new THREE.Vector3()).length() / 2;
+        const camera = new THREE.PerspectiveCamera(35, 880 / 520, radius / 100, radius * 100);
+        camera.up.set(0, 0, 1);
+        const a = 0.6, e = 0.9, d = radius * 3;
+        camera.position.set(centre.x + d * Math.cos(e) * Math.cos(a), centre.y + d * Math.cos(e) * Math.sin(a), centre.z + d * Math.sin(e));
+        camera.lookAt(centre);
+        scene.add(gltf.scene);
+        renderer.render(scene, camera);
+        check('GLB loads in three.js and renders', tris === indices.length / 3, `${tris} tris drawn`);
+      } catch (error) {
+        check(`unexpected failure: ${error?.code ?? ''} ${error?.message ?? error}`, false);
+        console.error(error);
+      }
+
+      const failed = results.filter((r) => !r.pass).length;
+      say(failed ? 'fail' : 'ok', `\n${failed ? `${failed} FAILED` : 'ALL PASS'} — ${results.length} checks`);
+      window.__results = results;
+      window.__done = true;
+    </script>
+  </body>
+</html>
