@@ -1,0 +1,115 @@
+# R26 — build the wasm from pinned sources and run every gate (quality doc, Finding 4).
+# Three cache layers keep warm runs at minutes; a pin bump changes the hashed inputs
+# and busts exactly the layers it invalidates. No binaries live in git.
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - run: npm ci
+
+      # Layer 1 — emsdk toolchain (installed by fetch-deps.sh on miss).
+      - name: Cache emsdk
+        id: cache-emsdk
+        uses: actions/cache@v4
+        with:
+          path: vendor/emsdk
+          key: emsdk-5.0.1-${{ runner.os }}
+
+      # Layer 2 — OpenVDB + oneTBB wasm prefix (~5 min cold).
+      - name: Cache deps prefix
+        id: cache-prefix
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/wasm-prefix
+          key: prefix-${{ runner.os }}-${{ hashFiles('scripts/fetch-deps.sh', 'scripts/build-deps-wasm.sh') }}
+
+      # Layer 3 — compiled TU objects (~40 s cold).
+      - name: Cache TU objects
+        id: cache-objects
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/picogk_core_module.o
+            build/picogk_bulk_module.o
+            build/PicoGKLibraryCore.cpp
+          key: core-${{ runner.os }}-${{ hashFiles('scripts/fetch-deps.sh', 'scripts/make-core-tu.sh', 'scripts/build-picogk-module.sh', 'src/picogk-bulk.cpp', 'src/picogk-exports.txt') }}
+
+      - name: Fetch pinned sources (and emsdk on cache miss)
+        run: bash scripts/fetch-deps.sh
+
+      - name: Build deps prefix (cache miss only)
+        if: steps.cache-prefix.outputs.cache-hit != 'true'
+        run: bash scripts/build-deps-wasm.sh
+
+      # The link always runs — it keeps the exports list honest per commit.
+      - name: Build picogk module
+        run: bash scripts/build-picogk-module.sh
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build package
+        run: npm run build
+
+      - name: Unit tests + enforced 100% coverage
+        run: npm test
+
+      - name: Install Playwright engines
+        run: npx playwright install --with-deps chromium webkit firefox
+
+      - name: Browser gate (chromium + webkit + firefox)
+        run: npm run test:browser
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-and-coverage
+          path: |
+            src/picogk.mjs
+            src/picogk.wasm
+            coverage/lcov.info
+          if-no-files-found: warn
+
+  # arm64 native assertions are covered locally; CI macOS minutes are 10× — weekly only.
+  macos-weekly:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      - name: Cache emsdk
+        uses: actions/cache@v4
+        with:
+          path: vendor/emsdk
+          key: emsdk-5.0.1-${{ runner.os }}
+      - name: Cache deps prefix
+        id: cache-prefix-mac
+        uses: actions/cache@v4
+        with:
+          path: build/wasm-prefix
+          key: prefix-${{ runner.os }}-${{ hashFiles('scripts/fetch-deps.sh', 'scripts/build-deps-wasm.sh') }}
+      - run: bash scripts/fetch-deps.sh
+      - if: steps.cache-prefix-mac.outputs.cache-hit != 'true'
+        run: bash scripts/build-deps-wasm.sh
+      - run: bash scripts/build-picogk-module.sh
+      - run: npm run typecheck
+      - run: npm test

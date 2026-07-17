@@ -1,0 +1,50 @@
+# R26 — benchmark skeleton (quality doc, Finding 4). NEVER gates: CI runner load
+# violates the measurement discipline; the checked-in baseline comes from a
+# controlled machine. This job exists to catch order-of-magnitude regressions —
+# any metric >2× the committed baseline median opens an ISSUE (OQ2 default:
+# issues survive force-pushes; commit comments do not).
+name: bench
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 4 1 * *' # monthly
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      - name: Cache emsdk
+        uses: actions/cache@v4
+        with:
+          path: vendor/emsdk
+          key: emsdk-5.0.1-${{ runner.os }}
+      - name: Cache deps prefix
+        id: cache-prefix
+        uses: actions/cache@v4
+        with:
+          path: build/wasm-prefix
+          key: prefix-${{ runner.os }}-${{ hashFiles('scripts/fetch-deps.sh', 'scripts/build-deps-wasm.sh') }}
+      - run: bash scripts/fetch-deps.sh
+      - if: steps.cache-prefix.outputs.cache-hit != 'true'
+        run: bash scripts/build-deps-wasm.sh
+      - run: bash scripts/build-picogk-module.sh
+      - name: Run benchmarks (loadavg guard relaxed — CI numbers are drift canaries only)
+        run: npm run bench -- --allow-loaded
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-results
+          path: bench/results/
+      - name: Open an issue on >2x drift vs the committed baseline
+        run: node bench/check-drift.mjs --open-issue
+        env:
+          GH_TOKEN: ${{ github.token }}
