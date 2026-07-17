@@ -1,13 +1,13 @@
 // R10 — typed errors at the C ABI boundary.
 //
 // PicoGK throws std::out_of_range from HandleManager::roGet (PicoGKHandleManager.h:79)
-// and PicoGKLibrary.cpp has zero try/catch in 1,798 lines. Under -fexceptions that
-// exception does cross extern "C" — but MEASURED (2026-07-17), it surfaces in JS as a
-// bare Number (the C++ exception pointer) with an undefined message, and the module
-// stays usable afterwards.
+// and PicoGKLibrary.cpp has zero try/catch in 1,798 lines. Under -fwasm-exceptions
+// that exception does cross extern "C" — MEASURED (2026-07-18), it surfaces in JS as
+// a WebAssembly.Exception (opaque tag+payload, no usable message; under the old JS-EH
+// -fexceptions build it was a bare Number), and the module stays usable afterwards.
 //
-// So this layer exists for legibility, not survival: a raw pointer-as-number tells a
-// caller nothing. One higher-order wrapper beats 140 C++ try/catch blocks.
+// So this layer exists for legibility, not survival: an opaque WebAssembly.Exception
+// tells a caller nothing. One higher-order wrapper beats 140 C++ try/catch blocks.
 
 /** @typedef {'PICOGK_INVALID_HANDLE'|'PICOGK_WASM_INIT_FAILED'|'PICOGK_OUT_OF_MEMORY'|'PICOGK_DISPOSED'|'PICOGK_CALL_FAILED'} PicoGkErrorCode */
 
@@ -29,11 +29,11 @@ export function guard(operation, fn, describe = () => '') {
     try {
       return fn(...args);
     } catch (cause) {
-      // A thrown Number is a C++ exception pointer. The only handle-related throw in
-      // the dispatch layer is roGet's std::out_of_range, so attribute it accordingly
-      // rather than emit a generic failure the caller cannot act on.
+      // A WebAssembly.Exception is a C++ throw crossing the ABI. The only handle-
+      // related throw in the dispatch layer is roGet's std::out_of_range, so attribute
+      // it accordingly rather than emit a generic failure the caller cannot act on.
       const detail = describe(...args);
-      if (typeof cause === 'number') {
+      if (cause instanceof WebAssembly.Exception) {
         throw new PicoGkError(
           'PICOGK_INVALID_HANDLE',
           `${operation} was called with a handle PicoGK does not know${detail ? ` (${detail})` : ''}. ` +

@@ -99,16 +99,18 @@ test('R10 — invalid input throws typed, actionable errors', async () => {
   }
 });
 
-test('R10 — a bogus raw handle becomes PICOGK_INVALID_HANDLE, not a bare number', async () => {
+test('R10 — a bogus raw handle becomes PICOGK_INVALID_HANDLE, not an opaque throw', async () => {
   using picogk = await createPicoGK();
   const { cwrap } = picogk.module;
   const triangleCount = cwrap('Mesh_nTriangleCount', 'bigint', ['bigint', 'bigint']);
 
-  // Raw (unguarded) path: upstream throws the C++ exception pointer as a bare Number
-  // with no message. This is the premise R10 exists for — assert it, so the day
-  // upstream changes we find out here rather than by shipping a useless wrapper.
+  // Raw (unguarded) path: the C++ throw crosses as an opaque WebAssembly.Exception
+  // with no usable message (bare Number under the old JS-EH build). This is the
+  // premise R10 exists for — assert it, so the day upstream changes we find out here
+  // rather than by shipping a useless wrapper.
   const bare = grab(() => triangleCount(picogk.handle, 999999n), 'raw call with a bogus handle');
-  assert.equal(typeof bare, 'number', `premise changed: upstream threw ${typeof bare}, not a bare number`);
+  assert.ok(bare instanceof WebAssembly.Exception,
+    `premise changed: upstream threw ${bare?.constructor?.name ?? typeof bare}, not a WebAssembly.Exception`);
   assert.equal(bare.message, undefined, 'premise changed: the bare throw now carries a message');
 
   // Guarded path: same failure through the API is typed and explains itself.

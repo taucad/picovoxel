@@ -625,10 +625,11 @@ test('C16 — invalid handles throw and the module survives every one', () => {
     let thrown = null;
     try { call(); } catch (e) { thrown = e; }
     assert.notEqual(thrown, null, `${name} accepted a bogus handle without throwing`);
-    // Must be the C++ exception pointer (a bare Number) — a JS TypeError here means
-    // the binding itself is broken, which once let an invented function "pass".
-    assert.equal(typeof thrown, 'number',
-      `${name} threw ${thrown?.constructor?.name} — harness bug, not an ABI rejection`);
+    // Must be the C++ throw itself (WebAssembly.Exception under -fwasm-exceptions) —
+    // a JS TypeError here means the binding is broken, which once let an invented
+    // function "pass". (The old JS-EH build surfaced this as a bare Number.)
+    assert.ok(thrown instanceof WebAssembly.Exception,
+      `${name} threw ${thrown?.constructor?.name ?? typeof thrown} — harness bug, not an ABI rejection`);
 
     // The requirement is not that it throws — it is that the module still works.
     const sphere = sphereOf(lib, 3);

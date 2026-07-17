@@ -13,6 +13,7 @@ set -euo pipefail
 # libopenvdb.a. Rejected after measurement: -flto (net negative), -ffast-math (+1.6%,
 # FP risk), -mrelaxed-simd (+2.4%, engine-defined => voids the parity oracle).
 WASM_FLAGS="${WASM_FLAGS:--O3 -msimd128}"
+EH_FLAGS="${EH_FLAGS:--fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=1}"  # must match dep archives; see scripts/build-deps-wasm.sh
 
 EMSDK="${EMSDK:-$HOME/git/tau/repos/opencascade.js/deps/emsdk}"
 PICOGK_RUNTIME="${PICOGK_RUNTIME:-$HOME/git/tau/repos/PicoGKRuntime}"
@@ -33,7 +34,7 @@ emcmake cmake -B "$OUT/tbb-wasm" -S "$ONETBB_SRC" -DCMAKE_BUILD_TYPE=Release \
   -DTBB_STRICT=OFF \
   -DTBB_DISABLE_HWLOC_AUTOMATIC_SEARCH=ON -DBUILD_SHARED_LIBS=OFF \
   -DTBB_TEST=OFF -DTBB_EXAMPLES=OFF -DEMSCRIPTEN_WITHOUT_PTHREAD=true \
-  -DCMAKE_CXX_FLAGS="-Wno-unused-command-line-argument $WASM_FLAGS" \
+  -DCMAKE_CXX_FLAGS="-Wno-unused-command-line-argument $WASM_FLAGS $EH_FLAGS" \
   -DCMAKE_INSTALL_PREFIX="$PREFIX"
 cmake --build "$OUT/tbb-wasm" -j"$(sysctl -n hw.ncpu)" --target install
 
@@ -47,13 +48,13 @@ emcmake cmake -B "$OUT/ovdb-wasm" -S "$PICOGK_RUNTIME/openvdb" -DCMAKE_BUILD_TYP
   -DOPENVDB_CORE_SHARED=OFF -DOPENVDB_CORE_STATIC=ON -DUSE_EXPLICIT_INSTANTIATION=OFF \
   -DTBB_ROOT="$PREFIX" \
   -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH \
-  -DCMAKE_CXX_FLAGS="$WASM_FLAGS" \
+  -DCMAKE_CXX_FLAGS="$WASM_FLAGS $EH_FLAGS" \
   -DCMAKE_INSTALL_PREFIX="$PREFIX"
 cmake --build "$OUT/ovdb-wasm" -j"$(sysctl -n hw.ncpu)"
 cmake --install "$OUT/ovdb-wasm" --prefix "$PREFIX"   # version.h is generated; the source tree alone won't compile
 
 echo "=== bench: wasm + native ==="
-em++ -std=c++17 $WASM_FLAGS -fexceptions "$(dirname "$0")/openvdb-parity.cpp" -o "$OUT/bench.js" \
+em++ -std=c++17 $WASM_FLAGS $EH_FLAGS "$(dirname "$0")/openvdb-parity.cpp" -o "$OUT/bench.js" \
   -I"$PREFIX/include" "$PREFIX/lib/libopenvdb.a" "$PREFIX/lib/libtbb.a" \
   -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=512MB -sMAXIMUM_MEMORY=4GB \
   -sSTACK_SIZE=8388608 -sEXIT_RUNTIME=1

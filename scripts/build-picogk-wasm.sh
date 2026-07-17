@@ -14,10 +14,13 @@ set -euo pipefail
 
 EMSDK="${EMSDK:-$HOME/git/tau/repos/opencascade.js/deps/emsdk}"
 PICOGK_RUNTIME="${PICOGK_RUNTIME:-$HOME/git/tau/repos/PicoGKRuntime}"
-PREFIX="${PREFIX:?set PREFIX to the wasm OpenVDB+TBB install prefix (see bench/build.sh)}"
+PREFIX="${PREFIX:?set PREFIX to the wasm OpenVDB+TBB install prefix (see scripts/build-deps-wasm.sh)}"
 OUT="${OUT:-$PWD/build}"
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 WASM_FLAGS="${WASM_FLAGS:--O3 -msimd128}"
+# Must match the prefix's EH model (see build-deps-wasm.sh). Legacy format pinned:
+# Safari 15.2+ vs exnref's 18.4+ — the 16.4 SIMD floor sits between them.
+EH_FLAGS="${EH_FLAGS:--fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=1}"
 
 source "$EMSDK/emsdk_env.sh" >/dev/null 2>&1
 NODE="$EMSDK/node/22.16.0_64bit/bin/node"
@@ -28,15 +31,17 @@ bash "$HERE/scripts/make-core-tu.sh" \
   "$PICOGK_RUNTIME/Source/PicoGKLibrary.cpp" "$OUT/PicoGKLibraryCore.cpp"
 
 echo "=== R7: compile PicoGK core -> wasm ==="
-# -fexceptions is MANDATORY: HandleManager::roGet throws through extern "C" and
+# Exception support is MANDATORY: HandleManager::roGet throws through extern "C" and
 # PicoGKLibrary.cpp has zero try/catch — without it one bad handle kills the module.
-em++ -std=c++20 $WASM_FLAGS -fexceptions -c "$OUT/PicoGKLibraryCore.cpp" -o "$OUT/picogk_core.o" \
+# -fwasm-exceptions (2026-07-18): native wasm EH, replacing JS-EH -fexceptions —
+# −8.1% wasm size and 1.1–4.5× on EH-sensitive paths, differential byte-identical.
+em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$OUT/PicoGKLibraryCore.cpp" -o "$OUT/picogk_core.o" \
   -I"$HERE/shim" -I"$PICOGK_RUNTIME/API" -I"$PICOGK_RUNTIME/Source" -I"$PREFIX/include" \
   -DPICOGK_BUILD_LIBRARY
 
 echo "=== R7: link -> picogk.wasm ==="
-em++ -std=c++20 $WASM_FLAGS -fexceptions "$HERE/bench/picogk-parity.cpp" "$OUT/picogk_core.o" \
-  -o "$OUT/picogk.js" -I"$HERE/shim" -I"$PICOGK_RUNTIME/API" \
+em++ -std=c++20 $WASM_FLAGS $EH_FLAGS "$HERE/bench/picogk-parity.cpp" "$OUT/picogk_core.o" \
+  -o "$OUT/picogk.cjs" -I"$HERE/shim" -I"$PICOGK_RUNTIME/API" \
   "$PREFIX/lib/libopenvdb.a" "$PREFIX/lib/libtbb.a" \
   -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=512MB -sMAXIMUM_MEMORY=4GB \
   -sSTACK_SIZE=8388608 -sEXIT_RUNTIME=1
@@ -47,7 +52,7 @@ echo "SIMD instructions: $N"
 [ "$N" -gt 0 ] || { echo "FAIL: scalar build (correct but ~26% slow, invisible to functional tests)"; exit 1; }
 
 echo "=== S4 gate: sphere -> Mesh_hCreateFromVoxels -> triangles > 0 ==="
-"$NODE" "$OUT/picogk.js" 0.5 | tee "$OUT/s4.txt"
+"$NODE" "$OUT/picogk.cjs" 0.5 | tee "$OUT/s4.txt"
 grep -q "RESULT=OK" "$OUT/s4.txt" || { echo "FAIL: S4"; exit 1; }
 grep -q "leaked: voxels=0 meshes=0" "$OUT/s4.txt" || { echo "FAIL: leaked handles"; exit 1; }
 
@@ -64,7 +69,7 @@ clang++ -std=c++20 -O3 "$HERE/bench/picogk-parity.cpp" -o "$OUT/picogk_native" \
 
 fail=0
 for V in 1.0 0.5 0.25; do
-  hw=$("$NODE" "$OUT/picogk.js" "$V" | sed -n 's/.*rawHash=\([0-9]*\).*/\1/p')
+  hw=$("$NODE" "$OUT/picogk.cjs" "$V" | sed -n 's/.*rawHash=\([0-9]*\).*/\1/p')
   hn=$(cd "$OUT" && ./picogk_native "$V" | sed -n 's/.*rawHash=\([0-9]*\).*/\1/p')
   if [ "$hw" = "$hn" ]; then echo "  ${V}mm  MATCH  $hw"
   else echo "  ${V}mm  DIFFER wasm=$hw native=$hn"; fail=1; fi
