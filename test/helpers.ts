@@ -35,6 +35,24 @@ export function createFakeRegistry(onFree: (held: Held) => void = (held) => held
   return fake;
 }
 
+/** Order-sensitive 32-bit FNV-1a over the underlying bytes — the exactness oracle. */
+export function fnv1a(typedArray: Float32Array | Uint32Array | Uint8Array): number {
+  const bytes = new Uint8Array(typedArray.buffer, typedArray.byteOffset, typedArray.byteLength);
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < bytes.length; i++) {
+    hash ^= bytes[i]!;
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash >>> 0;
+}
+
+/** Hex-float rendering (%a analogue) — volumes compare exactly, never "approximately". */
+export function hexFloat(value: number): string {
+  const buffer = new DataView(new ArrayBuffer(8));
+  buffer.setFloat64(0, value);
+  return buffer.getBigUint64(0).toString(16);
+}
+
 /**
  * Loops global.gc() until `predicate` holds (bounded). The counter-oracle pattern:
  * PicoGK's own allocation counters are the ground truth for "the handle was freed".
