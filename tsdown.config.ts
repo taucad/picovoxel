@@ -10,6 +10,9 @@ export default defineConfig({
     raw: 'src/raw.mjs',
     slicing: 'src/slicing.ts',
     three: 'src/three.ts',
+    // Own entry so dist/dispose.js exists at a stable path package.json's
+    // sideEffects list can name — the shim must survive tree shaking.
+    dispose: 'src/dispose.ts',
   },
   format: 'esm',
   platform: 'neutral',

@@ -83,7 +83,7 @@ test('R10 — use after dispose throws PICOGK_DISPOSED, module survives', async 
 
 test('R10 — invalid input throws typed, actionable errors', async () => {
   await assert.rejects(() => createPicoGK({ voxelSize: 0 }), (e) =>
-    e instanceof PicoGkError && e.code === 'PICOGK_CALL_FAILED' && /positive/.test(e.message));
+    e instanceof PicoGkError && e.code === 'PICOGK_INVALID_ARGUMENT' && /positive/.test(e.message));
 
   using picogk = await createPicoGK();
   for (const [options, pattern] of [

@@ -36,7 +36,9 @@
   "files": [
     "dist"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/dispose.js"
+  ],
   "engines": {
     "node": ">=20"
   },
