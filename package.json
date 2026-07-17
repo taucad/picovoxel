@@ -50,7 +50,8 @@
     "test:fast": "vitest run",
     "test:watch": "vitest",
     "test:browser": "node scripts/browser-gate.mjs",
-    "bench": "node bench/run.mjs"
+    "bench": "node bench/run.mjs",
+    "build:demo": "tsdown --config tsdown.demo.config.ts"
   },
   "peerDependencies": {
     "three": ">=0.160"

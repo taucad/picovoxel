@@ -1,0 +1,42 @@
+<!doctype html>
+<!-- Interactive three.js demo exercising the picogk-js/three subpath (SP3).
+     The logic lives in main.ts, bundled to dist/main.js by
+     `npm run build:demo` (tsdown.demo.config.ts). Serial wasm build — any
+     plain static server over the repo root works. -->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>picogk-js — three.js demo</title>
+    <style>
+      html, body { height: 100%; }
+      body { margin: 0; display: flex; flex-direction: column; background: #14161a; color: #d8dee9; font: 13px/1.5 ui-monospace, monospace; }
+      fieldset { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; border: 0; margin: 0; padding: 10px 16px; border-bottom: 1px solid #262a31; }
+      fieldset:disabled { opacity: 0.5; }
+      label { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
+      select, input[type='range'] { accent-color: #88c0d0; background: #1d2026; color: inherit; border: 1px solid #333842; border-radius: 4px; padding: 2px 6px; }
+      #stats { margin-left: auto; color: #a3be8c; white-space: nowrap; }
+      #viewport { flex: 1; min-height: 0; }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <fieldset id="controls" disabled>
+      <label>model
+        <select id="model">
+          <option value="gyroid" selected>gyroid (implicit SDF)</option>
+          <option value="gear">involute gear (pure mesh path)</option>
+          <option value="csg">sphere − beams (CSG)</option>
+          <option value="knot">torus knot round-trip (three → picogk → three)</option>
+        </select>
+      </label>
+      <label>voxel size
+        <input id="voxel" type="range" min="0.25" max="1" step="0.05" value="0.5" />
+        <span id="voxelValue">0.50 mm</span>
+      </label>
+      <label><input id="wireframe" type="checkbox" /> wireframe</label>
+      <span id="stats">booting wasm…</span>
+    </fieldset>
+    <div id="viewport"></div>
+    <script type="module" src="./dist/main.js"></script>
+  </body>
+</html>
