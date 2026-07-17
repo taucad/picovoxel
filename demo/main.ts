@@ -16,7 +16,6 @@ import {
   WebGLRenderer,
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { toCreasedNormals } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildGearMesh } from '../src/gear.ts';
 import { createPicoGK, type Mesh, type PicoGK } from '../src/index.ts';
 import { meshFromBufferGeometry, toBufferGeometry } from '../src/three.ts';
@@ -77,7 +76,9 @@ async function session(voxelSize: number): Promise<PicoGK> {
 // ── model builders — each returns the mesh to display plus a stats note ──
 const mm3 = (volume: number) => `${volume.toFixed(0)} mm³`;
 
-const builders: Record<string, (pk: PicoGK) => { mesh: Mesh; note: string }> = {
+// `flat` — prismatic models (long thin coplanar cap triangles) shade wrong under
+// interpolated vertex normals; dense voxel-mesher output wants smooth.
+const builders: Record<string, (pk: PicoGK) => { mesh: Mesh; note: string; flat?: boolean }> = {
   gear(pk) {
     const vertices: number[] = [];
     const triangles: number[] = [];
@@ -89,7 +90,7 @@ const builders: Record<string, (pk: PicoGK) => { mesh: Mesh; note: string }> = {
       },
       0n,
     );
-    return { mesh: pk.createMesh({ vertices, triangles }), note: 'pure mesh — voxel size n/a' };
+    return { mesh: pk.createMesh({ vertices, triangles }), note: 'pure mesh — voxel size n/a', flat: true };
   },
   gyroid(pk) {
     const s = (2 * Math.PI) / 10;
@@ -135,12 +136,12 @@ async function rebuild(): Promise<void> {
   try {
     const voxelSize = currentVoxelSize();
     const startedAt = performance.now();
-    const { mesh, note } = builders[modelSelect.value]!(await session(voxelSize));
-    // Crease-aware normals: the voxel mesher welds vertices, so plain vertex
-    // normals smear across sharp edges (sphere↔bore rims blend ~90° apart) and
-    // coplanar prismatic caps shade as a twisted fan. Splitting normals above
-    // the crease angle fixes both; smooth regions stay smooth.
-    const geometry = toCreasedNormals(toBufferGeometry(mesh, { computeNormals: false }));
+    const { mesh, note, flat } = builders[modelSelect.value]!(await session(voxelSize));
+    const geometry = toBufferGeometry(mesh);
+    if (material.flatShading !== (flat === true)) {
+      material.flatShading = flat === true;
+      material.needsUpdate = true;
+    }
     const elapsed = Math.round(performance.now() - startedAt);
     geometry.center();
     displayed.geometry.dispose();
