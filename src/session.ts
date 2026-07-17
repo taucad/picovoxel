@@ -380,6 +380,9 @@ export async function createPicoGK(options: CreatePicoGkOptions = {}): Promise<P
           try {
             if (raw.VdbFile_nFieldCount(scratchLib, file) < 1) return 0;
             const type = raw.VdbFile_nFieldType(scratchLib, file, 0);
+            /* v8 ignore next 9 -- the ": 0n" arm needs a foreign .vdb whose first grid
+               is neither levelset nor scalar nor vector (e.g. a FOG grid); our ABI
+               cannot produce such bytes to test with */
             const field =
               type === 0
                 ? raw.VdbFile_hGetVoxels(scratchLib, file, 0)
@@ -388,6 +391,7 @@ export async function createPicoGK(options: CreatePicoGkOptions = {}): Promise<P
                   : type === 2
                     ? raw.VdbFile_hGetVectorField(scratchLib, file, 0)
                     : 0n;
+            /* v8 ignore next -- reachable only via the foreign-grid arm above */
             if (!field) return 0;
             const meta =
               type === 0

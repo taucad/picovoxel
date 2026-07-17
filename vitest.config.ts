@@ -14,7 +14,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**'],
-      exclude: ['src/picogk.mjs', 'src/raw.generated.ts'],
+      exclude: ['src/picogk.mjs', 'src/picogk.wasm', 'src/raw.generated.ts', 'src/picogk-bulk.cpp', 'src/picogk-exports.txt', 'src/abi.json'],
       thresholds: { lines: 100, branches: 100, functions: 100, statements: 100 },
       reporter: ['text', 'lcov'],
     },

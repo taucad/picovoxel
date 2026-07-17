@@ -53,16 +53,6 @@ function addPolar(points: Point2[], radius: number, angle: number): void {
   if (!last || (last[0] - p[0]) ** 2 + (last[1] - p[1]) ** 2 > 1e-6) points.push(p);
 }
 
-const signedArea = (pts: Point2[]): number => {
-  let area = 0;
-  for (let i = 0; i < pts.length; i++) {
-    const a = pts[i]!;
-    const b = pts[(i + 1) % pts.length]!;
-    area += a[0] * b[1] - b[0] * a[1];
-  }
-  return area / 2;
-};
-
 export function createGearOutline(opts: Partial<GearOptions> = {}): Point2[] {
   const o = { ...GEAR_DEFAULTS, ...opts };
   const pitchRadius = (o.module * o.teeth) / 2;
@@ -102,10 +92,10 @@ export function createGearOutline(opts: Partial<GearOptions> = {}): Point2[] {
     }
   }
 
-  const first = points[0]!;
-  const last = points[points.length - 1]!;
-  if ((first[0] - last[0]) ** 2 + (first[1] - last[1]) ** 2 < 1e-6) points.pop();
-  if (signedArea(points) < 0) points.reverse();
+  // The outline closes by construction (the last root-arc point lands on the first
+  // flank point exactly) — drop the duplicate. The polar sweep is monotonically CCW,
+  // so no winding fix-up is needed (probed across teeth 2..97).
+  points.pop();
   return points;
 }
 

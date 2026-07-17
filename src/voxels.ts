@@ -178,7 +178,9 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
     } else if (mode === 'antialiased') {
       for (let i = 0; i < data.length; i++) {
         const value = data[i]!;
-        data[i] = value <= 0 ? 0 : value > background ? 1 : value / background;
+        // Outside-band samples equal background exactly (never exceed it), so the
+        // clamp arm is >=: identical output, honest reachability.
+        data[i] = value <= 0 ? 0 : value >= background ? 1 : value / background;
       }
     }
   };

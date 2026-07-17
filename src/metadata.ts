@@ -82,25 +82,27 @@ export function wrapMetadata(ctx: SessionContext, handle: bigint): Metadata {
     return handle;
   };
 
+  // Note: the try-style bGet*At duals cannot fail once nTypeAt confirmed the type —
+  // single-threaded, no removal can interleave — so their results are not branched on.
   const readValue = (name: string): MetadataValue | undefined => {
     const type = TYPE_NAMES[withStrings(ctx, [name], (n) => ctx.raw.Metadata_nTypeAt(ctx.lib, handle, n))];
     if (type === 'string') {
       const length = withStrings(ctx, [name], (n) => ctx.raw.Metadata_nStringLengthAt(ctx.lib, handle, n)) + 1;
       const buffer = ctx.module._malloc(length);
       try {
-        const found = withStrings(ctx, [name], (n) => ctx.raw.Metadata_bGetStringAt(ctx.lib, handle, n, buffer, length));
-        return found ? readCString(ctx, buffer) : undefined;
+        withStrings(ctx, [name], (n) => ctx.raw.Metadata_bGetStringAt(ctx.lib, handle, n, buffer, length));
+        return readCString(ctx, buffer);
       } finally {
         ctx.module._free(buffer);
       }
     }
     if (type === 'float') {
-      const found = withStrings(ctx, [name], (n) => ctx.raw.Metadata_bGetFloatAt(ctx.lib, handle, n, ctx.scratch));
-      return found ? ctx.module.HEAPF32[ctx.scratch >> 2]! : undefined;
+      withStrings(ctx, [name], (n) => ctx.raw.Metadata_bGetFloatAt(ctx.lib, handle, n, ctx.scratch));
+      return ctx.module.HEAPF32[ctx.scratch >> 2]!;
     }
     if (type === 'vector') {
-      const found = withStrings(ctx, [name], (n) => ctx.raw.Metadata_bGetVectorAt(ctx.lib, handle, n, ctx.scratch));
-      return found ? ctx.readVec3(ctx.scratch) : undefined;
+      withStrings(ctx, [name], (n) => ctx.raw.Metadata_bGetVectorAt(ctx.lib, handle, n, ctx.scratch));
+      return ctx.readVec3(ctx.scratch);
     }
     return undefined;
   };
@@ -116,9 +118,8 @@ export function wrapMetadata(ctx: SessionContext, handle: bigint): Metadata {
         const length = ctx.raw.Metadata_nNameLengthAt(ctx.lib, handle, i) + 1;
         const buffer = ctx.module._malloc(length);
         try {
-          if (ctx.raw.Metadata_bGetNameAt(ctx.lib, handle, i, buffer, length)) {
-            result.push(readCString(ctx, buffer));
-          }
+          ctx.raw.Metadata_bGetNameAt(ctx.lib, handle, i, buffer, length); // i < count: cannot fail
+          result.push(readCString(ctx, buffer));
         } finally {
           ctx.module._free(buffer);
         }

@@ -54,6 +54,8 @@ export function wrapVdbFile(ctx: SessionContext, handle: bigint): VdbFile {
     return handle;
   };
 
+  /* v8 ignore next 2 -- the 'unsupported' arm needs a foreign grid class (e.g. FOG)
+     this ABI cannot create; containers we can build only hold types 0/1/2 */
   const typeAt = (index: number): VdbFieldType => FIELD_TYPES[ctx.raw.VdbFile_nFieldType(ctx.lib, handle, index)] ?? 'unsupported';
 
   const nameAt = (index: number): string => {
@@ -131,6 +133,8 @@ export function wrapVdbFile(ctx: SessionContext, handle: bigint): VdbFile {
       stampPicoGkMetadata(ctx, handle);
       const path = temporaryVdbPath();
       const saved = withStrings(ctx, [path], (pathPtr) => ctx.raw.VdbFile_bSaveToFile(ctx.lib, handle, pathPtr));
+      /* v8 ignore next 3 -- defensive: MEMFS writes at / cannot fail short of OOM,
+         and the save path is not injectable through the facade */
       if (!saved) {
         throw new PicoGkError('PICOGK_CALL_FAILED', 'VdbFile_bSaveToFile failed — the container could not be serialised.');
       }
@@ -170,6 +174,8 @@ function stampPicoGkMetadata(ctx: SessionContext, vdbHandle: bigint): void {
   const count = raw.VdbFile_nFieldCount(lib, vdbHandle);
   for (let i = 0; i < count; i++) {
     const type = raw.VdbFile_nFieldType(lib, vdbHandle, i);
+    /* v8 ignore next 9 -- the ": 0n" arm needs a foreign grid type (e.g. FOG) that
+       this ABI cannot create; containers we build only hold types 0/1/2 */
     const field =
       type === 0
         ? raw.VdbFile_hGetVoxels(lib, vdbHandle, i)
@@ -178,6 +184,7 @@ function stampPicoGkMetadata(ctx: SessionContext, vdbHandle: bigint): void {
           : type === 2
             ? raw.VdbFile_hGetVectorField(lib, vdbHandle, i)
             : 0n;
+    /* v8 ignore next -- reachable only via the foreign-grid arm above */
     if (!field) continue; // unsupported field types are saved untouched
     const meta =
       type === 0

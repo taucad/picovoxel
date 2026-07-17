@@ -11,3 +11,4 @@ src/picogk.mjs
 src/picogk.wasm
 test/browser/vendor/
 .DS_Store
+coverage/

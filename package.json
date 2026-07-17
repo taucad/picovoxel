@@ -45,7 +45,8 @@
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
+    "test:fast": "vitest run",
     "test:watch": "vitest"
   },
   "peerDependencies": {

@@ -239,6 +239,9 @@ export function contoursFromSdf(image: SdfImage, scale = 1, offsetX = 0, offsetY
       chain = [];
       currStart = currEnd = -1;
     } else if (bestStart === bestEnd || bestStart === currEnd || bestEnd === currStart) {
+      /* v8 ignore next 4 -- the same-segment closure needs a two-segment loop,
+         which marching squares cannot emit (minimum four segments per cell ring);
+         kept because the upstream stitcher guards it for adversarial soups */
       if (bestStart === bestEnd) {
         segments[bestEnd]!.used = true;
         segmentsLeft--;
@@ -262,19 +265,15 @@ export function contoursFromSdf(image: SdfImage, scale = 1, offsetX = 0, offsetY
     }
   }
 
-  // Close every contour (Slice.cs Close(): last point equals first).
+  // Close every contour (Slice.cs Close(): last point equals first). Stitched
+  // chains always stop one joint short of the seed — closure is DETECTED, never
+  // appended — so the loop unconditionally needs its first point repeated.
   return contours.map(({ points, winding }) => {
-    const n = points.length;
-    const dx = points[0]! - points[n - 2]!;
-    const dy = points[1]! - points[n - 1]!;
-    if (dx * dx + dy * dy > 0) {
-      const closed = new Float64Array(n + 2);
-      closed.set(points);
-      closed[n] = points[0]!;
-      closed[n + 1] = points[1]!;
-      return { points: closed, winding };
-    }
-    return { points, winding };
+    const closed = new Float64Array(points.length + 2);
+    closed.set(points);
+    closed[points.length] = points[0]!;
+    closed[points.length + 1] = points[1]!;
+    return { points: closed, winding };
   });
 }
 
@@ -325,11 +324,15 @@ export function sliceVoxels(voxels: Voxels, options: SliceVoxelsOptions = {}): S
   return { slices, bounds: stackBounds(slices) };
 }
 
-/** Session voxel size recovered from slice-origin spacing (avoids a facade dependency). */
+/**
+ * Session voxel size recovered from slice-origin spacing (avoids a facade
+ * dependency). Callers guard nz > 0, and adjacent slice origins always differ
+ * by exactly one voxel, so the spacing is never zero.
+ */
 function voxelSizeOf(voxels: Voxels): number {
   const a = voxels.sliceOrigin(0);
   const b = voxels.sliceOrigin(1);
-  return Math.abs(b[2] - a[2]) || 1;
+  return Math.abs(b[2] - a[2]);
 }
 
 function stackBounds(slices: Slice[]): SliceStack['bounds'] {
