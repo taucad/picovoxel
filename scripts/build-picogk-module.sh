@@ -16,11 +16,18 @@
 # and would break the floor if an emsdk upgrade flips the default.
 set -euo pipefail
 
-EMSDK="${EMSDK:-$HOME/git/tau/repos/opencascade.js/deps/emsdk}"
-PICOGK_RUNTIME="${PICOGK_RUNTIME:-$HOME/git/tau/repos/PicoGKRuntime}"
-PREFIX="${PREFIX:?set PREFIX to the wasm OpenVDB+TBB install prefix (scripts/build-deps-wasm.sh)}"
-OUT="${OUT:-$PWD/build}"
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
+# Sources resolve vendor-first (scripts/fetch-deps.sh); siblings are the fallback.
+if [ -z "${EMSDK:-}" ]; then
+  if [ -x "$HERE/vendor/emsdk/emsdk" ]; then EMSDK="$HERE/vendor/emsdk"
+  else EMSDK="$HOME/git/tau/repos/opencascade.js/deps/emsdk"; fi
+fi
+if [ -z "${PICOGK_RUNTIME:-}" ]; then
+  if [ -d "$HERE/vendor/PicoGKRuntime/Source" ]; then PICOGK_RUNTIME="$HERE/vendor/PicoGKRuntime"
+  else PICOGK_RUNTIME="$HOME/git/tau/repos/PicoGKRuntime"; fi
+fi
+OUT="${OUT:-$HERE/build}"
+PREFIX="${PREFIX:-$OUT/wasm-prefix}"
 OUT_JS="${OUT_JS:-$HERE/src}"
 WASM_FLAGS="${WASM_FLAGS:--O3 -msimd128}"
 EH_FLAGS="${EH_FLAGS:--fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=1}"

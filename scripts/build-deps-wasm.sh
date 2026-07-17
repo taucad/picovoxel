@@ -14,14 +14,26 @@
 # pads (+745KB archive), so keep EH_FLAGS on both builds for one coherent model.
 set -euo pipefail
 
+HERE="$(cd "$(dirname "$0")/.." && pwd)"
 WASM_FLAGS="${WASM_FLAGS:--O3 -msimd128}"
 # WASM_LEGACY_EXCEPTIONS is [compile+link]: pin the legacy EH format everywhere
 # (Safari 15.2+; the exnref format is 18.4+, above the 16.4 SIMD floor).
 EH_FLAGS="${EH_FLAGS:--fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=1}"
-EMSDK="${EMSDK:-$HOME/git/tau/repos/opencascade.js/deps/emsdk}"
-PICOGK_RUNTIME="${PICOGK_RUNTIME:-$HOME/git/tau/repos/PicoGKRuntime}"
-ONETBB_SRC="${ONETBB_SRC:-$HOME/git/tau/repos/oneTBB}"
-OUT="${OUT:-$PWD/build}"
+# Sources resolve vendor-first (scripts/fetch-deps.sh); the sibling checkouts remain
+# the documented local fallback for development without a vendor/ tree.
+if [ -z "${EMSDK:-}" ]; then
+  if [ -x "$HERE/vendor/emsdk/emsdk" ]; then EMSDK="$HERE/vendor/emsdk"
+  else EMSDK="$HOME/git/tau/repos/opencascade.js/deps/emsdk"; fi
+fi
+if [ -z "${PICOGK_RUNTIME:-}" ]; then
+  if [ -d "$HERE/vendor/PicoGKRuntime/Source" ]; then PICOGK_RUNTIME="$HERE/vendor/PicoGKRuntime"
+  else PICOGK_RUNTIME="$HOME/git/tau/repos/PicoGKRuntime"; fi
+fi
+if [ -z "${ONETBB_SRC:-}" ]; then
+  if [ -d "$HERE/vendor/oneTBB/src" ]; then ONETBB_SRC="$HERE/vendor/oneTBB"
+  else ONETBB_SRC="$HOME/git/tau/repos/oneTBB"; fi
+fi
+OUT="${OUT:-$HERE/build}"
 PREFIX="${PREFIX:-$OUT/wasm-prefix}"
 
 source "$EMSDK/emsdk_env.sh" >/dev/null 2>&1

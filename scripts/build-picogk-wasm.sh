@@ -12,11 +12,18 @@
 # Benchmark against the DEFAULT native build instead — that's what native users get.
 set -euo pipefail
 
-EMSDK="${EMSDK:-$HOME/git/tau/repos/opencascade.js/deps/emsdk}"
-PICOGK_RUNTIME="${PICOGK_RUNTIME:-$HOME/git/tau/repos/PicoGKRuntime}"
-PREFIX="${PREFIX:?set PREFIX to the wasm OpenVDB+TBB install prefix (see scripts/build-deps-wasm.sh)}"
-OUT="${OUT:-$PWD/build}"
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
+# Sources resolve vendor-first (scripts/fetch-deps.sh); siblings are the fallback.
+if [ -z "${EMSDK:-}" ]; then
+  if [ -x "$HERE/vendor/emsdk/emsdk" ]; then EMSDK="$HERE/vendor/emsdk"
+  else EMSDK="$HOME/git/tau/repos/opencascade.js/deps/emsdk"; fi
+fi
+if [ -z "${PICOGK_RUNTIME:-}" ]; then
+  if [ -d "$HERE/vendor/PicoGKRuntime/Source" ]; then PICOGK_RUNTIME="$HERE/vendor/PicoGKRuntime"
+  else PICOGK_RUNTIME="$HOME/git/tau/repos/PicoGKRuntime"; fi
+fi
+PREFIX="${PREFIX:-$HERE/build/wasm-prefix}"
+OUT="${OUT:-$HERE/build}"
 WASM_FLAGS="${WASM_FLAGS:--O3 -msimd128}"
 # Must match the prefix's EH model (see build-deps-wasm.sh). Legacy format pinned:
 # Safari 15.2+ vs exnref's 18.4+ — the 16.4 SIMD floor sits between them.
