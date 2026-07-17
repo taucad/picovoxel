@@ -1,11 +1,44 @@
 {
-  "name": "@taucad/picogk",
-  "version": "0.0.0",
-  "private": true,
+  "name": "picogk-js",
+  "version": "0.1.0",
   "type": "module",
-  "description": "PicoGK (voxel/implicit CAD on OpenVDB) compiled to WebAssembly",
+  "description": "PicoGK — voxel/implicit computational geometry on OpenVDB — compiled to WebAssembly, with an idiomatic TypeScript API",
+  "license": "Apache-2.0",
+  "keywords": [
+    "picogk",
+    "openvdb",
+    "voxel",
+    "implicit",
+    "sdf",
+    "cad",
+    "geometry",
+    "webassembly",
+    "wasm"
+  ],
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./raw": {
+      "types": "./dist/raw.d.ts",
+      "import": "./dist/raw.js"
+    },
+    "./slicing": {
+      "types": "./dist/slicing.d.ts",
+      "import": "./dist/slicing.js"
+    },
+    "./three": {
+      "types": "./dist/three.d.ts",
+      "import": "./dist/three.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
   },
   "scripts": {
     "build": "tsdown",
@@ -13,11 +46,14 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "files": [
-    "src",
-    "shim",
-    "scripts"
-  ],
+  "peerDependencies": {
+    "three": ">=0.160"
+  },
+  "peerDependenciesMeta": {
+    "three": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@types/node": "^26.1.1",
     "@vitest/coverage-v8": "^4.1.10",
