@@ -1,0 +1,229 @@
+{
+  "fingerprint": {
+    "cpu": "Apple M2 Pro",
+    "cores": 12,
+    "ramGiB": 32,
+    "os": "darwin 25.0.0",
+    "node": "v24.6.0",
+    "wasmSha256": "31f1f1de991c8eeb23dfa69c8c0518295cad320db5419e45a0f3075ae502cf3c",
+    "wasmBytes": 5763731,
+    "gitSha": "7212f2a",
+    "date": "2026-07-17T15:30:42.383Z",
+    "startLoad": 2.85986328125
+  },
+  "results": {
+    "M1": {
+      "description": "createPicoGK() cold instantiate (5.8 MB module)",
+      "phases": {
+        "instantiate": {
+          "medianMs": 9.812,
+          "minMs": 9.559,
+          "maxMs": 13.843
+        }
+      },
+      "identity": null,
+      "loadBefore": 2.85986328125,
+      "loadAfter": 2.85986328125,
+      "flagged": false
+    },
+    "M2@0.5": {
+      "description": "sphere r=10 @ 0.5mm",
+      "phases": {
+        "build": {
+          "medianMs": 1.117,
+          "minMs": 1.007,
+          "maxMs": 1.441
+        },
+        "volume": {
+          "medianMs": 0.919,
+          "minMs": 0.887,
+          "maxMs": 0.945
+        }
+      },
+      "identity": {
+        "volume": "40b062d220000000"
+      },
+      "loadBefore": 2.85986328125,
+      "loadAfter": 2.85986328125,
+      "flagged": false
+    },
+    "M2@0.25": {
+      "description": "sphere r=10 @ 0.25mm",
+      "phases": {
+        "build": {
+          "medianMs": 3.398,
+          "minMs": 3.19,
+          "maxMs": 3.493
+        },
+        "volume": {
+          "medianMs": 3.332,
+          "minMs": 3.283,
+          "maxMs": 3.521
+        }
+      },
+      "identity": {
+        "volume": "40b05e9fa0000000"
+      },
+      "loadBefore": 2.85986328125,
+      "loadAfter": 2.85986328125,
+      "flagged": false
+    },
+    "M3@0.5": {
+      "description": "gyroid implicit @ 0.5mm (JS SDF)",
+      "phases": {
+        "render": {
+          "medianMs": 19.553,
+          "minMs": 19.065,
+          "maxMs": 24.235
+        },
+        "mesh": {
+          "medianMs": 14.053,
+          "minMs": 13.862,
+          "maxMs": 14.835
+        }
+      },
+      "identity": {
+        "volume": "40c1773220000000",
+        "triangles": 162636
+      },
+      "loadBefore": 2.85986328125,
+      "loadAfter": 2.85986328125,
+      "flagged": false
+    },
+    "M3@0.25": {
+      "description": "gyroid implicit @ 0.25mm (JS SDF)",
+      "phases": {
+        "render": {
+          "medianMs": 138.433,
+          "minMs": 129.693,
+          "maxMs": 140.081
+        },
+        "mesh": {
+          "medianMs": 59.193,
+          "minMs": 53.59,
+          "maxMs": 59.741
+        }
+      },
+      "identity": {
+        "volume": "40b0937560000000",
+        "triangles": 538668
+      },
+      "loadBefore": 2.85986328125,
+      "loadAfter": 2.87060546875,
+      "flagged": false
+    },
+    "M4": {
+      "description": "union + subtract + intersect chain (differential shapes)",
+      "phases": {
+        "chain": {
+          "medianMs": 7.096,
+          "minMs": 7.042,
+          "maxMs": 7.23
+        }
+      },
+      "identity": {
+        "volume": "40ac7355a0000000"
+      },
+      "loadBefore": 2.87060546875,
+      "loadAfter": 2.87060546875,
+      "flagged": false
+    },
+    "M5": {
+      "description": "offset +2 and smoothen(1) on a CSG body",
+      "phases": {
+        "offset": {
+          "medianMs": 291.829,
+          "minMs": 287.308,
+          "maxMs": 305.538
+        },
+        "smoothen": {
+          "medianMs": 506.893,
+          "minMs": 502.069,
+          "maxMs": 517.483
+        }
+      },
+      "identity": {
+        "grown": "40c197d680000000",
+        "smooth": "40b399d160000000"
+      },
+      "loadBefore": 2.87060546875,
+      "loadAfter": 2.880859375,
+      "flagged": false
+    },
+    "M6": {
+      "description": "mesh readback bulk vs per-element (0.25mm gyroid)",
+      "phases": {
+        "bulk": {
+          "medianMs": 0.674,
+          "minMs": 0.346,
+          "maxMs": 0.806
+        },
+        "perElement": {
+          "medianMs": 24.697,
+          "minMs": 21.475,
+          "maxMs": 25.327
+        }
+      },
+      "identity": {
+        "vertices": "ccc61ca1",
+        "count": 114156
+      },
+      "loadBefore": 2.880859375,
+      "loadAfter": 2.880859375,
+      "flagged": false
+    },
+    "M7": {
+      "description": "100k-triangle synthetic bulk import",
+      "phases": {
+        "import": {
+          "medianMs": 1.766,
+          "minMs": 1.652,
+          "maxMs": 2.107
+        }
+      },
+      "identity": {
+        "vertexCount": 100000,
+        "triangleCount": 99998
+      },
+      "loadBefore": 2.880859375,
+      "loadAfter": 2.880859375,
+      "flagged": false
+    },
+    "M8": {
+      "description": "full interpolated slice sweep + vectorize (sphere r=8)",
+      "phases": {
+        "sweep": {
+          "medianMs": 4.541,
+          "minMs": 4.112,
+          "maxMs": 5.446
+        }
+      },
+      "identity": {
+        "layers": 31,
+        "contours": 31
+      },
+      "loadBefore": 2.880859375,
+      "loadAfter": 2.880859375,
+      "flagged": false
+    },
+    "M9": {
+      "description": "facade vs raw: 10k isEmpty calls",
+      "phases": {
+        "raw10k": {
+          "medianMs": 17.326,
+          "minMs": 16.952,
+          "maxMs": 25.513
+        },
+        "facade10k": {
+          "medianMs": 17.016,
+          "minMs": 16.446,
+          "maxMs": 19.288
+        }
+      },
+      "identity": null,
+      "loadBefore": 2.880859375,
+      "loadAfter": 2.880859375,
+      "flagged": false
+    }
+  }
+}
