@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { afterAll, beforeAll, test } from 'vitest';
 import { createPicoGK, type Mesh, type PicoGK } from '../src/index.ts';
-import { buildGearMesh, GEAR_DEFAULTS } from '../src/gear.ts';
+import { buildGearMesh, GEAR_DEFAULTS } from '../examples/picogk/gear.ts';
 import { meshFromBufferGeometry, toBufferGeometry } from '../src/three.ts';
 import { fnv1a } from './helpers.ts';
 

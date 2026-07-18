@@ -40,7 +40,7 @@ execFileSync('./node_modules/.bin/tsdown', ['--config', 'tsdown.gate.config.ts']
 // ── 2. Node-side records from the same wasm ──
 console.log('computing node records…');
 const { createPicoGK } = await import('../src/index.ts');
-const { createGearOutline, triangulate, buildGearMesh } = await import('../src/gear.ts');
+const { createGearOutline, triangulate, buildGearMesh } = await import('../examples/picogk/gear.ts');
 
 const hexFloat = (value) => {
   const view = new DataView(new ArrayBuffer(8));

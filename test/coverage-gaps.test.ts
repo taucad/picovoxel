@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { guard, PicoGkError } from '../src/errors.ts';
-import { createGearOutline, triangulate } from '../src/gear.ts';
+import { createGearOutline, triangulate } from '../examples/picogk/gear.ts';
 import { createPicoGK, type PicoGK } from '../src/index.ts';
 import { contoursFromSdf, detectWinding, sliceToSvg, sliceVoxels, slicesFromCli, slicesToCli as slicesToCliLocal } from '../src/slicing.ts';
 import { meshFromBufferGeometry, toBufferGeometry } from '../src/three.ts';

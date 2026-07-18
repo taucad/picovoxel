@@ -18,7 +18,7 @@ import { cpus, loadavg, platform, release, totalmem } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createPicoGK } from '../src/index.ts';
-import { buildGearMesh } from '../src/gear.ts';
+import { buildGearMesh } from '../examples/picogk/gear.ts';
 import { sliceVoxels } from '../src/slicing.ts';
 
 const HERE = resolve(dirname(fileURLToPath(import.meta.url)), '..');

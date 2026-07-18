@@ -8,7 +8,7 @@
 // engines); anything routed through JS Math (SDF callbacks, gear trig) uses a
 // tight tolerance because Math.sin/cos differ across engines by ULPs.
 
-import { createGearOutline, triangulate } from '../../src/gear.ts';
+import { createGearOutline, triangulate } from '../../examples/picogk/gear.ts';
 import { createPicoGK } from '../../src/index.ts';
 import { contoursFromSdf } from '../../src/slicing.ts';
 
@@ -130,7 +130,7 @@ async function main(): Promise<void> {
     addVertex: (_l: bigint, _m: bigint, x: number, y: number, z: number) => (vertices.push(x, y, z), vertices.length / 3 - 1),
     addTriangle: (_l: bigint, _m: bigint, a: number, b: number, c: number) => (triangles.push(a, b, c), triangles.length / 3 - 1),
   };
-  const { buildGearMesh } = await import('../../src/gear.ts');
+  const { buildGearMesh } = await import('../../examples/picogk/gear.ts');
   buildGearMesh(arrayBuilder, 0n);
   const gearMesh = pk.createMesh({ vertices, triangles });
   check('gear counts EXACT (R8 bulk import)',

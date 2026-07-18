@@ -16,6 +16,6 @@
     "forceConsistentCasingInFileNames": true,
     "noUncheckedIndexedAccess": true
   },
-  "include": ["src", "test", "scripts", "demo", "tsdown.config.ts", "tsdown.gate.config.ts", "tsdown.demo.config.ts", "vitest.config.ts"],
+  "include": ["src", "test", "scripts", "demo", "examples", "tsdown.config.ts", "tsdown.gate.config.ts", "tsdown.demo.config.ts", "vitest.config.ts"],
   "exclude": ["src/picogk.mjs", "src/picogk-multi.mjs", "node_modules", "dist", "build", "vendor"]
 }

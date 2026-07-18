@@ -16,7 +16,7 @@ import {
   WebGLRenderer,
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildGearMesh } from '../src/gear.ts';
+import { buildGearMesh } from '../examples/picogk/gear.ts';
 import type { CreatePicoGkOptions, Mesh, PicoGK } from '../src/index.ts';
 import { meshFromBufferGeometry, toBufferGeometry } from '../src/three.ts';
 

@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { loadRawHarness } from './raw-harness.ts';
-import { buildGearMesh } from '../src/gear.ts';
+import { buildGearMesh } from '../examples/picogk/gear.ts';
 
 const pk = await loadRawHarness();
 

@@ -59,11 +59,14 @@ jobs:
       - name: Build picogk module
         run: bash scripts/build-picogk-module.sh
 
-      - name: Typecheck
-        run: npm run typecheck
-
+      # Build BEFORE typecheck: examples/ import the built package by name
+      # (self-reference), so their types resolve from dist/*.d.ts — that IS the
+      # packaging gate (blueprint R2/D4).
       - name: Build package
         run: npm run build
+
+      - name: Typecheck
+        run: npm run typecheck
 
       - name: Unit tests + enforced 100% coverage
         run: npm test
@@ -111,5 +114,6 @@ jobs:
       - if: steps.cache-prefix-mac.outputs.cache-hit != 'true'
         run: bash scripts/build-deps-wasm.sh
       - run: bash scripts/build-picogk-module.sh
+      - run: npm run build
       - run: npm run typecheck
       - run: npm test
