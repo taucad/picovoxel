@@ -1,0 +1,234 @@
+{
+ "ex-base-box": [
+  {
+   "volumeHex": "000000a0944ca740",
+   "triangles": 2844
+  },
+  {
+   "volumeHex": "000000c07b339840",
+   "triangles": 2516
+  },
+  {
+   "volumeHex": "000000a0f894bd40",
+   "triangles": 8580
+  }
+ ],
+ "ex-base-cylinder": [
+  {
+   "volumeHex": "000000c082631241",
+   "triangles": 58860
+  },
+  {
+   "volumeHex": "000000c03ebed140",
+   "triangles": 12224
+  },
+  {
+   "volumeHex": "00000040d0bfe640",
+   "triangles": 30392
+  }
+ ],
+ "ex-base-lens": [
+  {
+   "volumeHex": "0000000016e8e640",
+   "triangles": 27592
+  },
+  {
+   "volumeHex": "000000405891fb40",
+   "triangles": 46304
+  },
+  {
+   "volumeHex": "000000004a31ec40",
+   "triangles": 48416
+  }
+ ],
+ "ex-base-pipe": [
+  {
+   "volumeHex": "00000060e497eb40",
+   "triangles": 32808
+  },
+  {
+   "volumeHex": "000000802d95cb40",
+   "triangles": 14360
+  },
+  {
+   "volumeHex": "000000800459c640",
+   "triangles": 17628
+  },
+  {
+   "volumeHex": "00000020c5abca40",
+   "triangles": 35320
+  },
+  {
+   "volumeHex": "00000000f756c540",
+   "triangles": 30584
+  },
+  {
+   "volumeHex": "000000a04182d640",
+   "triangles": 62140
+  },
+  {
+   "volumeHex": "000000206e95ca40",
+   "triangles": 38864
+  }
+ ],
+ "ex-base-pipe-segment": [
+  {
+   "volumeHex": "00000060ae91eb40",
+   "triangles": 24700
+  },
+  {
+   "volumeHex": "00000000a13ba640",
+   "triangles": 6488
+  },
+  {
+   "volumeHex": "000000407545ac40",
+   "triangles": 10748
+  },
+  {
+   "volumeHex": "00000020ec87c140",
+   "triangles": 27364
+  },
+  {
+   "volumeHex": "000000009dfdd040",
+   "triangles": 50036
+  },
+  {
+   "volumeHex": "00000040c933ba40",
+   "triangles": 20804
+  }
+ ],
+ "ex-base-ring": [
+  {
+   "volumeHex": "000000802972e240",
+   "triangles": 26376
+  },
+  {
+   "volumeHex": "000000209395ed40",
+   "triangles": 42384
+  },
+  {
+   "volumeHex": "000000600127ee40",
+   "triangles": 37560
+  },
+  {
+   "volumeHex": "0000002025d7ee40",
+   "triangles": 45104
+  }
+ ],
+ "ex-base-sphere": [
+  {
+   "volumeHex": "00000040c85a1041",
+   "triangles": 60180
+  },
+  {
+   "volumeHex": "00000040063d1241",
+   "triangles": 85852
+  },
+  {
+   "volumeHex": "000000a070102041",
+   "triangles": 147116
+  }
+ ],
+ "ex-basic-lattices": [
+  {
+   "volumeHex": "00000000f1dc8640",
+   "triangles": 6176
+  }
+ ],
+ "ex-implicit-gyroid-genus": [
+  {
+   "volumeHex": "000000e0024fd73f",
+   "triangles": 152
+  },
+  {
+   "volumeHex": "0000000060021340",
+   "triangles": 516
+  }
+ ],
+ "ex-implicit-gyroid-sphere": [
+  {
+   "volumeHex": "000000a0254aac40",
+   "triangles": 92964
+  },
+  {
+   "volumeHex": "000000e06b56b040",
+   "triangles": 14940
+  }
+ ],
+ "ex-implicit-super-ellipsoid": [
+  {
+   "volumeHex": "00000040e83df33f",
+   "triangles": 62188
+  },
+  {
+   "volumeHex": "00000080e37a0340",
+   "triangles": 76236
+  },
+  {
+   "volumeHex": "000000a09cf11d40",
+   "triangles": 113820
+  }
+ ],
+ "ex-lattice-manifold": [
+  {
+   "volumeHex": "000000605f44b240",
+   "triangles": 20516
+  },
+  {
+   "volumeHex": "00000020d1ebda40",
+   "triangles": 66116
+  },
+  {
+   "volumeHex": "000000c004b5b140",
+   "triangles": 20388
+  }
+ ],
+ "ex-lattice-pipe": [
+  {
+   "volumeHex": "00000020d24cd640",
+   "triangles": 52036
+  },
+  {
+   "volumeHex": "000000406ff2d540",
+   "triangles": 57004
+  },
+  {
+   "volumeHex": "0000006080b1e040",
+   "triangles": 83376
+  },
+  {
+   "volumeHex": "000000605639c040",
+   "triangles": 37832
+  }
+ ],
+ "ex-mesh-painter": [
+  {
+   "volumeHex": "00000040e9f21f41",
+   "triangles": 93948
+  },
+  {
+   "volumeHex": "00000080a7f21f41",
+   "triangles": 93948
+  },
+  {
+   "volumeHex": "000000c065f21f41",
+   "triangles": 93948
+  }
+ ],
+ "ex-mesh-trafo": [
+  {
+   "volumeHex": "000000806f3bed40",
+   "triangles": 19772
+  },
+  {
+   "volumeHex": "00000020fd5ded40",
+   "triangles": 24780
+  }
+ ],
+ "ex-over-offset": [
+  {
+   "volumeHex": "000000a04b8dd740",
+   "triangles": 60644
+  }
+ ]
+}
