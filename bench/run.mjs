@@ -383,6 +383,27 @@ fine.dispose();
   });
 }
 
+// ── M14 — QuasiCrystal wireframe gen 0/1/2 (QuasiCrystals-TS, blueprint R15) ──
+// Aperiodic tile inflation is pure-JS authoring (attach/inflate/dedup) feeding
+// one lattice voxelization per generation; each phase covers author+voxelize
+// for its generation, and the volume hexes pin every generation bit-exactly.
+{
+  const { wireframeFromCrystalTask } = await import('../examples/quasicrystals/run.ts');
+  await metric('M14', 'QuasiCrystal wireframe gens 0/1/2 @ 2.0mm, QuasiTile_02 seed', async () => {
+    const session = await createPicoGK({ voxelSize: 2.0 });
+    const phases = {};
+    const identity = {};
+    for (const gen of [0, 1, 2]) {
+      const t0 = now();
+      const { voxels } = wireframeFromCrystalTask(session, gen);
+      phases[`gen${gen}`] = now() - t0;
+      identity[`gen${gen}Volume`] = hexFloat(voxels.volume);
+    }
+    session.dispose();
+    return { phases, identity };
+  });
+}
+
 // ── Persist ──
 const output = { fingerprint, results };
 const resultsDir = join(HERE, 'bench/results');

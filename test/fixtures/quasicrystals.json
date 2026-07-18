@@ -1,0 +1,30 @@
+{
+ "generations": [
+  {
+   "tileCount": 1,
+   "beamCount": 48,
+   "volumeHex": "00000020f095a340",
+   "triangles": 4920
+  },
+  {
+   "tileCount": 170,
+   "beamCount": 5824,
+   "volumeHex": "000000c087a8e340",
+   "triangles": 64920
+  },
+  {
+   "tileCount": 13192,
+   "beamCount": 431848,
+   "volumeHex": "000000e0d4972a41",
+   "triangles": 294648
+  }
+ ],
+ "crystalFromFace": {
+  "volumeHex": "000000203f7f1841",
+  "triangles": 678696
+ },
+ "crystalFromTile": {
+  "volumeHex": "000000a0ebb5f740",
+  "triangles": 155736
+ }
+}
