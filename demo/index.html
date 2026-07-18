@@ -34,6 +34,12 @@
         <input id="voxel" type="range" min="0.05" max="1" step="0.05" value="0.5" />
         <input id="voxelNumber" type="number" min="0.05" max="1" step="0.05" value="0.5" /> mm
       </label>
+      <label>threading
+        <select id="threading">
+          <option value="single" selected>single</option>
+          <option value="multi">multi (pthreads)</option>
+        </select>
+      </label>
       <label><input id="wireframe" type="checkbox" /> wireframe</label>
       <span id="stats">booting wasm…</span>
     </fieldset>

@@ -17,7 +17,7 @@ import {
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { buildGearMesh } from '../src/gear.ts';
-import { createPicoGK, type Mesh, type PicoGK } from '../src/index.ts';
+import type { CreatePicoGkOptions, Mesh, PicoGK } from '../src/index.ts';
 import { meshFromBufferGeometry, toBufferGeometry } from '../src/three.ts';
 
 const byId = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -25,9 +25,20 @@ const controls = byId<HTMLFieldSetElement>('controls');
 const modelSelect = byId<HTMLSelectElement>('model');
 const voxelSlider = byId<HTMLInputElement>('voxel');
 const voxelNumber = byId<HTMLInputElement>('voxelNumber');
+const threadingSelect = byId<HTMLSelectElement>('threading');
 const wireframeToggle = byId<HTMLInputElement>('wireframe');
 const stats = byId<HTMLSpanElement>('stats');
 const viewport = byId<HTMLDivElement>('viewport');
+
+// The pthread build needs SharedArrayBuffer, which browsers gate behind
+// cross-origin isolation (COOP/COEP response headers — see demo/serve.mjs).
+if (!globalThis.crossOriginIsolated) {
+  const multiOption = threadingSelect.querySelector<HTMLOptionElement>('option[value="multi"]');
+  if (multiOption) {
+    multiOption.disabled = true;
+    multiOption.textContent = 'multi — needs COOP/COEP (node demo/serve.mjs)';
+  }
+}
 
 // ── three scene ──
 const scene = new Scene();
@@ -61,14 +72,21 @@ renderer.setAnimationLoop(() => {
   renderer.render(scene, camera);
 });
 
-// ── session, swapped when the voxel size changes ──
+// ── session, swapped when the voxel size or threading variant changes ──
+// The variant is a dynamic import of the matching entry: each chunk pulls in
+// only its own glue, mirroring how a consumer would feature-detect.
 let pk: PicoGK | undefined;
 let pkVoxelSize = 0;
+let pkThreading = '';
+type PicoGkEntry = { createPicoGK: (options?: CreatePicoGkOptions) => Promise<PicoGK> };
 async function session(voxelSize: number): Promise<PicoGK> {
-  if (pk === undefined || pkVoxelSize !== voxelSize) {
+  const threading = threadingSelect.value;
+  if (pk === undefined || pkVoxelSize !== voxelSize || pkThreading !== threading) {
     pk?.dispose();
-    pk = await createPicoGK({ voxelSize });
+    const entry: PicoGkEntry = threading === 'multi' ? await import('../src/multi.ts') : await import('../src/index.ts');
+    pk = await entry.createPicoGK({ voxelSize });
     pkVoxelSize = voxelSize;
+    pkThreading = threading;
   }
   return pk;
 }
@@ -153,7 +171,9 @@ async function rebuild(): Promise<void> {
       camera.position.set(radius * 1.7, radius * 1.2, radius * 1.7);
       orbit.target.set(0, 0, 0);
     }
-    stats.textContent = `${mesh.vertexCount} verts · ${mesh.triangleCount} tris · ${note} · ${elapsed} ms`;
+    const workers = pk?.module.PThread?.runningWorkers.length;
+    const threadNote = workers === undefined ? 'single-threaded' : `${workers + 1} threads`;
+    stats.textContent = `${mesh.vertexCount} verts · ${mesh.triangleCount} tris · ${note} · ${threadNote} · ${elapsed} ms`;
   } catch (error) {
     stats.textContent = String(error);
     throw error;
@@ -166,6 +186,7 @@ async function rebuild(): Promise<void> {
 const currentVoxelSize = () => Math.min(1, Math.max(0.05, Number(voxelNumber.value) || 0.5));
 
 modelSelect.addEventListener('change', rebuild);
+threadingSelect.addEventListener('change', rebuild);
 voxelSlider.addEventListener('input', () => {
   voxelNumber.value = voxelSlider.value;
 });

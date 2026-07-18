@@ -13,10 +13,11 @@ export default defineConfig({
   deps: { alwaysBundle: [/^three/] },
   plugins: [
     {
-      // The glue must stay external AND resolve as a sibling of the emitted bundle
-      // (the copy below puts it there) — a source-relative path would escape outDir.
+      // The glues must stay external AND resolve as siblings of the emitted bundle
+      // (the copy below puts them there) — a source-relative path would escape outDir.
       name: 'glue-as-sibling',
       resolveId(id: string) {
+        if (id.endsWith('picogk-multi.mjs')) return { id: './picogk-multi.mjs', external: true };
         return id.endsWith('picogk.mjs') ? { id: './picogk.mjs', external: true } : null;
       },
     },
@@ -24,5 +25,7 @@ export default defineConfig({
   copy: [
     { from: 'src/picogk.mjs', to: 'demo/dist' },
     { from: 'src/picogk.wasm', to: 'demo/dist' },
+    { from: 'src/picogk-multi.mjs', to: 'demo/dist' },
+    { from: 'src/picogk-multi.wasm', to: 'demo/dist' },
   ],
 });
