@@ -136,4 +136,21 @@ the reason the gyroid classifies only 20% of slabs.
 rises ~3–4× from a 2.3% base); ~0 for sphere/union64 (already 78%+ classified). Decision by
 measurement: kept only if a net win on the gyroid with no regression elsewhere.
 
-**Measured**: _(pending)_
+**Measured — NEGATIVE RESULT, REVERTED**: gyroid single 537 → 538 ms (**1.00× — the affine
+retry reclassified essentially nothing**), sphere 90 → 93 ms (−3%), union64 182 → **220 ms
+(−17%)** — its 144 IA-ambiguous columns each paid a 1,343-instruction affine sweep that never
+fired. Identity exact, suite green: the AF1 rules were sound, just useless here. Structural
+diagnosis, not an implementation artifact: the gyroid's `abs(Σ sin·cos) − 0.4` needs the
+affine sum to clear **±0.7** (background 0.3 + iso offset 0.4), and the unavoidable slack —
+mul cross-terms rad·rad ≈ 0.06 per product at 0.5 rad/block, plus the abs-straddle collapse
+to a degenerate form — consumes the very margin correlation tracking recovers at 8³
+granularity. Reverted to the TP7b build (snapshot-restored byte-exact). Revisit only with
+finer blocks or a field without an abs-threshold root.
+
+### Program outcome (cumulative, vs TP6 `80f9a68`)
+
+Two of four stages landed; two measured negative and were reverted with findings recorded.
+Cumulative landed effect (TP6 → TP7b, back-to-back pairs): **gyroid single 1,403 → 586 ms
+(2.4×) / multi 215 → 87 ms (2.5×); sphere single 193 → 94 ms (2.1×) / multi 31 → 17 ms
+(1.8×); union64 single 471 → 196 ms (2.4×) / multi 70 → 29 ms (2.4×)** — on top of TP6
+pruning's 1.2–13.3×, all bit-identical to the JS-callback path.
