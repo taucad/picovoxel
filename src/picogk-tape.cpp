@@ -49,11 +49,15 @@
 // inside/outside classification, because upstream stores NaN samples as
 // ACTIVE voxels and pruning must not hide them).
 //
-// The target grid must be EMPTY (the fresh grid createVoxels just made): that
-// is what makes upstream's min(sdf, existing) collapse to min(sdf, background)
-// and the node-steal merge sound. Kept as a hard precondition rather than a
-// silent wrong answer. Like the bulk TU, this lives in picogk-js so the
-// vendored PicoGKRuntime tree stays pristine (R4/B21).
+// Voxels_RenderImplicitTape targets an EMPTY grid (the fresh grid createVoxels
+// just made): that is what makes upstream's min(sdf, existing) collapse to
+// min(sdf, background) and the node-steal merge sound — kept as a hard
+// precondition rather than a silent wrong answer. The R9 entries lift the
+// limitation for the compose paths: Voxels_RenderImplicitTapeCompose composes
+// min(sdf, existing) into a live grid (parallel eval, serial apply), and
+// Voxels_IntersectImplicitTape mirrors upstream IntersectImplicit's
+// fresh-render + csgIntersection dance. Like the bulk TU, this lives in
+// picogk-js so the vendored PicoGKRuntime tree stays pristine (R4/B21).
 
 // Include order is load-bearing and must match PicoGKLibrary.cpp — see
 // src/picogk-bulk.cpp for the PKVector3 aliasing trap. Do not let a formatter
@@ -61,6 +65,8 @@
 #include "PicoGKTypes.h"
 #include "PicoGK.h"
 #include "PicoGKLibraryMgr.h"
+
+#include <openvdb/tools/Composite.h>
 
 #include <tbb/blocked_range2d.h>
 #include <tbb/enumerable_thread_specific.h>
@@ -663,38 +669,24 @@ int32_t nShortenTape(   const uint32_t* pnInstructions,
     return nOut;
 }
 
-} // namespace
-
-/// Renders a tape-compiled implicit into a freshly created (empty) voxel field
-/// over the given bounds — the parallel counterpart of Voxels_RenderImplicit.
-PICOGK_API void Voxels_RenderImplicitTape(  PKINSTANCE      hLib,
-                                            PKVOXELS        hThis,
-                                            const PKBBox3*  poBBox,
-                                            const uint32_t* pnInstructions,
-                                            int32_t         nInstructionCount,
-                                            const double*   pfConstants,
-                                            int32_t         nConstantCount)
+/// The parallel fill core shared by the fresh-grid and intersect entries:
+/// renders the tape into roGrid — which MUST be empty (that is what makes
+/// upstream's min(sdf, existing) collapse to min(sdf, background) and the
+/// node-steal merge sound) — over oBBox expanded by the narrow band.
+void ParallelTapeFillGrid(  const openvdb::FloatGrid::Ptr& roGrid,
+                            const float                    fBackground,
+                            const PicoGK::VoxelSize        oVoxelSize,
+                            const PKBBox3&                 oBBox,
+                            const uint32_t*                pnInstructions,
+                            int32_t                        nInstructionCount,
+                            const double*                  pfConstants)
 {
-    if (poBBox == nullptr)
-        throw std::invalid_argument("tape: null bounding box");
-
-    ValidateTape(pnInstructions, nInstructionCount, nConstantCount);
-
-    PicoGK::Library::Instance::Ptr roLib = PicoGK::Library::oLib().roGetInstance(hLib);
-    PicoGK::Voxels::Ptr roVoxels = roLib->m_oVoxels.roGet(hThis);
-
-    openvdb::FloatGrid::Ptr roGrid = roVoxels->roVdbGrid();
-    if (!roGrid->tree().empty())
-        throw std::invalid_argument("tape: target voxel field must be empty");
-
-    const float             fBackground = roVoxels->fBackgroundMM();
-    const PicoGK::VoxelSize oVoxelSize  = roVoxels->oVoxelSize();
     // Not public on Voxels, but recoverable: the constructor sets the grid
     // background to fToMM(nNarrowBand) (PicoGKVdbVoxels.h:72).
     const int32_t nNarrowBand = (int32_t) std::lround(fBackground / (float) oVoxelSize);
 
-    const PicoGK::Coord xyzMin = oVoxelSize.xyzToVoxels(poBBox->vecMin);
-    const PicoGK::Coord xyzMax = oVoxelSize.xyzToVoxels(poBBox->vecMax);
+    const PicoGK::Coord xyzMin = oVoxelSize.xyzToVoxels(oBBox.vecMin);
+    const PicoGK::Coord xyzMax = oVoxelSize.xyzToVoxels(oBBox.vecMax);
     const int32_t nX0 = xyzMin.X - nNarrowBand, nX1 = xyzMax.X + nNarrowBand;
     const int32_t nY0 = xyzMin.Y - nNarrowBand, nY1 = xyzMax.Y + nNarrowBand;
     const int32_t nZ0 = xyzMin.Z - nNarrowBand, nZ1 = xyzMax.Z + nNarrowBand;
@@ -924,4 +916,383 @@ PICOGK_API void Voxels_RenderImplicitTape(  PKINSTANCE      hLib,
     for (std::vector<openvdb::Coord>& vecLeafs : oInteriorLeafs)
         for (const openvdb::Coord& xyz : vecLeafs)
             roGrid->tree().addTile(/*level=*/1, xyz, -fBackground, /*active=*/false);
+}
+
+/// R9 — the compose core: renders the tape into an EXISTING (possibly
+/// non-empty) grid with upstream Voxels_RenderImplicit's exact per-voxel
+/// semantics — fValue = min(sdf, getValue), then SetSdValue
+/// (PicoGKVdbVoxels.h:377-380, 909-920; RebuildGrid is a no-op upstream).
+///
+/// Structure mirrors ParallelTapeFillGrid — keep the two in lockstep. The
+/// differences are confined to three points:
+///   1. each thread reads the existing grid through its own ConstAccessor
+///      (the tree is frozen during the parallel phase),
+///   2. WriteVoxel composes min(sdf, existing) instead of min(sdf, background),
+///   3. results apply SERIALLY per voxel instead of the node-steal merge —
+///      thread-local leaves can be bbox-partial, and only the composed subset
+///      may touch the target. Evaluation (the 84-91% share) stays parallel;
+///      TP6 pruning still skips every block the tape proves is a no-op
+///      (min(sdf>=bg, existing) == existing).
+///
+/// Every voxel is written by exactly one thread (blocks partition space) and
+/// the applied value is a pure function of coordinate + frozen input grid, so
+/// the result is schedule-independent — the single/multi differential holds.
+void ParallelTapeComposeGrid(   const openvdb::FloatGrid::Ptr& roGrid,
+                                const float                    fBackground,
+                                const PicoGK::VoxelSize        oVoxelSize,
+                                const PKBBox3&                 oBBox,
+                                const uint32_t*                pnInstructions,
+                                int32_t                        nInstructionCount,
+                                const double*                  pfConstants)
+{
+    const int32_t nNarrowBand = (int32_t) std::lround(fBackground / (float) oVoxelSize);
+
+    const PicoGK::Coord xyzMin = oVoxelSize.xyzToVoxels(oBBox.vecMin);
+    const PicoGK::Coord xyzMax = oVoxelSize.xyzToVoxels(oBBox.vecMax);
+    const int32_t nX0 = xyzMin.X - nNarrowBand, nX1 = xyzMax.X + nNarrowBand;
+    const int32_t nY0 = xyzMin.Y - nNarrowBand, nY1 = xyzMax.Y + nNarrowBand;
+    const int32_t nZ0 = xyzMin.Z - nNarrowBand, nZ1 = xyzMax.Z + nNarrowBand;
+
+    const int32_t nCX0 = nX0 >> 3, nCX1 = nX1 >> 3;
+    const int32_t nCY0 = nY0 >> 3, nCY1 = nY1 >> 3;
+    const int32_t nCZ0 = nZ0 >> 3, nCZ1 = nZ1 >> 3;
+
+    const double fBg = (double) fBackground;
+
+    tbb::enumerable_thread_specific<openvdb::FloatGrid::Ptr> oLocalGrids(
+        [fBackground] { return openvdb::FloatGrid::create(fBackground); });
+    tbb::enumerable_thread_specific<std::vector<openvdb::Coord>> oInteriorLeafs;
+
+    tbb::parallel_for(
+        tbb::blocked_range2d<int32_t>(nCX0, nCX1 + 1, nCY0, nCY1 + 1),
+        [&](const tbb::blocked_range2d<int32_t>& oRange)
+        {
+            openvdb::FloatGrid::Accessor      oAccess = oLocalGrids.local()->getAccessor();
+            openvdb::FloatGrid::ConstAccessor oRead   = roGrid->getConstAccessor();
+            std::vector<openvdb::Coord>& vecInterior = oInteriorLeafs.local();
+
+            const size_t nRegs = (size_t) nInstructionCount;
+            std::vector<double>   vecReg(nRegs);
+            std::vector<Interval> vecIv(nRegs);
+            std::vector<uint8_t>  vecChoice(nRegs);
+            std::vector<uint32_t> vecColTape(2 * nRegs);
+            std::vector<uint32_t> vecSlabTape(2 * nRegs);
+            std::vector<int32_t>  vecRemap(nRegs);
+            std::vector<uint8_t>  vecLive(nRegs);
+            std::vector<uint8_t>  vecAxisMask(nRegs);
+            std::vector<uint32_t> vecLevel[4];
+            for (auto& vec : vecLevel)
+                vec.reserve(nRegs);
+            std::vector<v128_t>   vecRegV(nRegs);
+
+            for (int32_t nCX = oRange.rows().begin(); nCX != oRange.rows().end(); nCX++)
+            for (int32_t nCY = oRange.cols().begin(); nCY != oRange.cols().end(); nCY++)
+            {
+                const int32_t nColX0 = std::max(nX0, nCX * 8), nColX1 = std::min(nX1, nCX * 8 + 7);
+                const int32_t nColY0 = std::max(nY0, nCY * 8), nColY1 = std::min(nY1, nCY * 8 + 7);
+                const bool bColFullX = (nColX0 == nCX * 8) && (nColX1 == nCX * 8 + 7);
+                const bool bColFullY = (nColY0 == nCY * 8) && (nColY1 == nCY * 8 + 7);
+
+                const Interval oColX = ivMake((double) oVoxelSize.fToMM(nColX0), (double) oVoxelSize.fToMM(nColX1));
+                const Interval oColY = ivMake((double) oVoxelSize.fToMM(nColY0), (double) oVoxelSize.fToMM(nColY1));
+
+                // Dense per-voxel loop — upstream per-voxel semantics against
+                // the EXISTING grid: min(sdf, getValue), then SetSdValue.
+                const auto DenseFill = [&](  const uint32_t* pnTape,
+                                             int32_t         nTapeCount,
+                                             int32_t         nSlabZ0,
+                                             int32_t         nSlabZ1)
+                {
+                    for (auto& vec : vecLevel)
+                        vec.clear();
+                    for (int32_t i = 0; i < nTapeCount; i++)
+                    {
+                        const uint32_t nOp = pnTape[2 * i];
+                        const uint32_t nAB = pnTape[2 * i + 1];
+                        uint8_t nMask;
+                        switch (nOp)
+                        {
+                            case TAPE_CONST: nMask = 0; break;
+                            case TAPE_X:     nMask = 1; break;
+                            case TAPE_Y:     nMask = 2; break;
+                            case TAPE_Z:     nMask = 4; break;
+                            default:
+                                nMask = vecAxisMask[nAB & 0xFFFFu];
+                                if (bHasOperandB(nOp))
+                                    nMask |= vecAxisMask[nAB >> 16];
+                                break;
+                        }
+                        vecAxisMask[i] = nMask;
+                        const int nLevel = (nMask & 4) ? 3 : (nMask & 2) ? 2 : (nMask & 1) ? 1 : 0;
+                        vecLevel[nLevel].push_back((uint32_t) i);
+                    }
+
+                    const auto WriteVoxel = [&](int32_t x, int32_t y, int32_t z, float fSdf)
+                    {
+                        const openvdb::Coord xyz(x, y, z);
+                        const float fValue = std::min(fSdf, oRead.getValue(xyz));
+                        oAccess.setValue(xyz, std::clamp(fValue, -fBackground, fBackground));
+                        if (std::abs(fValue) >= fBackground)
+                            oAccess.setValueOff(xyz);
+                    };
+
+                    EvalTapeIndices(pnTape, vecLevel[0].data(), (int32_t) vecLevel[0].size(),
+                                    pfConstants, 0.0, 0.0, 0.0, vecReg.data());
+                    for (int32_t x = nColX0; x <= nColX1; x++)
+                    {
+                        const double fX = (double) oVoxelSize.fToMM(x);
+                        EvalTapeIndices(pnTape, vecLevel[1].data(), (int32_t) vecLevel[1].size(),
+                                        pfConstants, fX, 0.0, 0.0, vecReg.data());
+                        for (int32_t y = nColY0; y <= nColY1; y++)
+                        {
+                            const double fY = (double) oVoxelSize.fToMM(y);
+                            EvalTapeIndices(pnTape, vecLevel[2].data(), (int32_t) vecLevel[2].size(),
+                                            pfConstants, fX, fY, 0.0, vecReg.data());
+
+                            if (vecLevel[3].empty())
+                            {
+                                // z-independent tape: the SDF is final for the
+                                // whole z-run, but the existing value is not —
+                                // WriteVoxel composes per voxel.
+                                const float fSdf = (float) vecReg[nTapeCount - 1];
+                                for (int32_t z = nSlabZ0; z <= nSlabZ1; z++)
+                                    WriteVoxel(x, y, z, fSdf);
+                                continue;
+                            }
+
+                            int32_t z = nSlabZ0;
+                            for (; z < nSlabZ1; z += 2)
+                            {
+                                const v128_t vZ = wasm_f64x2_make(  (double) oVoxelSize.fToMM(z),
+                                                                    (double) oVoxelSize.fToMM(z + 1));
+                                EvalTapeIndicesV(pnTape, vecLevel[3].data(), (int32_t) vecLevel[3].size(),
+                                                 vecAxisMask.data(), vecReg.data(), vZ, vecRegV.data());
+                                WriteVoxel(x, y, z,     (float) wasm_f64x2_extract_lane(vecRegV[nTapeCount - 1], 0));
+                                WriteVoxel(x, y, z + 1, (float) wasm_f64x2_extract_lane(vecRegV[nTapeCount - 1], 1));
+                            }
+                            if (z == nSlabZ1)
+                            {
+                                const double fZ = (double) oVoxelSize.fToMM(z);
+                                EvalTapeIndices(pnTape, vecLevel[3].data(), (int32_t) vecLevel[3].size(),
+                                                pfConstants, fX, fY, fZ, vecReg.data());
+                                WriteVoxel(x, y, z, (float) vecReg[nTapeCount - 1]);
+                            }
+                        }
+                    }
+                };
+
+                // A slab proven solid interior: min(sdf <= -bg, existing) is
+                // -background everywhere regardless of the existing content.
+                const auto InteriorFill = [&](int32_t nCZ, int32_t nSlabZ0, int32_t nSlabZ1)
+                {
+                    if (bColFullX && bColFullY && nSlabZ0 == nCZ * 8 && nSlabZ1 == nCZ * 8 + 7)
+                    {
+                        vecInterior.push_back(openvdb::Coord(nCX * 8, nCY * 8, nCZ * 8));
+                        return;
+                    }
+                    for (int32_t x = nColX0; x <= nColX1; x++)
+                    for (int32_t y = nColY0; y <= nColY1; y++)
+                    for (int32_t z = nSlabZ0; z <= nSlabZ1; z++)
+                    {
+                        const openvdb::Coord xyz(x, y, z);
+                        oAccess.setValue(xyz, -fBackground);
+                        oAccess.setValueOff(xyz);
+                    }
+                };
+
+                const Interval oColZ = ivMake((double) oVoxelSize.fToMM(nZ0), (double) oVoxelSize.fToMM(nZ1));
+                const Interval oCol  = oEvalTapeInterval(   pnInstructions, nInstructionCount, pfConstants,
+                                                            oColX, oColY, oColZ,
+                                                            vecIv.data(), vecChoice.data());
+
+                if (!oCol.bNaN && oCol.fLo >= fBg)
+                    continue; // min(sdf >= bg, existing) == existing — whole column is a no-op
+
+                if (!oCol.bNaN && oCol.fHi <= -fBg)
+                {
+                    for (int32_t nCZ = nCZ0; nCZ <= nCZ1; nCZ++)
+                        InteriorFill(nCZ, std::max(nZ0, nCZ * 8), std::min(nZ1, nCZ * 8 + 7));
+                    continue;
+                }
+
+                const int32_t nColCount = nShortenTape( pnInstructions, nInstructionCount, vecChoice.data(),
+                                                        vecColTape.data(), vecRemap.data(), vecLive.data());
+
+                for (int32_t nCZ = nCZ0; nCZ <= nCZ1; nCZ++)
+                {
+                    const int32_t nSlabZ0 = std::max(nZ0, nCZ * 8), nSlabZ1 = std::min(nZ1, nCZ * 8 + 7);
+                    const Interval oSlabZ = ivMake((double) oVoxelSize.fToMM(nSlabZ0), (double) oVoxelSize.fToMM(nSlabZ1));
+                    const Interval oSlab  = oEvalTapeInterval(  vecColTape.data(), nColCount, pfConstants,
+                                                                oColX, oColY, oSlabZ,
+                                                                vecIv.data(), vecChoice.data());
+
+                    if (!oSlab.bNaN && oSlab.fLo >= fBg)
+                        continue;
+
+                    if (!oSlab.bNaN && oSlab.fHi <= -fBg)
+                    {
+                        InteriorFill(nCZ, nSlabZ0, nSlabZ1);
+                        continue;
+                    }
+
+                    const int32_t nSlabCount = nShortenTape(vecColTape.data(), nColCount, vecChoice.data(),
+                                                            vecSlabTape.data(), vecRemap.data(), vecLive.data());
+                    DenseFill(vecSlabTape.data(), nSlabCount, nSlabZ0, nSlabZ1);
+                }
+            }
+        });
+
+    // Serial application. A thread-local voxel is one of exactly three states:
+    //   active            → the composed value |v| < background: write it.
+    //   inactive, v < 0   → composed solid interior (-background): write it off.
+    //   inactive, v >= 0  → either untouched local background, or a composed
+    //                       +background — which only arises when the target was
+    //                       already inactive background there (min >= bg needs
+    //                       existing >= bg). Both mean: leave the target alone.
+    {
+        openvdb::FloatGrid::Accessor oWrite = roGrid->getAccessor();
+        for (openvdb::FloatGrid::Ptr& roLocal : oLocalGrids)
+        {
+            for (auto itLeaf = roLocal->tree().cbeginLeaf(); itLeaf; ++itLeaf)
+            {
+                for (auto itVal = itLeaf->cbeginValueAll(); itVal; ++itVal)
+                {
+                    const float fValue = *itVal;
+                    if (itVal.isValueOn())
+                    {
+                        oWrite.setValue(itVal.getCoord(), fValue);
+                    }
+                    else if (fValue < 0.0f)
+                    {
+                        const openvdb::Coord xyz = itVal.getCoord();
+                        oWrite.setValue(xyz, fValue);
+                        oWrite.setValueOff(xyz);
+                    }
+                }
+            }
+        }
+    }
+
+    // Interior tiles replace whatever the target held in those (disjoint)
+    // leaf slots — the tape proved the composed value is -background there.
+    for (std::vector<openvdb::Coord>& vecLeafs : oInteriorLeafs)
+        for (const openvdb::Coord& xyz : vecLeafs)
+            roGrid->tree().addTile(/*level=*/1, xyz, -fBackground, /*active=*/false);
+}
+
+} // namespace
+
+/// Renders a tape-compiled implicit into a freshly created (empty) voxel field
+/// over the given bounds — the parallel counterpart of Voxels_RenderImplicit.
+PICOGK_API void Voxels_RenderImplicitTape(  PKINSTANCE      hLib,
+                                            PKVOXELS        hThis,
+                                            const PKBBox3*  poBBox,
+                                            const uint32_t* pnInstructions,
+                                            int32_t         nInstructionCount,
+                                            const double*   pfConstants,
+                                            int32_t         nConstantCount)
+{
+    if (poBBox == nullptr)
+        throw std::invalid_argument("tape: null bounding box");
+
+    ValidateTape(pnInstructions, nInstructionCount, nConstantCount);
+
+    PicoGK::Library::Instance::Ptr roLib = PicoGK::Library::oLib().roGetInstance(hLib);
+    PicoGK::Voxels::Ptr roVoxels = roLib->m_oVoxels.roGet(hThis);
+
+    openvdb::FloatGrid::Ptr roGrid = roVoxels->roVdbGrid();
+    if (!roGrid->tree().empty())
+        throw std::invalid_argument("tape: target voxel field must be empty");
+
+    ParallelTapeFillGrid(   roGrid, roVoxels->fBackgroundMM(), roVoxels->oVoxelSize(),
+                            *poBBox, pnInstructions, nInstructionCount, pfConstants);
+}
+
+/// R9 — tape counterpart of Voxels_RenderImplicit into an EXISTING grid
+/// (withImplicit on non-empty voxels): per-voxel min(sdf, existing) with
+/// SetSdValue semantics over the expanded bounds. Slab-parallel evaluation,
+/// TP6/TP7 carry over; see ParallelTapeComposeGrid.
+PICOGK_API void Voxels_RenderImplicitTapeCompose(   PKINSTANCE      hLib,
+                                                    PKVOXELS        hThis,
+                                                    const PKBBox3*  poBBox,
+                                                    const uint32_t* pnInstructions,
+                                                    int32_t         nInstructionCount,
+                                                    const double*   pfConstants,
+                                                    int32_t         nConstantCount)
+{
+    if (poBBox == nullptr)
+        throw std::invalid_argument("tape: null bounding box");
+
+    ValidateTape(pnInstructions, nInstructionCount, nConstantCount);
+
+    PicoGK::Library::Instance::Ptr roLib = PicoGK::Library::oLib().roGetInstance(hLib);
+    PicoGK::Voxels::Ptr roVoxels = roLib->m_oVoxels.roGet(hThis);
+
+    ParallelTapeComposeGrid(roVoxels->roVdbGrid(), roVoxels->fBackgroundMM(), roVoxels->oVoxelSize(),
+                            *poBBox, pnInstructions, nInstructionCount, pfConstants);
+}
+
+/// R9 — tape counterpart of Voxels_IntersectImplicit (upstream
+/// PicoGKVdbVoxels.h:386-412): render the implicit into a FRESH grid over the
+/// target's active bounds (mirroring upstream's float ops exactly), then
+/// csg-intersect with the implicit grid as the surviving operand — the same
+/// "keep the nice implicit grid" order upstream's swap produces. One deliberate
+/// deviation: upstream swaps whole grids, so the callback path's result carries
+/// the fresh grid's (empty) metadata; here only the TREE is reseated, so the
+/// target's metadata survives. Geometry is identical.
+PICOGK_API void Voxels_IntersectImplicitTape(   PKINSTANCE      hLib,
+                                                PKVOXELS        hThis,
+                                                const uint32_t* pnInstructions,
+                                                int32_t         nInstructionCount,
+                                                const double*   pfConstants,
+                                                int32_t         nConstantCount)
+{
+    ValidateTape(pnInstructions, nInstructionCount, nConstantCount);
+
+    PicoGK::Library::Instance::Ptr roLib = PicoGK::Library::oLib().roGetInstance(hLib);
+    PicoGK::Voxels::Ptr roVoxels = roLib->m_oVoxels.roGet(hThis);
+
+    openvdb::FloatGrid::Ptr roGrid = roVoxels->roVdbGrid();
+    // Empty target: upstream would render over a degenerate active bbox and
+    // intersect with nothing — the result is empty, which it already is.
+    if (roGrid->tree().empty())
+        return;
+
+    const float             fBackground = roVoxels->fBackgroundMM();
+    const PicoGK::VoxelSize oVoxelSize  = roVoxels->oVoxelSize();
+
+    // The active-voxel bounds in mm, with upstream's exact conversions
+    // (PicoGKVdbVoxels.h:392-401).
+    const openvdb::CoordBBox oActive = roGrid->evalActiveVoxelBoundingBox();
+    PKBBox3 oBBoxMM;
+    oBBoxMM.vecMin.X = oVoxelSize.fToMM(oActive.min().x());
+    oBBoxMM.vecMin.Y = oVoxelSize.fToMM(oActive.min().y());
+    oBBoxMM.vecMin.Z = oVoxelSize.fToMM(oActive.min().z());
+    oBBoxMM.vecMax.X = oVoxelSize.fToMM(oActive.max().x());
+    oBBoxMM.vecMax.Y = oVoxelSize.fToMM(oActive.max().y());
+    oBBoxMM.vecMax.Z = oVoxelSize.fToMM(oActive.max().z());
+
+    // A fresh grid exactly as upstream builds it — INCLUDING the quirk: the
+    // call is `Voxels oVox(oVoxelSize(), fBackgroundMM())`, which passes
+    // MILLIMETRES into the ctor's `int nNarrowBand` parameter. The implicit
+    // float→int truncation narrows the band (1.5 mm → band 1 at 0.5 mm voxels;
+    // band 0 below ⅓ mm). The callback path exercises this inside vendored
+    // upstream, which this repo never patches — so the tape path replicates it
+    // for bit-identity rather than silently diverging. (Candidate upstream
+    // report; a facade-level fix would have to re-baseline the differential.)
+    const int32_t nFreshBand       = (int32_t) fBackground;
+    const float   fFreshBackground = oVoxelSize.fToMM(nFreshBand);
+
+    openvdb::FloatGrid::Ptr roImplicit = openvdb::FloatGrid::create(fFreshBackground);
+    roImplicit->setGridClass(openvdb::GRID_LEVEL_SET);
+    roImplicit->setTransform(openvdb::math::Transform::createLinearTransform(oVoxelSize));
+
+    ParallelTapeFillGrid(   roImplicit, fFreshBackground, oVoxelSize,
+                            oBBoxMM, pnInstructions, nInstructionCount, pfConstants);
+
+    // Upstream: swap grids, then BoolIntersect → csgIntersection(implicit,
+    // original). Same operand order here; the implicit tree survives and is
+    // reseated into the handle's grid.
+    openvdb::tools::csgIntersection(*roImplicit, *roGrid);
+    roGrid->setTree(roImplicit->baseTreePtr());
 }

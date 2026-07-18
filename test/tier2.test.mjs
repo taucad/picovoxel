@@ -231,15 +231,35 @@ test('C5 — implicit: JS SDF sphere matches the native primitive', () => {
       const implicitTape = fns.Voxels_hCreate(lib);
       vec(scratch, -12, -12, -12); vec(scratch + VEC3, 12, 12, 12); // sphereOf() reused scratch for its center
       fns.Voxels_RenderImplicitTape(lib, implicitTape, scratch, instructionPointer, instructions.length / 2, constantPointer, 1);
-      module._free(constantPointer);
-      module._free(instructionPointer);
       assert.equal(
         fns.Voxels_fCalculateVolume(lib, implicitTape),
         fns.Voxels_fCalculateVolume(lib, implicit),
         'tape sphere must be bit-identical to the JS-callback sphere',
       );
 
-      for (const v of [implicit, native, trimmed, implicitTape]) fns.Voxels_Destroy(lib, v);
+      // R9 compose entries, compared by upstream's own bIsEqual (active-value
+      // identity). The raw fCalculateVolume approximation is representation-
+      // sensitive (dense serial loops and csg node-stealing leave allocated
+      // inactive values the pruned fill omits) and is not a cross-path signal.
+      const composedTape = fns.Voxels_hCreate(lib);
+      vec(scratch, -12, -12, -12); vec(scratch + VEC3, 12, 12, 12);
+      fns.Voxels_RenderImplicitTapeCompose(lib, composedTape, scratch, instructionPointer, instructions.length / 2, constantPointer, 1);
+      assert.ok(
+        fns.Voxels_bIsEqual(lib, composedTape, implicitTape),
+        'compose into an empty grid must equal the fresh tape fill',
+      );
+
+      const trimmedTape = fns.Voxels_hCreateCopy(lib, native);
+      fns.Voxels_IntersectImplicitTape(lib, trimmedTape, instructionPointer, instructions.length / 2, constantPointer, 1);
+      assert.ok(
+        fns.Voxels_bIsEqual(lib, trimmedTape, trimmed),
+        'tape intersect must equal the callback IntersectImplicit',
+      );
+
+      module._free(constantPointer);
+      module._free(instructionPointer);
+
+      for (const v of [implicit, native, trimmed, implicitTape, composedTape, trimmedTape]) fns.Voxels_Destroy(lib, v);
     } finally {
       module.removeFunction(sdf);
     }

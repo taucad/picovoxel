@@ -380,3 +380,13 @@ test('sliceVoxels with useAbsoluteXY shifts contours to world coordinates', asyn
   assert.ok(midA.points[0]! > midR.points[0]! + 20, 'absolute XY re-bases near x=30');
   pk.dispose();
 });
+
+test('withSdfPointer rejects a non-function before touching the module (internal trust boundary)', async () => {
+  // All facade routes narrow sdf by typeof before reaching this seam; the guard
+  // defends direct/raw misuse. It throws before any ctx use, so a stub is fine.
+  const { withSdfPointer } = await import('../src/context.ts');
+  assert.throws(
+    () => withSdfPointer(undefined as never, 42 as never, () => 0),
+    (error: unknown) => error instanceof PicoGkError && /must be a function/.test((error as Error).message),
+  );
+});

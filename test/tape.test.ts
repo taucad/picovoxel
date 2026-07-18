@@ -267,19 +267,117 @@ test('a NaN-producing domain is never pruned: sqrt(x)-1 matches its JS twin', as
   }
 });
 
-test('withImplicit stays function-only — expressions are for createVoxels', async () => {
+// ── R9: compose-into-existing tape variants ≡ their serial callback twins ──
+//
+// Identity here is SEMANTIC: upstream's own Voxels_bIsEqual, the mesh-roundtrip
+// properties() volume, and STL bytes. The raw fast `.volume` approximation is
+// deliberately NOT compared across paths — it integrates representation
+// bookkeeping (allocated-inactive values the serial dense loop and csg
+// node-stealing leave behind, which the pruned fill legitimately omits), the
+// same reason it is documented "approximate after booleans".
+
+test('withImplicit(expression) composes into NON-empty voxels exactly like the callback', async () => {
+  const pk = await createPicoGK({ voxelSize: 0.5 });
+  try {
+    const bounds = { boundsMin: [-12, -12, -12] as const, boundsMax: [12, 12, 12] as const };
+    const base = pk.createVoxels({ shape: 'sphere', center: [10, 0, 0], radius: 6 });
+    const fromTape = base.withImplicit({ ...bounds, sdf: gyroidExpression });
+    const fromCallback = base.withImplicit({ ...bounds, sdf: gyroidFunction });
+    expect(fromTape.isEmpty).toBe(false);
+    expect(fromTape.equals(fromCallback)).toBe(true);
+    expect(fromTape.properties().volume).toBe(fromCallback.properties().volume);
+    expect(
+      Buffer.from(fromTape.toMesh().toStl()).equals(Buffer.from(fromCallback.toMesh().toStl())),
+    ).toBe(true);
+    // And the compose genuinely united: more material than either input alone.
+    expect(fromTape.properties().volume).toBeGreaterThan(base.properties().volume);
+  } finally {
+    pk.dispose();
+  }
+});
+
+test('withImplicit(expression) on EMPTY voxels equals the fresh-grid tape fill', async () => {
+  const pk = await createPicoGK({ voxelSize: 0.5 });
+  try {
+    const bounds = { boundsMin: [-12, -12, -12] as const, boundsMax: [12, 12, 12] as const };
+    const composed = pk.createVoxels({ shape: 'empty' }).withImplicit({ ...bounds, sdf: gyroidExpression });
+    const fresh = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: gyroidExpression });
+    expect(composed.equals(fresh)).toBe(true);
+    expect(composed.properties().volume).toBe(fresh.properties().volume);
+    expect(Buffer.from(composed.toMesh().toStl()).equals(Buffer.from(fresh.toMesh().toStl()))).toBe(true);
+  } finally {
+    pk.dispose();
+  }
+});
+
+test('compose writes solid-interior tiles that csg ops read correctly', async () => {
+  const pk = await createPicoGK({ voxelSize: 0.5 });
+  try {
+    // A big implicit sphere composed into a small off-center seed: deep inside
+    // the big sphere the pruned compose writes -background tiles; intersecting
+    // there must recover the probe exactly (a missing tile reads +outside).
+    const bounds = { boundsMin: [-12, -12, -12] as const, boundsMax: [12, 12, 12] as const };
+    const bigSphere: SdfExpression = [
+      '-',
+      ['sqrt', ['+', ['pow', 'x', 2], ['pow', 'y', 2], ['pow', 'z', 2]]],
+      10.5,
+    ];
+    const seed = pk.createVoxels({ shape: 'sphere', center: [11, 0, 0], radius: 2 });
+    const composed = seed.withImplicit({ ...bounds, sdf: bigSphere });
+    const probe = pk.createVoxels({ shape: 'sphere', radius: 3 });
+    const core = composed.intersect(probe);
+    expect(core.isEmpty).toBe(false);
+    expect(core.volume).toBe(probe.volume);
+  } finally {
+    pk.dispose();
+  }
+});
+
+test('maskedByImplicit(expression) is exactly the callback gyroid-in-sphere', async () => {
+  const pk = await createPicoGK({ voxelSize: 0.5 });
+  try {
+    const sphere = pk.createVoxels({ shape: 'sphere', radius: 10 });
+    const fromTape = sphere.maskedByImplicit({ sdf: gyroidExpression });
+    const fromCallback = sphere.maskedByImplicit({ sdf: gyroidFunction });
+    expect(fromTape.isEmpty).toBe(false);
+    expect(fromTape.equals(fromCallback)).toBe(true);
+    expect(fromTape.properties().volume).toBe(fromCallback.properties().volume);
+    const tapeMesh = fromTape.toMesh();
+    const callbackMesh = fromCallback.toMesh();
+    expect(tapeMesh.vertexCount).toBe(callbackMesh.vertexCount);
+    expect(tapeMesh.triangleCount).toBe(callbackMesh.triangleCount);
+    expect(Buffer.from(tapeMesh.toStl()).equals(Buffer.from(callbackMesh.toStl()))).toBe(true);
+    // The mask genuinely intersected: strictly less material than the sphere.
+    expect(fromTape.properties().volume).toBeLessThan(sphere.properties().volume);
+  } finally {
+    pk.dispose();
+  }
+});
+
+test('maskedByImplicit(expression) on empty voxels stays empty', async () => {
+  const pk = await createPicoGK({ voxelSize: 0.5 });
+  try {
+    const empty = pk.createVoxels({ shape: 'empty' });
+    expect(empty.maskedByImplicit({ sdf: gyroidExpression }).isEmpty).toBe(true);
+  } finally {
+    pk.dispose();
+  }
+});
+
+test('a malformed expression on the compose paths neither renders nor leaks', async () => {
   const pk = await createPicoGK({ voxelSize: 0.5 });
   try {
     const sphere = pk.createVoxels({ shape: 'sphere', radius: 4 });
-    // The tape fill requires a fresh empty target, so the derive-style implicit
-    // methods only take callbacks; a non-function hits the trampoline guard.
+    const before = pk.allocated.voxels;
     expect(() =>
       sphere.withImplicit({
         boundsMin: [-4, -4, -4],
         boundsMax: [4, 4, 4],
-        sdf: gyroidExpression as never,
+        sdf: ['spin', 'x'] as never,
       }),
-    ).toThrow(/must be a function/);
+    ).toThrow(PicoGkError);
+    expect(() => sphere.maskedByImplicit({ sdf: ['spin', 'x'] as never })).toThrow(PicoGkError);
+    expect(pk.allocated.voxels).toBe(before);
   } finally {
     pk.dispose();
   }

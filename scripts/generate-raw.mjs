@@ -44,11 +44,29 @@ export const BULK_FUNCTIONS = [
     { name: 'psBuffer', type: 'PKTriangle*', cwrap: 'number' },
     { name: 'nCount', type: 'int32_t', cwrap: 'number' },
   ] },
-  // The tape TU's export (src/picogk-tape.cpp) — parallel implicit fill.
+  // The tape TU's exports (src/picogk-tape.cpp) — parallel implicit fill plus
+  // the R9 compose-into-existing variants.
   { name: 'Voxels_RenderImplicitTape', cwrapReturn: null, args: [
     { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
     { name: 'hThis', type: 'PKVOXELS', cwrap: 'bigint' },
     { name: 'poBBox', type: 'PKBBox3*', cwrap: 'number' },
+    { name: 'pnInstructions', type: 'uint32_t*', cwrap: 'number' },
+    { name: 'nInstructionCount', type: 'int32_t', cwrap: 'number' },
+    { name: 'pfConstants', type: 'double*', cwrap: 'number' },
+    { name: 'nConstantCount', type: 'int32_t', cwrap: 'number' },
+  ] },
+  { name: 'Voxels_RenderImplicitTapeCompose', cwrapReturn: null, args: [
+    { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+    { name: 'hThis', type: 'PKVOXELS', cwrap: 'bigint' },
+    { name: 'poBBox', type: 'PKBBox3*', cwrap: 'number' },
+    { name: 'pnInstructions', type: 'uint32_t*', cwrap: 'number' },
+    { name: 'nInstructionCount', type: 'int32_t', cwrap: 'number' },
+    { name: 'pfConstants', type: 'double*', cwrap: 'number' },
+    { name: 'nConstantCount', type: 'int32_t', cwrap: 'number' },
+  ] },
+  { name: 'Voxels_IntersectImplicitTape', cwrapReturn: null, args: [
+    { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+    { name: 'hThis', type: 'PKVOXELS', cwrap: 'bigint' },
     { name: 'pnInstructions', type: 'uint32_t*', cwrap: 'number' },
     { name: 'nInstructionCount', type: 'int32_t', cwrap: 'number' },
     { name: 'pfConstants', type: 'double*', cwrap: 'number' },

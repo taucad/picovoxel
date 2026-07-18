@@ -145,3 +145,5 @@ _Mesh_GetTriangles
 _Mesh_AddVertices
 _Mesh_AddTriangles
 _Voxels_RenderImplicitTape
+_Voxels_RenderImplicitTapeCompose
+_Voxels_IntersectImplicitTape

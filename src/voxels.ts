@@ -13,6 +13,7 @@ import {
   expectHandle,
   VEC3_BYTES,
   withSdfPointer,
+  withSdfTape,
   type SessionContext,
 } from './context.ts';
 import { assertLive, guard, PicoGkError } from './errors.ts';
@@ -20,6 +21,7 @@ import { wrapScalarField, type ScalarField } from './fields.ts';
 import type { Lattice } from './lattice.ts';
 import { tagFieldClass, wrapMetadata, type Metadata } from './metadata.ts';
 import { wrapMesh, type Mesh } from './mesh.ts';
+import type { SdfExpression } from './tape.ts';
 import type { Bounds, SdfFunction, Vec3 } from './types.ts';
 
 export type SliceAxis = 'x' | 'y' | 'z';
@@ -78,13 +80,20 @@ export interface Voxels {
   /** Pure: clone + render the lattice into the clone. */
   withLattice(lattice: Lattice): Voxels;
   /**
-   * Pure: clone + render the SDF into the clone within bounds. Callback-only:
-   * the parallel tape fill needs an empty target, so serialized SdfExpressions
-   * go through `createVoxels({ shape: 'implicit' })` instead.
+   * Pure: clone + render the SDF into the clone within bounds. A JS callback
+   * runs upstream's serial per-voxel loop; a serialized `SdfExpression` takes
+   * the slab-parallel tape path (R9). The two paths produce `equals()`-identical
+   * grids with identical `properties()` and STL bytes; only the raw fast
+   * `volume` approximation may differ between them (it integrates
+   * representation bookkeeping the pruned fill legitimately omits).
    */
-  withImplicit(options: { sdf: SdfFunction; boundsMin: Vec3; boundsMax: Vec3 }): Voxels;
-  /** The gyroid-in-sphere idiom: existing voxels re-evaluated under the SDF. */
-  maskedByImplicit(options: { sdf: SdfFunction }): Voxels;
+  withImplicit(options: { sdf: SdfFunction | SdfExpression; boundsMin: Vec3; boundsMax: Vec3 }): Voxels;
+  /**
+   * The gyroid-in-sphere idiom: existing voxels re-evaluated under the SDF.
+   * Callback = serial upstream loop; `SdfExpression` = parallel tape path (R9)
+   * — `equals()`-identical results, see `withImplicit` on the fast-volume caveat.
+   */
+  maskedByImplicit(options: { sdf: SdfFunction | SdfExpression }): Voxels;
   /** Volume in mm³ from the raw grid — fast but approximate after booleans (SG1). */
   readonly volume: number;
   /** SG1 — the correct volume+bounds: mesh → fresh voxels round-trip. */
@@ -292,19 +301,39 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
       const latticeHandle = lattice.handle;
       return derive('Voxels_RenderLattice', (copy) => ctx.raw.Voxels_RenderLattice(ctx.lib, copy, latticeHandle));
     },
-    withImplicit({ sdf, boundsMin, boundsMax }: { sdf: SdfFunction; boundsMin: Vec3; boundsMax: Vec3 }): Voxels {
-      return derive('Voxels_RenderImplicit', (copy) =>
-        withSdfPointer(ctx, sdf, (sdfPointer) => {
+    withImplicit({ sdf, boundsMin, boundsMax }: { sdf: SdfFunction | SdfExpression; boundsMin: Vec3; boundsMax: Vec3 }): Voxels {
+      if (typeof sdf === 'function') {
+        return derive('Voxels_RenderImplicit', (copy) =>
+          withSdfPointer(ctx, sdf, (sdfPointer) => {
+            ctx.writeVec3(ctx.scratch, boundsMin);
+            ctx.writeVec3(ctx.scratch + VEC3_BYTES, boundsMax);
+            ctx.raw.Voxels_RenderImplicit(ctx.lib, copy, ctx.scratch, sdfPointer);
+          }),
+        );
+      }
+      // R9 — compose-into-existing tape path: min(sdf, existing) with upstream
+      // semantics, slab-parallel (src/picogk-tape.cpp ParallelTapeComposeGrid).
+      return derive('Voxels_RenderImplicitTapeCompose', (copy) =>
+        withSdfTape(ctx, sdf, (instrPtr, instrCount, constPtr, constCount) => {
           ctx.writeVec3(ctx.scratch, boundsMin);
           ctx.writeVec3(ctx.scratch + VEC3_BYTES, boundsMax);
-          ctx.raw.Voxels_RenderImplicit(ctx.lib, copy, ctx.scratch, sdfPointer);
+          ctx.raw.Voxels_RenderImplicitTapeCompose(ctx.lib, copy, ctx.scratch, instrPtr, instrCount, constPtr, constCount);
         }),
       );
     },
-    maskedByImplicit({ sdf }: { sdf: SdfFunction }): Voxels {
+    maskedByImplicit({ sdf }: { sdf: SdfFunction | SdfExpression }): Voxels {
       // C# voxIntersectImplicit (Voxels.cs:748-753) — the gyroid-sphere idiom.
-      return derive('Voxels_IntersectImplicit', (copy) =>
-        withSdfPointer(ctx, sdf, (sdfPointer) => ctx.raw.Voxels_IntersectImplicit(ctx.lib, copy, sdfPointer)),
+      if (typeof sdf === 'function') {
+        return derive('Voxels_IntersectImplicit', (copy) =>
+          withSdfPointer(ctx, sdf, (sdfPointer) => ctx.raw.Voxels_IntersectImplicit(ctx.lib, copy, sdfPointer)),
+        );
+      }
+      // R9 — fresh parallel render over the active bounds + csg-intersect,
+      // mirroring upstream IntersectImplicit (src/picogk-tape.cpp).
+      return derive('Voxels_IntersectImplicitTape', (copy) =>
+        withSdfTape(ctx, sdf, (instrPtr, instrCount, constPtr, constCount) =>
+          ctx.raw.Voxels_IntersectImplicitTape(ctx.lib, copy, instrPtr, instrCount, constPtr, constCount),
+        ),
       );
     },
 

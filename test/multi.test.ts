@@ -53,6 +53,29 @@ test('multi session: shared heap, engaged worker pool, serial-identical geometry
     const serialTape = tape(serial);
     expect(multiTape.volume).toBe(serialTape.volume);
     expect(Buffer.from(multiTape.toMesh().toStl()).equals(Buffer.from(serialTape.toMesh().toStl()))).toBe(true);
+
+    // R9 compose differentials: every applied voxel is written by exactly one
+    // thread and is a pure function of coordinate + frozen input grid, so the
+    // composed grids must also be thread-count independent.
+    const composed = (pk: typeof multi) =>
+      pk
+        .createVoxels({ shape: 'sphere', center: [10, 0, 0], radius: 6 })
+        .withImplicit({ boundsMin: [-12, -12, -12], boundsMax: [12, 12, 12], sdf: gyroidExpression });
+    const multiComposed = composed(multi);
+    const serialComposed = composed(serial);
+    expect(multiComposed.volume).toBe(serialComposed.volume);
+    expect(
+      Buffer.from(multiComposed.toMesh().toStl()).equals(Buffer.from(serialComposed.toMesh().toStl())),
+    ).toBe(true);
+
+    const masked = (pk: typeof multi) =>
+      pk.createVoxels({ shape: 'sphere', radius: 10 }).maskedByImplicit({ sdf: gyroidExpression });
+    const multiMasked = masked(multi);
+    const serialMasked = masked(serial);
+    expect(multiMasked.volume).toBe(serialMasked.volume);
+    expect(
+      Buffer.from(multiMasked.toMesh().toStl()).equals(Buffer.from(serialMasked.toMesh().toStl())),
+    ).toBe(true);
   } finally {
     multi.dispose();
     serial.dispose();
