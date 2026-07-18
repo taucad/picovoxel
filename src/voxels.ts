@@ -77,7 +77,11 @@ export interface Voxels {
   withMesh(mesh: Mesh): Voxels;
   /** Pure: clone + render the lattice into the clone. */
   withLattice(lattice: Lattice): Voxels;
-  /** Pure: clone + render the SDF into the clone within bounds. */
+  /**
+   * Pure: clone + render the SDF into the clone within bounds. Callback-only:
+   * the parallel tape fill needs an empty target, so serialized SdfExpressions
+   * go through `createVoxels({ shape: 'implicit' })` instead.
+   */
   withImplicit(options: { sdf: SdfFunction; boundsMin: Vec3; boundsMax: Vec3 }): Voxels;
   /** The gyroid-in-sphere idiom: existing voxels re-evaluated under the SDF. */
   maskedByImplicit(options: { sdf: SdfFunction }): Voxels;

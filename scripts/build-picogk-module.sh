@@ -37,7 +37,7 @@ EH_FLAGS="${EH_FLAGS:--fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=1}"
 # (spawn-on-demand needs the event loop, which a blocked main thread never
 # reaches). emcc 5.x emits no separate worker file — the glue self-spawns via
 # import.meta.url, so the sibling-pair asset shape is unchanged.
-RUNTIME_METHODS=ccall,cwrap,UTF8ToString,stringToUTF8,lengthBytesUTF8,addFunction,removeFunction,FS,HEAPF32,HEAP32,HEAPU32
+RUNTIME_METHODS=ccall,cwrap,UTF8ToString,stringToUTF8,lengthBytesUTF8,addFunction,removeFunction,FS,HEAPF32,HEAPF64,HEAP32,HEAPU32
 if [ "${THREADS:-0}" = "1" ]; then
   MT="-mt"; VARIANT="picogk-multi"
   WASM_FLAGS="$WASM_FLAGS -pthread"
@@ -65,10 +65,12 @@ em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$OUT/PicoGKLibraryCore.cpp" \
   -o "$OUT/picogk_core_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
 em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$HERE/src/picogk-bulk.cpp" \
   -o "$OUT/picogk_bulk_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
+em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$HERE/src/picogk-tape.cpp" \
+  -o "$OUT/picogk_tape_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
 
 echo "=== link -> $VARIANT.mjs ==="
 em++ -std=c++20 $WASM_FLAGS $EH_FLAGS \
-  "$OUT/picogk_core_module$MT.o" "$OUT/picogk_bulk_module$MT.o" \
+  "$OUT/picogk_core_module$MT.o" "$OUT/picogk_bulk_module$MT.o" "$OUT/picogk_tape_module$MT.o" \
   "$PREFIX/lib/libopenvdb.a" "$PREFIX/lib/libtbb.a" \
   -o "$OUT_JS/$VARIANT.mjs" \
   ${THREAD_LINK_FLAGS[@]+"${THREAD_LINK_FLAGS[@]}"} \

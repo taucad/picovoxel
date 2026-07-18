@@ -109,7 +109,9 @@ test('R10 — invalid input throws typed, actionable errors', async () => {
     [{ shape: 'sphere', radius: -1 }, /positive radius/],
     [{ shape: 'nope' }, /Unknown shape/],
     [{ shape: 'implicit', sdf: () => 0 }, /boundsMin and boundsMax/],
-    [{ shape: 'implicit', boundsMin: [0, 0, 0], boundsMax: [1, 1, 1], sdf: 'not a function' }, /must be a function/],
+    // A non-function sdf is treated as a serialized expression; a bare string
+    // is not a valid expression node.
+    [{ shape: 'implicit', boundsMin: [0, 0, 0], boundsMax: [1, 1, 1], sdf: 'not a function' }, /Invalid SDF expression/],
   ]) {
     const err = grab(() => picogk.createVoxels(options), `createVoxels(${JSON.stringify(options)})`);
     assert.ok(err instanceof PicoGkError, `expected PicoGkError, got ${err?.constructor?.name}`);

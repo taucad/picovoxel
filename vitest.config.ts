@@ -21,6 +21,7 @@ export default defineConfig({
         'src/picogk-multi.wasm',
         'src/raw.generated.ts',
         'src/picogk-bulk.cpp',
+        'src/picogk-tape.cpp',
         'src/picogk-exports.txt',
         'src/abi.json',
       ],

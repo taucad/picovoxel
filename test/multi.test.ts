@@ -5,6 +5,7 @@
 import { expect, test } from 'vitest';
 import * as serialEntry from '../src/index.ts';
 import * as multiEntry from '../src/multi.ts';
+import { gyroidExpression } from './tape.test.ts';
 
 test('multi entry exports the same surface as the base entry (drop-in specifier swap)', () => {
   expect(Object.keys(multiEntry).sort()).toEqual(Object.keys(serialEntry).sort());
@@ -36,6 +37,22 @@ test('multi session: shared heap, engaged worker pool, serial-identical geometry
     const serialMesh = serialShape.toMesh();
     expect(multiMesh.triangleCount).toBe(serialMesh.triangleCount);
     expect(multiMesh.vertexCount).toBe(serialMesh.vertexCount);
+
+    // Tape differential: the parallel fill partitions work across TBB workers
+    // (serial build: same code, one thread). Values are pure per-voxel and the
+    // merge is coordinate-indexed node-stealing, so the grids — and their STL
+    // bytes — must be identical regardless of thread count.
+    const tape = (pk: typeof multi) =>
+      pk.createVoxels({
+        shape: 'implicit',
+        boundsMin: [-12, -12, -12],
+        boundsMax: [12, 12, 12],
+        sdf: gyroidExpression,
+      });
+    const multiTape = tape(multi);
+    const serialTape = tape(serial);
+    expect(multiTape.volume).toBe(serialTape.volume);
+    expect(Buffer.from(multiTape.toMesh().toStl()).equals(Buffer.from(serialTape.toMesh().toStl()))).toBe(true);
   } finally {
     multi.dispose();
     serial.dispose();

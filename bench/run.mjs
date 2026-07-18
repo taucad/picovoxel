@@ -260,6 +260,42 @@ await metric('M9', 'facade vs raw: 10k isEmpty calls', () => {
   return { phases: { raw10k: rawMs, facade10k: facadeMs } };
 });
 
+// ── M10 — gyroid tape @0.25mm: serialized SDF, parallel in-module fill (TP1-TP4) ──
+// Identity must bit-match M3@0.25 (same fold order, both fdlibm-derived libms);
+// the multi row is the thread-scaling headline — the tape is the only SDF shape
+// reachable from pthread workers.
+{
+  const s = (2 * Math.PI) / 10;
+  const gyroidExpression = ['-', ['abs', ['+',
+    ['*', ['sin', ['*', 'x', s]], ['cos', ['*', 'y', s]]],
+    ['*', ['sin', ['*', 'y', s]], ['cos', ['*', 'z', s]]],
+    ['*', ['sin', ['*', 'z', s]], ['cos', ['*', 'x', s]]]]], 0.4];
+  const { createPicoGK: createMulti } = await import('../src/multi.ts');
+  for (const [suffix, make] of [
+    ['single', () => createPicoGK({ voxelSize: 0.25 })],
+    ['multi', () => createMulti({ voxelSize: 0.25 })],
+  ]) {
+    await metric(`M10@${suffix}`, `gyroid tape @ 0.25mm (${suffix} entry)`, async () => {
+      const session = await make();
+      const t0 = now();
+      const gyroid = session.createVoxels({
+        shape: 'implicit',
+        boundsMin: [-12, -12, -12],
+        boundsMax: [12, 12, 12],
+        sdf: gyroidExpression,
+      });
+      const renderMs = now() - t0;
+      const t1 = now();
+      const mesh = gyroid.toMesh();
+      const meshMs = now() - t1;
+      const identity = { volume: hexFloat(gyroid.volume), triangles: mesh.triangleCount };
+      const threads = (session.module.PThread?.runningWorkers.length ?? 0) + 1;
+      session.dispose();
+      return { phases: { render: renderMs, mesh: meshMs }, identity: { ...identity, threads } };
+    });
+  }
+}
+
 // gear as a byproduct check that the harness drives the ABI-level path too
 void buildGearMesh;
 

@@ -18,6 +18,7 @@ import {
   INFO_STRING_BYTES,
   VEC3_BYTES,
   withSdfPointer,
+  withSdfTape,
   withStrings,
   type SessionContext,
 } from './context.ts';
@@ -29,6 +30,7 @@ import { wrapPolyLine, writeColor, type PolyLine } from './polyline.ts';
 import { bindPicoGkRaw } from './raw.generated.ts';
 import { createHandleRegistry, type HandleRegistry } from './registry.ts';
 import { meshFromStlBytes, type FromStlOptions } from './stl.ts';
+import type { SdfExpression } from './tape.ts';
 import type { Color, PicoGkWasmModule, SdfFunction, Vec3 } from './types.ts';
 import { withVdbBytes, wrapVdbFile, type VdbFile } from './vdb.ts';
 import { wrapVoxels, type Voxels } from './voxels.ts';
@@ -42,7 +44,13 @@ export type CreateVoxelsOptions =
   | { shape: 'beam'; start: Vec3; end: Vec3; radius?: number; startRadius?: number; endRadius?: number }
   /** Alias of 'beam' kept for continuity with the R12 surface. */
   | { shape: 'capsule'; start: Vec3; end: Vec3; radius?: number; startRadius?: number; endRadius?: number }
-  | { shape: 'implicit'; boundsMin: Vec3; boundsMax: Vec3; sdf: SdfFunction };
+  /**
+   * A JS `sdf` function runs on upstream's serial fill (the callback is only
+   * reachable from the main thread). A serializable {@link SdfExpression} is
+   * compiled to a tape and filled in parallel in-module — on the /multi build
+   * this engages every worker thread.
+   */
+  | { shape: 'implicit'; boundsMin: Vec3; boundsMax: Vec3; sdf: SdfFunction | SdfExpression };
 
 export type CreateScalarFieldOptions =
   | { from: Voxels; value?: number; sdThreshold?: number }
@@ -273,16 +281,26 @@ export async function createPicoGKSession(glue: PicoGkGlueFactory, options: Crea
             );
           }
           const target = expectHandle('Voxels_hCreate', raw.Voxels_hCreate(lib));
-          // RenderImplicit is a SERIAL triple-nested loop (PicoGKVdbVoxels.h:370-381),
-          // so a JS callback is correct under pthreads — and gains zero from them.
           try {
-            withSdfPointer(ctx, sdf, (sdfPointer) => {
-              ctx.writeVec3(scratch, boundsMin);
-              ctx.writeVec3(scratch + VEC3_BYTES, boundsMax);
-              guard('Voxels_RenderImplicit', () => raw.Voxels_RenderImplicit(lib, target, scratch, sdfPointer))();
-            });
+            ctx.writeVec3(scratch, boundsMin);
+            ctx.writeVec3(scratch + VEC3_BYTES, boundsMax);
+            if (typeof sdf === 'function') {
+              // RenderImplicit is a SERIAL triple-nested loop (PicoGKVdbVoxels.h:370-381),
+              // so a JS callback is correct under pthreads — and gains zero from them.
+              withSdfPointer(ctx, sdf, (sdfPointer) => {
+                guard('Voxels_RenderImplicit', () => raw.Voxels_RenderImplicit(lib, target, scratch, sdfPointer))();
+              });
+            } else {
+              // Serialized SDF: compiled to a tape, evaluated in-module by the
+              // parallel fill (src/picogk-tape.cpp) — every pthread worker engages.
+              withSdfTape(ctx, sdf, (instructionPointer, instructionCount, constantPointer, constantCount) => {
+                guard('Voxels_RenderImplicitTape', () =>
+                  raw.Voxels_RenderImplicitTape(lib, target, scratch, instructionPointer, instructionCount, constantPointer, constantCount),
+                )();
+              });
+            }
           } catch (error) {
-            raw.Voxels_Destroy(lib, target); // don't leak the target on a throwing SDF
+            raw.Voxels_Destroy(lib, target); // don't leak the target on a throwing SDF or bad tape
             throw error;
           }
           return wrapVoxels(ctx, target);

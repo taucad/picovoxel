@@ -208,7 +208,38 @@ test('C5 — implicit: JS SDF sphere matches the native primitive', () => {
       fns.Voxels_IntersectImplicit(lib, trimmed, sdf);
       assert.ok(fns.Voxels_fCalculateVolume(lib, trimmed) > 0, 'IntersectImplicit emptied the body');
 
-      for (const v of [implicit, native, trimmed]) fns.Voxels_Destroy(lib, v);
+      // The tape TU's parallel fill (src/picogk-tape.cpp): the same sphere as a
+      // hand-rolled SSA tape — sqrt(x*x + y*y + z*z) - 10, same fold order as
+      // the JS callback above, so the volumes must be bit-identical.
+      const instructions = Uint32Array.from([
+        1, 0,              // 0: X
+        6, 0 | (0 << 16),  // 1: MUL r0,r0
+        2, 0,              // 2: Y
+        6, 2 | (2 << 16),  // 3: MUL r2,r2
+        3, 0,              // 4: Z
+        6, 4 | (4 << 16),  // 5: MUL r4,r4
+        4, 1 | (3 << 16),  // 6: ADD r1,r3
+        4, 6 | (5 << 16),  // 7: ADD r6,r5
+        10, 7,             // 8: SQRT r7
+        0, 0,              // 9: CONST #0 (= 10)
+        5, 8 | (9 << 16),  // 10: SUB r8,r9
+      ]);
+      const instructionPointer = module._malloc(instructions.byteLength);
+      const constantPointer = module._malloc(8);
+      module.HEAPU32.set(instructions, instructionPointer >> 2);
+      module.HEAPF64[constantPointer >> 3] = 10;
+      const implicitTape = fns.Voxels_hCreate(lib);
+      vec(scratch, -12, -12, -12); vec(scratch + VEC3, 12, 12, 12); // sphereOf() reused scratch for its center
+      fns.Voxels_RenderImplicitTape(lib, implicitTape, scratch, instructionPointer, instructions.length / 2, constantPointer, 1);
+      module._free(constantPointer);
+      module._free(instructionPointer);
+      assert.equal(
+        fns.Voxels_fCalculateVolume(lib, implicitTape),
+        fns.Voxels_fCalculateVolume(lib, implicit),
+        'tape sphere must be bit-identical to the JS-callback sphere',
+      );
+
+      for (const v of [implicit, native, trimmed, implicitTape]) fns.Voxels_Destroy(lib, v);
     } finally {
       module.removeFunction(sdf);
     }

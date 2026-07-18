@@ -54,6 +54,7 @@ export interface PicoGkWasmModule {
   _malloc(bytes: number): number;
   _free(pointer: number): void;
   HEAPF32: Float32Array;
+  HEAPF64: Float64Array;
   HEAP32: Int32Array;
   HEAPU32: Uint32Array;
   FS: {

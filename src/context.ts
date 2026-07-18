@@ -8,6 +8,8 @@ import { DISPOSE } from './dispose.ts';
 import { PicoGkError } from './errors.ts';
 import type { PicoGkRaw } from './raw.generated.ts';
 import type { HandleRegistry } from './registry.ts';
+import { compileSdfExpression } from './tape.ts';
+import type { SdfExpression } from './tape.ts';
 import type { PicoGkWasmModule, SdfFunction, Vec3 } from './types.ts';
 
 export const VEC3_BYTES = 12;
@@ -125,6 +127,31 @@ export function withSdfPointer<T>(ctx: SessionContext, sdf: unknown, body: (sdfP
     return body(pointer);
   } finally {
     ctx.module.removeFunction(pointer);
+  }
+}
+
+/**
+ * Runs `body` with a compiled SDF tape copied into wasm memory — the
+ * serialized counterpart of {@link withSdfPointer}, evaluated in-module by
+ * src/picogk-tape.cpp on every thread. Buffers are freed on the way out.
+ */
+export function withSdfTape<T>(
+  ctx: SessionContext,
+  expression: SdfExpression,
+  body: (instructionPointer: number, instructionCount: number, constantPointer: number, constantCount: number) => T,
+): T {
+  const { instructions, constants } = compileSdfExpression(expression);
+  const { module } = ctx;
+  const instructionPointer = module._malloc(instructions.byteLength);
+  // Never malloc(0): a constant-free tape still needs a valid pointer.
+  const constantPointer = module._malloc(Math.max(constants.byteLength, 8));
+  try {
+    module.HEAPU32.set(instructions, instructionPointer >> 2);
+    module.HEAPF64.set(constants, constantPointer >> 3);
+    return body(instructionPointer, instructions.length / 2, constantPointer, constants.length);
+  } finally {
+    module._free(constantPointer);
+    module._free(instructionPointer);
   }
 }
 

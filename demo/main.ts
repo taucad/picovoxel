@@ -111,14 +111,18 @@ const builders: Record<string, (pk: PicoGK) => { mesh: Mesh; note: string; flat?
     return { mesh: pk.createMesh({ vertices, triangles }), note: 'pure mesh — voxel size n/a', flat: true };
   },
   gyroid(pk) {
+    // Serialized SDF (not a closure): compiled to a tape and filled in-module —
+    // on the multi variant this is the only shape pthread workers can evaluate,
+    // so the threading toggle actually pays here.
     const s = (2 * Math.PI) / 10;
     const gyroid = pk.createVoxels({
       shape: 'implicit',
       boundsMin: [-12, -12, -12],
       boundsMax: [12, 12, 12],
-      sdf: (x, y, z) =>
-        Math.abs(Math.sin(x * s) * Math.cos(y * s) + Math.sin(y * s) * Math.cos(z * s) + Math.sin(z * s) * Math.cos(x * s)) -
-        0.4,
+      sdf: ['-', ['abs', ['+',
+        ['*', ['sin', ['*', 'x', s]], ['cos', ['*', 'y', s]]],
+        ['*', ['sin', ['*', 'y', s]], ['cos', ['*', 'z', s]]],
+        ['*', ['sin', ['*', 'z', s]], ['cos', ['*', 'x', s]]]]], 0.4],
     });
     return { mesh: gyroid.toMesh(), note: mm3(gyroid.volume) };
   },
