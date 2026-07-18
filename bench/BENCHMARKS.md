@@ -1,8 +1,8 @@
 # picogk-js benchmarks
 
-> Measured on Apple M2 Pro (12 cores, 32 GiB), darwin 25.0.0, node v24.6.0, wasm 31f1f1de991c (5,763,731 B), commit 7212f2a, 2026-07-17.
+> Measured on Apple M2 Pro (12 cores, 32 GiB), darwin 25.0.0, node v24.6.0, wasm d0e7283d8120 (5,806,517 B), commit 6bf52b6, 2026-07-18.
 > **Absolute numbers are device-specific; treat ratios and phase splits as the portable signal.**
-> Reproduce with `npm run bench` (the harness refuses loaded machines). Source: `bench/results/2026-07-17-7212f2a.json`.
+> Reproduce with `npm run bench` (the harness refuses loaded machines). Source: `bench/results/2026-07-18-6bf52b6.json`.
 >
 > Native-comparison figures (the ~1.95× PicoGK wasm tax, R20's 3–9% SDF callback overhead, R11's ~150×
 > bulk-readback win) are imported by reference from the measured records in the research docs
@@ -10,24 +10,28 @@
 
 | Metric | Description | Phase | Median | Min | Max |
 | --- | --- | --- | ---: | ---: | ---: |
-| M1 | createPicoGK() cold instantiate (5.8 MB module) | instantiate | 9.812 ms | 9.559 | 13.843 |
-| M2@0.5 | sphere r=10 @ 0.5mm | build | 1.117 ms | 1.007 | 1.441 |
-|  |  | volume | 0.919 ms | 0.887 | 0.945 |
-| M2@0.25 | sphere r=10 @ 0.25mm | build | 3.398 ms | 3.19 | 3.493 |
-|  |  | volume | 3.332 ms | 3.283 | 3.521 |
-| M3@0.5 | gyroid implicit @ 0.5mm (JS SDF) | render | 19.553 ms | 19.065 | 24.235 |
-|  |  | mesh | 14.053 ms | 13.862 | 14.835 |
-| M3@0.25 | gyroid implicit @ 0.25mm (JS SDF) | render | 138.433 ms | 129.693 | 140.081 |
-|  |  | mesh | 59.193 ms | 53.59 | 59.741 |
-| M4 | union + subtract + intersect chain (differential shapes) | chain | 7.096 ms | 7.042 | 7.23 |
-| M5 | offset +2 and smoothen(1) on a CSG body | offset | 291.829 ms | 287.308 | 305.538 |
-|  |  | smoothen | 506.893 ms | 502.069 | 517.483 |
-| M6 | mesh readback bulk vs per-element (0.25mm gyroid) | bulk | 0.674 ms | 0.346 | 0.806 |
-|  |  | perElement | 24.697 ms | 21.475 | 25.327 |
-| M7 | 100k-triangle synthetic bulk import | import | 1.766 ms | 1.652 | 2.107 |
-| M8 | full interpolated slice sweep + vectorize (sphere r=8) | sweep | 4.541 ms | 4.112 | 5.446 |
-| M9 | facade vs raw: 10k isEmpty calls | raw10k | 17.326 ms | 16.952 | 25.513 |
-|  |  | facade10k | 17.016 ms | 16.446 | 19.288 |
+| M1 | createPicoGK() cold instantiate (5.8 MB module) | instantiate | 8.418 ms | 8.272 | 9.46 |
+| M2@0.5 | sphere r=10 @ 0.5mm | build | 0.99 ms | 0.955 | 1.342 |
+|  |  | volume | 0.866 ms | 0.861 | 0.923 |
+| M2@0.25 | sphere r=10 @ 0.25mm | build | 3.045 ms | 3.04 | 3.078 |
+|  |  | volume | 3.163 ms | 3.149 | 3.186 |
+| M3@0.5 | gyroid implicit @ 0.5mm (JS SDF) | render | 18.23 ms | 17.619 | 18.79 |
+|  |  | mesh | 13.564 ms | 13.189 | 14.624 |
+| M3@0.25 | gyroid implicit @ 0.25mm (JS SDF) | render | 119.873 ms | 116.601 | 128.307 |
+|  |  | mesh | 49.971 ms | 47.684 | 51.055 |
+| M4 | union + subtract + intersect chain (differential shapes) | chain | 6.883 ms | 6.824 | 6.944 |
+| M5 | offset +2 and smoothen(1) on a CSG body | offset | 250.574 ms | 250.278 | 259.026 |
+|  |  | smoothen | 424.363 ms | 423.982 | 427.336 |
+| M6 | mesh readback bulk vs per-element (0.25mm gyroid) | bulk | 0.509 ms | 0.363 | 0.609 |
+|  |  | perElement | 20.904 ms | 19.756 | 21.826 |
+| M7 | 100k-triangle synthetic bulk import | import | 1.609 ms | 1.59 | 1.627 |
+| M8 | full interpolated slice sweep + vectorize (sphere r=8) | sweep | 4.216 ms | 3.997 | 4.862 |
+| M9 | facade vs raw: 10k isEmpty calls | raw10k | 15.552 ms | 15.495 | 16.864 |
+|  |  | facade10k | 15.475 ms | 15.163 | 16.902 |
+| M10@single | gyroid tape @ 0.25mm (single entry) | render | 49.677 ms | 49.489 | 50.186 |
+|  |  | mesh | 50.25 ms | 49.812 | 52.187 |
+| M10@multi | gyroid tape @ 0.25mm (multi entry) | render | 13.922 ms | 11.73 | 14.628 |
+|  |  | mesh | 46.244 ms | 44.561 | 48.654 |
 
 Identity oracles (hex-float volumes, FNV-1a mesh hashes) are bit-stable across the 5 repeats of every metric — enforced by the harness, not reviewed by eye.
 

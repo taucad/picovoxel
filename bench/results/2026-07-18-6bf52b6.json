@@ -1,0 +1,275 @@
+{
+  "fingerprint": {
+    "cpu": "Apple M2 Pro",
+    "cores": 12,
+    "ramGiB": 32,
+    "os": "darwin 25.0.0",
+    "node": "v24.6.0",
+    "wasmSha256": "d0e7283d8120f00e5a5f773c45383d7650c7a3361d970cb6101fb34e5b00a0f5",
+    "wasmBytes": 5806517,
+    "gitSha": "6bf52b6",
+    "date": "2026-07-18T03:37:43.857Z",
+    "startLoad": 2.7265625
+  },
+  "results": {
+    "M1": {
+      "description": "createPicoGK() cold instantiate (5.8 MB module)",
+      "phases": {
+        "instantiate": {
+          "medianMs": 8.418,
+          "minMs": 8.272,
+          "maxMs": 9.46
+        }
+      },
+      "identity": null,
+      "loadBefore": 2.7265625,
+      "loadAfter": 2.7265625,
+      "flagged": false
+    },
+    "M2@0.5": {
+      "description": "sphere r=10 @ 0.5mm",
+      "phases": {
+        "build": {
+          "medianMs": 0.99,
+          "minMs": 0.955,
+          "maxMs": 1.342
+        },
+        "volume": {
+          "medianMs": 0.866,
+          "minMs": 0.861,
+          "maxMs": 0.923
+        }
+      },
+      "identity": {
+        "volume": "40b062d220000000"
+      },
+      "loadBefore": 2.7265625,
+      "loadAfter": 2.7265625,
+      "flagged": false
+    },
+    "M2@0.25": {
+      "description": "sphere r=10 @ 0.25mm",
+      "phases": {
+        "build": {
+          "medianMs": 3.045,
+          "minMs": 3.04,
+          "maxMs": 3.078
+        },
+        "volume": {
+          "medianMs": 3.163,
+          "minMs": 3.149,
+          "maxMs": 3.186
+        }
+      },
+      "identity": {
+        "volume": "40b05e9fa0000000"
+      },
+      "loadBefore": 2.7265625,
+      "loadAfter": 2.7265625,
+      "flagged": false
+    },
+    "M3@0.5": {
+      "description": "gyroid implicit @ 0.5mm (JS SDF)",
+      "phases": {
+        "render": {
+          "medianMs": 18.23,
+          "minMs": 17.619,
+          "maxMs": 18.79
+        },
+        "mesh": {
+          "medianMs": 13.564,
+          "minMs": 13.189,
+          "maxMs": 14.624
+        }
+      },
+      "identity": {
+        "volume": "40c1773220000000",
+        "triangles": 162636
+      },
+      "loadBefore": 2.7265625,
+      "loadAfter": 2.7265625,
+      "flagged": false
+    },
+    "M3@0.25": {
+      "description": "gyroid implicit @ 0.25mm (JS SDF)",
+      "phases": {
+        "render": {
+          "medianMs": 119.873,
+          "minMs": 116.601,
+          "maxMs": 128.307
+        },
+        "mesh": {
+          "medianMs": 49.971,
+          "minMs": 47.684,
+          "maxMs": 51.055
+        }
+      },
+      "identity": {
+        "volume": "40b0937560000000",
+        "triangles": 538668
+      },
+      "loadBefore": 2.7265625,
+      "loadAfter": 2.7265625,
+      "flagged": false
+    },
+    "M4": {
+      "description": "union + subtract + intersect chain (differential shapes)",
+      "phases": {
+        "chain": {
+          "medianMs": 6.883,
+          "minMs": 6.824,
+          "maxMs": 6.944
+        }
+      },
+      "identity": {
+        "volume": "40ac7355a0000000"
+      },
+      "loadBefore": 2.7265625,
+      "loadAfter": 2.7265625,
+      "flagged": false
+    },
+    "M5": {
+      "description": "offset +2 and smoothen(1) on a CSG body",
+      "phases": {
+        "offset": {
+          "medianMs": 250.574,
+          "minMs": 250.278,
+          "maxMs": 259.026
+        },
+        "smoothen": {
+          "medianMs": 424.363,
+          "minMs": 423.982,
+          "maxMs": 427.336
+        }
+      },
+      "identity": {
+        "grown": "40c197d680000000",
+        "smooth": "40b399d160000000"
+      },
+      "loadBefore": 2.7265625,
+      "loadAfter": 2.587890625,
+      "flagged": false
+    },
+    "M6": {
+      "description": "mesh readback bulk vs per-element (0.25mm gyroid)",
+      "phases": {
+        "bulk": {
+          "medianMs": 0.509,
+          "minMs": 0.363,
+          "maxMs": 0.609
+        },
+        "perElement": {
+          "medianMs": 20.904,
+          "minMs": 19.756,
+          "maxMs": 21.826
+        }
+      },
+      "identity": {
+        "vertices": "ccc61ca1",
+        "count": 114156
+      },
+      "loadBefore": 2.587890625,
+      "loadAfter": 2.587890625,
+      "flagged": false
+    },
+    "M7": {
+      "description": "100k-triangle synthetic bulk import",
+      "phases": {
+        "import": {
+          "medianMs": 1.609,
+          "minMs": 1.59,
+          "maxMs": 1.627
+        }
+      },
+      "identity": {
+        "vertexCount": 100000,
+        "triangleCount": 99998
+      },
+      "loadBefore": 2.587890625,
+      "loadAfter": 2.587890625,
+      "flagged": false
+    },
+    "M8": {
+      "description": "full interpolated slice sweep + vectorize (sphere r=8)",
+      "phases": {
+        "sweep": {
+          "medianMs": 4.216,
+          "minMs": 3.997,
+          "maxMs": 4.862
+        }
+      },
+      "identity": {
+        "layers": 31,
+        "contours": 31
+      },
+      "loadBefore": 2.587890625,
+      "loadAfter": 2.587890625,
+      "flagged": false
+    },
+    "M9": {
+      "description": "facade vs raw: 10k isEmpty calls",
+      "phases": {
+        "raw10k": {
+          "medianMs": 15.552,
+          "minMs": 15.495,
+          "maxMs": 16.864
+        },
+        "facade10k": {
+          "medianMs": 15.475,
+          "minMs": 15.163,
+          "maxMs": 16.902
+        }
+      },
+      "identity": null,
+      "loadBefore": 2.587890625,
+      "loadAfter": 2.587890625,
+      "flagged": false
+    },
+    "M10@single": {
+      "description": "gyroid tape @ 0.25mm (single entry)",
+      "phases": {
+        "render": {
+          "medianMs": 49.677,
+          "minMs": 49.489,
+          "maxMs": 50.186
+        },
+        "mesh": {
+          "medianMs": 50.25,
+          "minMs": 49.812,
+          "maxMs": 52.187
+        }
+      },
+      "identity": {
+        "volume": "40b0937560000000",
+        "triangles": 538668,
+        "threads": 1
+      },
+      "loadBefore": 2.587890625,
+      "loadAfter": 2.587890625,
+      "flagged": false
+    },
+    "M10@multi": {
+      "description": "gyroid tape @ 0.25mm (multi entry)",
+      "phases": {
+        "render": {
+          "medianMs": 13.922,
+          "minMs": 11.73,
+          "maxMs": 14.628
+        },
+        "mesh": {
+          "medianMs": 46.244,
+          "minMs": 44.561,
+          "maxMs": 48.654
+        }
+      },
+      "identity": {
+        "volume": "40b0937560000000",
+        "triangles": 538668,
+        "threads": 12
+      },
+      "loadBefore": 2.587890625,
+      "loadAfter": 3.42138671875,
+      "flagged": false
+    }
+  }
+}
