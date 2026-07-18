@@ -95,7 +95,12 @@ libm-dominated (gyroid: sin/cos(z·s); sphere/union64: pow(z−c, 2)), so 1.05�
 beneficiaries are pow-free arithmetic-heavy tapes (box/plane/CSG-of-quadrics style). Halving
 level-3 dispatch is the side benefit.
 
-**Measured**: _(pending)_
+**Measured** (back-to-back vs the preserved TP7a pair, identity exact; TP7a re-measured within
+1.5% of its own A/B — single-thread rows are load-robust): gyroid single 746 → **586 ms
+(1.27×)**; sphere single 113 → **94 ms (1.20×)**; union64 single 241 → **196 ms (1.23×)**.
+Slightly ahead of prediction — halved dispatch is worth as much as the lanes here. Multi rows
+were captured under a 30–43 loadavg spike and show no separable signal (gyroid 107 → 107 ms);
+the single ratios are the portable result for this stage.
 
 ### TP7c — sincos fusion (gyroid-class fields)
 

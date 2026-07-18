@@ -66,6 +66,8 @@
 #include <tbb/enumerable_thread_specific.h>
 #include <tbb/parallel_for.h>
 
+#include <wasm_simd128.h>
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -195,6 +197,96 @@ void EvalTapeIndices(   const uint32_t* pnInstructions,
     {
         const int32_t i = (int32_t) pnIdx[k];
         pfReg[i] = dEvalOne(pnInstructions, i, pfConstants, fX, fY, fZ, pfReg);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// TP7b — f64x2 evaluation of the z-varying level over a PAIR of z samples.
+//
+// Bit-identity boundary: +,-,*,/,sqrt are IEEE correctly rounded and floor is
+// exact, so their f64x2 forms match the scalar ops lane-for-lane. min/max are
+// rebuilt as compare+bitselect to replicate std::min/max exactly — first
+// operand on unordered comparisons, and min(+0,-0)=+0 / max(-0,+0)=-0 (the
+// comparison is false on equal-valued zeros, so lane selection falls through
+// to operand a, same as the scalar template). Transcendentals stay scalar
+// musl calls per lane — a vectorized polynomial libm would break the
+// tape ≡ JS pin (musl-wasm ≡ V8 fdlibm).
+//
+// Only instructions whose axis mask contains Z can appear in the level-3
+// list (CONST/X/Y sit at levels 0-2 by construction), so leaves reduce to
+// TAPE_Z. Operands from lower levels are lane-splat from the scalar register
+// file on the fly — the axis mask doubles as the "which file" discriminator.
+// ---------------------------------------------------------------------------
+
+void EvalTapeIndicesV(  const uint32_t* pnInstructions,
+                        const uint32_t* pnIdx,
+                        int32_t         nIdxCount,
+                        const uint8_t*  pnAxisMask,
+                        const double*   pfRegScalar,
+                        v128_t          vZ,
+                        v128_t*         pvReg)
+{
+    const auto LANE = [&](uint32_t r) -> v128_t
+    {
+        return (pnAxisMask[r] & 4) ? pvReg[r] : wasm_f64x2_splat(pfRegScalar[r]);
+    };
+    const auto LIBM1 = [](v128_t v, double (*pfn)(double)) -> v128_t
+    {
+        return wasm_f64x2_make( pfn(wasm_f64x2_extract_lane(v, 0)),
+                                pfn(wasm_f64x2_extract_lane(v, 1)));
+    };
+
+    for (int32_t k = 0; k < nIdxCount; k++)
+    {
+        const int32_t  i   = (int32_t) pnIdx[k];
+        const uint32_t nOp = pnInstructions[2 * i];
+        const uint32_t nAB = pnInstructions[2 * i + 1];
+        const uint32_t nA  = nAB & 0xFFFFu;
+        const uint32_t nB  = nAB >> 16;
+
+        v128_t vResult;
+        switch (nOp)
+        {
+            case TAPE_Z:     vResult = vZ;                                          break;
+            case TAPE_ADD:   vResult = wasm_f64x2_add(LANE(nA), LANE(nB));          break;
+            case TAPE_SUB:   vResult = wasm_f64x2_sub(LANE(nA), LANE(nB));          break;
+            case TAPE_MUL:   vResult = wasm_f64x2_mul(LANE(nA), LANE(nB));          break;
+            case TAPE_DIV:   vResult = wasm_f64x2_div(LANE(nA), LANE(nB));          break;
+            case TAPE_NEG:   vResult = wasm_f64x2_neg(LANE(nA));                    break;
+            case TAPE_ABS:   vResult = wasm_f64x2_abs(LANE(nA));                    break;
+            case TAPE_SQRT:  vResult = wasm_f64x2_sqrt(LANE(nA));                   break;
+            case TAPE_SIN:   vResult = LIBM1(LANE(nA), std::sin);                   break;
+            case TAPE_COS:   vResult = LIBM1(LANE(nA), std::cos);                   break;
+            case TAPE_FLOOR: vResult = wasm_f64x2_floor(LANE(nA));                  break;
+            case TAPE_MOD:
+            {
+                const v128_t vA = LANE(nA), vB = LANE(nB);
+                vResult = wasm_f64x2_sub(vA, wasm_f64x2_mul(vB, wasm_f64x2_floor(wasm_f64x2_div(vA, vB))));
+                break;
+            }
+            case TAPE_MIN:
+            {
+                const v128_t vA = LANE(nA), vB = LANE(nB);
+                vResult = wasm_v128_bitselect(vB, vA, wasm_f64x2_lt(vB, vA)); // (b<a)?b:a ≡ std::min
+                break;
+            }
+            case TAPE_MAX:
+            {
+                const v128_t vA = LANE(nA), vB = LANE(nB);
+                vResult = wasm_v128_bitselect(vB, vA, wasm_f64x2_lt(vA, vB)); // (a<b)?b:a ≡ std::max
+                break;
+            }
+            case TAPE_POW:
+            {
+                const v128_t vA = LANE(nA), vB = LANE(nB);
+                vResult = wasm_f64x2_make(  std::pow(wasm_f64x2_extract_lane(vA, 0), wasm_f64x2_extract_lane(vB, 0)),
+                                            std::pow(wasm_f64x2_extract_lane(vA, 1), wasm_f64x2_extract_lane(vB, 1)));
+                break;
+            }
+            case TAPE_EXP:   vResult = LIBM1(LANE(nA), std::exp);                   break;
+            default:         vResult = LIBM1(LANE(nA), std::log);                   break; // TAPE_LOG
+        }
+        pvReg[i] = vResult;
     }
 }
 
@@ -642,6 +734,8 @@ PICOGK_API void Voxels_RenderImplicitTape(  PKINSTANCE      hLib,
             std::vector<uint32_t> vecLevel[4];
             for (auto& vec : vecLevel)
                 vec.reserve(nRegs);
+            // TP7b scratch: f64x2 register file for the z-varying level.
+            std::vector<v128_t>   vecRegV(nRegs);
 
             for (int32_t nCX = oRange.rows().begin(); nCX != oRange.rows().end(); nCX++)
             for (int32_t nCY = oRange.cols().begin(); nCY != oRange.cols().end(); nCY++)
@@ -695,6 +789,15 @@ PICOGK_API void Voxels_RenderImplicitTape(  PKINSTANCE      hLib,
                         vecLevel[nLevel].push_back((uint32_t) i);
                     }
 
+                    const auto WriteVoxel = [&](int32_t x, int32_t y, int32_t z, float fSdf)
+                    {
+                        const float fValue = std::min(fSdf, fBackground);
+                        const openvdb::Coord xyz(x, y, z);
+                        oAccess.setValue(xyz, std::clamp(fValue, -fBackground, fBackground));
+                        if (std::abs(fValue) >= fBackground)
+                            oAccess.setValueOff(xyz);
+                    };
+
                     // Constants and pure-x/y subexpressions evaluate at the
                     // loop depth where their inputs last changed instead of
                     // once per voxel. Sample positions are the same per-axis
@@ -711,18 +814,35 @@ PICOGK_API void Voxels_RenderImplicitTape(  PKINSTANCE      hLib,
                             const double fY = (double) oVoxelSize.fToMM(y);
                             EvalTapeIndices(pnTape, vecLevel[2].data(), (int32_t) vecLevel[2].size(),
                                             pfConstants, fX, fY, 0.0, vecReg.data());
-                            for (int32_t z = nSlabZ0; z <= nSlabZ1; z++)
+
+                            if (vecLevel[3].empty())
+                            {
+                                // z-independent tape: the result register is
+                                // already final for the whole z-run.
+                                const float fSdf = (float) vecReg[nTapeCount - 1];
+                                for (int32_t z = nSlabZ0; z <= nSlabZ1; z++)
+                                    WriteVoxel(x, y, z, fSdf);
+                                continue;
+                            }
+
+                            // TP7b — pairs of z samples through the f64x2
+                            // evaluator; odd tail runs the scalar path.
+                            int32_t z = nSlabZ0;
+                            for (; z < nSlabZ1; z += 2)
+                            {
+                                const v128_t vZ = wasm_f64x2_make(  (double) oVoxelSize.fToMM(z),
+                                                                    (double) oVoxelSize.fToMM(z + 1));
+                                EvalTapeIndicesV(pnTape, vecLevel[3].data(), (int32_t) vecLevel[3].size(),
+                                                 vecAxisMask.data(), vecReg.data(), vZ, vecRegV.data());
+                                WriteVoxel(x, y, z,     (float) wasm_f64x2_extract_lane(vecRegV[nTapeCount - 1], 0));
+                                WriteVoxel(x, y, z + 1, (float) wasm_f64x2_extract_lane(vecRegV[nTapeCount - 1], 1));
+                            }
+                            if (z == nSlabZ1)
                             {
                                 const double fZ = (double) oVoxelSize.fToMM(z);
                                 EvalTapeIndices(pnTape, vecLevel[3].data(), (int32_t) vecLevel[3].size(),
                                                 pfConstants, fX, fY, fZ, vecReg.data());
-                                const float fSdf = (float) vecReg[nTapeCount - 1];
-
-                                const float fValue = std::min(fSdf, fBackground);
-                                const openvdb::Coord xyz(x, y, z);
-                                oAccess.setValue(xyz, std::clamp(fValue, -fBackground, fBackground));
-                                if (std::abs(fValue) >= fBackground)
-                                    oAccess.setValueOff(xyz);
+                                WriteVoxel(x, y, z, (float) vecReg[nTapeCount - 1]);
                             }
                         }
                     }
