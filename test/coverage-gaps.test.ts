@@ -390,3 +390,19 @@ test('withSdfPointer rejects a non-function before touching the module (internal
     (error: unknown) => error instanceof PicoGkError && /must be a function/.test((error as Error).message),
   );
 });
+
+test('checkedMalloc: a failed wasm allocation throws the typed OOM error, not a RangeError', async () => {
+  // Found by the R12 fine-voxel probe: near the 4 GB wasm32 ceiling _malloc
+  // returns 0 and the subsequent HEAP*.set surfaced as a bare RangeError.
+  const { checkedMalloc } = await import('../src/context.ts');
+  const failing = { _malloc: () => 0 } as never;
+  assert.throws(
+    () => checkedMalloc(failing, 1024, 'a test buffer'),
+    (error: unknown) =>
+      error instanceof PicoGkError &&
+      error.code === 'PICOGK_OUT_OF_MEMORY' &&
+      /1024 bytes.*a test buffer/.test(error.message),
+  );
+  // A zero-byte request may legitimately return 0 without throwing.
+  assert.equal(checkedMalloc(failing, 0, 'nothing'), 0);
+});

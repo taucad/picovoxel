@@ -10,6 +10,7 @@
 import {
   adoptHandle,
   assertSameSession,
+  checkedMalloc,
   expectHandle,
   VEC3_BYTES,
   withSdfPointer,
@@ -160,7 +161,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
   };
 
   const dims = () => {
-    const p = ctx.module._malloc(24);
+    const p = checkedMalloc(ctx.module, 24, 'a dimensions scratch buffer');
     try {
       ctx.raw.Voxels_GetVoxelDimensions(ctx.lib, live(), p, p + 4, p + 8, p + 12, p + 16, p + 20);
       const i32 = (offset: number) => ctx.module.HEAP32[(p + offset) >> 2]!;
@@ -410,8 +411,8 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
         );
       }
 
-      const buffer = ctx.module._malloc(width * height * 4);
-      const backgroundPtr = ctx.module._malloc(4);
+      const buffer = checkedMalloc(ctx.module, width * height * 4, 'a slice image buffer');
+      const backgroundPtr = checkedMalloc(ctx.module, 4, 'the slice background value');
       try {
         if (interpolated) {
           ctx.raw.Voxels_GetInterpolatedZSlice(ctx.lib, handle, at, buffer, backgroundPtr);

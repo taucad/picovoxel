@@ -4,6 +4,7 @@
 
 import {
   adoptHandle,
+  checkedMalloc,
   expectHandle,
   readCString,
   withStrings,
@@ -88,7 +89,7 @@ export function wrapMetadata(ctx: SessionContext, handle: bigint): Metadata {
     const type = TYPE_NAMES[withStrings(ctx, [name], (n) => ctx.raw.Metadata_nTypeAt(ctx.lib, handle, n))];
     if (type === 'string') {
       const length = withStrings(ctx, [name], (n) => ctx.raw.Metadata_nStringLengthAt(ctx.lib, handle, n)) + 1;
-      const buffer = ctx.module._malloc(length);
+      const buffer = checkedMalloc(ctx.module, length, 'a metadata string buffer');
       try {
         withStrings(ctx, [name], (n) => ctx.raw.Metadata_bGetStringAt(ctx.lib, handle, n, buffer, length));
         return readCString(ctx, buffer);
@@ -116,7 +117,7 @@ export function wrapMetadata(ctx: SessionContext, handle: bigint): Metadata {
       const result: string[] = [];
       for (let i = 0; i < count; i++) {
         const length = ctx.raw.Metadata_nNameLengthAt(ctx.lib, handle, i) + 1;
-        const buffer = ctx.module._malloc(length);
+        const buffer = checkedMalloc(ctx.module, length, 'a metadata string buffer');
         try {
           ctx.raw.Metadata_bGetNameAt(ctx.lib, handle, i, buffer, length); // i < count: cannot fail
           result.push(readCString(ctx, buffer));

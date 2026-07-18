@@ -9,6 +9,7 @@
 import {
   adoptHandle,
   assertSameSession,
+  checkedMalloc,
   expectHandle,
   VEC3_BYTES,
   type SessionContext,
@@ -81,7 +82,7 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint): ScalarFiel
     return handle;
   };
   const dims = () => {
-    const p = ctx.module._malloc(24);
+    const p = checkedMalloc(ctx.module, 24, 'a dimensions scratch buffer');
     try {
       ctx.raw.ScalarField_GetVoxelDimensions(ctx.lib, live(), p, p + 4, p + 8, p + 12, p + 16, p + 20);
       const i32 = (offset: number) => ctx.module.HEAP32[(p + offset) >> 2]!;
@@ -122,7 +123,7 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint): ScalarFiel
       if (!Number.isInteger(index) || index < 0 || index >= depth) {
         throw new PicoGkError('PICOGK_INVALID_ARGUMENT', `getSlice index ${index} out of range [0, ${depth}).`);
       }
-      const buffer = ctx.module._malloc(width * height * 4);
+      const buffer = checkedMalloc(ctx.module, width * height * 4, 'a slice image buffer');
       try {
         ctx.raw.ScalarField_GetSlice(ctx.lib, handle, index, buffer);
         return { width, height, data: new Float32Array(ctx.module.HEAPF32.subarray(buffer >> 2, (buffer >> 2) + width * height)) };

@@ -13,6 +13,7 @@
 import {
   adoptHandle,
   BBOX_BYTES,
+  checkedMalloc,
   createMemoryWarning,
   expectHandle,
   INFO_STRING_BYTES,
@@ -160,7 +161,7 @@ export async function createPicoGKSession(glue: PicoGkGlueFactory, options: Crea
   const raw = bindPicoGkRaw(module);
   const lib = expectHandle('Library_hCreateInstance', raw.Library_hCreateInstance(voxelSize));
 
-  const scratch = module._malloc(Math.max(BBOX_BYTES, INFO_STRING_BYTES));
+  const scratch = checkedMalloc(module, Math.max(BBOX_BYTES, INFO_STRING_BYTES), 'the session scratch buffer');
   const ctx: SessionContext = {
     module,
     lib,

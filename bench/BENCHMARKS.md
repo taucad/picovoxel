@@ -198,3 +198,24 @@ Readings:
 
 M11 (RoverWheel Wheel_02) and M12 (HelixHeatX @ 1.0 mm single/multi) join the
 generated metric table on the next `npm run bench -- --update` run.
+
+### R12 — fine-voxel ceiling (0.3/0.2 mm), documented (2026-07-19)
+
+Attempted per the memory-gated protocol (`node bench/heatx-sweep.mjs --sizes
+0.3 --builds multi`): **0.3 mm does NOT complete on wasm32.** The session's
+native-memory warning fires (>1 GiB) during fin/void construction, and the
+run dies when a later allocation exhausts the 4 GB linear-memory ceiling —
+notably during a *small* flange-cylinder mesh build, i.e. the heap was
+already consumed by long-lived intermediates (the HeatX assembly holds
+fins + voids + structure grids concurrently; at 0.3 mm that is ~4.6× the
+0.5 mm narrow-band footprint, plus the ~1.4 GB STL to come). 0.2 mm
+(published: 1240 s / 3.4 GB STL) fails a fortiori. Mitigation paths, not
+pursued here: explicit `dispose()` of intermediates inside the subject
+(against the port-fidelity goal of keeping the C# structure), a
+memory64 build, or out-of-core STL streaming. The user-priority 0.5–1.0 mm
+band is comfortably inside the ceiling.
+
+(The probe also exposed that a failed wasm `_malloc` near the ceiling
+surfaces as a raw `RangeError` from `HEAPF32.set` rather than the typed
+`PICOGK_OUT_OF_MEMORY` error — hardened in the facade as a follow-up
+commit.)

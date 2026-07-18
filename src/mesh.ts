@@ -5,7 +5,7 @@
 // write back through the bulk imports, preserving indexing — and fixing upstream B1
 // (mshCreateTransformed scales each triangle corner by a DIFFERENT axis component).
 
-import { adoptHandle, assertSameSession, expectHandle, TRI_BYTES, VEC3_BYTES, type SessionContext } from './context.ts';
+import { adoptHandle, assertSameSession, checkedMalloc, expectHandle, TRI_BYTES, VEC3_BYTES, type SessionContext } from './context.ts';
 import { assertLive, guard, PicoGkError } from './errors.ts';
 import { createGlb } from './glb.ts';
 import { meshToStlBytes, type ToStlOptions } from './stl.ts';
@@ -74,7 +74,7 @@ export function bulkCreateMesh(ctx: SessionContext, vertices: ArrayLike<number>,
   const { module, raw, lib } = ctx;
   const mesh = expectHandle('Mesh_hCreate', raw.Mesh_hCreate(lib));
   if (vertexCount > 0) {
-    const vertexPointer = module._malloc(vertexCount * VEC3_BYTES);
+    const vertexPointer = checkedMalloc(module, vertexCount * VEC3_BYTES, 'mesh vertices');
     try {
       module.HEAPF32.set(vertices as ArrayLike<number> & { length: number }, vertexPointer >> 2);
       raw.Mesh_AddVertices(lib, mesh, vertexPointer, vertexCount);
@@ -83,7 +83,7 @@ export function bulkCreateMesh(ctx: SessionContext, vertices: ArrayLike<number>,
     }
   }
   if (triangleCount > 0) {
-    const trianglePointer = module._malloc(triangleCount * TRI_BYTES);
+    const trianglePointer = checkedMalloc(module, triangleCount * TRI_BYTES, 'mesh triangles');
     try {
       module.HEAPU32.set(triangles as ArrayLike<number> & { length: number }, trianglePointer >> 2);
       raw.Mesh_AddTriangles(lib, mesh, trianglePointer, triangleCount);
@@ -106,8 +106,8 @@ export function wrapMesh(ctx: SessionContext, handle: bigint): Mesh {
     const { module, raw, lib } = ctx;
     const vertexCount = raw.Mesh_nVertexCount(lib, handle);
     const triangleCount = raw.Mesh_nTriangleCount(lib, handle);
-    const vertexPointer = module._malloc(vertexCount * VEC3_BYTES);
-    const trianglePointer = module._malloc(triangleCount * TRI_BYTES);
+    const vertexPointer = checkedMalloc(module, vertexCount * VEC3_BYTES, 'mesh vertices');
+    const trianglePointer = checkedMalloc(module, triangleCount * TRI_BYTES, 'mesh triangles');
     try {
       raw.Mesh_GetVertices(lib, handle, vertexPointer, vertexCount);
       raw.Mesh_GetTriangles(lib, handle, trianglePointer, triangleCount);

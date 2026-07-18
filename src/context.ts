@@ -67,6 +67,25 @@ export function assertSameSession(ctx: SessionContext, other: object, what: stri
 }
 
 /**
+ * `_malloc` that fails LOUDLY: near the wasm32 4 GB linear-memory ceiling
+ * malloc returns 0, and unchecked writes then surface as bare RangeErrors
+ * from `HEAP*.set` (found by the R12 fine-voxel probe at 0.3 mm). A
+ * zero-byte request may legitimately return 0.
+ */
+export function checkedMalloc(module: PicoGkWasmModule, bytes: number, what: string): number {
+  const pointer = module._malloc(bytes);
+  if (pointer === 0 && bytes > 0) {
+    throw new PicoGkError(
+      'PICOGK_OUT_OF_MEMORY',
+      `Failed to allocate ${bytes} bytes of wasm memory for ${what}. ` +
+        'The wasm32 linear-memory ceiling is 4 GB — raise voxelSize, shrink the bounds, ' +
+        'or dispose() intermediates sooner.',
+    );
+  }
+  return pointer;
+}
+
+/**
  * Runs `body` with NUL-terminated UTF-8 copies of `texts` in wasm memory.
  * Buffers are freed on the way out; copy results before returning.
  */
@@ -74,7 +93,7 @@ export function withStrings<T>(ctx: SessionContext, texts: readonly string[], bo
   const { module } = ctx;
   const pointers = texts.map((text) => {
     const bytes = module.lengthBytesUTF8(text) + 1;
-    const pointer = module._malloc(bytes);
+    const pointer = checkedMalloc(module, bytes, 'a string argument');
     module.stringToUTF8(text, pointer, bytes);
     return pointer;
   });
@@ -142,9 +161,9 @@ export function withSdfTape<T>(
 ): T {
   const { instructions, constants } = compileSdfExpression(expression);
   const { module } = ctx;
-  const instructionPointer = module._malloc(instructions.byteLength);
+  const instructionPointer = checkedMalloc(module, instructions.byteLength, 'the SDF tape instructions');
   // Never malloc(0): a constant-free tape still needs a valid pointer.
-  const constantPointer = module._malloc(Math.max(constants.byteLength, 8));
+  const constantPointer = checkedMalloc(module, Math.max(constants.byteLength, 8), 'the SDF tape constants');
   try {
     module.HEAPU32.set(instructions, instructionPointer >> 2);
     module.HEAPF64.set(constants, constantPointer >> 3);
