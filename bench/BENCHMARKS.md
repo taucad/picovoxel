@@ -112,7 +112,17 @@ differentials and the cross-engine hex gate).
 **Expected**: gyroid-only ~1.1–1.3× (the z-pair is the only per-voxel pair left after TP7a);
 nil for the distance fixtures.
 
-**Measured**: _(pending)_
+**Measured — NEGATIVE RESULT, REVERTED**: gyroid single 561 → 603 ms (**0.93×**), union64
+192 → 202 ms (0.95× — union64 has no trig, so that loss is pure partner-bookkeeping overhead
+in the hot evaluator loops), sphere flat, multi flat; identity stayed exact and the suite
+green, so the fusion itself was correct — just slower. Root cause: musl `sincos` returns
+through memory out-params (two linear-memory stores + loads per call on wasm) and still runs
+both kernels, so the one shared `__rem_pio2` it saves is eaten by the call shape; the added
+per-instruction partner checks then push the balance negative even on the fixture the stage
+targeted. The implementation was verified bit-identical before removal, then reverted to the
+TP7b build (snapshot-restored byte-exact). Lesson recorded: on wasm32, fusing paired libm
+calls is not worth a memory-out-param ABI — revisit only if a register-returning sincos
+becomes available.
 
 ### TP7d — affine-arithmetic classification (measured ceiling)
 
