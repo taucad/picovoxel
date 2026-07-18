@@ -100,6 +100,14 @@ Per-element `nAddVertex`/`vecVertexAt`/`oTriangleAt` live on `picogk-js/raw` onl
 | `libCreateCompatibleLibraryFor` | `pk.vdbVoxelSize(bytes)` — read the size, then `createPicoGK({ voxelSize })` to match |
 | `SaveToFile` metadata stamping | Preserved: `toBytes()` stamps `PicoGK.Library/Version/VoxelSize` on every field |
 
+### FieldUtils (headless pair, blueprint R14)
+
+| C# | picogk-js |
+| --- | --- |
+| `SurfaceNormalFieldExtractor.oExtract(vox, fSurfaceThresholdVx, vecDirectionFilter, fDirectionFilterTolerance, vecScaleBy)` | `surfaceNormalFieldExtractor(pk, voxels, { surfaceThresholdVx?, directionFilter?, directionFilterTolerance?, scaleBy? })` — over `traverse()`, no ABI change |
+| `VectorFieldMerge.Merge(oSource, oTarget)` | `vectorFieldMerge(source, target)` |
+| `SdfVisualizer` / `AddVectorFieldToViewer` (rest of `Utils/FieldUtils.cs`) | N/A — image/viewer-bound |
+
 ## Slicing (`picogk-js/slicing`)
 
 | C# | picogk-js |
@@ -252,6 +260,24 @@ vendored runtime): `voxIntersectImplicit` (`maskedByImplicit`) breaks below
 Verified on the pure callback path (0.34 mm works, 0.33 mm throws); the R9
 tape entry replicates the truncation bit-compatibly so the two paths stay
 differential-identical.
+
+## LatticeLibrary (`picogk-js/latticelibrary`)
+
+TypeScript port of LEAP71_LatticeLibrary as the third subpath export — the
+interface-driven beam-lattice pipeline plus the implicit/TPMS library
+(blueprint R13). Same conventions as ShapeKernel: explicit session, seeded
+randomness only, derived-from headers.
+
+| C# | picogk-js |
+| --- | --- |
+| `ICellArray`/`ILatticeType`/`IBeamThickness`/`IUnitCell`/`ICoordinateTrafo`/`ISplittingLogic`/`IRawTPMSPattern` | TS interfaces (same contracts) |
+| `RegularCellArray`/`RegularUnitCell`/`ConformalCellArray` (+ showcase shapes)/`CuboidCell` | same names |
+| `BodyCentreLattice`/`OctahedronLattice`/`RandomSplineLattice` | same names (`RandomSplineLattice` takes an explicit `RandomSource`) |
+| `ConstantBeamThickness`/`CellBasedBeamThickness`/`BoundaryBeamThickness`/`GlobalFuncBeamThickness` | same names |
+| `ScaleTrafo`/`FunctionalScaleTrafo`/`RadialTrafo`/`CombinedTrafo`; the six splitting logics; the five raw TPMS patterns | same names |
+| The 8 TPMS presets (`ImplicitLidinoid`, `ImplicitSchwarzPrimitive`, `ImplicitSchwarzDiamond`, `ImplicitModular`, `ImplicitRadialGyroid`, `ImplicitRandomizedSchwarzPrimitive`, `ImplicitSplitWallGyroid`, `ImplicitSplitVoidGyroid`) | same names; the 5 closed-form presets carry `.sdf` AND `.expression` (tape ≡ callback pinned; the M13 A/B measures the tape ~2× faster) — `RadialGyroid` (atan2), `RandomizedSchwarzPrimitive` (data-grid gather) and `Modular` (arbitrary user callbacks) are callback-only, the same expressibility boundary R9 drew |
+| `RandomDeformationField` | same name, explicit `RandomSource`; upstream quirks kept and pinned (corner-seed `iX*iY*iZ` overflow via `Math.imul`, max-face off-by-one) |
+| `PreviewUnitCell` + wireframe loops | N/A — viewer-bound (R16) |
 
 ## Upstream bugs fixed here (do-not-port list)
 
