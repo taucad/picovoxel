@@ -8,6 +8,7 @@ export default defineConfig({
   entry: {
     index: 'src/index.ts',
     multi: 'src/multi.ts',
+    numerics: 'src/numerics.ts',
     raw: 'src/raw.ts',
     slicing: 'src/slicing.ts',
     three: 'src/three.ts',

@@ -24,6 +24,10 @@
       "types": "./dist/multi.d.ts",
       "import": "./dist/multi.js"
     },
+    "./numerics": {
+      "types": "./dist/numerics.d.ts",
+      "import": "./dist/numerics.js"
+    },
     "./raw": {
       "types": "./dist/raw.d.ts",
       "import": "./dist/raw.js"

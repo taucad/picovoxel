@@ -110,6 +110,107 @@ Per-element `nAddVertex`/`vecVertexAt`/`oTriangleAt` live on `picogk-js/raw` onl
 | `CliIo.WriteSlicesToCliFile` / `oSlicesFromCliFile` | `slicesToCli(stack, { units?, emptyFirstLayer?, date? })` / `slicesFromCli(bytes)` |
 | `IProgress` | A plain `(fraction: number) => void` callback |
 
+## Numerics (`picogk-js/numerics`)
+
+The CEM numerics foundation: the System.Numerics analog JS lacks, the
+`PicoGK.Numerics` domain layer, and the canonical rigid frame. Pure math — no
+wasm dependency. One deliberate architecture deviation: C# houses `Frame3d` in
+`PicoGK.Shapes`; the TS module folds the value type into numerics, and
+ShapeKernel-TS's `LocalFrame` **is** this `Frame` plus construction helpers —
+the C# `LocalFrame⇄Frame3d` duplication and implicit-conversion bridge are not
+reproduced. Ported semantics, not bit-width: .NET computes in float32, JS in
+float64 (strictly more precise for authoring math).
+
+Because `Rad`/`Overhang` are **branded numbers** and `Vec2`/`Vec3` are tuples,
+most C# operator overloads, comparisons and `GetHashCode`/`CompareTo` plumbing
+need no port — native JS semantics cover them. Those rows are marked *native*.
+
+### System.Numerics (BCL analog)
+
+| C# | picogk-js |
+| --- | --- |
+| `Vector2` | `Vec2 = readonly [number, number]` + `vec2.add/sub/scale/dot/length/lengthSquared/distanceSquared/lerp/zero` |
+| `Vector2.Normalize` | `vec2.normalized` (throws on zero) / `vec2.safeNormalized` (component-wise division, as .NET) |
+| `Vector3` | `Vec3` (types.ts) + `vec3.add/sub/neg/scale/dot/cross/length/lengthSquared/distance/distanceSquared/lerp` |
+| `Vector3.UnitX/UnitY/UnitZ/Zero/One` | `vec3.unitX/unitY/unitZ/zero/one` |
+| `Vector3.Normalize` | `vec3.normalized` / `vec3.safeNormalized` |
+| `Vector3.Transform(v, Matrix4x4)` | `vec3.transformed(v, m)` — row-vector, translation in 12–14 |
+| `Vector3.Transform(v, Quaternion)` | `quat.transform(v, q)` |
+| `Quaternion` | `Quat = readonly [x, y, z, w]` |
+| `Quaternion.Identity` / `CreateFromAxisAngle` / `CreateFromRotationMatrix` / `Slerp` / `Dot` | `quat.identity` / `fromAxisAngle` / `fromMat4` / `slerp` / `dot` (.NET reference algorithms — Shepperd branches, shortest-arc slerp) |
+| `Quaternion` remaining members (`Concatenate`, `Inverse`, `CreateFromYawPitchRoll`, …) | N/A — zero kernel/consumer demand; add on first real use |
+| `Matrix4x4` | `Mat4` (types.ts — already an ABI type) + `mat4.identity/createScale/multiply` |
+| `Matrix4x4` remaining members (`Invert`, `Decompose`, projections, …) | N/A — nothing headless consumes them; `frame.inverse` covers the rigid case |
+| `Vector4`, `Plane` | N/A — zero uses in kernel or any consumer repo |
+| `BigInteger` / `Complex` / tensor types | N/A — not geometry |
+
+### PicoGK.Numerics
+
+| C# | picogk-js |
+| --- | --- |
+| `Rad` | `Rad` — branded number in radians; arithmetic/comparisons are native (results re-brand via `rad.add/sub/scale/div/neg`; `Rad / Rad` → `rad.ratio`) |
+| `Rad.TwoPi` | `TWO_PI` |
+| `Rad.Zero/Full/Half/Quarter/Deg45` (+ `Deg0/Deg360/Deg180/Deg90` aliases) | `rad.zero/full/half/quarter/deg45` (aliases N/A — one name each) |
+| `rFromRad` / explicit `(Rad)float` cast | `rad.fromRad` |
+| `rFromDeg` / `rFromNormalized` | `rad.fromDeg` / `rad.fromNormalized` (clamped, as C#) |
+| `fRad` / implicit `float` conversion | native — a `Rad` **is** a number |
+| `fDeg` | `rad.deg(r)` |
+| `rNormalizedSigned` / `rNormalizedPositive` | `rad.normalizedSigned` (IEEE-remainder tie-to-even, as `MathF.IEEERemainder`) / `rad.normalizedPositive` |
+| `bAlmostEqual` / `bAlmostEqualPeriodic` | `rad.almostEqual` / `rad.almostEqualPeriodic` |
+| `bIsFinite` | native `Number.isFinite` |
+| `fSin/fCos/fTan` | native `Math.sin/cos/tan` — the C# wrappers exist only for the struct |
+| `rAtan2(Vector2)` / `rAtan2(fY, fX)` | `rad.atan2(y, x)` (vector form: pass `v[1], v[0]`) |
+| `rAtan` / `rAcos` / `rAcosClamped` / `rAsin` / `rAsinClamped` | `rad.atan/acos/acosClamped/asin/asinClamped` |
+| `Rad` operators / `CompareTo` / `Equals` / `GetHashCode` / `ToString` | native (`ToString` → template literal + `rad.deg`) |
+| `Overhang` | `Overhang` — branded normalized severity 0..1 |
+| `uNone` / `uFull` | `overhang.none` / `overhang.full` |
+| `uFromNormalized/uFromPercent/uFromRad/uFromDeg/uFromDegFromHorizontal` | `overhang.fromNormalized/fromPercent/fromRad/fromDeg/fromDegFromHorizontal` (range-validated, throw `PICOGK_INVALID_ARGUMENT`) |
+| `fNormalized/fPercent/fRad/fDeg/fDegFromHorizontal` | the number itself / `overhang.percent/rad/deg/degFromHorizontal` |
+| `bExceeds` / comparison operators | native `>` on the branded number |
+| `Polar` / `Cylindrical` / `Spherical` | interfaces `Polar { r, phi }` / `Cylindrical { r, phi, z }` / `Spherical { r, phi, theta }` |
+| coordinate ctors (validated) | `polar.create` / `cylindrical.create(..)`·`fromPolar` / `spherical.create` — same range checks, `PicoGkError` instead of `ArgumentException` |
+| conversion ctors (`Polar(Vector2)`, `Cylindrical(Vector3/Spherical)`, `Spherical(Vector3/Cylindrical)`) | `polar.fromCartesian` / `cylindrical.fromCartesian/fromSpherical` / `spherical.fromCartesian/fromCylindrical` |
+| `vecAsCartesian` | `polar/cylindrical/spherical.toCartesian` |
+| `oLerp` (static + instance) | `polar/cylindrical/spherical.lerp` (angular deltas short-way-around, as C#) |
+| coordinate `ToString` | N/A — template literals |
+| `Tolerances.fDef/fDefSquared/fZero/fZeroSquared` | `tolerances.def/defSquared/zero/zeroSquared` |
+| `float.bAlmostEqual/bAlmostLessOrEqual/bAlmostMoreOrEqual/bAlmostZero` | `scalar.almostEqual/almostLessOrEqual/almostMoreOrEqual/almostZero` |
+| `Vector2/Vector3.bAlmostEqual/bAlmostZero` | `vec2/vec3.almostEqual/almostZero` |
+| `VectorExt.vecNormalized/vecSafeNormalized` (both arities) | `vec2/vec3.normalized/safeNormalized` |
+| `VectorExt.vecStripZ` / `vecAsVector3` | `vec3.stripZ` / `vec2.asVec3` |
+| `VectorExt.vecPtWorld/vecDirWorld/vecPtLocal/vecDirLocal` | the frame functions themselves: `frame.ptToWorld/dirToWorld/ptFromWorld/dirFromWorld` (extension-method sugar not reproduced) |
+| `VectorExt.vecTransformed` / `vecMirrored` | `vec3.transformed` / `vec3.mirrored` |
+| `VectorExt.bIsFinite` (both arities) | `vec2/vec3.isFinite` |
+| `FloatExt.bIsFinite` | native `Number.isFinite` |
+
+### Frame3d (`PicoGK.Shapes` → folded into `picogk-js/numerics`, Finding 9)
+
+| C# | picogk-js |
+| --- | --- |
+| `Frame3d` | `Frame { pos, lx, ly, lz }` — readonly value object |
+| `frmWorld` | `frame.world` |
+| `Frame3d(vecPos)` / `frmFromPos` | `frame.fromPos` |
+| `Frame3d(origin, approxZ, approxX)` / `frmFromZX` | `frame.fromZX` — same Gram-Schmidt, Z wins, right-handed |
+| `frmFromMatrix4x4` | `frame.fromMat4` |
+| `vecPtToWorld` (Vec3 + Vec2 overloads) | `frame.ptToWorld(f, v)` — accepts `Vec2 \| Vec3` |
+| `vecDirToWorld` (both overloads) | `frame.dirToWorld(f, v)` — safe-normalized, as C# |
+| `vecPtFromWorld` / `vecDirFromWorld` | `frame.ptFromWorld` / `frame.dirFromWorld` |
+| `frmCompose` / `operator *(frm, frm)` | `frame.compose(a, b)` |
+| `frmInverse` | `frame.inverse` — **fixed here** (B5): rotation is transposed, so compose∘inverse ≡ identity |
+| `frmMovedLocal(X/Y/Z)` | `frame.movedLocal` / `movedLocalX/Y/Z` |
+| `frmMovedWorld(X/Y/Z)` | `frame.movedWorld` / `movedWorldX/Y/Z` |
+| `frmRotatedWorld(vecAxis, rAngle)` | `frame.rotatedWorld(f, axis, angle)` — axis safe-normalized; zero axis is a no-op |
+| `frmRepositioned` | `frame.repositioned` |
+| `matAsMatrix4x4` | `frame.toMat4` — basis in rows, translation 12–14; feeds `mesh.transform({ matrix })` directly |
+| `matComposeWithScale` | `frame.composeWithScale` |
+| `AsRigid(out q, out origin)` | `frame.asRigid(f): { rotation, origin }` |
+| `operator *(frm, vec)` | `frame.ptToWorld` |
+| `frmInterpolate` | `frame.interpolate` — slerp rotation (shortest arc) + lerp position, t clamped |
+| `Equals` / `GetHashCode` | `frame.equals` / native (`Map` keys: use your own key fn) |
+
+The rest of `PicoGK.Shapes` (2D paths/contours, `OrientedPath`) stays deferred
+until a consumer adopts it — see below.
+
 ## Upstream bugs fixed here (do-not-port list)
 
 | # | C# location | Bug | picogk-js behaviour |
@@ -118,7 +219,8 @@ Per-element `nAddVertex`/`vecVertexAt`/`oTriangleAt` live on `picogk-js/raw` onl
 | B2 | `Library/Library.cs:276` | `MmToVoxels` calls `_VoxelsToMm` — the inverse conversion | `mmToVoxel` binds the real export, rounds to nearest index |
 | B3 | `Base/Lattice.cs:78-114` | Two `AddBeam` overloads differing only in parameter order | One options-object signature |
 | B4 | `IO/OpenVdbFile.cs` era `Voxels.cs:680-700` | `voxShell(neg, pos, smooth)` calls the *copy* forms of subtract/smoothen and discards the results — the two-offset shell never subtracts and never smooths | `shell({ inner, outer, smoothInner })` implements the documented intent |
+| B5 | `Shapes/3D/Frame3d.cs:229-241` | `frmInverse` copies `vecLz`/`vecLx` into the inverse unchanged — the translation is inverted but the rotation is not, so `frmCompose(frmInverse())` ≠ identity for any rotated frame | `frame.inverse` transposes the rotation (inverse basis = rows of R); compose∘inverse ≡ identity is a pinned test |
 
 ## Deliberately not on this surface
 
-`Viewer/*` (browser rendering is `picogk-js/three` + your scene), `Library.Go()` and the global registry, `Numerics/` + `Shapes/` (the flagship C# models don't consume them — candidate future subpath), Skia imaging / `LogFile` / `Animation` / `Csv` / `TgaIo` (platform natives replace them), `MeshMath.bFindTriangleFromSurfacePoint` (use `bounds()` + an external BVH).
+`Viewer/*` (browser rendering is `picogk-js/three` + your scene), `Library.Go()` and the global registry, `Shapes/` 2D paths/contours + `OrientedPath` (deferred until any consumer adopts them; the 3D `Frame3d` is ported — see `picogk-js/numerics`), Skia imaging / `LogFile` / `Animation` / `Csv` / `TgaIo` (platform natives replace them), `MeshMath.bFindTriangleFromSurfacePoint` (use `bounds()` + an external BVH).
