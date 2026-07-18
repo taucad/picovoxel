@@ -361,6 +361,28 @@ fine.dispose();
   }
 }
 
+// ── M13 — TPMS preset tape vs callback A/B (LatticeLibrary, blueprint R13) ──
+// One closed-form preset at volume scale: the same SchwarzDiamond field filled
+// through the serial JS-callback path and the tape path. The two volume hexes
+// must be equal — the presets pin tape ≡ callback bit-exactly in unit tests.
+{
+  const { ImplicitSchwarzDiamond } = await import('../src/latticelibrary.ts');
+  const preset = new ImplicitSchwarzDiamond(10, 0.5);
+  await metric('M13', 'SchwarzDiamond preset @ 0.5mm, [-15,15]³: callback vs tape', async () => {
+    const session = await createPicoGK({ voxelSize: 0.5 });
+    const bounds = { boundsMin: [-15, -15, -15], boundsMax: [15, 15, 15] };
+    const t0 = now();
+    const fromCallback = session.createVoxels({ shape: 'implicit', ...bounds, sdf: preset.sdf });
+    const callbackMs = now() - t0;
+    const t1 = now();
+    const fromTape = session.createVoxels({ shape: 'implicit', ...bounds, sdf: preset.expression });
+    const tapeMs = now() - t1;
+    const identity = { callbackVolume: hexFloat(fromCallback.volume), tapeVolume: hexFloat(fromTape.volume) };
+    session.dispose();
+    return { phases: { callback: callbackMs, tape: tapeMs }, identity };
+  });
+}
+
 // ── Persist ──
 const output = { fingerprint, results };
 const resultsDir = join(HERE, 'bench/results');

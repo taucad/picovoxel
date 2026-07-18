@@ -24,6 +24,10 @@
       "types": "./dist/multi.d.ts",
       "import": "./dist/multi.js"
     },
+    "./latticelibrary": {
+      "types": "./dist/latticelibrary.d.ts",
+      "import": "./dist/latticelibrary.js"
+    },
     "./numerics": {
       "types": "./dist/numerics.d.ts",
       "import": "./dist/numerics.js"

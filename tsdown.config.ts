@@ -7,6 +7,7 @@ import { defineConfig } from 'tsdown';
 export default defineConfig({
   entry: {
     index: 'src/index.ts',
+    latticelibrary: 'src/latticelibrary.ts',
     multi: 'src/multi.ts',
     numerics: 'src/numerics.ts',
     raw: 'src/raw.ts',

@@ -1,0 +1,72 @@
+{
+ "ex-implicit-logic-split": [
+  {
+   "volumeHex": "000000607d77e440",
+   "triangles": 527700
+  },
+  {
+   "volumeHex": "00000020f978e440",
+   "triangles": 527700
+  },
+  {
+   "volumeHex": "000000204779fe40",
+   "triangles": 122412
+  }
+ ],
+ "ex-implicit-modular": [
+  {
+   "volumeHex": "000000c0ba94f440",
+   "triangles": 1800160
+  },
+  {
+   "volumeHex": "00000040e51f1441",
+   "triangles": 330568
+  }
+ ],
+ "ex-implicit-radial": [
+  {
+   "volumeHex": "000000406e98ea40",
+   "triangles": 2327540
+  },
+  {
+   "volumeHex": "00000040e51f1441",
+   "triangles": 330568
+  }
+ ],
+ "ex-implicit-random": [
+  {
+   "volumeHex": "000000201cffd140",
+   "triangles": 801996
+  }
+ ],
+ "ex-implicit-regular": [
+  {
+   "volumeHex": "000000a0f5b0e140",
+   "triangles": 628348
+  },
+  {
+   "volumeHex": "000000204779fe40",
+   "triangles": 122412
+  }
+ ],
+ "ex-lattice-conformal": [
+  {
+   "volumeHex": "000000c09fbce640",
+   "triangles": 329180
+  },
+  {
+   "volumeHex": "00000040ac431941",
+   "triangles": 94420
+  }
+ ],
+ "ex-lattice-regular": [
+  {
+   "volumeHex": "000000e048fbe040",
+   "triangles": 158108
+  },
+  {
+   "volumeHex": "00000080a7f21f41",
+   "triangles": 93948
+  }
+ ]
+}
