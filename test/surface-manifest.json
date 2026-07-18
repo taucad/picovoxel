@@ -3,7 +3,9 @@
     "PicoGkError",
     "createPicoGK",
     "emptyBounds",
-    "isEmptyBounds"
+    "isEmptyBounds",
+    "surfaceNormalFieldExtractor",
+    "vectorFieldMerge"
   ],
   "session": [
     "allocated",

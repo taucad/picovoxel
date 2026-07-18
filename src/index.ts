@@ -32,6 +32,8 @@ export type { FromStlOptions, StlUnit, ToStlOptions } from './stl.ts';
 export type { AddBeamOptions, Lattice } from './lattice.ts';
 export type { PolyLine } from './polyline.ts';
 export type { ScalarField, ScalarFieldSlice, VectorField } from './fields.ts';
+export { surfaceNormalFieldExtractor, vectorFieldMerge } from './fieldUtils.ts';
+export type { SurfaceNormalFieldOptions } from './fieldUtils.ts';
 export type { Metadata, MetadataType, MetadataValue } from './metadata.ts';
 export type { VdbFieldType, VdbFile } from './vdb.ts';
 export { PicoGkError } from './errors.ts';

@@ -1,0 +1,14 @@
+{
+ "fluid": {
+  "volumeHex": "000000a0f0681041",
+  "triangles": 369928
+ },
+ "solid": {
+  "volumeHex": "000000a0bb620041",
+  "triangles": 447364
+ },
+ "inlet": {
+  "volumeHex": "000000605453b340",
+  "triangles": 6580
+ }
+}
