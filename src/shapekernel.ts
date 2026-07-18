@@ -29,8 +29,21 @@ export {
 } from './shapekernel/baseShape.ts';
 export { BaseSphere } from './shapekernel/baseSphere.ts';
 export { Frames, type FrameType } from './shapekernel/frames.ts';
+export {
+  type Implicit,
+  ImplicitGenus,
+  ImplicitGyroid,
+  ImplicitSphere,
+  ImplicitSuperEllipsoid,
+} from './shapekernel/implicitUtility.ts';
+export {
+  LatticeManifold,
+  type LatticeManifoldOptions,
+  LatticePipe,
+} from './shapekernel/latticePipe.ts';
 export { localFrame } from './shapekernel/localFrame.ts';
 export { meshUtility } from './shapekernel/meshUtility.ts';
+export { inverseGrid, sh } from './shapekernel/sh.ts';
 export {
   Distribution,
   GenericContour,
