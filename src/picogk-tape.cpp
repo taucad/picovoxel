@@ -140,48 +140,62 @@ void ValidateTape(  const uint32_t* pnInstructions,
     }
 }
 
-double dEvalTape(   const uint32_t* pnInstructions,
-                    int32_t         nInstructionCount,
-                    const double*   pfConstants,
-                    double          fX,
-                    double          fY,
-                    double          fZ,
-                    double*         pfReg)
+inline double dEvalOne( const uint32_t* pnInstructions,
+                        int32_t         i,
+                        const double*   pfConstants,
+                        double          fX,
+                        double          fY,
+                        double          fZ,
+                        const double*   pfReg)
 {
-    for (int32_t i = 0; i < nInstructionCount; i++)
-    {
-        const uint32_t nOp = pnInstructions[2 * i];
-        const uint32_t nAB = pnInstructions[2 * i + 1];
-        const uint32_t nA  = nAB & 0xFFFFu;
-        const uint32_t nB  = nAB >> 16;
+    const uint32_t nOp = pnInstructions[2 * i];
+    const uint32_t nAB = pnInstructions[2 * i + 1];
+    const uint32_t nA  = nAB & 0xFFFFu;
+    const uint32_t nB  = nAB >> 16;
 
-        double fResult;
-        switch (nOp)
-        {
-            case TAPE_CONST: fResult = pfConstants[nA];                                    break;
-            case TAPE_X:     fResult = fX;                                                 break;
-            case TAPE_Y:     fResult = fY;                                                 break;
-            case TAPE_Z:     fResult = fZ;                                                 break;
-            case TAPE_ADD:   fResult = pfReg[nA] + pfReg[nB];                              break;
-            case TAPE_SUB:   fResult = pfReg[nA] - pfReg[nB];                              break;
-            case TAPE_MUL:   fResult = pfReg[nA] * pfReg[nB];                              break;
-            case TAPE_DIV:   fResult = pfReg[nA] / pfReg[nB];                              break;
-            case TAPE_NEG:   fResult = -pfReg[nA];                                         break;
-            case TAPE_ABS:   fResult = std::fabs(pfReg[nA]);                               break;
-            case TAPE_SQRT:  fResult = std::sqrt(pfReg[nA]);                               break;
-            case TAPE_SIN:   fResult = std::sin(pfReg[nA]);                                break;
-            case TAPE_COS:   fResult = std::cos(pfReg[nA]);                                break;
-            case TAPE_FLOOR: fResult = std::floor(pfReg[nA]);                              break;
-            case TAPE_MOD:   fResult = pfReg[nA] - pfReg[nB] * std::floor(pfReg[nA] / pfReg[nB]); break;
-            case TAPE_MIN:   fResult = std::min(pfReg[nA], pfReg[nB]);                     break;
-            case TAPE_MAX:   fResult = std::max(pfReg[nA], pfReg[nB]);                     break;
-            case TAPE_POW:   fResult = std::pow(pfReg[nA], pfReg[nB]);                     break;
-            case TAPE_EXP:   fResult = std::exp(pfReg[nA]);                                break;
-            default:         fResult = std::log(pfReg[nA]);                                break; // TAPE_LOG — ValidateTape rejects everything else
-        }
-        pfReg[i] = fResult;
+    switch (nOp)
+    {
+        case TAPE_CONST: return pfConstants[nA];
+        case TAPE_X:     return fX;
+        case TAPE_Y:     return fY;
+        case TAPE_Z:     return fZ;
+        case TAPE_ADD:   return pfReg[nA] + pfReg[nB];
+        case TAPE_SUB:   return pfReg[nA] - pfReg[nB];
+        case TAPE_MUL:   return pfReg[nA] * pfReg[nB];
+        case TAPE_DIV:   return pfReg[nA] / pfReg[nB];
+        case TAPE_NEG:   return -pfReg[nA];
+        case TAPE_ABS:   return std::fabs(pfReg[nA]);
+        case TAPE_SQRT:  return std::sqrt(pfReg[nA]);
+        case TAPE_SIN:   return std::sin(pfReg[nA]);
+        case TAPE_COS:   return std::cos(pfReg[nA]);
+        case TAPE_FLOOR: return std::floor(pfReg[nA]);
+        case TAPE_MOD:   return pfReg[nA] - pfReg[nB] * std::floor(pfReg[nA] / pfReg[nB]);
+        case TAPE_MIN:   return std::min(pfReg[nA], pfReg[nB]);
+        case TAPE_MAX:   return std::max(pfReg[nA], pfReg[nB]);
+        case TAPE_POW:   return std::pow(pfReg[nA], pfReg[nB]);
+        case TAPE_EXP:   return std::exp(pfReg[nA]);
+        default:         return std::log(pfReg[nA]); // TAPE_LOG — ValidateTape rejects everything else
     }
-    return pfReg[nInstructionCount - 1];
+}
+
+/// TP7a — evaluates only the instructions named in pnIdx (an axis-dependency
+/// level), writing results into the shared register file. Same scalar ops on
+/// the same inputs as the flat sweep, just executed at the loop depth where
+/// their inputs last changed — bit-identical by construction.
+void EvalTapeIndices(   const uint32_t* pnInstructions,
+                        const uint32_t* pnIdx,
+                        int32_t         nIdxCount,
+                        const double*   pfConstants,
+                        double          fX,
+                        double          fY,
+                        double          fZ,
+                        double*         pfReg)
+{
+    for (int32_t k = 0; k < nIdxCount; k++)
+    {
+        const int32_t i = (int32_t) pnIdx[k];
+        pfReg[i] = dEvalOne(pnInstructions, i, pfConstants, fX, fY, fZ, pfReg);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -623,6 +637,11 @@ PICOGK_API void Voxels_RenderImplicitTape(  PKINSTANCE      hLib,
             std::vector<uint32_t> vecSlabTape(2 * nRegs);
             std::vector<int32_t>  vecRemap(nRegs);
             std::vector<uint8_t>  vecLive(nRegs);
+            // TP7a scratch: axis-dependency mask + per-level instruction lists.
+            std::vector<uint8_t>  vecAxisMask(nRegs);
+            std::vector<uint32_t> vecLevel[4];
+            for (auto& vec : vecLevel)
+                vec.reserve(nRegs);
 
             for (int32_t nCX = oRange.rows().begin(); nCX != oRange.rows().end(); nCX++)
             for (int32_t nCY = oRange.cols().begin(); nCY != oRange.cols().end(); nCY++)
@@ -649,25 +668,63 @@ PICOGK_API void Voxels_RenderImplicitTape(  PKINSTANCE      hLib,
                                              int32_t         nSlabZ0,
                                              int32_t         nSlabZ1)
                 {
-                    for (int32_t x = nColX0; x <= nColX1; x++)
-                    for (int32_t y = nColY0; y <= nColY1; y++)
-                    for (int32_t z = nSlabZ0; z <= nSlabZ1; z++)
+                    // TP7a — classify every instruction by which sample axes
+                    // reach it (an operand's mask is a subset of its user's,
+                    // so each level's inputs are ready at its loop depth).
+                    for (auto& vec : vecLevel)
+                        vec.clear();
+                    for (int32_t i = 0; i < nTapeCount; i++)
                     {
-                        // Same float sample-position math as the serial path.
-                        const PicoGK::Vector3 vecSample = oVoxelSize.vecToMM(PicoGK::Coord(x, y, z));
-                        const float fSdf = (float) dEvalTape(   pnTape,
-                                                                nTapeCount,
-                                                                pfConstants,
-                                                                (double) vecSample.X,
-                                                                (double) vecSample.Y,
-                                                                (double) vecSample.Z,
-                                                                vecReg.data());
+                        const uint32_t nOp = pnTape[2 * i];
+                        const uint32_t nAB = pnTape[2 * i + 1];
+                        uint8_t nMask;
+                        switch (nOp)
+                        {
+                            case TAPE_CONST: nMask = 0; break;
+                            case TAPE_X:     nMask = 1; break;
+                            case TAPE_Y:     nMask = 2; break;
+                            case TAPE_Z:     nMask = 4; break;
+                            default:
+                                nMask = vecAxisMask[nAB & 0xFFFFu];
+                                if (bHasOperandB(nOp))
+                                    nMask |= vecAxisMask[nAB >> 16];
+                                break;
+                        }
+                        vecAxisMask[i] = nMask;
+                        const int nLevel = (nMask & 4) ? 3 : (nMask & 2) ? 2 : (nMask & 1) ? 1 : 0;
+                        vecLevel[nLevel].push_back((uint32_t) i);
+                    }
 
-                        const float fValue = std::min(fSdf, fBackground);
-                        const openvdb::Coord xyz(x, y, z);
-                        oAccess.setValue(xyz, std::clamp(fValue, -fBackground, fBackground));
-                        if (std::abs(fValue) >= fBackground)
-                            oAccess.setValueOff(xyz);
+                    // Constants and pure-x/y subexpressions evaluate at the
+                    // loop depth where their inputs last changed instead of
+                    // once per voxel. Sample positions are the same per-axis
+                    // floats vecToMM produces (fToMM is componentwise).
+                    EvalTapeIndices(pnTape, vecLevel[0].data(), (int32_t) vecLevel[0].size(),
+                                    pfConstants, 0.0, 0.0, 0.0, vecReg.data());
+                    for (int32_t x = nColX0; x <= nColX1; x++)
+                    {
+                        const double fX = (double) oVoxelSize.fToMM(x);
+                        EvalTapeIndices(pnTape, vecLevel[1].data(), (int32_t) vecLevel[1].size(),
+                                        pfConstants, fX, 0.0, 0.0, vecReg.data());
+                        for (int32_t y = nColY0; y <= nColY1; y++)
+                        {
+                            const double fY = (double) oVoxelSize.fToMM(y);
+                            EvalTapeIndices(pnTape, vecLevel[2].data(), (int32_t) vecLevel[2].size(),
+                                            pfConstants, fX, fY, 0.0, vecReg.data());
+                            for (int32_t z = nSlabZ0; z <= nSlabZ1; z++)
+                            {
+                                const double fZ = (double) oVoxelSize.fToMM(z);
+                                EvalTapeIndices(pnTape, vecLevel[3].data(), (int32_t) vecLevel[3].size(),
+                                                pfConstants, fX, fY, fZ, vecReg.data());
+                                const float fSdf = (float) vecReg[nTapeCount - 1];
+
+                                const float fValue = std::min(fSdf, fBackground);
+                                const openvdb::Coord xyz(x, y, z);
+                                oAccess.setValue(xyz, std::clamp(fValue, -fBackground, fBackground));
+                                if (std::abs(fValue) >= fBackground)
+                                    oAccess.setValueOff(xyz);
+                            }
+                        }
                     }
                 };
 

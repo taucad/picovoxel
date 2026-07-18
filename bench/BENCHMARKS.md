@@ -72,7 +72,14 @@ interpreter-dispatch amortization for the hoisted share.
 (~2.3×); sphere ~1.5× (pow(x²), pow(y²) hoist); union64 ~1.8× (per-sphere x/y distance terms
 hoist, ≈⅔ of the pows).
 
-**Measured**: _(pending)_
+**Measured** (back-to-back vs the preserved TP6 pair, all cells volume-hex + tri-count
+identical): gyroid single 1,403 → **735 ms (1.91×)** / multi 215 → **95 ms (2.26×)**;
+sphere single 193 → **114 ms (1.69×)** / multi 31 → 17 ms (1.82×); union64 single
+471 → **247 ms (1.91×)** / multi 70 → **32 ms (2.19×)**. Close to prediction on every
+fixture (gyroid's shortfall vs ~2.3× is the per-voxel interpreter dispatch the SIMD stage
+targets); multi gains exceed single — the smaller working set also relieves memory pressure
+across 12 threads. New differential pins the empty-level-3 path (z-independent tape ⇒ result
+register hoists out of the voxel loop; STL-byte identical to its JS twin).
 
 ### TP7b — f64x2 SIMD over z-pairs (exact-rounding subset)
 

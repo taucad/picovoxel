@@ -144,6 +144,24 @@ test('an all-operator expression matches its JS twin exactly', async () => {
   }
 });
 
+test('a z-independent expression matches its JS twin exactly (TP7a: result register hoists out of the voxel loop)', async () => {
+  // Infinite cylinder sqrt(x²+y²)−8: the whole tape is x/y-only, so the
+  // leveled evaluator computes the result register once per (x,y) row and the
+  // per-voxel level list is EMPTY — the value must still reach every voxel.
+  const expression: SdfExpression = ['-', ['sqrt', ['+', ['pow', 'x', 2], ['pow', 'y', 2]]], 8];
+  const twin = (x: number, y: number, _z: number): number => Math.sqrt(x ** 2 + y ** 2) - 8;
+  const pk = await createPicoGK({ voxelSize: 0.5 });
+  try {
+    const bounds = { boundsMin: [-12, -12, -6] as const, boundsMax: [12, 12, 6] as const };
+    const fromTape = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: expression });
+    const fromCallback = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: twin });
+    expect(fromTape.volume).toBe(fromCallback.volume);
+    expect(Buffer.from(fromTape.toMesh().toStl()).equals(Buffer.from(fromCallback.toMesh().toStl()))).toBe(true);
+  } finally {
+    pk.dispose();
+  }
+});
+
 test('a constant-free expression renders (empty constant pool marshals)', async () => {
   const pk = await createPicoGK({ voxelSize: 0.5 });
   try {
