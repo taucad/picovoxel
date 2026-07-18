@@ -1,11 +1,22 @@
-// Public entry. createPicoGK is the supported surface (library-api-policy);
-// picogk-js/raw is the generated escape hatch the conformance suite drives.
+// Public entry — the SERIAL variant. createPicoGK is the supported surface
+// (library-api-policy); picogk-js/raw is the generated escape hatch the
+// conformance suite drives; picogk-js/multi is the pthread twin of this entry
+// (same exported names — switching variants is a one-specifier change).
 //
 // The dispose-shim import is load-bearing and must stay first: it installs
 // Symbol.dispose (Safari 16.4–18.3) before any consumer `using` code can run.
 import './dispose.ts';
 
-export { createPicoGK } from './session.ts';
+import createPicoGKModuleUntyped from './picogk.mjs';
+import { createPicoGKSession, type CreatePicoGkOptions, type PicoGK, type PicoGkGlueFactory } from './session.ts';
+
+const glue = createPicoGKModuleUntyped as PicoGkGlueFactory;
+
+/** Creates a single-threaded PicoGK session. Resolves once the wasm module is instantiated. */
+export async function createPicoGK(options: CreatePicoGkOptions = {}): Promise<PicoGK> {
+  return createPicoGKSession(glue, options);
+}
+
 export type {
   AllocatedCounts,
   CreatePicoGkOptions,

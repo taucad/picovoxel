@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { createMemoryWarning, expectHandle } from '../src/context.ts';
 import { PicoGkError } from '../src/errors.ts';
-import { createPicoGK } from '../src/session.ts';
+import { createPicoGK } from '../src/index.ts';
 import { createFakeRegistry, gcUntil } from './helpers.ts';
 
 const DISPOSE_SYMBOL = Symbol.for('Symbol.dispose');

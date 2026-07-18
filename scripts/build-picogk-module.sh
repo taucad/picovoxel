@@ -27,10 +27,29 @@ if [ -z "${PICOGK_RUNTIME:-}" ]; then
   else PICOGK_RUNTIME="$HOME/git/tau/repos/PicoGKRuntime"; fi
 fi
 OUT="${OUT:-$HERE/build}"
-PREFIX="${PREFIX:-$OUT/wasm-prefix}"
 OUT_JS="${OUT_JS:-$HERE/src}"
 WASM_FLAGS="${WASM_FLAGS:--O3 -msimd128}"
 EH_FLAGS="${EH_FLAGS:--fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=1}"
+# THREADS=1 — pthread variant: links the -mt prefix (shared-memory ABI, built by
+# THREADS=1 build-deps-wasm.sh) into picogk-multi.mjs/.wasm. The pool is
+# pre-spawned at nproc: TBB workers park in it, and a pre-spawned pool is the
+# only shape that can't deadlock when the main thread blocks in a parallel_for
+# (spawn-on-demand needs the event loop, which a blocked main thread never
+# reaches). emcc 5.x emits no separate worker file — the glue self-spawns via
+# import.meta.url, so the sibling-pair asset shape is unchanged.
+RUNTIME_METHODS=ccall,cwrap,UTF8ToString,stringToUTF8,lengthBytesUTF8,addFunction,removeFunction,FS,HEAPF32,HEAP32,HEAPU32
+if [ "${THREADS:-0}" = "1" ]; then
+  MT="-mt"; VARIANT="picogk-multi"
+  WASM_FLAGS="$WASM_FLAGS -pthread"
+  THREAD_LINK_FLAGS=(-sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency)
+  # PThread exposes pool state: the multi entry's thread warmup is observable
+  # (tests assert workers actually engaged — oneTBB serializes silently if not).
+  RUNTIME_METHODS="$RUNTIME_METHODS,PThread"
+else
+  MT=""; VARIANT="picogk"
+  THREAD_LINK_FLAGS=()
+fi
+PREFIX="${PREFIX:-$OUT/wasm-prefix$MT}"
 
 source "$EMSDK/emsdk_env.sh" >/dev/null 2>&1
 mkdir -p "$OUT" "$OUT_JS"
@@ -43,23 +62,24 @@ INCLUDES=(-I"$HERE/shim" -I"$PICOGK_RUNTIME/API" -I"$PICOGK_RUNTIME/Source" -I"$
 
 echo "=== compile core + bulk TUs ==="
 em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$OUT/PicoGKLibraryCore.cpp" \
-  -o "$OUT/picogk_core_module.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
+  -o "$OUT/picogk_core_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
 em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$HERE/src/picogk-bulk.cpp" \
-  -o "$OUT/picogk_bulk_module.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
+  -o "$OUT/picogk_bulk_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
 
-echo "=== link -> picogk.mjs ==="
+echo "=== link -> $VARIANT.mjs ==="
 em++ -std=c++20 $WASM_FLAGS $EH_FLAGS \
-  "$OUT/picogk_core_module.o" "$OUT/picogk_bulk_module.o" \
+  "$OUT/picogk_core_module$MT.o" "$OUT/picogk_bulk_module$MT.o" \
   "$PREFIX/lib/libopenvdb.a" "$PREFIX/lib/libtbb.a" \
-  -o "$OUT_JS/picogk.mjs" \
+  -o "$OUT_JS/$VARIANT.mjs" \
+  ${THREAD_LINK_FLAGS[@]+"${THREAD_LINK_FLAGS[@]}"} \
   -sMODULARIZE -sEXPORT_ES6=1 -sEXPORT_NAME=createPicoGKModule \
   -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=256MB -sMAXIMUM_MEMORY=4GB \
   -sSTACK_SIZE=8388608 -sALLOW_TABLE_GROWTH=1 \
   -sEXPORTED_FUNCTIONS=@"$HERE/src/picogk-exports.txt" \
-  -sEXPORTED_RUNTIME_METHODS=ccall,cwrap,UTF8ToString,stringToUTF8,lengthBytesUTF8,addFunction,removeFunction,FS,HEAPF32,HEAP32,HEAPU32
+  -sEXPORTED_RUNTIME_METHODS="$RUNTIME_METHODS"
 
-echo "picogk.wasm: $(stat -f%z "$OUT_JS/picogk.wasm") bytes; picogk.mjs: $(stat -f%z "$OUT_JS/picogk.mjs") bytes"
+echo "$VARIANT.wasm: $(stat -f%z "$OUT_JS/$VARIANT.wasm") bytes; $VARIANT.mjs: $(stat -f%z "$OUT_JS/$VARIANT.mjs") bytes"
 
-N=$("$EMSDK/upstream/bin/wasm-dis" "$OUT_JS/picogk.wasm" | grep -cE '\b(f32x4|i32x4|v128)\.' || true)
+N=$("$EMSDK/upstream/bin/wasm-dis" "$OUT_JS/$VARIANT.wasm" | grep -cE '\b(f32x4|i32x4|v128)\.' || true)
 echo "SIMD instructions: $N"
 [ "$N" -gt 0 ] || { echo "FAIL: scalar build (correct but ~26% slow, invisible to functional tests)"; exit 1; }

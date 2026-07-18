@@ -16,6 +16,10 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 WASM_FLAGS="${WASM_FLAGS:--O3 -msimd128}"
+# THREADS=1 — pthread variant in its own -mt tree. Shared-memory ABI: these
+# objects are NOT link-compatible with the serial ones, hence separate dirs.
+# oneTBB gets real pthreads (no EMSCRIPTEN_WITHOUT_PTHREAD).
+if [ "${THREADS:-0}" = "1" ]; then MT="-mt"; WASM_FLAGS="$WASM_FLAGS -pthread"; TBB_PTHREAD_ARGS=(); else MT=""; TBB_PTHREAD_ARGS=(-DEMSCRIPTEN_WITHOUT_PTHREAD=true); fi
 # WASM_LEGACY_EXCEPTIONS is [compile+link]: pin the legacy EH format everywhere
 # (Safari 15.2+; the exnref format is 18.4+, above the 16.4 SIMD floor).
 EH_FLAGS="${EH_FLAGS:--fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=1}"
@@ -34,23 +38,23 @@ if [ -z "${ONETBB_SRC:-}" ]; then
   else ONETBB_SRC="$HOME/git/tau/repos/oneTBB"; fi
 fi
 OUT="${OUT:-$HERE/build}"
-PREFIX="${PREFIX:-$OUT/wasm-prefix}"
+PREFIX="${PREFIX:-$OUT/wasm-prefix$MT}"
 
 source "$EMSDK/emsdk_env.sh" >/dev/null 2>&1
 [ -d "$EMSDK/upstream/emscripten/node_modules/acorn" ] || \
   (cd "$EMSDK/upstream/emscripten" && npm install acorn --no-save --no-audit --no-fund)
 
-echo "=== oneTBB -> wasm (serial) ==="
-emcmake cmake -B "$OUT/tbb-wasm" -S "$ONETBB_SRC" -DCMAKE_BUILD_TYPE=Release \
+echo "=== oneTBB -> wasm (${MT:+pthread}${MT:-serial}) ==="
+emcmake cmake -B "$OUT/tbb-wasm$MT" -S "$ONETBB_SRC" -DCMAKE_BUILD_TYPE=Release \
   -DTBB_STRICT=OFF \
   -DTBB_DISABLE_HWLOC_AUTOMATIC_SEARCH=ON -DBUILD_SHARED_LIBS=OFF \
-  -DTBB_TEST=OFF -DTBB_EXAMPLES=OFF -DEMSCRIPTEN_WITHOUT_PTHREAD=true \
+  -DTBB_TEST=OFF -DTBB_EXAMPLES=OFF ${TBB_PTHREAD_ARGS[@]+"${TBB_PTHREAD_ARGS[@]}"} \
   -DCMAKE_CXX_FLAGS="-Wno-unused-command-line-argument $WASM_FLAGS $EH_FLAGS" \
   -DCMAKE_INSTALL_PREFIX="$PREFIX"
-cmake --build "$OUT/tbb-wasm" -j"$(sysctl -n hw.ncpu)" --target install
+cmake --build "$OUT/tbb-wasm$MT" -j"$(sysctl -n hw.ncpu)" --target install
 
 echo "=== OpenVDB -> wasm ==="
-emcmake cmake -B "$OUT/ovdb-wasm" -S "$PICOGK_RUNTIME/openvdb" -DCMAKE_BUILD_TYPE=Release \
+emcmake cmake -B "$OUT/ovdb-wasm$MT" -S "$PICOGK_RUNTIME/openvdb" -DCMAKE_BUILD_TYPE=Release \
   -DOPENVDB_USE_DELAYED_LOADING=OFF -DUSE_BLOSC=OFF -DUSE_ZLIB=OFF -DUSE_EXR=OFF \
   -DOPENVDB_BUILD_BINARIES=OFF -DOPENVDB_BUILD_UNITTESTS=OFF \
   -DOPENVDB_BUILD_PYTHON_MODULE=OFF -DOPENVDB_BUILD_NANOVDB=OFF \
@@ -59,7 +63,7 @@ emcmake cmake -B "$OUT/ovdb-wasm" -S "$PICOGK_RUNTIME/openvdb" -DCMAKE_BUILD_TYP
   -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH \
   -DCMAKE_CXX_FLAGS="$WASM_FLAGS $EH_FLAGS" \
   -DCMAKE_INSTALL_PREFIX="$PREFIX"
-cmake --build "$OUT/ovdb-wasm" -j"$(sysctl -n hw.ncpu)"
-cmake --install "$OUT/ovdb-wasm" --prefix "$PREFIX"
+cmake --build "$OUT/ovdb-wasm$MT" -j"$(sysctl -n hw.ncpu)"
+cmake --install "$OUT/ovdb-wasm$MT" --prefix "$PREFIX"
 echo "PREFIX ready: $PREFIX"
 ls -la "$PREFIX/lib/"

@@ -2,7 +2,7 @@
   "name": "picogk-js",
   "version": "0.1.0",
   "type": "module",
-  "description": "PicoGK — voxel/implicit computational geometry on OpenVDB — compiled to WebAssembly, with an idiomatic TypeScript API",
+  "description": "PicoGK \u2014 voxel/implicit computational geometry on OpenVDB \u2014 compiled to WebAssembly, with an idiomatic TypeScript API",
   "license": "Apache-2.0",
   "keywords": [
     "picogk",
@@ -19,6 +19,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./multi": {
+      "types": "./dist/multi.d.ts",
+      "import": "./dist/multi.js"
     },
     "./raw": {
       "types": "./dist/raw.d.ts",

@@ -3,8 +3,11 @@
 // Known upstream header quirks are matched, not fixed: MetaData_RemoveValue (capital
 // D), ScalarField_RemoveValue's handle typed PKVECTORFIELD (all handles are uint64_t,
 // so it binds by name and works on a scalar field), name-keyed Metadata_*At.
+//
+// Deliberately glue-free: this module must not import picogk.mjs, or the serial
+// glue would ride into the picogk-js/multi graph through session.ts. The
+// instantiate-and-bind convenience lives in raw.ts (single) beside the entries.
 
-import createPicoGKModuleUntyped from './picogk.mjs';
 import type { PicoGkWasmModule } from './types.ts';
 
 /** A PicoGK object handle (uint64_t across the ABI). Never a plain count. */
@@ -311,10 +314,4 @@ export function bindPicoGkRaw(module: PicoGkWasmModule): PicoGkRaw {
     table[name] = module.cwrap(name, returnType, argTypes);
   }
   return table as unknown as PicoGkRaw;
-}
-
-/** Instantiates the wasm module and binds the full raw surface. */
-export async function loadPicoGkRaw(overrides: object = {}): Promise<{ module: PicoGkWasmModule; raw: PicoGkRaw }> {
-  const module = await (createPicoGKModuleUntyped as (overrides?: object) => Promise<PicoGkWasmModule>)(overrides);
-  return { module, raw: bindPicoGkRaw(module) };
 }

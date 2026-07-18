@@ -7,6 +7,7 @@ import { defineConfig } from 'tsdown';
 export default defineConfig({
   entry: {
     index: 'src/index.ts',
+    multi: 'src/multi.ts',
     raw: 'src/raw.ts',
     slicing: 'src/slicing.ts',
     three: 'src/three.ts',
@@ -18,9 +19,11 @@ export default defineConfig({
   platform: 'neutral',
   dts: true,
   exports: false,
-  deps: { neverBundle: [/picogk\.mjs$/, 'three'] },
+  deps: { neverBundle: [/picogk(-multi)?\.mjs$/, 'three'] },
   copy: [
     { from: 'src/picogk.mjs', to: 'dist' },
     { from: 'src/picogk.wasm', to: 'dist' },
+    { from: 'src/picogk-multi.mjs', to: 'dist' },
+    { from: 'src/picogk-multi.wasm', to: 'dist' },
   ],
 });

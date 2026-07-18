@@ -2,7 +2,8 @@
 // src/raw.mjs shim). Same conveniences (scratch buffers, vec marshalling, bulk
 // read/write), but every call goes through raw.generated.ts bindings.
 
-import { loadPicoGkRaw, type PicoGkRaw } from '../src/raw.generated.ts';
+import { loadPicoGkRaw } from '../src/raw.ts';
+import type { PicoGkRaw } from '../src/raw.generated.ts';
 import type { PicoGkWasmModule } from '../src/types.ts';
 
 const PKINFOSTRINGLEN = 255;

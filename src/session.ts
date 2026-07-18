@@ -1,6 +1,10 @@
-// createPicoGK — the session factory (library-api-policy):
+// createPicoGKSession — the session factory behind both entries (library-api-policy):
 //   §1 factories over classes; §3 flat options; §4 one options object per method;
 //   §9 lazy init (wasm instantiates on the awaited factory call); §10 escape hatches.
+//
+// Deliberately glue-free: the Emscripten glue arrives as a factory argument, so the
+// serial and pthread variants stay out of each other's module graphs. index.ts binds
+// picogk.mjs, multi.ts binds picogk-multi.mjs; everything downstream is shared.
 //
 // Handles stay BigInt internally and never require consumer management: wrappers are
 // GC-reclaimed via the FinalizationRegistry; dispose() is the optional escape hatch;
@@ -21,7 +25,6 @@ import { PicoGkError, assertLive, guard } from './errors.ts';
 import { assertVoxelsOperand, wrapScalarField, wrapVectorField, type ScalarField, type VectorField } from './fields.ts';
 import { wrapLattice, type Lattice } from './lattice.ts';
 import { bulkCreateMesh, wrapMesh, type Mesh } from './mesh.ts';
-import createPicoGKModuleUntyped from './picogk.mjs';
 import { wrapPolyLine, writeColor, type PolyLine } from './polyline.ts';
 import { bindPicoGkRaw } from './raw.generated.ts';
 import { createHandleRegistry, type HandleRegistry } from './registry.ts';
@@ -30,7 +33,8 @@ import type { Color, PicoGkWasmModule, SdfFunction, Vec3 } from './types.ts';
 import { withVdbBytes, wrapVdbFile, type VdbFile } from './vdb.ts';
 import { wrapVoxels, type Voxels } from './voxels.ts';
 
-const createPicoGKModule = createPicoGKModuleUntyped as (overrides?: object) => Promise<PicoGkWasmModule>;
+/** Emscripten module factory — the shape both generated glues export. */
+export type PicoGkGlueFactory = (overrides?: object) => Promise<PicoGkWasmModule>;
 
 export type CreateVoxelsOptions =
   | { shape: 'empty' }
@@ -117,8 +121,12 @@ export interface PicoGK {
   [Symbol.dispose](): void;
 }
 
-/** Creates a PicoGK session. Resolves once the wasm module is instantiated. */
-export async function createPicoGK(options: CreatePicoGkOptions = {}): Promise<PicoGK> {
+/**
+ * Creates a PicoGK session on the given glue. Internal seam — consumers use
+ * `createPicoGK` from the package entry (serial) or `picogk-js/multi` (pthreads),
+ * which bind their variant's glue here.
+ */
+export async function createPicoGKSession(glue: PicoGkGlueFactory, options: CreatePicoGkOptions = {}): Promise<PicoGK> {
   const { voxelSize = 0.5, wasm, memoryWarningBytes = 2 ** 30, registry, now } = options;
 
   if (!(voxelSize > 0) || !Number.isFinite(voxelSize)) {
@@ -131,11 +139,11 @@ export async function createPicoGK(options: CreatePicoGkOptions = {}): Promise<P
 
   let module: PicoGkWasmModule;
   try {
-    module = await createPicoGKModule(typeof wasm === 'object' && wasm !== null ? wasm : {});
+    module = await glue(typeof wasm === 'object' && wasm !== null ? wasm : {});
   } catch (cause) {
     throw new PicoGkError(
       'PICOGK_WASM_INIT_FAILED',
-      'PicoGK WebAssembly failed to instantiate. Check that picogk.wasm is served next to picogk.mjs ' +
+      'PicoGK WebAssembly failed to instantiate. Check that the .wasm file is served next to its glue .mjs ' +
         'and that it is returned with Content-Type: application/wasm.',
       { cause },
     );

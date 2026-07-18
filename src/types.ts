@@ -63,4 +63,6 @@ export interface PicoGkWasmModule {
     stat(path: string): { size: number };
   };
   wasmTable?: { length: number };
+  /** Pthread pool state — present on the multi glue only (exported for observability). */
+  PThread?: { runningWorkers: readonly unknown[]; unusedWorkers: readonly unknown[] };
 }
