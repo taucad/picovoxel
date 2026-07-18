@@ -17,6 +17,7 @@ interface GateRecords {
   sphereVertexCount: number;
   sphereTriangleCount: number;
   gyroidVolume: number;
+  tapeGyroidVolumeHex: string;
   gearVertexCount: number;
   gearTriangleCount: number;
 }
@@ -101,6 +102,23 @@ async function main(): Promise<void> {
   const gyroidError = Math.abs(gyroid.volume - records.gyroidVolume) / records.gyroidVolume;
   check('gyroid volume within 0.5% of node record', gyroidError < 0.005,
     `${gyroid.volume.toFixed(1)} vs ${records.gyroidVolume.toFixed(1)} (${(gyroidError * 100).toFixed(3)}%)`);
+
+  // ── Tape path (TP1/TP6): evaluated entirely in wasm (musl libm), so the
+  // interval-pruned parallel fill must be EXACT across engines — the stronger
+  // pin the JS callback above cannot make. ──
+  const tapeGyroid = pk.createVoxels({
+    shape: 'implicit',
+    boundsMin: [-12, -12, -12],
+    boundsMax: [12, 12, 12],
+    sdf: ['-', ['abs', ['+',
+      ['*', ['sin', ['*', 'x', s]], ['cos', ['*', 'y', s]]],
+      ['*', ['sin', ['*', 'y', s]], ['cos', ['*', 'z', s]]],
+      ['*', ['sin', ['*', 'z', s]], ['cos', ['*', 'x', s]]]]], 0.4],
+  });
+  check('tape gyroid volume EXACT vs node (hex float)',
+    hexFloat(tapeGyroid.volume) === records.tapeGyroidVolumeHex,
+    `${hexFloat(tapeGyroid.volume)} vs ${records.tapeGyroidVolumeHex}`);
+  tapeGyroid.dispose();
 
   // ── Gear through the bulk import path: counts exact ──
   const outline = createGearOutline();

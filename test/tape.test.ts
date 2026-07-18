@@ -160,6 +160,95 @@ test('a constant-free expression renders (empty constant pool marshals)', async 
   }
 });
 
+// ── runtime: TP6 interval pruning must be invisible ──
+//
+// The fill classifies leaf-aligned blocks with conservative interval
+// arithmetic: proven-outside blocks are skipped, proven-interior leaves become
+// -background tiles, ambiguous blocks run a branch-shortened tape. All of it
+// must be unobservable next to the dense JS-callback path — same active
+// voxels, same values, same csg behaviour.
+
+test('pruned interior keeps its sign through csg: tape sphere ∩ inner sphere ≡ callback sphere ∩ inner sphere', async () => {
+  const pk = await createPicoGK({ voxelSize: 0.5 });
+  try {
+    const bounds = { boundsMin: [-12, -12, -12] as const, boundsMax: [12, 12, 12] as const };
+    const sphereExpression: SdfExpression = [
+      '-', ['sqrt', ['+', ['pow', 'x', 2], ['pow', 'y', 2], ['pow', 'z', 2]]], 10.5,
+    ];
+    const sphereFunction = (x: number, y: number, z: number): number =>
+      Math.sqrt(x ** 2 + y ** 2 + z ** 2) - 10.5;
+    const fromTape = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: sphereExpression });
+    const fromCallback = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: sphereFunction });
+    expect(fromTape.volume).toBe(fromCallback.volume);
+
+    // The inner sphere sits entirely inside the big one — in the region the
+    // pruned fill covers with -background tiles instead of dense inactive
+    // leaves. csgIntersection reads the interior SIGN there: were a tile
+    // missing (background reads as +outside), this intersection would come
+    // back empty.
+    const inner = pk.createVoxels({ shape: 'sphere', radius: 4 });
+    const tapeCore = fromTape.intersect(inner);
+    const callbackCore = fromCallback.intersect(inner);
+    expect(tapeCore.isEmpty).toBe(false);
+    expect(tapeCore.volume).toBe(callbackCore.volume);
+    // Deep inside, max(-background, inner) = inner: the core IS the inner sphere.
+    expect(tapeCore.volume).toBe(inner.volume);
+  } finally {
+    pk.dispose();
+  }
+});
+
+test('a min-fold sphere lattice matches its JS twin exactly (decided branches shorten the tape)', async () => {
+  const centers: [number, number, number][] = [];
+  for (const i of [-1, 1]) for (const j of [-1, 1]) for (const k of [-1, 1]) centers.push([i * 5, j * 5, k * 5]);
+  const expression: SdfExpression = [
+    'min',
+    ...centers.map(
+      ([cx, cy, cz]): SdfExpression => [
+        '-',
+        ['sqrt', ['+', ['pow', ['-', 'x', cx], 2], ['pow', ['-', 'y', cy], 2], ['pow', ['-', 'z', cz], 2]]],
+        3,
+      ],
+    ),
+  ];
+  // Math.min(...) reduces left-to-right — value-identical to the compiler's
+  // left fold (no NaNs here, and x−x is always +0, so no -0 ties either).
+  const twin = (x: number, y: number, z: number): number =>
+    Math.min(...centers.map(([cx, cy, cz]) => Math.sqrt((x - cx) ** 2 + (y - cy) ** 2 + (z - cz) ** 2) - 3));
+  const pk = await createPicoGK({ voxelSize: 0.5 });
+  try {
+    const bounds = { boundsMin: [-10, -10, -10] as const, boundsMax: [10, 10, 10] as const };
+    const fromTape = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: expression });
+    const fromCallback = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: twin });
+    expect(fromTape.volume).toBe(fromCallback.volume);
+    expect(
+      Buffer.from(fromTape.toMesh().toStl()).equals(Buffer.from(fromCallback.toMesh().toStl())),
+    ).toBe(true);
+  } finally {
+    pk.dispose();
+  }
+});
+
+test('a NaN-producing domain is never pruned: sqrt(x)-1 matches its JS twin', async () => {
+  // For x < 0 the SDF is NaN, which upstream stores as ACTIVE voxels — the
+  // interval evaluator must flag the possibility and refuse to classify those
+  // blocks, falling back to the dense loop.
+  const pk = await createPicoGK({ voxelSize: 0.5 });
+  try {
+    const bounds = { boundsMin: [-6, -6, -6] as const, boundsMax: [6, 6, 6] as const };
+    const fromTape = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: ['-', ['sqrt', 'x'], 1] });
+    const fromCallback = pk.createVoxels({
+      shape: 'implicit',
+      ...bounds,
+      sdf: (x: number): number => Math.sqrt(x) - 1,
+    });
+    // volume may legitimately be NaN here; toBe (Object.is) treats NaN === NaN.
+    expect(fromTape.volume).toBe(fromCallback.volume);
+  } finally {
+    pk.dispose();
+  }
+});
+
 test('withImplicit stays function-only — expressions are for createVoxels', async () => {
   const pk = await createPicoGK({ voxelSize: 0.5 });
   try {

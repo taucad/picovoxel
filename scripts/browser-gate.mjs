@@ -73,11 +73,24 @@ void createGearOutline;
 void triangulate;
 const gearMesh = pk.createMesh({ vertices, triangles });
 
+// Tape path (TP1/TP6): evaluated entirely in wasm (musl libm), so unlike the
+// JS-callback gyroid this volume must be EXACT across engines.
+const tapeGyroid = pk.createVoxels({
+  shape: 'implicit',
+  boundsMin: [-12, -12, -12],
+  boundsMax: [12, 12, 12],
+  sdf: ['-', ['abs', ['+',
+    ['*', ['sin', ['*', 'x', s]], ['cos', ['*', 'y', s]]],
+    ['*', ['sin', ['*', 'y', s]], ['cos', ['*', 'z', s]]],
+    ['*', ['sin', ['*', 'z', s]], ['cos', ['*', 'x', s]]]]], 0.4],
+});
+
 const records = {
   sphereVolumeHex: hexFloat(sphere.volume),
   sphereVertexCount: sphereMesh.vertexCount,
   sphereTriangleCount: sphereMesh.triangleCount,
   gyroidVolume: gyroid.volume,
+  tapeGyroidVolumeHex: hexFloat(tapeGyroid.volume),
   gearVertexCount: gearMesh.vertexCount,
   gearTriangleCount: gearMesh.triangleCount,
 };
