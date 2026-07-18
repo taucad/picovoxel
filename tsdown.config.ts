@@ -10,6 +10,7 @@ export default defineConfig({
     multi: 'src/multi.ts',
     numerics: 'src/numerics.ts',
     raw: 'src/raw.ts',
+    shapekernel: 'src/shapekernel.ts',
     slicing: 'src/slicing.ts',
     three: 'src/three.ts',
     // Own entry so dist/dispose.js exists at a stable path package.json's

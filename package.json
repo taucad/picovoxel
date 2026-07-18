@@ -32,6 +32,10 @@
       "types": "./dist/raw.d.ts",
       "import": "./dist/raw.js"
     },
+    "./shapekernel": {
+      "types": "./dist/shapekernel.d.ts",
+      "import": "./dist/shapekernel.js"
+    },
     "./slicing": {
       "types": "./dist/slicing.d.ts",
       "import": "./dist/slicing.js"
@@ -43,7 +47,8 @@
   },
   "files": [
     "dist",
-    "MIGRATING-FROM-CSHARP.md"
+    "MIGRATING-FROM-CSHARP.md",
+    "NOTICE"
   ],
   "sideEffects": [
     "./dist/dispose.js"

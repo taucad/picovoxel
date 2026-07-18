@@ -1,0 +1,30 @@
+picogk-js
+Copyright (c) 2025-2026 the picogk-js contributors
+
+This product is a TypeScript/WebAssembly port of PicoGK and includes material
+derived from the following LEAP 71 projects, each licensed under the Apache
+License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0):
+
+  PicoGK ("peacock") — a compact software kernel for computational geometry
+  Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
+  https://github.com/leap71/PicoGK
+
+  PicoGKRuntime (compiled to WebAssembly, unmodified)
+  Copyright (c) 2023-2026 LEAP 71
+  https://github.com/leap71/PicoGKRuntime
+
+  LEAP71_ShapeKernel (ported to TypeScript under src/shapekernel/)
+  Copyright (c) 2023-2026 LEAP 71
+  https://github.com/leap71/LEAP71_ShapeKernel
+
+  LEAP71_LatticeLibrary (ported to TypeScript under src/latticelibrary/)
+  Copyright (c) 2023-2026 LEAP 71
+  https://github.com/leap71/LEAP71_LatticeLibrary
+
+Benchmark/validation subjects under examples/ include ports of
+LEAP71_RoverWheel, LEAP71_HelixHeatX and LEAP71_QuasiCrystals
+(Apache-2.0, Copyright (c) LEAP 71), and of PicoGK_Examples and
+PicoGK_SimulationExample (CC0-1.0).
+
+The PicoGKRuntime WebAssembly build links OpenVDB, oneTBB, Blosc, zlib and
+supporting libraries; see their respective licenses in the upstream projects.
