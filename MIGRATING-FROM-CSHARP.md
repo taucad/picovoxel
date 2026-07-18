@@ -211,6 +211,48 @@ need no port — native JS semantics cover them. Those rows are marked *native*.
 The rest of `PicoGK.Shapes` (2D paths/contours, `OrientedPath`) stays deferred
 until a consumer adopts it — see below.
 
+## ShapeKernel (`picogk-js/shapekernel`)
+
+TypeScript port of LEAP71_ShapeKernel as a layer on top of the public
+picogk-js API + `picogk-js/numerics` (blueprint D3: subpath export, no wasm
+changes). Explicit-session surface: shapes are pure authoring objects and the
+session enters at the construction boundary (`shape.voxConstruct(pk)`,
+`sh.*(pk, …)`) — never an ambient Library. `LocalFrame` **is** the numerics
+`Frame` plus construction helpers (Finding 9).
+
+| C# | picogk-js |
+| --- | --- |
+| `VecOperations` | `vecOps` — non-obsolete members; the `[Obsolete]` frame/vector helpers are `vec3`/`frame` in numerics |
+| `LocalFrame` ctors / `oTranslate`/`oRotate`/`oGetInvertFrame`/`vecGetLocalY` | `localFrame.create/createZ/createZX/at/translated/rotated/inverted/localY` (normalizing, throwing on zero axes, NO Gram-Schmidt — upstream semantics) |
+| `LocalFrame⇄Frame3d` implicit conversions | N/A — one frame type |
+| `Frames` (4 ctors, EFrameType incl. MIN_ROTATION, sampling) | `Frames.alongLine/alongSpline/withTargetX/ofType` + `spineAt/localXAt/localYAt/localZAt/frameAt/points` |
+| `ISpline` / `ControlPointSpline` / `TangentialControlSpline` / `CylindricalControlSpline` | `Spline` / same names (closed-mode wrap COPIES the control list instead of mutating the caller's — rendered spline identical) |
+| `ControlPointSurface` | N/A — nothing headless consumes it yet |
+| `SplineOperations` | `splineOps` (Vec2 overloads of closest-point helpers deferred with the 2D layer) |
+| `Uf` (transitions, randomness, fibonacci, supershapes, polygons) | `uf` + `createRandom(seed)` (mulberry32); `Uf.Wait`, obsolete `fLimitValue` N/A |
+| `LineModulation`/`SurfaceModulation` + operator overloads | same names; operators become `.add/.sub/.scale`; points form `LineModulation.fromPoints`; `SurfaceModulation.fromLineModulation`; the IMAGE input form is Skia-bound, N/A |
+| `Distribution` / `GenericContour` | same names |
+| `BaseShape` + `ISurfaceBaseShape`/`ISpineBaseShape`/`IMeshBaseShape`/`ILatticeBaseShape` | `BaseShape` (+`setTransformation`) + `SurfaceBaseShape`/`SpineBaseShape`/`MeshBaseShape`/`LatticeBaseShape`; construction takes the session |
+| `BaseBox`/`BaseCylinder`/`BaseCone`/`BaseLens`/`BasePipe`/`BasePipeSegment`/`BaseRevolve`/`BaseRing`/`BaseSphere` | same names; `BasePipeSegment` takes an options object for the C# ctor split; `BaseBox(BBox3)` → `BaseBox.fromBounds` |
+| `BaseLogoBox` | N/A — image input |
+| `LatticePipe`/`LatticeManifold` | same names (`LatticeManifold` options object) |
+| `MeshUtility` | `meshUtility` (session-first; C# `Append` → the facade's pure `mesh.merged`) |
+| `ImplicitUtility` (`ImplicitGyroid`/`Sphere`/`Genus`/`SuperEllipsoid`) | same names, each as BOTH a JS callback (`.sdf`) and a tape (`.expression`) — value-identical (pinned) |
+| `Sh` lattice builders / export functions | `sh` (session-first; bytes not paths; `latFromGrid`'s last-row-wins quirk ported verbatim and pinned) |
+| `Sh` `[Obsolete]` voxel/boolean/query pass-throughs | N/A — the facade methods on `Voxels` |
+| `Sh.Preview*` / TGA/PNG/CSV exports / `strGetExportPath` | N/A — see Visualizations below |
+| `Visualizations/*` (MeshPainter, ColorScales, Cp palette, RotationAnimator) | **N/A — deliberate (blueprint R16 decision, recorded here):** the layer binds to the desktop GL viewer; headless examples emit volume/STL/GLB, and interactive viewing is the `picogk-js/three` subpath + your scene. Revisit only if a headless consumer demands `Sh.Preview*`-shaped helpers. |
+| `Measure`/`Bisection`/`LineDecimation`/`ListOperations`/`CylUtility`/`RectUtility`/`GridOperations` (beyond `inverseGrid`)/`CSVWriter` | N/A until a subject pulls them (port-on-demand discipline; `inverseGrid` is exported from `sh`) |
+
+Known upstream limitation carried faithfully (not fixable without patching the
+vendored runtime): `voxIntersectImplicit` (`maskedByImplicit`) breaks below
+**⅓ mm voxel size** — upstream's C++ `IntersectImplicit` passes
+`fBackgroundMM()` (millimetres, float) into the fresh grid constructor's
+`int nNarrowBand`, so fine sizes truncate to band 0 and openvdb's csg throws.
+Verified on the pure callback path (0.34 mm works, 0.33 mm throws); the R9
+tape entry replicates the truncation bit-compatibly so the two paths stay
+differential-identical.
+
 ## Upstream bugs fixed here (do-not-port list)
 
 | # | C# location | Bug | picogk-js behaviour |

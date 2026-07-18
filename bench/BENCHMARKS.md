@@ -158,3 +158,43 @@ Cumulative landed effect (TP6 → TP7b, back-to-back pairs): **gyroid single 1,4
 (2.4×) / multi 215 → 87 ms (2.5×); sphere single 193 → 94 ms (2.1×) / multi 31 → 17 ms
 (1.8×); union64 single 471 → 196 ms (2.4×) / multi 70 → 29 ms (2.4×)** — on top of TP6
 pruning's 1.2–13.3×, all bit-identical to the JS-callback path.
+
+### R11 — HelixHeatX voxel sweep vs LEAP71's published table (2026-07-19)
+
+The flagship real-world subject (blueprint R11): the whole HelixHeatX Task
+headless — geometry generation (~10⁵ lattice beams), the boolean assembly,
+the full finishing family (offset/fillet/smoothen/projectZSlice), meshing and
+binary-STL bytes. LEAP71's published numbers ("on a MacBook Air", README
+table.png) time the same Task INCLUDING viewer previews + screenshots, a
+delta in the published numbers' favour. Apple M2 Pro, 12 threads on the multi
+build; start load 4.2 (not a quiet-machine baseline — treat timings as upper
+bounds). One run per cell; integrity = single≡multi identity (volume hex, STL
+FNV-1a and byte count) at every size, which held throughout — the entire
+application is thread-count-deterministic. Source:
+`bench/results/heatx-sweep-2026-07-18-85d283b.json`.
+
+| voxel (mm) | single (s) | multi (s) | published (s) | STL ours (MB) | STL published (MB) |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 1.0 | 61.8 | 38.2 | 34 | 93.7 | 94 |
+| 0.9 | 81.8 | 43.1 | — | 122.1 | — |
+| 0.8 | 103.9 | 49.7 | — | 165.2 | — |
+| 0.7 | 151.1 | 73.1 | — | 227.1 | — |
+| 0.6 | 262.2 | 95.0 | — | 328.0 | — |
+| 0.5 | 420.9 | 133.0 | 98 | 502.4 | 502 |
+
+Readings:
+- **Geometry parity (the D5 signal): STL sizes match the published table to
+  0.1–0.4% at both published cells** (502.4 vs 502 MB; 93.7 vs 94 MB decimal).
+  Same tri counts ⇒ same part.
+- **Thread scaling grows with the workload**: 1.6× at 1.0 mm → 3.2× at 0.5 mm
+  (the narrow-band work at fine voxels parallelizes; per-op overheads amortize).
+- **wasm vs native**: multi lands within 1.4× of the published native-C#
+  number at 0.5 mm despite the previews delta running against us.
+- **Authoring is noise (Finding 8 confirmed at production scale)**: the pure-JS
+  lattice loops cost 0.4–0.8 s of 38–421 s wall — <1.5% everywhere. No batch
+  promotion warranted.
+- Native memory passes 1 GiB below 0.7 mm (the session-level warning fires);
+  the 0.3/0.2 mm cells are R12's memory-gated territory.
+
+M11 (RoverWheel Wheel_02) and M12 (HelixHeatX @ 1.0 mm single/multi) join the
+generated metric table on the next `npm run bench -- --update` run.

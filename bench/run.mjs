@@ -302,6 +302,65 @@ void buildGearMesh;
 pk.dispose();
 fine.dispose();
 
+// ── M11 — RoverWheel Wheel_02 @ 1.0mm (real-world subject, blueprint R10/R11) ──
+// The first production-scale exercise of the ShapeKernel-bound pipeline:
+// mesh tessellation, mesh↔voxel round-trip with per-vertex warp, projectZSlice
+// and pure boolean assembly. Identity = fast-volume hex + STL FNV-1a.
+{
+  const { presetWheelTask } = await import('../examples/roverwheel/run.ts');
+  await metric('M11', 'RoverWheel Wheel_02 @ 1.0mm (subject)', async () => {
+    const session = await createPicoGK({ voxelSize: 1.0 });
+    const t0 = now();
+    const wheel = presetWheelTask(session);
+    const constructMs = now() - t0;
+    const t1 = now();
+    const mesh = wheel.toMesh();
+    const meshMs = now() - t1;
+    const t2 = now();
+    const stl = mesh.toStl();
+    const stlMs = now() - t2;
+    const identity = { volume: hexFloat(wheel.volume), stl: fnv1a(stl), triangles: mesh.triangleCount };
+    session.dispose();
+    return { phases: { construct: constructMs, mesh: meshMs, stl: stlMs }, identity };
+  });
+}
+
+// ── M12 — HelixHeatX @ 1.0mm, single vs multi (real-world subject, blueprint R11) ──
+// The whole flagship Task headless: ~10^5 beams, boolean assembly, the full
+// finishing family, meshing and STL bytes — previews excluded (a delta in the
+// published table's favour). The author phase is the pure-JS lattice-loop
+// share (Finding 8's promotion trigger); kernel = the rest of construction.
+// The full 1.0→0.5mm voxel sweep lives in bench/heatx-sweep.mjs (its own
+// repeat policy — six repeats of the fine cells would take hours).
+{
+  const { task: heatXTask } = await import('../examples/helixheatx/run.ts');
+  const { createPicoGK: createMulti } = await import('../src/multi.ts');
+  for (const [suffix, make] of [
+    ['single', () => createPicoGK({ voxelSize: 1.0 })],
+    ['multi', () => createMulti({ voxelSize: 1.0 })],
+  ]) {
+    await metric(`M12@${suffix}`, `HelixHeatX @ 1.0mm (${suffix} entry)`, async () => {
+      const session = await make();
+      const t0 = now();
+      const { voxels, authorMs } = heatXTask(session);
+      const constructMs = now() - t0;
+      const t1 = now();
+      const mesh = voxels.toMesh();
+      const meshMs = now() - t1;
+      const t2 = now();
+      const stl = mesh.toStl();
+      const stlMs = now() - t2;
+      const threads = (session.module.PThread?.runningWorkers.length ?? 0) + 1;
+      const identity = { volume: hexFloat(voxels.volume), stl: fnv1a(stl), stlBytes: stl.length, threads };
+      session.dispose();
+      return {
+        phases: { author: authorMs, kernel: constructMs - authorMs, mesh: meshMs, stl: stlMs },
+        identity,
+      };
+    });
+  }
+}
+
 // ── Persist ──
 const output = { fingerprint, results };
 const resultsDir = join(HERE, 'bench/results');
