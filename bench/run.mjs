@@ -343,6 +343,14 @@ if (UPDATE) {
   lines.push('(~130 ns/sample at 0.25 mm including voxel work) is consistent with R20\'s 3–9% JS-SDF callback overhead;');
   lines.push('M9 shows the facade adds no measurable cost over raw cwraps at 10k calls (within run-to-run noise).');
   lines.push('');
-  writeFileSync(join(HERE, 'bench/BENCHMARKS.md'), lines.join('\n'));
+  // The hand-written appendix (per-change program log) survives regeneration.
+  const target = join(HERE, 'bench/BENCHMARKS.md');
+  let appendix = '';
+  try {
+    const existing = readFileSync(target, 'utf8');
+    const at = existing.indexOf('## Appendix');
+    if (at !== -1) appendix = existing.slice(at);
+  } catch { /* first generation: no file yet */ }
+  writeFileSync(target, lines.join('\n') + appendix);
   console.log('updated bench/BENCHMARKS.md');
 }

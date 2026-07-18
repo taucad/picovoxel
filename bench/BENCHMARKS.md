@@ -38,3 +38,80 @@ sub-millisecond phases (e.g. M6 bulk readback) are timer-noise-dominated and may
 ~50× here on a ~40k-vertex gyroid, consistent with R11's ~150× record at 174k vertices; M3's render phase
 (~130 ns/sample at 0.25 mm including voxel work) is consistent with R20's 3–9% JS-SDF callback overhead;
 M9 shows the facade adds no measurable cost over raw cwraps at 10k calls (within run-to-run noise).
+## Appendix — TP7: post-pruning evaluation program (2026-07-18)
+
+The TP6 re-profile (throwaway phase instrumentation on commit `80f9a68`; percentages stable
+across repeats, single-variant rows) reframed where the pruned fill spends its time:
+
+| fixture (single) | fill | classify | **eval** | write | merge+tiles |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| gyroid @0.1mm | 1,449 ms | 2.3% | **90.7%** | 6.0% | ~0 |
+| sphere @0.1mm | 200 ms | 5.1% | **84.3%** | 8.0% | ~0 |
+| union64 @0.25mm | 494 ms | 10.6% | **87.5%** | 1.4% | ~0 |
+
+The fill is 84–91% tape **evaluation** — the callback-era "86% write machinery" split does not
+hold on the tape path, so this program attacks evaluation. Supporting counters: gyroid evaluates
+12,152,079 voxels × 32 instructions (only 20% of slabs classified, zero interior, no min/max to
+shorten) and 4 of its 6 libm trig calls per voxel depend only on x or y — loop-invariant along z.
+union64's tape shortens 1,343 → 114.8 avg instructions.
+
+**Protocol**: every stage must be volume-hex + triangle-count identical to the TP6 baseline
+(`bench/tape-prune-ab.mjs`, 1 warmup + 5 repeats, back-to-back against the previous stage's
+preserved module pair), suite-green, and browser-gated at the end. Numbers below are
+loaded-machine A/B pairs — **ratios are the signal** (header rule applies).
+
+### TP7a — loop-invariant hoisting (axis-dependency levels)
+
+**Approach**: tag each tape instruction with an axis-dependency mask (const / x-only / xy / z);
+evaluate each class at its loop depth in `DenseFill` — constants once per slab, x-only once per
+row, xy once per column, only the z-varying suffix per voxel. Same scalar operations on the same
+inputs, computed once instead of up to 512 times — bit-identical by construction. Subsumes
+interpreter-dispatch amortization for the hoisted share.
+
+**Expected**: gyroid eval 1,315 → ~490 ms (6 → 2 libm calls/voxel) ⇒ fill ~1,450 → ~620 ms
+(~2.3×); sphere ~1.5× (pow(x²), pow(y²) hoist); union64 ~1.8× (per-sphere x/y distance terms
+hoist, ≈⅔ of the pows).
+
+**Measured**: _(pending)_
+
+### TP7b — f64x2 SIMD over z-pairs (exact-rounding subset)
+
+**Approach**: evaluate the z-varying suffix two z-samples at a time with wasm SIMD128 `f64x2`
+for the exact-rounding ops (+, −, ×, ÷, sqrt, floor, mod, abs, neg) plus min/max rebuilt as
+compare+bitselect to replicate `std::min`/`std::max` NaN- and signed-zero semantics bit-exactly.
+Transcendentals (sin/cos/pow/exp/log) stay scalar musl calls per lane — the tape ≡ JS pin holds
+because musl-wasm ≡ V8 fdlibm, and a vectorized polynomial libm would break it. Odd z-tail runs
+scalar.
+
+**Expected**: honest and modest on THESE fixtures — after TP7a the per-voxel residue is
+libm-dominated (gyroid: sin/cos(z·s); sphere/union64: pow(z−c, 2)), so 1.05–1.2×. The real
+beneficiaries are pow-free arithmetic-heavy tapes (box/plane/CSG-of-quadrics style). Halving
+level-3 dispatch is the side benefit.
+
+**Measured**: _(pending)_
+
+### TP7c — sincos fusion (gyroid-class fields)
+
+**Approach**: when a tape contains sin(a) and cos(a) of the same operand, evaluate both with one
+musl `sincos` call — one shared argument reduction (`__rem_pio2`) feeding the same `__sin`/`__cos`
+kernels the separate calls use, so results are bit-identical (pinned by the existing tape ≡ JS
+differentials and the cross-engine hex gate).
+
+**Expected**: gyroid-only ~1.1–1.3× (the z-pair is the only per-voxel pair left after TP7a);
+nil for the distance fixtures.
+
+**Measured**: _(pending)_
+
+### TP7d — affine-arithmetic classification (measured ceiling)
+
+**Approach**: replace interval classification with reduced affine forms
+(c₀ + c₁εx + c₂εy + c₃εz + e·[−1,1]; conservative ulp accumulation into e; NaN flag and
+no-information collapse carried over from TP6; interval-semantics fallback for ops without an
+affine rule). Affine forms track the correlation that plain intervals lose on trig products —
+the reason the gyroid classifies only 20% of slabs.
+
+**Expected**: gyroid ≤ ~1.6× fill ceiling (voxEval 12.15M → narrow-band floor; classify cost
+rises ~3–4× from a 2.3% base); ~0 for sphere/union64 (already 78%+ classified). Decision by
+measurement: kept only if a net win on the gyroid with no regression elsewhere.
+
+**Measured**: _(pending)_
