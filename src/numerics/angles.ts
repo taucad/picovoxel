@@ -6,7 +6,7 @@
 // widens the type back to `number`; the `rad.add`-style helpers keep chains
 // branded. `Overhang` follows the same pattern over a validated 0..1 severity.
 
-import { PicoGkError } from '../errors.ts';
+import { PicoError } from '../errors.ts';
 import { tolerances } from './comparison.ts';
 
 declare const radBrand: unique symbol;
@@ -117,8 +117,8 @@ export const rad = {
   neg: (r: Rad): Rad => asRad(-r),
 } as const;
 
-function overhangOutOfRange(what: string, range: string, value: number): PicoGkError {
-  return new PicoGkError('PICOGK_INVALID_ARGUMENT', `${what} must be finite and in the range ${range}, got ${value}.`);
+function overhangOutOfRange(what: string, range: string, value: number): PicoError {
+  return new PicoError('PICO_INVALID_ARGUMENT', `${what} must be finite and in the range ${range}, got ${value}.`);
 }
 
 const asOverhang = (f: number): Overhang => f as Overhang;

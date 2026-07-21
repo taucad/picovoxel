@@ -3,10 +3,10 @@
 // Utils.mshCreateCube and shows it in the viewer; headless we build the same
 // unit cube through the bulk mesh path and hand back its stats.
 
-import type { Mesh, PicoGK } from 'picogk-js';
+import type { Mesh, Pico } from 'picovoxel';
 
 /** A 1 mm cube centered on the origin — 8 vertices, 12 triangles. */
-export function helloWorld(pk: PicoGK): Mesh {
+export function helloWorld(pk: Pico): Mesh {
   const h = 0.5;
   // prettier-ignore
   const vertices = [

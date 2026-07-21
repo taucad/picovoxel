@@ -39,5 +39,5 @@ createServer(async (request, response) => {
     response.end('not found');
   }
 }).listen(port, () => {
-  console.log(`picogk demo (cross-origin isolated): http://localhost:${port}/demo/`);
+  console.log(`pico demo (cross-origin isolated): http://localhost:${port}/demo/`);
 });

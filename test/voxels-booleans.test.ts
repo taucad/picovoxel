@@ -4,12 +4,12 @@
 
 import assert from 'node:assert/strict';
 import { afterAll, beforeAll, test } from 'vitest';
-import { createPicoGK, type PicoGK, type Voxels } from '../src/index.ts';
+import { createPico, type Pico, type Voxels } from '../src/index.ts';
 import { fnv1a } from './helpers.ts';
 
-let pk: PicoGK;
+let pk: Pico;
 beforeAll(async () => {
-  pk = await createPicoGK({ voxelSize: 0.5 });
+  pk = await createPico({ voxelSize: 0.5 });
 });
 afterAll(() => pk.dispose());
 
@@ -94,8 +94,8 @@ test('SG2 — a.subtract(a).isEmpty is true while raw volume lies (~5% narrow ba
   assert.ok(residual < a.volume * 0.08, `residual ${residual} grew past the narrow-band ballpark`);
 });
 
-test('SG10 — cross-session operands throw PICOGK_SESSION_MISMATCH', async () => {
-  const other = await createPicoGK({ voxelSize: 0.5 });
+test('SG10 — cross-session operands throw PICO_SESSION_MISMATCH', async () => {
+  const other = await createPico({ voxelSize: 0.5 });
   const foreign = other.createVoxels({ shape: 'sphere', radius: 5 });
   const local = sphere(5);
 
@@ -110,7 +110,7 @@ test('SG10 — cross-session operands throw PICOGK_SESSION_MISMATCH', async () =
       assert.fail('cross-session op did not throw');
     } catch (error) {
       assert.ok(error instanceof Error && 'code' in error);
-      assert.equal((error as { code: string }).code, 'PICOGK_SESSION_MISMATCH');
+      assert.equal((error as { code: string }).code, 'PICO_SESSION_MISMATCH');
     }
   }
   other.dispose();

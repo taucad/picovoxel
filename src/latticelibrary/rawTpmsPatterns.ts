@@ -1,7 +1,7 @@
 // Derived from LEAP71_LatticeLibrary — ImplicitLibrary/RawTPMSPatterns.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picogk-js (blueprint R13); see NOTICE.
+// Ported to TypeScript for picovoxel (blueprint R13); see NOTICE.
 //
 // Raw (unit-frequency, no wall) TPMS surface equations over pre-transformed
 // coordinates. Frequency scales are the upstream constants: gyroid and

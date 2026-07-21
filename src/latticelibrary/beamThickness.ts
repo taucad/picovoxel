@@ -3,9 +3,9 @@
 // GlobalFuncBeamThickness}.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picogk-js (blueprint R13); see NOTICE.
+// Ported to TypeScript for picovoxel (blueprint R13); see NOTICE.
 
-import { PicoGkError } from '../errors.ts';
+import { PicoError } from '../errors.ts';
 import { uf } from '../shapekernel/uf.ts';
 import { vec3 } from '../numerics/vector.ts';
 import type { Vec3 } from '../types.ts';
@@ -57,7 +57,7 @@ export class CellBasedBeamThickness implements BeamThickness {
 
   beamThickness(pt: Vec3): number {
     if (this.cell === undefined) {
-      throw new PicoGkError('PICOGK_INVALID_ARGUMENT', 'No Unit Cell specified.');
+      throw new PicoError('PICO_INVALID_ARGUMENT', 'No Unit Cell specified.');
     }
     const bounds = this.cell.cellBounding();
     const dist = vec3.length(vec3.sub(pt, this.cell.cellCentre()));
@@ -84,11 +84,11 @@ export class BoundaryBeamThickness implements BeamThickness {
 
   beamThickness(pt: Vec3): number {
     if (this.bounding === undefined) {
-      throw new PicoGkError('PICOGK_INVALID_ARGUMENT', 'No Boundary Voxels specified.');
+      throw new PicoError('PICO_INVALID_ARGUMENT', 'No Boundary Voxels specified.');
     }
     const surface = this.bounding.closestPointOnSurface(pt);
     if (surface === null) {
-      throw new PicoGkError('PICOGK_CALL_FAILED', 'No Closest Point found.');
+      throw new PicoError('PICO_CALL_FAILED', 'No Closest Point found.');
     }
     return uf.transSmooth(this.maxThickness, this.minThickness, vec3.length(vec3.sub(surface, pt)), 15, 5);
   }

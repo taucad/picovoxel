@@ -1,6 +1,6 @@
 // Port of LEAP71_ShapeKernel Examples/Ex_BasePipeShowCase.cs (Apache-2.0, © LEAP 71).
 
-import type { PicoGK, Vec3, Voxels } from 'picogk-js';
+import type { Pico, Vec3, Voxels } from 'picovoxel';
 import {
   BasePipe,
   Frames,
@@ -8,7 +8,7 @@ import {
   localFrame,
   splineOps,
   SurfaceModulation,
-} from 'picogk-js/shapekernel';
+} from 'picovoxel/shapekernel';
 import { ExampleSpline } from './example-spline.ts';
 
 export const lineModulation1 = (lengthRatio: number): number => 10 - 3 * Math.cos(8 * lengthRatio);
@@ -25,7 +25,7 @@ const transformation = (pt: Vec3): Vec3 => [
   0.5 * pt[0],
 ];
 
-export function task(pk: PicoGK): Voxels[] {
+export function task(pk: Pico): Voxels[] {
   const results: Voxels[] = [];
   {
     // basic

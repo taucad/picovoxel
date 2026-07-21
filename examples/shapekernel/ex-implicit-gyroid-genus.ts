@@ -1,10 +1,10 @@
 // Port of LEAP71_ShapeKernel Examples/Ex_ImplicitGyroidGenus.cs (Apache-2.0, © LEAP 71).
 // Small geometry (±3 mm) — run with a fine voxel size.
 
-import type { PicoGK, Voxels } from 'picogk-js';
-import { ImplicitGenus, ImplicitGyroid } from 'picogk-js/shapekernel';
+import type { Pico, Voxels } from 'picovoxel';
+import { ImplicitGenus, ImplicitGyroid } from 'picovoxel/shapekernel';
 
-export function task(pk: PicoGK): Voxels[] {
+export function task(pk: Pico): Voxels[] {
   const gap = 0.05;
   const extent = 2.5;
   const sdfGenus = new ImplicitGenus(gap);

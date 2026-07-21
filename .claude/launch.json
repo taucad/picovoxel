@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "picogk-demo",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["demo/serve.mjs"],
+      "port": 8918
+    }
+  ]
+}

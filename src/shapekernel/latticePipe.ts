@@ -1,11 +1,11 @@
 // Derived from LEAP71_ShapeKernel — ShapeKernel/BaseShapes/{LatticePipe,LatticeManifold}.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picogk-js (blueprint R6); see NOTICE.
+// Ported to TypeScript for picovoxel (blueprint R6); see NOTICE.
 
 import type { Lattice } from '../lattice.ts';
 import type { Frame } from '../numerics/frame.ts';
-import type { PicoGK } from '../session.ts';
+import type { Pico } from '../session.ts';
 import type { Vec3 } from '../types.ts';
 import type { Voxels } from '../voxels.ts';
 import { BaseShape, type LatticeBaseShape, type SpineBaseShape } from './baseShape.ts';
@@ -42,12 +42,12 @@ export class LatticePipe extends BaseShape implements LatticeBaseShape, SpineBas
     this.lengthSteps = steps;
   }
 
-  voxConstruct(pk: PicoGK): Voxels {
+  voxConstruct(pk: Pico): Voxels {
     return this.latConstruct(pk).toVoxels();
   }
 
   /** Chained beams along the spine (C# `latConstruct`). */
-  latConstruct(pk: PicoGK): Lattice {
+  latConstruct(pk: Pico): Lattice {
     const lattice = pk.createLattice();
     for (let zStep = 1; zStep < this.lengthSteps; zStep += 1) {
       const l0 = (1 / this.lengthSteps) * (zStep - 1);
@@ -108,7 +108,7 @@ export class LatticeManifold extends LatticePipe {
     this.extendBothSides = options.extendBothSides ?? false;
   }
 
-  override latConstruct(pk: PicoGK): Lattice {
+  override latConstruct(pk: Pico): Lattice {
     const lattice = pk.createLattice();
     for (let zStep = 0; zStep < this.lengthSteps; zStep += 1) {
       const lengthRatio = (1 / this.lengthSteps) * zStep;

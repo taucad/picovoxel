@@ -35,7 +35,7 @@ export function createGlb(vertices: Float32Array, indices: Uint32Array): Uint8Ar
   const binLength = pad4(indexOffset + indices.byteLength);
 
   const gltf = {
-    asset: { version: '2.0', generator: 'picogk-js' },
+    asset: { version: '2.0', generator: 'picovoxel' },
     scene: 0,
     scenes: [{ nodes: [0] }],
     nodes: [{ mesh: 0 }],

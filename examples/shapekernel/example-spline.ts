@@ -1,8 +1,8 @@
 // Port of LEAP71_ShapeKernel Examples/ExampleSpline.cs (Apache-2.0, © LEAP 71).
 // A reusable B-Spline spine shared by the spined example variants.
 
-import { ControlPointSpline, type Spline } from 'picogk-js/shapekernel';
-import type { Vec3 } from 'picogk-js';
+import { ControlPointSpline, type Spline } from 'picovoxel/shapekernel';
+import type { Vec3 } from 'picovoxel';
 
 export class ExampleSpline implements Spline {
   private readonly bspline = new ControlPointSpline([

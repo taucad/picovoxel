@@ -36,7 +36,7 @@ jobs:
       - run: bash scripts/fetch-deps.sh
       - if: steps.cache-prefix.outputs.cache-hit != 'true'
         run: bash scripts/build-deps-wasm.sh
-      - run: bash scripts/build-picogk-module.sh
+      - run: bash scripts/build-pico-module.sh
       - name: Run benchmarks (loadavg guard relaxed — CI numbers are drift canaries only)
         run: npm run bench -- --allow-loaded
       - name: Upload results

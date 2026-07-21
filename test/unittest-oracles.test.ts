@@ -3,16 +3,16 @@
 // C# suite pins: sphere volume within 1 mm³ of 4/3·π·r³, bbox within 0.1 mm,
 // slice images exactly 305×305 at r=15 / 0.1 mm, subtract-self exactly empty.
 // The only consumer suite written against the new explicit-Library API — it
-// maps 1:1 onto the picogk-js session model.
+// maps 1:1 onto the picovoxel session model.
 
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import { createPicoGK } from '../src/index.ts';
+import { createPico } from '../src/index.ts';
 
 const sphereVolume = (r: number): number => (4 / 3) * Math.PI * r ** 3;
 
 test('CreateNewVoxels: a fresh voxel field is empty', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   try {
     assert.equal(pk.createVoxels({ shape: 'empty' }).isEmpty, true);
   } finally {
@@ -21,7 +21,7 @@ test('CreateNewVoxels: a fresh voxel field is empty', async () => {
 });
 
 test('VoxelSubtractingIsEmpty: vox − vox is empty with exactly zero properties-volume', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   try {
     const sphere = pk.createVoxels({ shape: 'sphere', center: [0, 0, 0], radius: 15 });
     const nothing = sphere.subtract(sphere);
@@ -35,7 +35,7 @@ test('VoxelSubtractingIsEmpty: vox − vox is empty with exactly zero properties
 });
 
 test('VoxelSlices: r=15 sphere at 0.1 mm allocates exactly 305×305 slice images', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.1 });
+  const pk = await createPico({ voxelSize: 0.1 });
   try {
     const sphere = pk.createVoxels({ shape: 'sphere', center: [0, 0, 0], radius: 15 });
     const count = sphere.sliceCount;
@@ -54,7 +54,7 @@ test('VoxelSlices: r=15 sphere at 0.1 mm allocates exactly 305×305 slice images
 });
 
 test('VoxelBoundingBoxesAndVolumes: closed-form sphere volume and bbox at C# tolerances', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.1 });
+  const pk = await createPico({ voxelSize: 0.1 });
   try {
     const sphere = pk.createVoxels({ shape: 'sphere', center: [0, 0, 0], radius: 15 });
     assert.equal(sphere.isEmpty, false);

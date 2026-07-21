@@ -18,6 +18,6 @@ effect. The mutating forms (`TripleOffset`, `BoolSubtract`) appear intended.
 
 The one-offset `voxShell(float)` (Voxels.cs:659-668) is unaffected.
 
-Found while porting to TypeScript (picogk-js); our `shell({ inner, outer,
+Found while porting to TypeScript (picovoxel); our `shell({ inner, outer,
 smoothInner })` implements the documented intent and tests that smoothing
 actually changes the result.

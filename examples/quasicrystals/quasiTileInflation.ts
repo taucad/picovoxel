@@ -6,9 +6,9 @@
 // identical math, no module-level mutable state. The dead first assignment of
 // m_oCurrentFrame (2-arg LocalFrame, overwritten 5 lines later) is not ported.
 
-import type { Vec3 } from 'picogk-js';
-import { frame, vec3 } from 'picogk-js/numerics';
-import { localFrame, vecOps } from 'picogk-js/shapekernel';
+import type { Vec3 } from 'picovoxel';
+import { frame, vec3 } from 'picovoxel/numerics';
+import { localFrame, vecOps } from 'picovoxel/shapekernel';
 import type { IcosehedralFace } from './icosahedralFace.ts';
 import { type QuasiTile, QuasiTile_01, QuasiTile_03, QuasiTile_04 } from './quasiTile.ts';
 

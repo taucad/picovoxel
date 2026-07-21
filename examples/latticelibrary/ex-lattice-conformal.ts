@@ -2,15 +2,15 @@
 // Headless: previews dropped; C# default choices (the modulated showcase box,
 // BodyCentreLattice, CellBasedBeamThickness(2, 0.1) — min/max inverted upstream).
 
-import type { PicoGK, Voxels } from 'picogk-js';
+import type { Pico, Voxels } from 'picovoxel';
 import {
   BodyCentreLattice,
   CellBasedBeamThickness,
   ConformalCellArray,
   conformalShowcaseShapes,
-} from 'picogk-js/latticelibrary';
+} from 'picovoxel/latticelibrary';
 
-export function task(pk: PicoGK): Voxels[] {
+export function task(pk: Pico): Voxels[] {
   const shape = conformalShowcaseShapes.box01();
   const voxBounding = shape.voxConstruct(pk);
 

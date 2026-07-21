@@ -1,13 +1,13 @@
 // Derived from LEAP71_RoverWheel — RoverWheel/TreadPatterns/TreadPattern_{01,02,03}.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picogk-js (blueprint R10); see NOTICE.
+// Ported to TypeScript for picovoxel (blueprint R10); see NOTICE.
 //
 // The C# ITreadPattern interface (one method, per-call state) becomes a plain
 // function type; the patterns' instance fields become closures.
 
-import type { PicoGK, Voxels } from 'picogk-js';
-import type { Vec3 } from 'picogk-js';
+import type { Pico, Voxels } from 'picovoxel';
+import type { Vec3 } from 'picovoxel';
 import {
   BasePipe,
   localFrame,
@@ -16,11 +16,11 @@ import {
   uf,
   vecOps,
   type VertexTransformation,
-} from 'picogk-js/shapekernel';
+} from 'picovoxel/shapekernel';
 
 /** C# `ITreadPattern.voxConstruct` (session-first). */
 export type TreadPattern = (
-  pk: PicoGK,
+  pk: Pico,
   refRadius: number,
   contourHeight: number,
   treadTrafo: VertexTransformation,
@@ -34,7 +34,7 @@ const clamp = (value: number, min: number, max: number): number => Math.min(max,
  * discard the result; that dead voxelization is not reproduced.
  */
 function profilePattern(
-  pk: PicoGK,
+  pk: Pico,
   contourHeight: number,
   refRadius: number,
   profileHeight: (phi: number, lengthRatio: number) => number,

@@ -1,6 +1,6 @@
 // Port of LEAP71_ShapeKernel Examples/Ex_BasePipeSegmentShowCase.cs (Apache-2.0, © LEAP 71).
 
-import type { PicoGK, Voxels } from 'picogk-js';
+import type { Pico, Voxels } from 'picovoxel';
 import {
   BasePipeSegment,
   Frames,
@@ -8,7 +8,7 @@ import {
   localFrame,
   splineOps,
   SurfaceModulation,
-} from 'picogk-js/shapekernel';
+} from 'picovoxel/shapekernel';
 import { ExampleSpline } from './example-spline.ts';
 import {
   lineModulation1,
@@ -23,7 +23,7 @@ const segmentPhiMid2 = (lr: number): number => 4 * Math.PI * lr;
 const segmentPhiRange1 = (lr: number): number => 0.5 * Math.PI + 0.25 * Math.PI * Math.cos(8 * lr);
 const segmentPhiRange2 = (lr: number): number => 0.5 * Math.PI + 0.25 * Math.PI * Math.cos(40 * lr);
 
-export function task(pk: PicoGK): Voxels[] {
+export function task(pk: Pico): Voxels[] {
   const results: Voxels[] = [];
   {
     // basic

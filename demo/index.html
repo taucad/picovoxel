@@ -1,12 +1,12 @@
 <!doctype html>
-<!-- Interactive three.js demo exercising the picogk-js/three subpath (SP3).
+<!-- Interactive three.js demo exercising the picovoxel/three subpath (SP3).
      The logic lives in main.ts, bundled to dist/main.js by
      `npm run build:demo` (tsdown.demo.config.ts). Serial wasm build — any
      plain static server over the repo root works. -->
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>picogk-js — three.js demo</title>
+    <title>picovoxel — three.js demo</title>
     <style>
       html, body { height: 100%; }
       body { margin: 0; display: flex; flex-direction: column; background: #14161a; color: #d8dee9; font: 13px/1.5 ui-monospace, monospace; }
@@ -23,12 +23,8 @@
   <body>
     <fieldset id="controls" disabled>
       <label>model
-        <select id="model">
-          <option value="gyroid" selected>gyroid (implicit SDF)</option>
-          <option value="gear">involute gear (pure mesh path)</option>
-          <option value="csg">sphere − beams (CSG)</option>
-          <option value="knot">torus knot round-trip (three → picogk → three)</option>
-        </select>
+        <!-- Options are generated in main.ts from the grouped example registry. -->
+        <select id="model"></select>
       </label>
       <label>voxel size
         <input id="voxel" type="range" min="0.05" max="1" step="0.05" value="0.5" />

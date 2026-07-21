@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# R4 + R7 — headless PicoGK core -> picogk.wasm, and the bit-exact parity check.
+# R4 + R7 — headless PicoGK core -> pico.wasm, and the bit-exact parity check.
 #
 # Upstream stays PRISTINE. No patch queue:
 #   * core TU is generated (make-core-tu.sh), cutting at the first Viewer_* export
@@ -42,24 +42,24 @@ echo "=== R7: compile PicoGK core -> wasm ==="
 # PicoGKLibrary.cpp has zero try/catch — without it one bad handle kills the module.
 # -fwasm-exceptions (2026-07-18): native wasm EH, replacing JS-EH -fexceptions —
 # −8.1% wasm size and 1.1–4.5× on EH-sensitive paths, differential byte-identical.
-em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$OUT/PicoGKLibraryCore.cpp" -o "$OUT/picogk_core.o" \
+em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$OUT/PicoGKLibraryCore.cpp" -o "$OUT/pico_core.o" \
   -I"$HERE/shim" -I"$PICOGK_RUNTIME/API" -I"$PICOGK_RUNTIME/Source" -I"$PREFIX/include" \
   -DPICOGK_BUILD_LIBRARY
 
-echo "=== R7: link -> picogk.wasm ==="
-em++ -std=c++20 $WASM_FLAGS $EH_FLAGS "$HERE/bench/picogk-parity.cpp" "$OUT/picogk_core.o" \
-  -o "$OUT/picogk.cjs" -I"$HERE/shim" -I"$PICOGK_RUNTIME/API" \
+echo "=== R7: link -> pico.wasm ==="
+em++ -std=c++20 $WASM_FLAGS $EH_FLAGS "$HERE/bench/pico-parity.cpp" "$OUT/pico_core.o" \
+  -o "$OUT/pico.cjs" -I"$HERE/shim" -I"$PICOGK_RUNTIME/API" \
   "$PREFIX/lib/libopenvdb.a" "$PREFIX/lib/libtbb.a" \
   -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=512MB -sMAXIMUM_MEMORY=4GB \
   -sSTACK_SIZE=8388608 -sEXIT_RUNTIME=1
-echo "picogk.wasm: $(du -h "$OUT/picogk.wasm" | cut -f1)"
+echo "pico.wasm: $(du -h "$OUT/pico.wasm" | cut -f1)"
 
-N=$("$EMSDK/upstream/bin/wasm-dis" "$OUT/picogk.wasm" | grep -cE '\b(f32x4|i32x4|v128)\.' || true)
+N=$("$EMSDK/upstream/bin/wasm-dis" "$OUT/pico.wasm" | grep -cE '\b(f32x4|i32x4|v128)\.' || true)
 echo "SIMD instructions: $N"
 [ "$N" -gt 0 ] || { echo "FAIL: scalar build (correct but ~26% slow, invisible to functional tests)"; exit 1; }
 
 echo "=== S4 gate: sphere -> Mesh_hCreateFromVoxels -> triangles > 0 ==="
-"$NODE" "$OUT/picogk.cjs" 0.5 | tee "$OUT/s4.txt"
+"$NODE" "$OUT/pico.cjs" 0.5 | tee "$OUT/s4.txt"
 grep -q "RESULT=OK" "$OUT/s4.txt" || { echo "FAIL: S4"; exit 1; }
 grep -q "leaked: voxels=0 meshes=0" "$OUT/s4.txt" || { echo "FAIL: leaked handles"; exit 1; }
 
@@ -71,13 +71,13 @@ if [ -z "$NB" ]; then
   exit 0
 fi
 cp "$NB/lib/"*.dylib "$OUT/" 2>/dev/null || true
-clang++ -std=c++20 -O3 "$HERE/bench/picogk-parity.cpp" -o "$OUT/picogk_native" \
+clang++ -std=c++20 -O3 "$HERE/bench/pico-parity.cpp" -o "$OUT/pico_native" \
   -I"$PICOGK_RUNTIME/API" "$OUT/picogk.26.2.0.dylib" -Wl,-rpath,@loader_path
 
 fail=0
 for V in 1.0 0.5 0.25; do
-  hw=$("$NODE" "$OUT/picogk.cjs" "$V" | sed -n 's/.*rawHash=\([0-9]*\).*/\1/p')
-  hn=$(cd "$OUT" && ./picogk_native "$V" | sed -n 's/.*rawHash=\([0-9]*\).*/\1/p')
+  hw=$("$NODE" "$OUT/pico.cjs" "$V" | sed -n 's/.*rawHash=\([0-9]*\).*/\1/p')
+  hn=$(cd "$OUT" && ./pico_native "$V" | sed -n 's/.*rawHash=\([0-9]*\).*/\1/p')
   if [ "$hw" = "$hn" ]; then echo "  ${V}mm  MATCH  $hw"
   else echo "  ${V}mm  DIFFER wasm=$hw native=$hn"; fail=1; fi
 done

@@ -2,7 +2,7 @@
 // {RegularCellArray,ConformalCellArray}.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picogk-js (blueprint R13); see NOTICE.
+// Ported to TypeScript for picovoxel (blueprint R13); see NOTICE.
 //
 // The per-corner noise reseeds a fresh random stream from the corner's
 // coordinates, so shared corners of adjacent cells deform identically. The C#

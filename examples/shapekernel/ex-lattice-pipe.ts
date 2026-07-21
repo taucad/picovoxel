@@ -1,12 +1,12 @@
 // Port of LEAP71_ShapeKernel Examples/Ex_LatticePipeShowCase.cs (Apache-2.0, © LEAP 71).
 
-import type { PicoGK, Voxels } from 'picogk-js';
-import { Frames, LatticePipe, LineModulation, localFrame, splineOps } from 'picogk-js/shapekernel';
+import type { Pico, Voxels } from 'picovoxel';
+import { Frames, LatticePipe, LineModulation, localFrame, splineOps } from 'picovoxel/shapekernel';
 import { ExampleSpline } from './example-spline.ts';
 
 const lineModulation1 = (lengthRatio: number): number => 10 - 3 * Math.cos(8 * lengthRatio);
 
-export function task(pk: PicoGK): Voxels[] {
+export function task(pk: Pico): Voxels[] {
   const results: Voxels[] = [];
   {
     // basic

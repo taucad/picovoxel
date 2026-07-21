@@ -1,7 +1,7 @@
 // Derived from LEAP71_RoverWheel — RoverWheel/{RoverWheel,WheelLayer}.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picogk-js (blueprint R10); see NOTICE.
+// Ported to TypeScript for picovoxel (blueprint R10); see NOTICE.
 //
 // The C# abstract RoverWheel keeps its key dimensions and contour frames as
 // PUBLIC STATIC fields, written by each preset constructor (and read back by
@@ -13,8 +13,8 @@
 // assigned) are not reproduced. Viewer calls (ShowPlaneGrid, Preview*,
 // RemoveAllObjects) are dropped — headless.
 
-import type { PicoGK, Vec3, Voxels } from 'picogk-js';
-import { vec3 } from 'picogk-js/numerics';
+import type { Pico, Vec3, Voxels } from 'picovoxel';
+import { vec3 } from 'picovoxel/numerics';
 import {
   BaseLens,
   BasePipe,
@@ -24,7 +24,7 @@ import {
   splineOps,
   SurfaceModulation,
   vecOps,
-} from 'picogk-js/shapekernel';
+} from 'picovoxel/shapekernel';
 
 /** A radial band of the wheel between two 0..1 length ratios (C# `WheelLayer` struct, wheel ref → context). */
 export interface WheelLayer {
@@ -151,7 +151,7 @@ export class WheelContext {
   }
 
   /** A wheel layer band as a voxel field (C# static `voxGetLayer`). */
-  layerVoxels(pk: PicoGK, startLengthRatio: number, endLengthRatio: number): Voxels {
+  layerVoxels(pk: Pico, startLengthRatio: number, endLengthRatio: number): Voxels {
     const refInnerRadius = this.hubRadius + startLengthRatio * (this.outerRadius - this.hubRadius);
     const refOuterRadius = this.hubRadius + endLengthRatio * (this.outerRadius - this.hubRadius);
     const layer = new BasePipe(localFrame.identity, this.refWidth, refInnerRadius, refOuterRadius);

@@ -8,8 +8,8 @@
 // engines); anything routed through JS Math (SDF callbacks, gear trig) uses a
 // tight tolerance because Math.sin/cos differ across engines by ULPs.
 
-import { createGearOutline, triangulate } from '../../examples/picogk/gear.ts';
-import { createPicoGK } from '../../src/index.ts';
+import { createGearOutline, triangulate } from '../../examples/pico/gear.ts';
+import { createPico } from '../../src/index.ts';
 import { contoursFromSdf } from '../../src/slicing.ts';
 
 interface GateRecords {
@@ -66,7 +66,7 @@ async function main(): Promise<void> {
   }
 
   // ── Session ──
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   check('wasm instantiated in the browser', true, pk.version);
   check('string marshalling', /^PicoGK Core Library/.test(pk.name), pk.name);
 
@@ -130,7 +130,7 @@ async function main(): Promise<void> {
     addVertex: (_l: bigint, _m: bigint, x: number, y: number, z: number) => (vertices.push(x, y, z), vertices.length / 3 - 1),
     addTriangle: (_l: bigint, _m: bigint, a: number, b: number, c: number) => (triangles.push(a, b, c), triangles.length / 3 - 1),
   };
-  const { buildGearMesh } = await import('../../examples/picogk/gear.ts');
+  const { buildGearMesh } = await import('../../examples/pico/gear.ts');
   buildGearMesh(arrayBuilder, 0n);
   const gearMesh = pk.createMesh({ vertices, triangles });
   check('gear counts EXACT (R8 bulk import)',
@@ -150,7 +150,7 @@ async function main(): Promise<void> {
   check('slicing vectorizer in page', contours.length === 1 && contours[0]!.winding === 'ccw', `${contours.length} contour(s)`);
 
   // ── GC pressure loop (disposal doc, tolerated nondeterminism) ──
-  const gcSession = await createPicoGK({ voxelSize: 1.5 });
+  const gcSession = await createPico({ voxelSize: 1.5 });
   const N = 200;
   for (let i = 0; i < N; i++) gcSession.createVoxels({ shape: 'sphere', radius: 2 });
   check('200 undisposed allocations survive', gcSession.allocated.voxels === N);

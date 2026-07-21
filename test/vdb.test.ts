@@ -3,11 +3,11 @@
 
 import assert from 'node:assert/strict';
 import { afterAll, beforeAll, test } from 'vitest';
-import { createPicoGK, PicoGkError, type PicoGK } from '../src/index.ts';
+import { createPico, PicoError, type Pico } from '../src/index.ts';
 
-let pk: PicoGK;
+let pk: Pico;
 beforeAll(async () => {
-  pk = await createPicoGK({ voxelSize: 0.5 });
+  pk = await createPico({ voxelSize: 0.5 });
 });
 afterAll(() => pk.dispose());
 
@@ -65,14 +65,14 @@ test('type mismatch and missing names produce typed, listing errors', () => {
     vdb.getScalarField('solid');
     assert.fail('type mismatch accepted');
   } catch (error) {
-    assert.ok(error instanceof PicoGkError);
+    assert.ok(error instanceof PicoError);
     assert.match(error.message, /is a voxels, not a scalarField/);
   }
   try {
     vdb.getVoxels('nope');
     assert.fail('missing name accepted');
   } catch (error) {
-    assert.ok(error instanceof PicoGkError);
+    assert.ok(error instanceof PicoError);
     assert.match(error.message, /No field named 'nope'.*solid/s, 'error must list what IS there');
   }
   assert.throws(() => vdb.getVoxels(5), /out of range/);
@@ -93,8 +93,8 @@ test('SG5 — no compatible field: rich error lists every field found', () => {
     pk.voxelsFromVdb(bytes);
     assert.fail('no-voxels vdb accepted');
   } catch (error) {
-    assert.ok(error instanceof PicoGkError);
-    assert.equal(error.code, 'PICOGK_VDB_NO_COMPATIBLE_FIELD');
+    assert.ok(error instanceof PicoError);
+    assert.equal(error.code, 'PICO_VDB_NO_COMPATIBLE_FIELD');
     assert.match(error.message, /a \(scalarField\)/);
     assert.match(error.message, /b \(vectorField\)/);
   }
@@ -119,7 +119,7 @@ test('SG5 — first voxel field wins when several exist', () => {
 });
 
 test('voxel-size handshake: vdbVoxelSize reads PicoGK.VoxelSize from the bytes', async () => {
-  const other = await createPicoGK({ voxelSize: 0.8 });
+  const other = await createPico({ voxelSize: 0.8 });
   const body = other.createVoxels({ shape: 'sphere', radius: 6 });
   const vdb = other.createVdb();
   vdb.add(body, 'b');
@@ -130,21 +130,21 @@ test('voxel-size handshake: vdbVoxelSize reads PicoGK.VoxelSize from the bytes',
   assert.ok(Math.abs(size - 0.8) < 1e-4, `handshake read ${size}, expected 0.8`);
 
   // The documented workflow: create a matching session, then load.
-  const matching = await createPicoGK({ voxelSize: size });
+  const matching = await createPico({ voxelSize: size });
   const restored = matching.voxelsFromVdb(bytes);
   assert.ok(Math.abs(restored.volume - (4 / 3) * Math.PI * 216) / ((4 / 3) * Math.PI * 216) < 0.05);
   matching.dispose();
 });
 
 test('cross-session add is refused (SG10)', async () => {
-  const other = await createPicoGK({ voxelSize: 0.5 });
+  const other = await createPico({ voxelSize: 0.5 });
   const foreign = other.createVoxels({ shape: 'sphere', radius: 2 });
   const vdb = pk.createVdb();
   try {
     vdb.add(foreign, 'foreign');
     assert.fail('cross-session field accepted');
   } catch (error) {
-    assert.equal((error as { code: string }).code, 'PICOGK_SESSION_MISMATCH');
+    assert.equal((error as { code: string }).code, 'PICO_SESSION_MISMATCH');
   }
   other.dispose();
 });

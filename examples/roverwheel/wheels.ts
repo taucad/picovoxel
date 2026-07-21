@@ -1,14 +1,14 @@
 // Derived from LEAP71_RoverWheel — RoverWheel/Wheels/Wheel_{01,02,03,04}.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picogk-js (blueprint R10); see NOTICE.
+// Ported to TypeScript for picovoxel (blueprint R10); see NOTICE.
 //
 // Each C# preset class (ctor writes the statics, voxConstruct assembles)
 // becomes one function building an explicit WheelContext and assembling from
 // it. All four presets share identical key dimensions and upper contour.
 
-import type { PicoGK, Vec3, Voxels } from 'picogk-js';
-import { ControlPointSpline } from 'picogk-js/shapekernel';
+import type { Pico, Vec3, Voxels } from 'picovoxel';
+import { ControlPointSpline } from 'picovoxel/shapekernel';
 import { treadPattern02, treadPattern03 } from './treadPatterns.ts';
 import { WheelContext, type WheelLayer } from './wheelContext.ts';
 import {
@@ -47,7 +47,7 @@ const layer = (startLengthRatio: number, endLengthRatio: number): WheelLayer => 
 });
 
 /** First preset variant (C# `Wheel_01`). */
-export function wheel01(pk: PicoGK): Voxels {
+export function wheel01(pk: Pico): Voxels {
   const ctx = presetContext();
   const voxTread = new WheelTread(ctx.outerRadiusFrames, treadPattern02).treadLayerVoxels(pk);
   return ctx
@@ -63,7 +63,7 @@ export function wheel01(pk: PicoGK): Voxels {
 }
 
 /** Second preset variant — the C# showcase default (C# `Wheel_02`). */
-export function wheel02(pk: PicoGK): Voxels {
+export function wheel02(pk: Pico): Voxels {
   const ctx = presetContext();
   const voxTread = new WheelTread(ctx.outerRadiusFrames, treadPattern03).profileVoxels(pk);
   return ctx
@@ -79,7 +79,7 @@ export function wheel02(pk: PicoGK): Voxels {
 }
 
 /** Third preset variant (C# `Wheel_03`). */
-export function wheel03(pk: PicoGK): Voxels {
+export function wheel03(pk: Pico): Voxels {
   const ctx = presetContext();
   const voxTread = new WheelTread(ctx.outerRadiusFrames, treadPattern03).profileVoxels(pk);
   return ctx
@@ -93,7 +93,7 @@ export function wheel03(pk: PicoGK): Voxels {
 }
 
 /** Fourth preset variant (C# `Wheel_04`). */
-export function wheel04(pk: PicoGK): Voxels {
+export function wheel04(pk: Pico): Voxels {
   const ctx = presetContext();
   const voxTread = new WheelTread(ctx.outerRadiusFrames, treadPattern02).profileVoxels(pk);
   return ctx

@@ -5,12 +5,12 @@
 // transform as v·M (vec3.transformed). Scoped to the surface Frame3d and the
 // mesh path use; the rest of Matrix4x4 is graded N/A in MIGRATING-FROM-CSHARP.md.
 
-import { PicoGkError } from '../errors.ts';
+import { PicoError } from '../errors.ts';
 import type { Mat4, Vec3 } from '../types.ts';
 
 function checkMat4(m: Mat4, what: string): void {
   if (m.length !== 16) {
-    throw new PicoGkError('PICOGK_INVALID_ARGUMENT', `${what} needs 16 elements, got ${m.length}.`);
+    throw new PicoError('PICO_INVALID_ARGUMENT', `${what} needs 16 elements, got ${m.length}.`);
   }
 }
 

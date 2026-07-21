@@ -4,7 +4,7 @@
 // ImplicitRandomizedSchwarzPrimitive,ImplicitModular}.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picogk-js (blueprint R13); see NOTICE.
+// Ported to TypeScript for picovoxel (blueprint R13); see NOTICE.
 //
 // The five closed-form presets implement the shapekernel `Implicit` shape:
 // `sdf` (upstream's serial callback path) AND `expression` (the slab-parallel

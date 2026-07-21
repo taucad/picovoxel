@@ -4,7 +4,7 @@
 // compatible field wins" is the documented loading semantic.
 
 import { adoptHandle, assertSameSession, expectHandle, withStrings, readCString, type SessionContext } from './context.ts';
-import { assertLive, guard, PicoGkError } from './errors.ts';
+import { assertLive, guard, PicoError } from './errors.ts';
 import { wrapScalarField, wrapVectorField, type ScalarField, type VectorField } from './fields.ts';
 import { wrapVoxels, type Voxels } from './voxels.ts';
 
@@ -33,7 +33,7 @@ export interface VdbFile {
 let temporaryCounter = 0;
 /** A unique MEMFS scratch path per operation (sessions may interleave). */
 export function temporaryVdbPath(): string {
-  return `/picogk-tmp-${++temporaryCounter}.vdb`;
+  return `/pico-tmp-${++temporaryCounter}.vdb`;
 }
 
 /** Writes bytes into MEMFS, runs body on the path, always unlinks. */
@@ -69,7 +69,7 @@ export function wrapVdbFile(ctx: SessionContext, handle: bigint): VdbFile {
     let index: number;
     if (typeof indexOrName === 'number') {
       if (!Number.isInteger(indexOrName) || indexOrName < 0 || indexOrName >= count) {
-        throw new PicoGkError('PICOGK_INVALID_ARGUMENT', `Field index ${indexOrName} out of range [0, ${count}).`);
+        throw new PicoError('PICO_INVALID_ARGUMENT', `Field index ${indexOrName} out of range [0, ${count}).`);
       }
       index = indexOrName;
     } else {
@@ -82,16 +82,16 @@ export function wrapVdbFile(ctx: SessionContext, handle: bigint): VdbFile {
         }
       }
       if (index === -1) {
-        throw new PicoGkError(
-          'PICOGK_INVALID_ARGUMENT',
+        throw new PicoError(
+          'PICO_INVALID_ARGUMENT',
           `No field named '${indexOrName}' in this .vdb (has: ${Array.from({ length: count }, (_, i) => nameAt(i)).join(', ') || 'none'}).`,
         );
       }
     }
     const actual = typeAt(index);
     if (actual !== wantType) {
-      throw new PicoGkError(
-        'PICOGK_INVALID_ARGUMENT',
+      throw new PicoError(
+        'PICO_INVALID_ARGUMENT',
         `Field ${typeof indexOrName === 'string' ? `'${indexOrName}'` : indexOrName} is a ${actual}, not a ${wantType}.`,
       );
     }
@@ -130,13 +130,13 @@ export function wrapVdbFile(ctx: SessionContext, handle: bigint): VdbFile {
     },
     toBytes(): Uint8Array {
       live();
-      stampPicoGkMetadata(ctx, handle);
+      stampPicoMetadata(ctx, handle);
       const path = temporaryVdbPath();
       const saved = withStrings(ctx, [path], (pathPtr) => ctx.raw.VdbFile_bSaveToFile(ctx.lib, handle, pathPtr));
       /* v8 ignore next 3 -- defensive: MEMFS writes at / cannot fail short of OOM,
          and the save path is not injectable through the facade */
       if (!saved) {
-        throw new PicoGkError('PICOGK_CALL_FAILED', 'VdbFile_bSaveToFile failed — the container could not be serialised.');
+        throw new PicoError('PICO_CALL_FAILED', 'VdbFile_bSaveToFile failed — the container could not be serialised.');
       }
       try {
         return ctx.module.FS.readFile(path);
@@ -164,7 +164,7 @@ export function wrapVdbFile(ctx: SessionContext, handle: bigint): VdbFile {
  * metadata (SI units — voxel size in METRES). This is what makes the SG5 voxel-size
  * handshake work when the bytes reach desktop PicoGK or come back to us.
  */
-function stampPicoGkMetadata(ctx: SessionContext, vdbHandle: bigint): void {
+function stampPicoMetadata(ctx: SessionContext, vdbHandle: bigint): void {
   const { raw, lib, module } = ctx;
   raw.Library_GetName(ctx.scratch);
   const libraryName = readCString(ctx, ctx.scratch);
@@ -210,5 +210,5 @@ export function fieldKind(ctx: SessionContext, field: object): 'voxels' | 'scala
   if ('isEmpty' in field && 'union' in field) return 'voxels';
   if ('signedDistanceAt' in field) return 'scalarField';
   if ('traverse' in field) return 'vectorField';
-  throw new PicoGkError('PICOGK_INVALID_ARGUMENT', 'Expected a Voxels, ScalarField, or VectorField wrapper.');
+  throw new PicoError('PICO_INVALID_ARGUMENT', 'Expected a Voxels, ScalarField, or VectorField wrapper.');
 }

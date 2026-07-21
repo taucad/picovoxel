@@ -1,5 +1,5 @@
-// picogk-js/latticelibrary — TypeScript port of LEAP71_LatticeLibrary
-// (Apache-2.0, © 2023-2026 LEAP 71; see NOTICE), built on picogk-js/shapekernel
+// picovoxel/latticelibrary — TypeScript port of LEAP71_LatticeLibrary
+// (Apache-2.0, © 2023-2026 LEAP 71; see NOTICE), built on picovoxel/shapekernel
 // (blueprint R13: subpath export, no wasm changes). Explicit-session surface:
 // cell arrays, lattice types and beam-thickness strategies are pure authoring
 // objects; the session enters at the lattice/voxel boundary. TPMS presets

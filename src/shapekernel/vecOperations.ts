@@ -1,19 +1,19 @@
 // Derived from LEAP71_ShapeKernel — ShapeKernel/Utilities/VecOperations.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picogk-js (blueprint R4); see NOTICE.
+// Ported to TypeScript for picovoxel (blueprint R4); see NOTICE.
 //
 // Cylindrical/spherical point helpers and rotation utilities the whole
 // ShapeKernel layer leans on. Angles are plain radians numbers here, as
 // upstream (ShapeKernel predates the Rad type). The C#-[Obsolete] members
 // (Normalize/ConvertTo3D/ConvertTo2D/vecTranslate*/vecExpress*) are not
-// reproduced — their replacements are `vec3`/`frame` in picogk-js/numerics.
+// reproduced — their replacements are `vec3`/`frame` in picovoxel/numerics.
 //
 // NOTE vecOps.sphPoint measures theta from the XY plane upward (sin θ → z),
-// which is NOT the `spherical` coordinate convention in picogk-js/numerics
+// which is NOT the `spherical` coordinate convention in picovoxel/numerics
 // (polar angle from +Z). Ported as upstream wrote it.
 
-import { PicoGkError } from '../errors.ts';
+import { PicoError } from '../errors.ts';
 import { rad } from '../numerics/angles.ts';
 import type { Frame } from '../numerics/frame.ts';
 import { quat } from '../numerics/quaternion.ts';
@@ -104,7 +104,7 @@ export const vecOps = {
       vec3.lengthSquared(b) < zeroError ||
       vec3.lengthSquared(refNormal) < zeroError
     ) {
-      throw new PicoGkError('PICOGK_INVALID_ARGUMENT', 'signedAngleBetween: Vec3 with zero length.');
+      throw new PicoError('PICO_INVALID_ARGUMENT', 'signedAngleBetween: Vec3 with zero length.');
     }
     const na = vec3.safeNormalized(a);
     const nb = vec3.safeNormalized(b);

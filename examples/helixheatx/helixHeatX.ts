@@ -2,7 +2,7 @@
 // class merged into one module, out-params → returned objects)
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picogk-js (blueprint R11); see NOTICE.
+// Ported to TypeScript for picovoxel (blueprint R11); see NOTICE.
 //
 // The flagship benchmark subject: ~10^5 lattice beams (20,000 z-samples with
 // fin bursts), boolean assembly, and the full finishing family (offset,
@@ -11,8 +11,8 @@
 // stopwatch accumulates pure-JS authoring time (lattice/point loops) so the
 // benchmark can report the Finding 8 authoring-vs-kernel phase split.
 
-import type { Lattice, PicoGK, Vec3, Voxels } from 'picogk-js';
-import { vec3 } from 'picogk-js/numerics';
+import type { Lattice, Pico, Vec3, Voxels } from 'picovoxel';
+import { vec3 } from 'picovoxel/numerics';
 import {
   BaseBox,
   BaseCylinder,
@@ -24,13 +24,13 @@ import {
   TangentialControlSpline,
   uf,
   vecOps,
-} from 'picogk-js/shapekernel';
+} from 'picovoxel/shapekernel';
 import { ScrewHole, ThreadCutter, ThreadReinforcement } from './helpers.ts';
 
 type Fluid = 'hot' | 'cool';
 
 export class HelixHeatX {
-  private readonly pk: PicoGK;
+  private readonly pk: Pico;
   private readonly firstInletFrame: Frame;
   private readonly secondInletFrame: Frame;
   private readonly firstOutletFrame: Frame;
@@ -45,11 +45,11 @@ export class HelixHeatX {
   authorMs = 0;
 
   /** C# `Task()` — construct with preset defaults and return the result. */
-  static task(pk: PicoGK): Voxels {
+  static task(pk: Pico): Voxels {
     return new HelixHeatX(pk).voxConstruct();
   }
 
-  constructor(pk: PicoGK) {
+  constructor(pk: Pico) {
     this.pk = pk;
     const halfIOLengthSpacing = 75;
     const halfIOWidthSpacing = 26.5;

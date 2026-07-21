@@ -1,5 +1,5 @@
-// picogk-js/multi — the PTHREAD variant of the package entry. Same exported
-// names as the base entry, bound to picogk-multi.mjs: switching variants is a
+// picovoxel/multi — the PTHREAD variant of the package entry. Same exported
+// names as the base entry, bound to pico-multi.mjs: switching variants is a
 // one-specifier change, and neither glue ever appears in the other's graph.
 //
 // Runtime requirements beyond the serial build: SharedArrayBuffer — in browsers
@@ -9,10 +9,10 @@
 // Symbol.dispose (Safari 16.4–18.3) before any consumer `using` code can run.
 import './dispose.ts';
 
-import createPicoGKMultiModuleUntyped from './picogk-multi.mjs';
-import { createPicoGKSession, type CreatePicoGkOptions, type PicoGK, type PicoGkGlueFactory } from './session.ts';
+import createPicoMultiModuleUntyped from './pico-multi.mjs';
+import { createPicoSession, type CreatePicoOptions, type Pico, type PicoGlueFactory } from './session.ts';
 
-const glue = createPicoGKMultiModuleUntyped as PicoGkGlueFactory;
+const glue = createPicoMultiModuleUntyped as PicoGlueFactory;
 
 /**
  * Creates a multithreaded (pthreads) PicoGK session. Resolves once the wasm
@@ -25,8 +25,8 @@ const glue = createPicoGKMultiModuleUntyped as PicoGkGlueFactory;
  * One tiny op + one yield turns that into full parallelism (measured 5–6× on
  * offsets at 12 threads).
  */
-export async function createPicoGK(options: CreatePicoGkOptions = {}): Promise<PicoGK> {
-  const session = await createPicoGKSession(glue, options);
+export async function createPico(options: CreatePicoOptions = {}): Promise<Pico> {
+  const session = await createPicoSession(glue, options);
   const warm = session.createVoxels({ shape: 'sphere', radius: 2 });
   warm.offset({ distance: 0.5 });
   warm.dispose();
@@ -38,12 +38,12 @@ export async function createPicoGK(options: CreatePicoGkOptions = {}): Promise<P
 
 export type {
   AllocatedCounts,
-  CreatePicoGkOptions,
+  CreatePicoOptions,
   CreateScalarFieldOptions,
   CreateVectorFieldOptions,
   CreateVoxelsOptions,
   MemoryUsage,
-  PicoGK,
+  Pico,
 } from './session.ts';
 export type { GetSliceOptions, ShellOptions, SliceAxis, SliceMode, Voxels, VoxelSlice } from './voxels.ts';
 export type { Mesh, TransformOptions } from './mesh.ts';
@@ -55,8 +55,8 @@ export { surfaceNormalFieldExtractor, vectorFieldMerge } from './fieldUtils.ts';
 export type { SurfaceNormalFieldOptions } from './fieldUtils.ts';
 export type { Metadata, MetadataType, MetadataValue } from './metadata.ts';
 export type { VdbFieldType, VdbFile } from './vdb.ts';
-export { PicoGkError } from './errors.ts';
-export type { PicoGkErrorCode } from './errors.ts';
+export { PicoError } from './errors.ts';
+export type { PicoErrorCode } from './errors.ts';
 export { emptyBounds, isEmptyBounds } from './types.ts';
 export type { SdfExpression, SdfOperator } from './tape.ts';
 export type { Bounds, Color, Mat4, SdfFunction, Vec3 } from './types.ts';

@@ -1,5 +1,5 @@
 {
-  "name": "picogk-js",
+  "name": "picovoxel",
   "version": "0.1.0",
   "type": "module",
   "description": "PicoGK \u2014 voxel/implicit computational geometry on OpenVDB \u2014 compiled to WebAssembly, with an idiomatic TypeScript API",
@@ -90,10 +90,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/taucad/picogk-js.git"
+    "url": "git+https://github.com/taucad/picovoxel.git"
   },
-  "homepage": "https://github.com/taucad/picogk-js#readme",
+  "homepage": "https://github.com/taucad/picovoxel#readme",
   "bugs": {
-    "url": "https://github.com/taucad/picogk-js/issues"
+    "url": "https://github.com/taucad/picovoxel/issues"
   }
 }

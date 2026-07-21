@@ -1,18 +1,20 @@
-# picogk-js
+# picovoxel
 
 [PicoGK](https://github.com/leap71/PicoGK) — the voxel/implicit computational-geometry kernel on OpenVDB — compiled to WebAssembly, with an idiomatic TypeScript API. Runs in the browser and in node from a single 5.8 MB wasm module.
 
-```js
-import { createPicoGK } from 'picogk-js';
+> ⚠️ **Unofficial & community-maintained.** `picovoxel` is an independent project — **not** affiliated with, endorsed by, or supported by LEAP 71. It binds the open-source PicoGK runtime (compiled, unmodified, to WebAssembly), but the API, packaging, and package name (`picovoxel`, not `picogk`) are ours. Please file issues [on this repo](https://github.com/taucad/picovoxel/issues), not with the PicoGK team.
 
-const picogk = await createPicoGK({ voxelSize: 0.5 });
-const sphere = picogk.createVoxels({ shape: 'sphere', radius: 10 });
+```js
+import { createPico } from 'picovoxel';
+
+const pico = await createPico({ voxelSize: 0.5 });
+const sphere = pico.createVoxels({ shape: 'sphere', radius: 10 });
 const gyroid = sphere.maskedByImplicit({
   sdf: (x, y, z) =>
     Math.abs(Math.sin(x) * Math.cos(y) + Math.sin(y) * Math.cos(z) + Math.sin(z) * Math.cos(x)) - 0.4,
 });
 const stl = gyroid.toMesh().toStl();   // binary STL bytes, ready to download
-picogk.dispose();
+pico.dispose();
 ```
 
 No cleanup calls in sight — that is the API contract, not an oversight (see [Memory](#memory)).
@@ -20,15 +22,15 @@ No cleanup calls in sight — that is the API contract, not an oversight (see [M
 ## What you get
 
 - **The full non-viewer PicoGK surface**: voxel CSG (`union`/`subtract`/`intersect`), the offset design vocabulary (`offset`, `doubleOffset`, `smoothen`, `fillet`, `shell`, `trim`), implicit rendering and masking from plain JS SDF callbacks, meshes with bulk transfer, STL/GLB/VDB IO, lattices, polylines, scalar/vector fields, and field metadata.
-- **`picogk-js/slicing`** — marching-squares vectorization of voxel slices to closed contours, SVG, and ASCII CLI (Common Layer Interface) for LPBF/SLS printers.
-- **`picogk-js/three`** — `toBufferGeometry` / `meshFromBufferGeometry` bridges (`three` is an optional peer dependency).
-- **`picogk-js/raw`** — the generated, typed binding for all 140 core C-ABI exports, for when you need the escape hatch.
+- **`picovoxel/slicing`** — marching-squares vectorization of voxel slices to closed contours, SVG, and ASCII CLI (Common Layer Interface) for LPBF/SLS printers.
+- **`picovoxel/three`** — `toBufferGeometry` / `meshFromBufferGeometry` bridges (`three` is an optional peer dependency).
+- **`picovoxel/raw`** — the generated, typed binding for all 140 core C-ABI exports, for when you need the escape hatch.
 
 ## Browser and node
 
-The same wasm pair serves both. In node (≥ 20) it just works. In the browser, serve `picogk.wasm` next to `picogk.mjs` (both ship in `dist/`) with `Content-Type: application/wasm`; no COOP/COEP headers are needed — the build is single-threaded by design (PicoGK's implicit loop is serial, so JS SDF callbacks are exact, not racy).
+The same wasm pair serves both. In node (≥ 20) it just works. In the browser, serve `pico.wasm` next to `pico.mjs` (both ship in `dist/`) with `Content-Type: application/wasm`; no COOP/COEP headers are needed — the build is single-threaded by design (PicoGK's implicit loop is serial, so JS SDF callbacks are exact, not racy).
 
-**Bundlers**: the Emscripten glue locates `picogk.wasm` via `import.meta.url`. If your bundler inlines the glue, copy `picogk.wasm` next to your bundle output — that is the whole integration.
+**Bundlers**: the Emscripten glue locates `pico.wasm` via `import.meta.url`. If your bundler inlines the glue, copy `pico.wasm` next to your bundle output — that is the whole integration.
 
 **Safari**: supported from 16.4 (the wasm-SIMD floor). `Symbol.dispose` is self-shimmed on engines that lack it (Safari 16.4–18.3), so `using` in *your* transpiled code works there too. The shim assigns only when the native symbol is missing; nothing is patched on modern engines. Proven per-release by a Playwright gate that runs the full suite on Chromium, WebKit, and Firefox — pure-wasm results are bit-identical across all three.
 
@@ -36,7 +38,7 @@ The same wasm pair serves both. In node (≥ 20) it just works. In the browser, 
 
 PicoGK's data lives in WebAssembly memory (up to 4 GB), which the JavaScript garbage
 collector cannot see — a 100-byte wrapper can pin a multi-hundred-MB voxel grid.
-picogk-js handles this for you:
+picovoxel handles this for you:
 
 - **Ordinary use needs no cleanup.** Every wrapper is registered with a
   `FinalizationRegistry`; when it is collected, its native handle is freed.
@@ -45,10 +47,10 @@ picogk-js handles this for you:
 - **`session.dispose()` frees everything at once** — the deterministic teardown.
   "Create session → work → dispose session" is the complete story.
 - **`dispose()` exists on every object** for tight loops and power users; it is
-  idempotent and optional. `using` works too — picogk-js self-shims
+  idempotent and optional. `using` works too — picovoxel self-shims
   `Symbol.dispose` on engines that lack it.
 - **A one-time warning** fires if PicoGK-owned memory crosses 1 GiB
-  (`createPicoGK({ memoryWarningBytes })` to raise or `0` to disable) — the GC has
+  (`createPico({ memoryWarningBytes })` to raise or `0` to disable) — the GC has
   no idea native memory is piling up, so we refuse to fail silently at 4 GB.
 - **The leak oracle is built in**: `session.allocated` reports PicoGK's own
   per-type allocation counters.
@@ -77,7 +79,7 @@ See [MIGRATING-FROM-CSHARP.md](MIGRATING-FROM-CSHARP.md) for the complete member
 ```sh
 bash scripts/fetch-deps.sh        # sha256-pinned sources into vendor/ (+ emsdk on first run)
 bash scripts/build-deps-wasm.sh   # OpenVDB + oneTBB wasm prefix (~5 min cold)
-bash scripts/build-picogk-module.sh  # -> src/picogk.{mjs,wasm}
+bash scripts/build-pico-module.sh  # -> src/pico.{mjs,wasm}
 npm ci && npm test                # vitest, 100% coverage enforced
 npm run test:browser              # Playwright: chromium + webkit + firefox
 npm run bench                     # refuses loaded machines by design

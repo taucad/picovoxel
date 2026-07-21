@@ -10,7 +10,7 @@ import {
   withStrings,
   type SessionContext,
 } from './context.ts';
-import { assertLive, guard, PicoGkError } from './errors.ts';
+import { assertLive, guard, PicoError } from './errors.ts';
 import type { Vec3 } from './types.ts';
 
 export type MetadataType = 'string' | 'float' | 'vector' | 'unknown';
@@ -36,7 +36,7 @@ export interface Metadata {
 }
 
 /**
- * SG3 — upstream's GuardInternalFields (FieldMetadata.cs:349-364): PicoGK.* is
+ * SG3 — upstream's GuardInternalFields (FieldMetadata.cs:349-364): Pico.* is
  * internal, class/name/file_* corrupt OpenVDB's own bookkeeping.
  */
 export function assertWritableMetadataName(name: string): void {
@@ -49,7 +49,7 @@ export function assertWritableMetadataName(name: string): void {
         ? `'file_*' names are OpenVDB-internal`
         : null;
   if (reason) {
-    throw new PicoGkError('PICOGK_RESERVED_METADATA', `Cannot set metadata '${name}': ${reason}. Choose another name.`);
+    throw new PicoError('PICO_RESERVED_METADATA', `Cannot set metadata '${name}': ${reason}. Choose another name.`);
   }
 }
 
@@ -146,8 +146,8 @@ export function wrapMetadata(ctx: SessionContext, handle: bigint): Metadata {
         ctx.writeVec3(ctx.scratch, value as Vec3);
         withStrings(ctx, [name], (n) => ctx.raw.Metadata_SetVectorValue(ctx.lib, handle, n, ctx.scratch));
       } else {
-        throw new PicoGkError(
-          'PICOGK_INVALID_ARGUMENT',
+        throw new PicoError(
+          'PICO_INVALID_ARGUMENT',
           `Metadata values are strings, numbers, or [x, y, z] vectors — got ${typeof value}.`,
         );
       }

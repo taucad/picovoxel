@@ -2,7 +2,7 @@
 // differing only in parameter order); roundCap defaults true (SG12).
 
 import { adoptHandle, expectHandle, VEC3_BYTES, type SessionContext } from './context.ts';
-import { assertLive, guard, PicoGkError } from './errors.ts';
+import { assertLive, guard, PicoError } from './errors.ts';
 import type { Vec3 } from './types.ts';
 import { wrapVoxels, type Voxels } from './voxels.ts';
 
@@ -40,15 +40,15 @@ export function wrapLattice(ctx: SessionContext, handle: bigint): Lattice {
   const lattice = {
     addSphere({ center, radius }: { center: Vec3; radius: number }) {
       if (!(radius > 0)) {
-        throw new PicoGkError('PICOGK_INVALID_ARGUMENT', `addSphere needs a positive radius in millimetres, got ${radius}.`);
+        throw new PicoError('PICO_INVALID_ARGUMENT', `addSphere needs a positive radius in millimetres, got ${radius}.`);
       }
       ctx.writeVec3(ctx.scratch, center);
       guard('Lattice_AddSphere', () => ctx.raw.Lattice_AddSphere(ctx.lib, live(), ctx.scratch, radius))();
     },
     addBeam({ start, end, radius, startRadius = radius, endRadius = radius, roundCap = true }: AddBeamOptions) {
       if (!(startRadius! > 0) || !(endRadius! > 0)) {
-        throw new PicoGkError(
-          'PICOGK_INVALID_ARGUMENT',
+        throw new PicoError(
+          'PICO_INVALID_ARGUMENT',
           'addBeam needs a positive radius (or startRadius/endRadius pair) in millimetres.',
         );
       }

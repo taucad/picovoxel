@@ -4,16 +4,16 @@
 // four concrete classes keep their upstream names. Viewer-bound pieces
 // (m_clr colors, Preview) are dropped. The C# custom exceptions
 // (ThisFaceNotFound/OtherFaceNotFound/ConnectorMismatch) become
-// PicoGkError('PICOGK_INVALID_ARGUMENT', ...) with the upstream messages.
+// PicoError('PICO_INVALID_ARGUMENT', ...) with the upstream messages.
 //
 // Rounding note: C# MathF.Round(x, 4) is float banker's rounding; here it is
 // double half-away-from-zero. The dedup RESULT is identical for these
 // irrational tile coordinates (nothing lands on a .00005 midpoint), and the
 // pins are self-referential to this port.
 
-import { PicoGkError, type Vec3 } from 'picogk-js';
-import { type Frame, frame, vec3 } from 'picogk-js/numerics';
-import { localFrame, vecOps } from 'picogk-js/shapekernel';
+import { PicoError, type Vec3 } from 'picovoxel';
+import { type Frame, frame, vec3 } from 'picovoxel/numerics';
+import { localFrame, vecOps } from 'picovoxel/shapekernel';
 import { IcosehedralFace } from './icosahedralFace.ts';
 
 const round4 = (value: number): number => Math.round(value * 1e4) / 1e4 + 0; // +0 folds -0 into 0
@@ -96,13 +96,13 @@ export abstract class QuasiTile {
    */
   attachToOtherQuasiTile(thisFaceIndex: number, otherTile: QuasiTile, otherFaceIndex: number, switchToggle = false): void {
     if (thisFaceIndex >= this.faceCount) {
-      throw new PicoGkError('PICOGK_INVALID_ARGUMENT', 'This face index exceeds number of faces on this quasi tile.');
+      throw new PicoError('PICO_INVALID_ARGUMENT', 'This face index exceeds number of faces on this quasi tile.');
     }
     if (otherFaceIndex >= otherTile.faceCount) {
-      throw new PicoGkError('PICOGK_INVALID_ARGUMENT', 'Other face index exceeds number of faces on other quasi tile.');
+      throw new PicoError('PICO_INVALID_ARGUMENT', 'Other face index exceeds number of faces on other quasi tile.');
     }
     if (this.aFaces[thisFaceIndex]!.connector !== otherTile.aFaces[otherFaceIndex]!.connector) {
-      throw new PicoGkError('PICOGK_INVALID_ARGUMENT', 'Connector types do not match.');
+      throw new PicoError('PICO_INVALID_ARGUMENT', 'Connector types do not match.');
     }
 
     const otherConnectorFrame = otherTile.connectorFrame(otherFaceIndex, switchToggle ? 1 : 0);

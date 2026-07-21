@@ -15,12 +15,12 @@ export default defineConfig({
       // (the copy below puts it there) — a source-relative path would escape outDir.
       name: 'glue-as-sibling',
       resolveId(id: string) {
-        return id.endsWith('picogk.mjs') ? { id: './picogk.mjs', external: true } : null;
+        return id.endsWith('pico.mjs') ? { id: './pico.mjs', external: true } : null;
       },
     },
   ],
   copy: [
-    { from: 'src/picogk.mjs', to: 'test/browser/gate-dist' },
-    { from: 'src/picogk.wasm', to: 'test/browser/gate-dist' },
+    { from: 'src/pico.mjs', to: 'test/browser/gate-dist' },
+    { from: 'src/pico.wasm', to: 'test/browser/gate-dist' },
   ],
 });

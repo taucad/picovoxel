@@ -2,11 +2,11 @@
 // Headless: previews dropped; C# default component choices (RegularCellArray,
 // BodyCentreLattice, CellBasedBeamThickness) with noise level 0.2.
 
-import type { PicoGK, Voxels } from 'picogk-js';
-import { BodyCentreLattice, CellBasedBeamThickness, RegularCellArray } from 'picogk-js/latticelibrary';
-import { BaseSphere, localFrame } from 'picogk-js/shapekernel';
+import type { Pico, Voxels } from 'picovoxel';
+import { BodyCentreLattice, CellBasedBeamThickness, RegularCellArray } from 'picovoxel/latticelibrary';
+import { BaseSphere, localFrame } from 'picovoxel/shapekernel';
 
-export function task(pk: PicoGK): Voxels[] {
+export function task(pk: Pico): Voxels[] {
   const voxBounding = new BaseSphere(localFrame.identity, 50).voxConstruct(pk);
 
   const cellArray = new RegularCellArray(voxBounding, 20, 20, 20, 0.2);

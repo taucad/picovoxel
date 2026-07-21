@@ -1,10 +1,10 @@
-// R23 — picogk-js/slicing: marching-squares oracles (analytic circle, hollow
+// R23 — picovoxel/slicing: marching-squares oracles (analytic circle, hollow
 // cylinder, corner-ambiguity stitching), sphere slicing through the facade, CLI
 // round-trip within format precision, deterministic SVG, progress monotonicity.
 
 import assert from 'node:assert/strict';
 import { afterAll, beforeAll, test } from 'vitest';
-import { createPicoGK, PicoGkError, type PicoGK } from '../src/index.ts';
+import { createPico, PicoError, type Pico } from '../src/index.ts';
 import {
   contoursFromSdf,
   detectWinding,
@@ -15,9 +15,9 @@ import {
   type SliceContour,
 } from '../src/slicing.ts';
 
-let pk: PicoGK;
+let pk: Pico;
 beforeAll(async () => {
-  pk = await createPicoGK({ voxelSize: 0.5 });
+  pk = await createPico({ voxelSize: 0.5 });
 });
 afterAll(() => pk.dispose());
 
@@ -215,7 +215,7 @@ test('progress: monotonic 0→1, final call exactly 1 (slicing and CLI both)', (
 test('failure modes: empty voxels, empty stack, garbage bytes, binary flag', () => {
   const empty = pk.createVoxels({ shape: 'empty' });
   assert.throws(() => sliceVoxels(empty), /empty/);
-  assert.throws(() => slicesToCli({ slices: [], bounds: { min: [0, 0, 0], max: [0, 0, 0] } }), PicoGkError);
+  assert.throws(() => slicesToCli({ slices: [], bounds: { min: [0, 0, 0], max: [0, 0, 0] } }), PicoError);
   assert.throws(() => slicesFromCli(new TextEncoder().encode('not a cli file')), /valid header/);
   assert.throws(
     () => slicesFromCli(new TextEncoder().encode('$$HEADERSTART\n$$BINARY\n$$HEADEREND\n')),

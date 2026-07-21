@@ -1,17 +1,17 @@
-// R22 — picogk-js/three: headless BufferGeometry bridge with the gear as the
+// R22 — picovoxel/three: headless BufferGeometry bridge with the gear as the
 // geometry oracle and an FNV round-trip through the bulk import path.
 
 import assert from 'node:assert/strict';
 import { afterAll, beforeAll, test } from 'vitest';
-import { createPicoGK, type Mesh, type PicoGK } from '../src/index.ts';
-import { buildGearMesh, GEAR_DEFAULTS } from '../examples/picogk/gear.ts';
+import { createPico, type Mesh, type Pico } from '../src/index.ts';
+import { buildGearMesh, GEAR_DEFAULTS } from '../examples/pico/gear.ts';
 import { meshFromBufferGeometry, toBufferGeometry } from '../src/three.ts';
 import { fnv1a } from './helpers.ts';
 
-let pk: PicoGK;
+let pk: Pico;
 let gear: Mesh;
 beforeAll(async () => {
-  pk = await createPicoGK({ voxelSize: 0.5 });
+  pk = await createPico({ voxelSize: 0.5 });
   // Build the gear through the raw ABI helpers the gear port expects.
   const raw = pk.module;
   const builder = {
@@ -85,7 +85,7 @@ test('non-indexed geometry is rejected with the documented remediation', () => {
     meshFromBufferGeometry(pk, geometry);
     assert.fail('non-indexed geometry accepted');
   } catch (error) {
-    assert.equal((error as { code: string }).code, 'PICOGK_INVALID_ARGUMENT');
+    assert.equal((error as { code: string }).code, 'PICO_INVALID_ARGUMENT');
     assert.match((error as Error).message, /mergeVertices/);
   }
 });

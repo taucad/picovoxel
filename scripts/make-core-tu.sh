@@ -19,9 +19,9 @@ BOUNDARY=$(grep -n '^PICOGK_API.*[[:space:]]Viewer_' "$SRC" | head -1 | cut -d: 
 # The core body never names glad/ImGui/Viewer; only these three includes do.
 awk -v end="$((BOUNDARY - 1))" '
   NR > end { exit }
-  /^#include "gl\/glad.h"/            { print "// [picogk-js] dropped: " $0; next }
-  /^#include "PicoGKGLViewer.h"/      { print "// [picogk-js] dropped: " $0; next }
-  /^#include "PicoGKGLViewerManager.h"/ { print "// [picogk-js] dropped: " $0; next }
+  /^#include "gl\/glad.h"/            { print "// [picovoxel] dropped: " $0; next }
+  /^#include "PicoGKGLViewer.h"/      { print "// [picovoxel] dropped: " $0; next }
+  /^#include "PicoGKGLViewerManager.h"/ { print "// [picovoxel] dropped: " $0; next }
   { print }
 ' "$SRC" > "$OUT"
 

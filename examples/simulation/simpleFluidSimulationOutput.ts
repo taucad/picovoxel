@@ -5,8 +5,8 @@
 // over a zero default; density/viscosity as constant fields sharing the
 // velocity field's structure. Serialises to .vdb bytes instead of a file path.
 
-import type { PicoGK, ScalarField, VectorField, Voxels } from 'picogk-js';
-import { surfaceNormalFieldExtractor, vectorFieldMerge } from 'picogk-js';
+import type { Pico, ScalarField, VectorField, Voxels } from 'picovoxel';
+import { surfaceNormalFieldExtractor, vectorFieldMerge } from 'picovoxel';
 import { simulationKeyWords } from './simpleFluidSimulationInput.ts';
 
 export interface SimulationOutput {
@@ -19,7 +19,7 @@ export interface SimulationOutput {
 
 /** C# `SimpleFluidSimulationOutput` ctor. */
 export function createSimpleFluidSimulationOutput(
-  pk: PicoGK,
+  pk: Pico,
   fluidDensity: number,
   fluidViscosity: number,
   fluidInletVelocity: number,
@@ -61,7 +61,7 @@ export function createSimpleFluidSimulationOutput(
  * float32, so the check compares against `Math.fround` of the constant (the
  * C# comparison is float==float and passes by construction).
  */
-export function constScalarField(pk: PicoGK, inputField: VectorField, constValue: number): ScalarField {
+export function constScalarField(pk: Pico, inputField: VectorField, constValue: number): ScalarField {
   const expected = Math.fround(constValue);
   const output = pk.createScalarField();
   inputField.traverse((x, y, z) => {

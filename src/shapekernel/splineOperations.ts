@@ -1,11 +1,11 @@
 // Derived from LEAP71_ShapeKernel — ShapeKernel/Utilities/SplineOperations.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picogk-js (blueprint R4); see NOTICE.
+// Ported to TypeScript for picovoxel (blueprint R4); see NOTICE.
 //
 // Point-list plumbing: arc-length reparametrization, NURBS smoothing,
 // frame/axis transforms and clustering. The C#-[Obsolete] frame helpers these
-// wrap are `frame.ptToWorld`/`ptFromWorld` from picogk-js/numerics.
+// wrap are `frame.ptToWorld`/`ptFromWorld` from picovoxel/numerics.
 
 import { type Frame, frame } from '../numerics/frame.ts';
 import { vec3 } from '../numerics/vector.ts';

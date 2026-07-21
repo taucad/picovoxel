@@ -1,6 +1,6 @@
-// picogk-js/shapekernel — TypeScript port of LEAP71_ShapeKernel (Apache-2.0,
-// © 2023-2026 LEAP 71; see NOTICE), built ON TOP of the public picogk-js API
-// plus picogk-js/numerics (blueprint D3: subpath export, no wasm changes).
+// picovoxel/shapekernel — TypeScript port of LEAP71_ShapeKernel (Apache-2.0,
+// © 2023-2026 LEAP 71; see NOTICE), built ON TOP of the public picovoxel API
+// plus picovoxel/numerics (blueprint D3: subpath export, no wasm changes).
 // Explicit-session surface: shapes are pure authoring objects; the session
 // enters only at the voxelization boundary. The C# LocalFrame IS the numerics
 // `Frame` here (Finding 9). Ported file-by-file and graded in

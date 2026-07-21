@@ -2,10 +2,10 @@
 // The implicit sphere renders through the parallel tape path; the gyroid mask
 // goes through maskedByImplicit's tape variant (R9).
 
-import type { PicoGK, Voxels } from 'picogk-js';
-import { ImplicitGyroid, ImplicitSphere } from 'picogk-js/shapekernel';
+import type { Pico, Voxels } from 'picovoxel';
+import { ImplicitGyroid, ImplicitSphere } from 'picovoxel/shapekernel';
 
-export function task(pk: PicoGK): Voxels[] {
+export function task(pk: Pico): Voxels[] {
   const radius = 10;
   const sdfSphere = new ImplicitSphere([0, 0, 0], radius);
   const sdfPattern = new ImplicitGyroid(3, 1);

@@ -7,19 +7,19 @@
 import assert from 'node:assert/strict';
 import { afterAll, beforeAll, test } from 'vitest';
 import {
-  createPicoGK,
+  createPico,
   surfaceNormalFieldExtractor,
   vectorFieldMerge,
-  type PicoGK,
+  type Pico,
   type Vec3,
   type VectorField,
   type Voxels,
 } from '../src/index.ts';
 
-let pk: PicoGK;
+let pk: Pico;
 let sphere: Voxels;
 beforeAll(async () => {
-  pk = await createPicoGK({ voxelSize: 0.5 });
+  pk = await createPico({ voxelSize: 0.5 });
   sphere = pk.createVoxels({ shape: 'sphere', radius: 5 });
 });
 afterAll(() => pk.dispose());

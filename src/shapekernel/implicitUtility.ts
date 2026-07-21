@@ -1,7 +1,7 @@
 // Derived from LEAP71_ShapeKernel — ShapeKernel/Utilities/ImplicitUtility.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picogk-js (blueprint R6); see NOTICE.
+// Ported to TypeScript for picovoxel (blueprint R6); see NOTICE.
 //
 // Each implicit is available in BOTH forms: `sdf` — the JS callback (upstream's
 // serial per-voxel path), and `expression` — the serialized SdfExpression the
@@ -13,7 +13,7 @@ import type { SdfExpression } from '../tape.ts';
 import type { SdfFunction, Vec3 } from '../types.ts';
 
 export interface Implicit {
-  /** C# `IImplicit.fSignedDistance` as a picogk-js SdfFunction. */
+  /** C# `IImplicit.fSignedDistance` as a picovoxel SdfFunction. */
   readonly sdf: SdfFunction;
   /** The same field as a tape expression for the parallel fill. */
   readonly expression: SdfExpression;

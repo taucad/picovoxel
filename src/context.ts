@@ -5,12 +5,12 @@
 // it and never touch the module directly.
 
 import { DISPOSE } from './dispose.ts';
-import { PicoGkError } from './errors.ts';
-import type { PicoGkRaw } from './raw.generated.ts';
+import { PicoError } from './errors.ts';
+import type { PicoRaw } from './raw.generated.ts';
 import type { HandleRegistry } from './registry.ts';
 import { compileSdfExpression } from './tape.ts';
 import type { SdfExpression } from './tape.ts';
-import type { PicoGkWasmModule, SdfFunction, Vec3 } from './types.ts';
+import type { PicoWasmModule, SdfFunction, Vec3 } from './types.ts';
 
 export const VEC3_BYTES = 12;
 export const TRI_BYTES = 12;
@@ -21,10 +21,10 @@ export const INFO_STRING_BYTES = 255; // PKINFOSTRINGLEN
 export type FreeFn = (lib: bigint, handle: bigint) => void;
 
 export interface SessionContext {
-  module: PicoGkWasmModule;
+  module: PicoWasmModule;
   lib: bigint;
   voxelSize: number;
-  raw: PicoGkRaw;
+  raw: PicoRaw;
   registry: HandleRegistry;
   /** D4 — session teardown wins races; wrappers consult this before freeing. */
   dead: { value: boolean };
@@ -58,9 +58,9 @@ export function adoptHandle(ctx: SessionContext, wrapper: Disposable, handle: bi
 /** SG10 — operands from another Library instance corrupt nothing, they just throw. */
 export function assertSameSession(ctx: SessionContext, other: object, what: string): void {
   if (WRAPPER_SESSION.get(other) !== ctx) {
-    throw new PicoGkError(
-      'PICOGK_SESSION_MISMATCH',
-      `${what} belongs to a different PicoGK session (or is not a picogk-js wrapper). ` +
+    throw new PicoError(
+      'PICO_SESSION_MISMATCH',
+      `${what} belongs to a different PicoGK session (or is not a picovoxel wrapper). ` +
         'Objects cannot cross Library instances — recreate it in this session.',
     );
   }
@@ -72,11 +72,11 @@ export function assertSameSession(ctx: SessionContext, other: object, what: stri
  * from `HEAP*.set` (found by the R12 fine-voxel probe at 0.3 mm). A
  * zero-byte request may legitimately return 0.
  */
-export function checkedMalloc(module: PicoGkWasmModule, bytes: number, what: string): number {
+export function checkedMalloc(module: PicoWasmModule, bytes: number, what: string): number {
   const pointer = module._malloc(bytes);
   if (pointer === 0 && bytes > 0) {
-    throw new PicoGkError(
-      'PICOGK_OUT_OF_MEMORY',
+    throw new PicoError(
+      'PICO_OUT_OF_MEMORY',
       `Failed to allocate ${bytes} bytes of wasm memory for ${what}. ` +
         'The wasm32 linear-memory ceiling is 4 GB — raise voxelSize, shrink the bounds, ' +
         'or dispose() intermediates sooner.',
@@ -112,8 +112,8 @@ export function readCString(ctx: SessionContext, pointer: number): string {
 /** SG14 — every allocating call is checked; a null handle means allocation failed. */
 export function expectHandle(operation: string, handle: bigint): bigint {
   if (!handle) {
-    throw new PicoGkError(
-      'PICOGK_ALLOC_FAILED',
+    throw new PicoError(
+      'PICO_ALLOC_FAILED',
       `${operation} returned a null handle — PicoGK could not allocate the object. ` +
         'On wasm32 this usually means the 4GB linear-memory ceiling is near; ' +
         'raise voxelSize or dispose intermediates sooner.',
@@ -131,8 +131,8 @@ export function expectHandle(operation: string, handle: bigint): bigint {
  */
 export function withSdfPointer<T>(ctx: SessionContext, sdf: unknown, body: (sdfPointer: number) => T): T {
   if (typeof sdf !== 'function') {
-    throw new PicoGkError(
-      'PICOGK_INVALID_ARGUMENT',
+    throw new PicoError(
+      'PICO_INVALID_ARGUMENT',
       'sdf must be a function (x, y, z) => number returning signed distance in millimetres.',
     );
   }
@@ -152,7 +152,7 @@ export function withSdfPointer<T>(ctx: SessionContext, sdf: unknown, body: (sdfP
 /**
  * Runs `body` with a compiled SDF tape copied into wasm memory — the
  * serialized counterpart of {@link withSdfPointer}, evaluated in-module by
- * src/picogk-tape.cpp on every thread. Buffers are freed on the way out.
+ * src/pico-tape.cpp on every thread. Buffers are freed on the way out.
  */
 export function withSdfTape<T>(
   ctx: SessionContext,
@@ -197,11 +197,11 @@ export function createMemoryWarning(options: MemoryWarningOptions): () => void {
     if (Number(options.totalMemUsage()) > options.memoryWarningBytes) {
       warned = true;
       console.warn(
-        `picogk-js: PicoGK native memory exceeds ${options.memoryWarningBytes} bytes. ` +
+        `picovoxel: Pico native memory exceeds ${options.memoryWarningBytes} bytes. ` +
           'The GC cannot see wasm-side allocations, so long-lived intermediates may pile up — ' +
           'call dispose() on intermediates or session.dispose() when done ' +
           '(see the README "Memory" section). Raise or disable this warning via ' +
-          'createPicoGK({ memoryWarningBytes }).',
+          'createPico({ memoryWarningBytes }).',
       );
     }
   };

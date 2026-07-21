@@ -1,7 +1,7 @@
 {
   "module": [
-    "PicoGkError",
-    "createPicoGK",
+    "PicoError",
+    "createPico",
     "emptyBounds",
     "isEmptyBounds",
     "surfaceNormalFieldExtractor",

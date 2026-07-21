@@ -3,8 +3,8 @@
 // headless we build the three sphere meshes and evaluate the custom
 // per-triangle property the third scale would have visualized.
 
-import type { PicoGK, Vec3, Voxels } from 'picogk-js';
-import { BaseSphere, localFrame } from 'picogk-js/shapekernel';
+import type { Pico, Vec3, Voxels } from 'picovoxel';
+import { BaseSphere, localFrame } from 'picovoxel/shapekernel';
 
 /** C# `fGetExampleProperty`: |centroid.x| mod 10. */
 export function exampleProperty(a: Vec3, b: Vec3, c: Vec3): number {
@@ -12,7 +12,7 @@ export function exampleProperty(a: Vec3, b: Vec3, c: Vec3): number {
   return Math.abs(centreX) % 10;
 }
 
-export function task(pk: PicoGK): Voxels[] {
+export function task(pk: Pico): Voxels[] {
   const radius = 50;
   const spheres = [
     new BaseSphere(localFrame.create([-120, 0, 0]), radius),

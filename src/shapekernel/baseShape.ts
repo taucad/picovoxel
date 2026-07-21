@@ -1,7 +1,7 @@
 // Derived from LEAP71_ShapeKernel — ShapeKernel/BaseShapes/BaseShape.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picogk-js (blueprint R5); see NOTICE.
+// Ported to TypeScript for picovoxel (blueprint R5); see NOTICE.
 //
 // Explicit-session surface (blueprint D3): shapes are pure authoring objects —
 // the session enters only at the construction boundary, so `voxConstruct` and
@@ -11,7 +11,7 @@
 // arrays and crosses the ABI ONCE through the bulk mesh path (Finding 8).
 
 import type { Mesh } from '../mesh.ts';
-import type { PicoGK } from '../session.ts';
+import type { Pico } from '../session.ts';
 import type { Vec3 } from '../types.ts';
 import type { Lattice } from '../lattice.ts';
 import type { Voxels } from '../voxels.ts';
@@ -31,12 +31,12 @@ export interface SpineBaseShape {
 
 /** C# `IMeshBaseShape`. */
 export interface MeshBaseShape {
-  mshConstruct(pk: PicoGK): Mesh;
+  mshConstruct(pk: Pico): Mesh;
 }
 
 /** C# `ILatticeBaseShape`. */
 export interface LatticeBaseShape {
-  latConstruct(pk: PicoGK): Lattice;
+  latConstruct(pk: Pico): Lattice;
 }
 
 /** C# `BaseShape` — the vertex-transformation seam every shape shares. */
@@ -48,7 +48,7 @@ export abstract class BaseShape {
     this.trafo = trafo;
   }
 
-  abstract voxConstruct(pk: PicoGK): Voxels;
+  abstract voxConstruct(pk: Pico): Voxels;
 }
 
 /** Accumulates upstream-style per-triangle geometry, built through ONE bulk `createMesh` call. */
@@ -69,7 +69,7 @@ export class MeshBuilder {
     this.addTriangle(pt2, pt3, pt4);
   }
 
-  build(pk: PicoGK): Mesh {
+  build(pk: Pico): Mesh {
     return pk.createMesh({ vertices: this.vertices, triangles: this.triangles });
   }
 }

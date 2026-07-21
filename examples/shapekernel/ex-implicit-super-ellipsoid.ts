@@ -3,11 +3,11 @@
 // The C# axis-order swap in the first two variants ((fAx, fAz, fAy)) and the
 // centre-relative bounds are ported verbatim.
 
-import type { PicoGK, Voxels } from 'picogk-js';
-import { ImplicitSuperEllipsoid } from 'picogk-js/shapekernel';
-import type { Vec3 } from 'picogk-js';
+import type { Pico, Voxels } from 'picovoxel';
+import { ImplicitSuperEllipsoid } from 'picovoxel/shapekernel';
+import type { Vec3 } from 'picovoxel';
 
-export function task(pk: PicoGK): Voxels[] {
+export function task(pk: Pico): Voxels[] {
   const results: Voxels[] = [];
   const render = (centre: Vec3, ax: number, ay: number, az: number, e1: number, e2: number): void => {
     const sdf = new ImplicitSuperEllipsoid(centre, ax, ay, az, e1, e2);

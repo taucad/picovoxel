@@ -14,7 +14,7 @@ import {
   VEC3_BYTES,
   type SessionContext,
 } from './context.ts';
-import { assertLive, guard, PicoGkError } from './errors.ts';
+import { assertLive, guard, PicoError } from './errors.ts';
 import { tagFieldClass, wrapMetadata, type Metadata } from './metadata.ts';
 import type { Bounds, Vec3 } from './types.ts';
 import type { Voxels } from './voxels.ts';
@@ -121,7 +121,7 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint): ScalarFiel
       const { size } = dims();
       const [width, height, depth] = [size[0], size[1], size[2]];
       if (!Number.isInteger(index) || index < 0 || index >= depth) {
-        throw new PicoGkError('PICOGK_INVALID_ARGUMENT', `getSlice index ${index} out of range [0, ${depth}).`);
+        throw new PicoError('PICO_INVALID_ARGUMENT', `getSlice index ${index} out of range [0, ${depth}).`);
       }
       const buffer = checkedMalloc(ctx.module, width * height * 4, 'a slice image buffer');
       try {

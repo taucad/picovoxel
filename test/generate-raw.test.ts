@@ -24,7 +24,7 @@ test('upstream typos are matched, not fixed', () => {
   assert.ok(!source.includes('Metadata_RemoveValue('), 'a "fixed" lowercase name would fail to bind at runtime');
   // ScalarField_RemoveValue's handle arg is typed PKVECTORFIELD in the header —
   // all handles are uint64_t, so it still types as a handle here.
-  assert.match(source, /ScalarField_RemoveValue\(hInstance: PicoGkHandle, hThis: PicoGkHandle/);
+  assert.match(source, /ScalarField_RemoveValue\(hInstance: PicoHandle, hThis: PicoHandle/);
 });
 
 test('char[255] params decay to pointer numbers with their real names', () => {
@@ -32,12 +32,12 @@ test('char[255] params decay to pointer numbers with their real names', () => {
 });
 
 test('callback params cross as fn-table numbers', () => {
-  assert.match(source, /Voxels_RenderImplicit\(hInstance: PicoGkHandle, hThis: PicoGkHandle, poBBox: number, pfnSDF: number\): void/);
+  assert.match(source, /Voxels_RenderImplicit\(hInstance: PicoHandle, hThis: PicoHandle, poBBox: number, pfnSDF: number\): void/);
 });
 
 test('handles are branded; counters stay plain bigint', () => {
-  assert.match(source, /Library_hCreateInstance\(fVoxelSizeMM: number\): PicoGkHandle/);
-  assert.match(source, /Library_nTotalMemUsage\(hThis: PicoGkHandle\): bigint/);
+  assert.match(source, /Library_hCreateInstance\(fVoxelSizeMM: number\): PicoHandle/);
+  assert.match(source, /Library_nTotalMemUsage\(hThis: PicoHandle\): bigint/);
 });
 
 test('regeneration is byte-stable against the checked-in file', async () => {

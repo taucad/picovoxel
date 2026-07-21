@@ -6,7 +6,7 @@
 // though internal units are always mm. ASCII STLs are detected and rejected, as
 // upstream does. Per-step float32 rounding (Math.fround) matches the C# math.
 
-import { PicoGkError } from './errors.ts';
+import { PicoError } from './errors.ts';
 import type { Vec3 } from './types.ts';
 
 export type StlUnit = 'auto' | 'mm' | 'cm' | 'm' | 'ft' | 'in';
@@ -55,7 +55,7 @@ export function meshToStlBytes(
 ): Uint8Array {
   const { unit = 'mm', scale = 1, offset = [0, 0, 0] } = options;
   if (unit === 'auto') {
-    throw new PicoGkError('PICOGK_INVALID_ARGUMENT', "toStl unit 'auto' only applies when reading — pick a concrete unit.");
+    throw new PicoError('PICO_INVALID_ARGUMENT', "toStl unit 'auto' only applies when reading — pick a concrete unit.");
   }
   const divider = UNIT_MULTIPLIER[unit];
   const triangleCount = triangles.length / 3;
@@ -105,7 +105,7 @@ export function meshFromStlBytes(
 ): { vertices: Float32Array; triangles: Uint32Array } {
   const { unit = 'auto', scale = 1, offset = [0, 0, 0] } = options;
   if (bytes.length < 84) {
-    throw new PicoGkError('PICOGK_INVALID_ARGUMENT', `STL too short: ${bytes.length} bytes cannot hold the 80-byte header + count.`);
+    throw new PicoError('PICO_INVALID_ARGUMENT', `STL too short: ${bytes.length} bytes cannot hold the 80-byte header + count.`);
   }
   let header = '';
   for (let i = 0; i < 80; i++) header += String.fromCharCode(bytes[i]!);
@@ -116,9 +116,9 @@ export function meshFromStlBytes(
     let peek = '';
     for (let i = 80; i < Math.min(bytes.length, 80 + 1024); i++) peek += String.fromCharCode(bytes[i]!);
     if (peek.includes('vertex')) {
-      throw new PicoGkError(
-        'PICOGK_INVALID_ARGUMENT',
-        'This is an ASCII STL — only binary STL is supported (as upstream PicoGK). Re-export as binary.',
+      throw new PicoError(
+        'PICO_INVALID_ARGUMENT',
+        'This is an ASCII STL — only binary STL is supported (as upstream Pico). Re-export as binary.',
       );
     }
   }
@@ -143,11 +143,11 @@ export function meshFromStlBytes(
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const triangleCount = view.getUint32(80, true);
   if (triangleCount === 0) {
-    throw new PicoGkError('PICOGK_INVALID_ARGUMENT', 'Imported STL mesh is empty (zero triangles), failed to load.');
+    throw new PicoError('PICO_INVALID_ARGUMENT', 'Imported STL mesh is empty (zero triangles), failed to load.');
   }
   if (bytes.length < 84 + triangleCount * 50) {
-    throw new PicoGkError(
-      'PICOGK_INVALID_ARGUMENT',
+    throw new PicoError(
+      'PICO_INVALID_ARGUMENT',
       `STL truncated: header claims ${triangleCount} triangles (${84 + triangleCount * 50} bytes) but only ${bytes.length} present.`,
     );
   }

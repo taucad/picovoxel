@@ -13,7 +13,7 @@
   },
   "results": {
     "M1": {
-      "description": "createPicoGK() cold instantiate (5.8 MB module)",
+      "description": "createPico() cold instantiate (5.8 MB module)",
       "phases": {
         "instantiate": {
           "medianMs": 8.418,

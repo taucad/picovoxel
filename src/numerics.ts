@@ -1,4 +1,4 @@
-// picogk-js/numerics — the CEM numerics foundation (real-world-subjects
+// picovoxel/numerics — the CEM numerics foundation (real-world-subjects
 // blueprint R1, decision D1). Two documented strata plus the canonical frame:
 //   1. System.Numerics analog: vec2/vec3/quat/mat4 over allocation-light
 //      readonly tuples (JS has no BCL vector layer — this is it).
@@ -6,7 +6,7 @@
 //      spherical coordinates, tolerances + fuzzy comparison.
 //   3. frame — Frame3d semantics, the one rigid-frame type (Finding 9).
 // Every C# API is graded ported-or-N/A in MIGRATING-FROM-CSHARP.md. Pure math,
-// no wasm dependency: usable standalone and by picogk-js/shapekernel.
+// no wasm dependency: usable standalone and by picovoxel/shapekernel.
 
 export { type Overhang, overhang, type Rad, rad, TWO_PI } from './numerics/angles.ts';
 export { scalar, tolerances } from './numerics/comparison.ts';

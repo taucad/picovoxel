@@ -1,10 +1,10 @@
-// createPicoGKSession — the session factory behind both entries (library-api-policy):
+// createPicoSession — the session factory behind both entries (library-api-policy):
 //   §1 factories over classes; §3 flat options; §4 one options object per method;
 //   §9 lazy init (wasm instantiates on the awaited factory call); §10 escape hatches.
 //
 // Deliberately glue-free: the Emscripten glue arrives as a factory argument, so the
 // serial and pthread variants stay out of each other's module graphs. index.ts binds
-// picogk.mjs, multi.ts binds picogk-multi.mjs; everything downstream is shared.
+// pico.mjs, multi.ts binds pico-multi.mjs; everything downstream is shared.
 //
 // Handles stay BigInt internally and never require consumer management: wrappers are
 // GC-reclaimed via the FinalizationRegistry; dispose() is the optional escape hatch;
@@ -23,21 +23,21 @@ import {
   withStrings,
   type SessionContext,
 } from './context.ts';
-import { PicoGkError, assertLive, guard } from './errors.ts';
+import { PicoError, assertLive, guard } from './errors.ts';
 import { assertVoxelsOperand, wrapScalarField, wrapVectorField, type ScalarField, type VectorField } from './fields.ts';
 import { wrapLattice, type Lattice } from './lattice.ts';
 import { bulkCreateMesh, wrapMesh, type Mesh } from './mesh.ts';
 import { wrapPolyLine, writeColor, type PolyLine } from './polyline.ts';
-import { bindPicoGkRaw } from './raw.generated.ts';
+import { bindPicoRaw } from './raw.generated.ts';
 import { createHandleRegistry, type HandleRegistry } from './registry.ts';
 import { meshFromStlBytes, type FromStlOptions } from './stl.ts';
 import type { SdfExpression } from './tape.ts';
-import type { Color, PicoGkWasmModule, SdfFunction, Vec3 } from './types.ts';
+import type { Color, PicoWasmModule, SdfFunction, Vec3 } from './types.ts';
 import { withVdbBytes, wrapVdbFile, type VdbFile } from './vdb.ts';
 import { wrapVoxels, type Voxels } from './voxels.ts';
 
 /** Emscripten module factory — the shape both generated glues export. */
-export type PicoGkGlueFactory = (overrides?: object) => Promise<PicoGkWasmModule>;
+export type PicoGlueFactory = (overrides?: object) => Promise<PicoWasmModule>;
 
 export type CreateVoxelsOptions =
   | { shape: 'empty' }
@@ -75,7 +75,7 @@ export interface MemoryUsage {
 
 export type AllocatedCounts = Omit<MemoryUsage, 'total'>;
 
-export interface CreatePicoGkOptions {
+export interface CreatePicoOptions {
   /** Voxel edge length in millimetres. Cost scales cubically as it shrinks. */
   voxelSize?: number;
   /** Emscripten Module overrides (e.g. locateFile) forwarded to instantiation. */
@@ -88,7 +88,7 @@ export interface CreatePicoGkOptions {
   now?: () => number;
 }
 
-export interface PicoGK {
+export interface Pico {
   readonly voxelSize: number;
   readonly name: string;
   readonly version: string;
@@ -122,7 +122,7 @@ export interface PicoGK {
   /** PicoGK's own per-type allocation counters — the leak oracle. */
   readonly allocated: AllocatedCounts;
   /** §10 escape hatch: the raw Emscripten module. */
-  readonly module: PicoGkWasmModule;
+  readonly module: PicoWasmModule;
   /** §10 escape hatch: the raw Library handle. */
   readonly handle: bigint;
   /** Deterministic teardown: frees every object this session owns. Idempotent. */
@@ -132,33 +132,33 @@ export interface PicoGK {
 
 /**
  * Creates a PicoGK session on the given glue. Internal seam — consumers use
- * `createPicoGK` from the package entry (serial) or `picogk-js/multi` (pthreads),
+ * `createPico` from the package entry (serial) or `picovoxel/multi` (pthreads),
  * which bind their variant's glue here.
  */
-export async function createPicoGKSession(glue: PicoGkGlueFactory, options: CreatePicoGkOptions = {}): Promise<PicoGK> {
+export async function createPicoSession(glue: PicoGlueFactory, options: CreatePicoOptions = {}): Promise<Pico> {
   const { voxelSize = 0.5, wasm, memoryWarningBytes = 2 ** 30, registry, now } = options;
 
   if (!(voxelSize > 0) || !Number.isFinite(voxelSize)) {
-    throw new PicoGkError(
-      'PICOGK_INVALID_ARGUMENT',
+    throw new PicoError(
+      'PICO_INVALID_ARGUMENT',
       `voxelSize must be a positive number of millimetres, got ${voxelSize}. ` +
         'Cost scales cubically as it shrinks — 0.5 is a reasonable default.',
     );
   }
 
-  let module: PicoGkWasmModule;
+  let module: PicoWasmModule;
   try {
     module = await glue(typeof wasm === 'object' && wasm !== null ? wasm : {});
   } catch (cause) {
-    throw new PicoGkError(
-      'PICOGK_WASM_INIT_FAILED',
+    throw new PicoError(
+      'PICO_WASM_INIT_FAILED',
       'PicoGK WebAssembly failed to instantiate. Check that the .wasm file is served next to its glue .mjs ' +
         'and that it is returned with Content-Type: application/wasm.',
       { cause },
     );
   }
 
-  const raw = bindPicoGkRaw(module);
+  const raw = bindPicoRaw(module);
   const lib = expectHandle('Library_hCreateInstance', raw.Library_hCreateInstance(voxelSize));
 
   const scratch = checkedMalloc(module, Math.max(BBOX_BYTES, INFO_STRING_BYTES), 'the session scratch buffer');
@@ -194,7 +194,7 @@ export async function createPicoGKSession(glue: PicoGkGlueFactory, options: Crea
     const start = options.startRadius ?? options.radius;
     const end = options.endRadius ?? options.radius;
     if (!(start! > 0) || !(end! > 0) || !Number.isFinite(start!) || !Number.isFinite(end!)) {
-      throw new PicoGkError('PICOGK_INVALID_ARGUMENT', `${where} needs a positive radius (or startRadius/endRadius pair) in millimetres.`);
+      throw new PicoError('PICO_INVALID_ARGUMENT', `${where} needs a positive radius (or startRadius/endRadius pair) in millimetres.`);
     }
     return [start!, end!];
   };
@@ -244,7 +244,7 @@ export async function createPicoGKSession(glue: PicoGkGlueFactory, options: Crea
         case 'sphere': {
           const { center = [0, 0, 0], radius } = options;
           if (!(radius > 0) || !Number.isFinite(radius)) {
-            throw new PicoGkError('PICOGK_INVALID_ARGUMENT', `createVoxels({ shape: "sphere" }) needs a positive radius in millimetres, got ${radius}.`);
+            throw new PicoError('PICO_INVALID_ARGUMENT', `createVoxels({ shape: "sphere" }) needs a positive radius in millimetres, got ${radius}.`);
           }
           ctx.writeVec3(scratch, center);
           return wrapVoxels(
@@ -256,8 +256,8 @@ export async function createPicoGKSession(glue: PicoGkGlueFactory, options: Crea
         case 'capsule': {
           const { start, end } = options;
           if (!start || !end) {
-            throw new PicoGkError(
-              'PICOGK_INVALID_ARGUMENT',
+            throw new PicoError(
+              'PICO_INVALID_ARGUMENT',
               `createVoxels({ shape: "${options.shape}" }) needs start and end as [x, y, z] in millimetres.`,
             );
           }
@@ -275,8 +275,8 @@ export async function createPicoGKSession(glue: PicoGkGlueFactory, options: Crea
         case 'implicit': {
           const { boundsMin, boundsMax, sdf } = options;
           if (!boundsMin || !boundsMax) {
-            throw new PicoGkError(
-              'PICOGK_INVALID_ARGUMENT',
+            throw new PicoError(
+              'PICO_INVALID_ARGUMENT',
               'createVoxels({ shape: "implicit" }) needs boundsMin and boundsMax as [x, y, z] in millimetres. ' +
                 'The SDF is only sampled inside that box, so it must enclose the shape.',
             );
@@ -293,7 +293,7 @@ export async function createPicoGKSession(glue: PicoGkGlueFactory, options: Crea
               });
             } else {
               // Serialized SDF: compiled to a tape, evaluated in-module by the
-              // parallel fill (src/picogk-tape.cpp) — every pthread worker engages.
+              // parallel fill (src/pico-tape.cpp) — every pthread worker engages.
               withSdfTape(ctx, sdf, (instructionPointer, instructionCount, constantPointer, constantCount) => {
                 guard('Voxels_RenderImplicitTape', () =>
                   raw.Voxels_RenderImplicitTape(lib, target, scratch, instructionPointer, instructionCount, constantPointer, constantCount),
@@ -307,8 +307,8 @@ export async function createPicoGKSession(glue: PicoGkGlueFactory, options: Crea
           return wrapVoxels(ctx, target);
         }
         default:
-          throw new PicoGkError(
-            'PICOGK_INVALID_ARGUMENT',
+          throw new PicoError(
+            'PICO_INVALID_ARGUMENT',
             `Unknown shape "${(options as { shape: string }).shape}". Supported: "empty", "sphere", "beam", "implicit".`,
           );
       }
@@ -450,13 +450,13 @@ export async function createPicoGKSession(glue: PicoGkGlueFactory, options: Crea
       try {
         const fields = file.fields();
         if (fields.length === 0) {
-          throw new PicoGkError('PICOGK_VDB_NO_COMPATIBLE_FIELD', 'No fields contained in the OpenVDB bytes.');
+          throw new PicoError('PICO_VDB_NO_COMPATIBLE_FIELD', 'No fields contained in the OpenVDB bytes.');
         }
         const first = fields.findIndex((f) => f.type === 'voxels');
         if (first === -1) {
           const listing = fields.map((f) => `- ${f.name} (${f.type})`).join('\n');
-          throw new PicoGkError(
-            'PICOGK_VDB_NO_COMPATIBLE_FIELD',
+          throw new PicoError(
+            'PICO_VDB_NO_COMPATIBLE_FIELD',
             `No voxel field (openvdb::GRID_LEVEL_SET) found in the VDB bytes.\nFields found:\n${listing}`,
           );
         }
@@ -519,5 +519,5 @@ export async function createPicoGKSession(glue: PicoGkGlueFactory, options: Crea
     },
   };
   adoptHandle(ctx, session, lib, raw.Library_DestroyInstance);
-  return session as unknown as PicoGK; // adoptHandle added [Symbol.dispose] (D6)
+  return session as unknown as Pico; // adoptHandle added [Symbol.dispose] (D6)
 }

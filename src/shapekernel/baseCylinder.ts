@@ -1,11 +1,11 @@
 // Derived from LEAP71_ShapeKernel — ShapeKernel/BaseShapes/{BaseCylinder,BaseCone}.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picogk-js (blueprint R5); see NOTICE.
+// Ported to TypeScript for picovoxel (blueprint R5); see NOTICE.
 
 import type { Mesh } from '../mesh.ts';
 import type { Frame } from '../numerics/frame.ts';
-import type { PicoGK } from '../session.ts';
+import type { Pico } from '../session.ts';
 import type { Vec3 } from '../types.ts';
 import type { Voxels } from '../voxels.ts';
 import { BaseShape, MeshBuilder, type MeshBaseShape, type SurfaceBaseShape } from './baseShape.ts';
@@ -56,11 +56,11 @@ export class BaseCylinder extends BaseShape implements MeshBaseShape, SurfaceBas
     this.lengthSteps = Math.max(5, steps);
   }
 
-  voxConstruct(pk: PicoGK): Voxels {
+  voxConstruct(pk: Pico): Voxels {
     return this.mshConstruct(pk).toVoxels();
   }
 
-  mshConstruct(pk: PicoGK): Mesh {
+  mshConstruct(pk: Pico): Mesh {
     const builder = new MeshBuilder();
     this.addTopSurface(builder);
     this.addOuterMantle(builder);
@@ -172,7 +172,7 @@ export class BaseCone extends BaseShape {
     );
   }
 
-  voxConstruct(pk: PicoGK): Voxels {
+  voxConstruct(pk: Pico): Voxels {
     this.cylinder.setTransformation(this.trafo);
     return this.cylinder.voxConstruct(pk);
   }

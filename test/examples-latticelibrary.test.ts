@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'vitest';
-import { createPicoGK } from '../src/index.ts';
+import { createPico } from '../src/index.ts';
 
 const examplesDir = join(import.meta.dirname, '..', 'examples', 'latticelibrary');
 const fixturePath = join(import.meta.dirname, 'fixtures', 'latticelibrary-examples.json');
@@ -52,13 +52,13 @@ test('the example directory carries exactly the 7 ported files', () => {
 for (const { name, voxelSize } of EXAMPLES) {
   test(`${name} runs headless and matches its byte-locked pins`, async () => {
     const { task } = (await import(`../examples/latticelibrary/${name}.ts`)) as {
-      task: (pk: Awaited<ReturnType<typeof createPicoGK>>) => Array<{
+      task: (pk: Awaited<ReturnType<typeof createPico>>) => Array<{
         properties(): { volume: number };
         toMesh(): { triangleCount: number };
         isEmpty: boolean;
       }>;
     };
-    const pk = await createPicoGK({ voxelSize });
+    const pk = await createPico({ voxelSize });
     try {
       const outputs = task(pk);
       assert.ok(outputs.length > 0);

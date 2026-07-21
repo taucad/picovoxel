@@ -43,7 +43,7 @@ export type Color = readonly [number, number, number] | readonly [number, number
  * The subset of the Emscripten module the facade touches. The glue itself is
  * generated JS (never typechecked); this interface is the typed boundary.
  */
-export interface PicoGkWasmModule {
+export interface PicoWasmModule {
   cwrap(name: string, returnType: string | null, argTypes: readonly string[]): (...args: never[]) => unknown;
   ccall(name: string, returnType: string | null, argTypes: readonly string[], args: readonly unknown[]): unknown;
   UTF8ToString(pointer: number): string;

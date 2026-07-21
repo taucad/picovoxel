@@ -4,11 +4,11 @@
 
 import assert from 'node:assert/strict';
 import { afterAll, beforeAll, test } from 'vitest';
-import { createPicoGK, type PicoGK } from '../src/index.ts';
+import { createPico, type Pico } from '../src/index.ts';
 
-let pk: PicoGK;
+let pk: Pico;
 beforeAll(async () => {
-  pk = await createPicoGK({ voxelSize: 0.5 });
+  pk = await createPico({ voxelSize: 0.5 });
 });
 afterAll(() => pk.dispose());
 
@@ -119,7 +119,7 @@ test('getSlice range/type validation', () => {
       body.getSlice(bad as never);
       assert.fail(`getSlice(${JSON.stringify(bad)}) did not throw`);
     } catch (error) {
-      assert.equal((error as { code: string }).code, 'PICOGK_INVALID_ARGUMENT');
+      assert.equal((error as { code: string }).code, 'PICO_INVALID_ARGUMENT');
     }
   }
 });

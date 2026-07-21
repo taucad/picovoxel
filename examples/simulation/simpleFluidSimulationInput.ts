@@ -5,7 +5,7 @@
 // density fields — validated exactly as the C# reader does. Library.Log lines
 // are dropped for the headless port.
 
-import type { PicoGK, ScalarField, VdbFieldType, VectorField, Voxels } from 'picogk-js';
+import type { Pico, ScalarField, VdbFieldType, VectorField, Voxels } from 'picovoxel';
 
 /** C# `SimulationKeyWords`. */
 export const simulationKeyWords = {
@@ -30,7 +30,7 @@ export interface SimulationInput {
 }
 
 /** C# `SimpleFluidSimulationInput` ctor — load, validate, retrieve. */
-export function readSimpleFluidSimulationInput(pk: PicoGK, bytes: Uint8Array): SimulationInput {
+export function readSimpleFluidSimulationInput(pk: Pico, bytes: Uint8Array): SimulationInput {
   const vdb = pk.openVdb(bytes);
   const fields = vdb.fields();
 

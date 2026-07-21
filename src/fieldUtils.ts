@@ -5,7 +5,7 @@
 
 import type { ScalarField, VectorField } from './fields.ts';
 import { vec3 } from './numerics/vector.ts';
-import type { PicoGK } from './session.ts';
+import type { Pico } from './session.ts';
 import type { Vec3 } from './types.ts';
 import type { Voxels } from './voxels.ts';
 
@@ -25,7 +25,7 @@ export interface SurfaceNormalFieldOptions {
  * (C# `SurfaceNormalFieldExtractor.oExtract`).
  */
 export function surfaceNormalFieldExtractor(
-  pk: PicoGK,
+  pk: Pico,
   voxels: Voxels,
   options: SurfaceNormalFieldOptions = {},
 ): VectorField {

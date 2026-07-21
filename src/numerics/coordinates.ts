@@ -5,7 +5,7 @@
 // them exactly (angular deltas normalize signed, so lerp takes the short way
 // around).
 
-import { PicoGkError } from '../errors.ts';
+import { PicoError } from '../errors.ts';
 import type { Vec3 } from '../types.ts';
 import { type Rad, rad } from './angles.ts';
 import { scalar, tolerances } from './comparison.ts';
@@ -31,8 +31,8 @@ export interface Spherical {
   readonly theta: Rad;
 }
 
-function invalid(message: string): PicoGkError {
-  return new PicoGkError('PICOGK_INVALID_ARGUMENT', message);
+function invalid(message: string): PicoError {
+  return new PicoError('PICO_INVALID_ARGUMENT', message);
 }
 
 function checkRadius(r: number): void {

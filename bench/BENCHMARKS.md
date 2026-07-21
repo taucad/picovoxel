@@ -1,4 +1,4 @@
-# picogk-js benchmarks
+# picovoxel benchmarks
 
 > Measured on Apple M2 Pro (12 cores, 32 GiB), darwin 25.0.0, node v24.6.0, wasm d0e7283d8120 (5,806,517 B), commit 6bf52b6, 2026-07-18.
 > **Absolute numbers are device-specific; treat ratios and phase splits as the portable signal.**
@@ -6,11 +6,11 @@
 >
 > Native-comparison figures (the ~1.95× PicoGK wasm tax, R20's 3–9% SDF callback overhead, R11's ~150×
 > bulk-readback win) are imported by reference from the measured records in the research docs
-> (picogk-wasm-kernel-blueprint) — native builds live outside this repo's toolchain.
+> (picovoxel-wasm-kernel-blueprint) — native builds live outside this repo's toolchain.
 
 | Metric | Description | Phase | Median | Min | Max |
 | --- | --- | --- | ---: | ---: | ---: |
-| M1 | createPicoGK() cold instantiate (5.8 MB module) | instantiate | 8.418 ms | 8.272 | 9.46 |
+| M1 | createPico() cold instantiate (5.8 MB module) | instantiate | 8.418 ms | 8.272 | 9.46 |
 | M2@0.5 | sphere r=10 @ 0.5mm | build | 0.99 ms | 0.955 | 1.342 |
 |  |  | volume | 0.866 ms | 0.861 | 0.923 |
 | M2@0.25 | sphere r=10 @ 0.25mm | build | 3.045 ms | 3.04 | 3.078 |
@@ -217,5 +217,5 @@ band is comfortably inside the ceiling.
 
 (The probe also exposed that a failed wasm `_malloc` near the ceiling
 surfaces as a raw `RangeError` from `HEAPF32.set` rather than the typed
-`PICOGK_OUT_OF_MEMORY` error — hardened in the facade as a follow-up
+`PICO_OUT_OF_MEMORY` error — hardened in the facade as a follow-up
 commit.)

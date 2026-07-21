@@ -208,7 +208,7 @@ test('C5 — implicit: JS SDF sphere matches the native primitive', () => {
       fns.Voxels_IntersectImplicit(lib, trimmed, sdf);
       assert.ok(fns.Voxels_fCalculateVolume(lib, trimmed) > 0, 'IntersectImplicit emptied the body');
 
-      // The tape TU's parallel fill (src/picogk-tape.cpp): the same sphere as a
+      // The tape TU's parallel fill (src/pico-tape.cpp): the same sphere as a
       // hand-rolled SSA tape — sqrt(x*x + y*y + z*z) - 10, same fold order as
       // the JS callback above, so the volumes must be bit-identical.
       const instructions = Uint32Array.from([
@@ -530,7 +530,7 @@ test('C13 — metadata: string/float/vector round trips (name-keyed, despite the
     const meta = fns.Metadata_hFromVoxels(lib, sphere);
     const before = fns.Metadata_nCount(lib, meta);
 
-    fns.Metadata_SetStringValue(lib, meta, str(scratch, 'author'), str(scratch + 64, 'picogk-js'));
+    fns.Metadata_SetStringValue(lib, meta, str(scratch, 'author'), str(scratch + 64, 'picovoxel'));
     fns.Metadata_SetFloatValue(lib, meta, str(scratch + 128, 'density'), 7.5);
     vec(scratch + 256, 1, 2, 3);
     fns.Metadata_SetVectorValue(lib, meta, str(scratch + 192, 'origin'), scratch + 256);
@@ -556,7 +556,7 @@ test('C13 — metadata: string/float/vector round trips (name-keyed, despite the
     const value = _malloc(len + 1);
     try {
       assert.ok(fns.Metadata_bGetStringAt(lib, meta, scratch, value, len + 1), 'string not readable');
-      assert.equal(UTF8ToString(value), 'picogk-js', 'metadata string round trip');
+      assert.equal(UTF8ToString(value), 'picovoxel', 'metadata string round trip');
     } finally { _free(value); }
 
     const f = _malloc(4);

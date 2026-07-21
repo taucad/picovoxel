@@ -17,8 +17,8 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { cpus, loadavg, platform, release, totalmem } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createPicoGK } from '../src/index.ts';
-import { buildGearMesh } from '../examples/picogk/gear.ts';
+import { createPico } from '../src/index.ts';
+import { buildGearMesh } from '../examples/pico/gear.ts';
 import { sliceVoxels } from '../src/slicing.ts';
 
 const HERE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -35,7 +35,7 @@ if (!ALLOW_LOADED && startLoad > cores / 4) {
 }
 
 const git = (...args) => execFileSync('git', args, { cwd: HERE, encoding: 'utf8' }).trim();
-const wasmBytes = readFileSync(join(HERE, 'src/picogk.wasm'));
+const wasmBytes = readFileSync(join(HERE, 'src/pico.wasm'));
 const fingerprint = {
   cpu: cpus()[0]?.model ?? 'unknown',
   cores,
@@ -107,17 +107,17 @@ const gyroidSdf = (scale) => (x, y, z) =>
   Math.abs(Math.sin(x * scale) * Math.cos(y * scale) + Math.sin(y * scale) * Math.cos(z * scale) + Math.sin(z * scale) * Math.cos(x * scale)) - 0.4;
 
 // ── M1 — cold instantiate ──
-await metric('M1', 'createPicoGK() cold instantiate (5.8 MB module)', async () => {
+await metric('M1', 'createPico() cold instantiate (5.8 MB module)', async () => {
   const t0 = now();
-  const pk = await createPicoGK();
+  const pk = await createPico();
   const instantiateMs = now() - t0;
   pk.dispose();
   return { phases: { instantiate: instantiateMs } };
 });
 
 // Shared session for the compute metrics.
-const pk = await createPicoGK({ voxelSize: 0.5 });
-const fine = await createPicoGK({ voxelSize: 0.25 });
+const pk = await createPico({ voxelSize: 0.5 });
+const fine = await createPico({ voxelSize: 0.25 });
 
 // ── M2 — sphere build ──
 for (const [suffix, session] of [['0.5', pk], ['0.25', fine]]) {
@@ -270,9 +270,9 @@ await metric('M9', 'facade vs raw: 10k isEmpty calls', () => {
     ['*', ['sin', ['*', 'x', s]], ['cos', ['*', 'y', s]]],
     ['*', ['sin', ['*', 'y', s]], ['cos', ['*', 'z', s]]],
     ['*', ['sin', ['*', 'z', s]], ['cos', ['*', 'x', s]]]]], 0.4];
-  const { createPicoGK: createMulti } = await import('../src/multi.ts');
+  const { createPico: createMulti } = await import('../src/multi.ts');
   for (const [suffix, make] of [
-    ['single', () => createPicoGK({ voxelSize: 0.25 })],
+    ['single', () => createPico({ voxelSize: 0.25 })],
     ['multi', () => createMulti({ voxelSize: 0.25 })],
   ]) {
     await metric(`M10@${suffix}`, `gyroid tape @ 0.25mm (${suffix} entry)`, async () => {
@@ -309,7 +309,7 @@ fine.dispose();
 {
   const { presetWheelTask } = await import('../examples/roverwheel/run.ts');
   await metric('M11', 'RoverWheel Wheel_02 @ 1.0mm (subject)', async () => {
-    const session = await createPicoGK({ voxelSize: 1.0 });
+    const session = await createPico({ voxelSize: 1.0 });
     const t0 = now();
     const wheel = presetWheelTask(session);
     const constructMs = now() - t0;
@@ -334,9 +334,9 @@ fine.dispose();
 // repeat policy — six repeats of the fine cells would take hours).
 {
   const { task: heatXTask } = await import('../examples/helixheatx/run.ts');
-  const { createPicoGK: createMulti } = await import('../src/multi.ts');
+  const { createPico: createMulti } = await import('../src/multi.ts');
   for (const [suffix, make] of [
-    ['single', () => createPicoGK({ voxelSize: 1.0 })],
+    ['single', () => createPico({ voxelSize: 1.0 })],
     ['multi', () => createMulti({ voxelSize: 1.0 })],
   ]) {
     await metric(`M12@${suffix}`, `HelixHeatX @ 1.0mm (${suffix} entry)`, async () => {
@@ -369,7 +369,7 @@ fine.dispose();
   const { ImplicitSchwarzDiamond } = await import('../src/latticelibrary.ts');
   const preset = new ImplicitSchwarzDiamond(10, 0.5);
   await metric('M13', 'SchwarzDiamond preset @ 0.5mm, [-15,15]³: callback vs tape', async () => {
-    const session = await createPicoGK({ voxelSize: 0.5 });
+    const session = await createPico({ voxelSize: 0.5 });
     const bounds = { boundsMin: [-15, -15, -15], boundsMax: [15, 15, 15] };
     const t0 = now();
     const fromCallback = session.createVoxels({ shape: 'implicit', ...bounds, sdf: preset.sdf });
@@ -390,7 +390,7 @@ fine.dispose();
 {
   const { wireframeFromCrystalTask } = await import('../examples/quasicrystals/run.ts');
   await metric('M14', 'QuasiCrystal wireframe gens 0/1/2 @ 2.0mm, QuasiTile_02 seed', async () => {
-    const session = await createPicoGK({ voxelSize: 2.0 });
+    const session = await createPico({ voxelSize: 2.0 });
     const phases = {};
     const identity = {};
     for (const gen of [0, 1, 2]) {
@@ -414,7 +414,7 @@ console.log(`\nwrote bench/results/${fileName}`);
 
 if (UPDATE) {
   const lines = [];
-  lines.push('# picogk-js benchmarks');
+  lines.push('# picovoxel benchmarks');
   lines.push('');
   lines.push(`> Measured on ${fingerprint.cpu} (${fingerprint.cores} cores, ${fingerprint.ramGiB} GiB), ` +
     `${fingerprint.os}, node ${fingerprint.node}, wasm ${fingerprint.wasmSha256.slice(0, 12)} ` +
@@ -424,7 +424,7 @@ if (UPDATE) {
   lines.push('>');
   lines.push('> Native-comparison figures (the ~1.95× PicoGK wasm tax, R20\'s 3–9% SDF callback overhead, R11\'s ~150×');
   lines.push('> bulk-readback win) are imported by reference from the measured records in the research docs');
-  lines.push('> (picogk-wasm-kernel-blueprint) — native builds live outside this repo\'s toolchain.');
+  lines.push('> (picovoxel-wasm-kernel-blueprint) — native builds live outside this repo\'s toolchain.');
   lines.push('');
   lines.push('| Metric | Description | Phase | Median | Min | Max |');
   lines.push('| --- | --- | --- | ---: | ---: | ---: |');

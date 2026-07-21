@@ -1,7 +1,7 @@
 // Derived from LEAP71_ShapeKernel — ShapeKernel/Utilities/MeshUtility.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picogk-js (blueprint R5); see NOTICE.
+// Ported to TypeScript for picovoxel (blueprint R5); see NOTICE.
 //
 // Per-vertex mesh transforms in the upstream style: triangles are exploded
 // (three fresh vertices each, no dedup), exactly what C# nAddTriangle-based
@@ -11,7 +11,7 @@
 
 import type { Mesh } from '../mesh.ts';
 import { type Frame, frame } from '../numerics/frame.ts';
-import type { PicoGK } from '../session.ts';
+import type { Pico } from '../session.ts';
 import type { Vec3 } from '../types.ts';
 import type { Voxels } from '../voxels.ts';
 import { MeshBuilder, type VertexTransformation } from './baseShape.ts';
@@ -19,7 +19,7 @@ import { MeshBuilder, type VertexTransformation } from './baseShape.ts';
 /** ShapeKernel `MeshUtility` (static class → const object; session-first). */
 export const meshUtility = {
   /** Mesh from a regular point grid, quad by quad (C# `mshFromGrid`). */
-  meshFromGrid(pk: PicoGK, grid: readonly (readonly Vec3[])[]): Mesh {
+  meshFromGrid(pk: Pico, grid: readonly (readonly Vec3[])[]): Mesh {
     const builder = new MeshBuilder();
     for (let i = 1; i < grid.length; i += 1) {
       for (let j = 1; j < grid[i]!.length; j += 1) {
@@ -30,14 +30,14 @@ export const meshUtility = {
   },
 
   /** Mesh from one quad (C# `mshFromQuad`). */
-  meshFromQuad(pk: PicoGK, pt1: Vec3, pt2: Vec3, pt3: Vec3, pt4: Vec3): Mesh {
+  meshFromQuad(pk: Pico, pt1: Vec3, pt2: Vec3, pt3: Vec3, pt4: Vec3): Mesh {
     const builder = new MeshBuilder();
     builder.addQuad(pt1, pt2, pt3, pt4);
     return builder.build(pk);
   },
 
   /** New mesh with the transformation applied per vertex (C# `mshApplyTransformation`). */
-  applyTransformation(pk: PicoGK, mesh: Mesh, trafo: VertexTransformation): Mesh {
+  applyTransformation(pk: Pico, mesh: Mesh, trafo: VertexTransformation): Mesh {
     const vertices = mesh.vertices;
     const triangles = mesh.triangles;
     const builder = new MeshBuilder();
@@ -50,12 +50,12 @@ export const meshUtility = {
   },
 
   /** Voxels → mesh → per-vertex transform → voxels (C# `voxApplyTransformation`). */
-  voxApplyTransformation(pk: PicoGK, voxels: Voxels, trafo: VertexTransformation): Voxels {
+  voxApplyTransformation(pk: Pico, voxels: Voxels, trafo: VertexTransformation): Voxels {
     return meshUtility.applyTransformation(pk, voxels.toMesh(), trafo).toVoxels();
   },
 
   /** Mesh re-expressed from the input frame onto the output frame (C# `mshTranslateMeshOntoFrame`). */
-  translateMeshOntoFrame(pk: PicoGK, mesh: Mesh, inputFrame: Frame, outputFrame: Frame): Mesh {
+  translateMeshOntoFrame(pk: Pico, mesh: Mesh, inputFrame: Frame, outputFrame: Frame): Mesh {
     return meshUtility.applyTransformation(pk, mesh, (pt) =>
       frame.ptToWorld(outputFrame, frame.ptFromWorld(inputFrame, pt)),
     );

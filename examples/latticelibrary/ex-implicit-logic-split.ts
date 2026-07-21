@@ -2,11 +2,11 @@
 // C# default choice: the two ImplicitSplitVoidGyroid sides, complementary
 // voids of the same box. Both masks run the accelerated tape path.
 
-import type { PicoGK, Voxels } from 'picogk-js';
-import { ImplicitSplitVoidGyroid } from 'picogk-js/latticelibrary';
-import { BaseBox, localFrame } from 'picogk-js/shapekernel';
+import type { Pico, Voxels } from 'picovoxel';
+import { ImplicitSplitVoidGyroid } from 'picovoxel/latticelibrary';
+import { BaseBox, localFrame } from 'picovoxel/shapekernel';
 
-export function task(pk: PicoGK): Voxels[] {
+export function task(pk: Pico): Voxels[] {
   const voxBounding = new BaseBox(localFrame.identity, 50, 50, 50).voxConstruct(pk);
   const pattern1 = new ImplicitSplitVoidGyroid(10, 1, true);
   const pattern2 = new ImplicitSplitVoidGyroid(10, 1, false);

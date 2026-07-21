@@ -1,7 +1,7 @@
 // Derived from LEAP71_ShapeKernel — ShapeKernel/Frames/Frames.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picogk-js (blueprint R4); see NOTICE.
+// Ported to TypeScript for picovoxel (blueprint R4); see NOTICE.
 //
 // A chain of local frames along a spine — ShapeKernel's transport machinery.
 // MIN_ROTATION carries the previous sample's local X forward as the next

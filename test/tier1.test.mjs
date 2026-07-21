@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { writeFile } from 'node:fs/promises';
 import { loadRawHarness } from './raw-harness.ts';
-import { buildGearMesh, GEAR_DEFAULTS } from '../examples/picogk/gear.ts';
+import { buildGearMesh, GEAR_DEFAULTS } from '../examples/pico/gear.ts';
 import { createGlb } from '../src/glb.ts';
 
 const pk = await loadRawHarness();

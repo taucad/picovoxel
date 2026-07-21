@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'vitest';
-import { createPicoGK } from '../src/index.ts';
+import { createPico } from '../src/index.ts';
 
 const fixturePath = join(import.meta.dirname, 'fixtures', 'quasicrystals.json');
 const updatePins = process.env.UPDATE_PINS === '1';
@@ -26,7 +26,7 @@ test('QuasiCrystal wireframes @ 2.0 mm: gens 0-2 pinned and scaling; face/tile t
   const { wireframeFromCrystalTask, crystalFromFaceTask, crystalFromTileTask } = await import(
     '../examples/quasicrystals/run.ts'
   );
-  const pk = await createPicoGK({ voxelSize: 2 });
+  const pk = await createPico({ voxelSize: 2 });
   try {
     const generations = [0, 1, 2].map((generation) => {
       const { voxels, tileCount, beamCount } = wireframeFromCrystalTask(pk, generation);

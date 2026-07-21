@@ -1,10 +1,10 @@
 // Port of LEAP71_ShapeKernel Examples/Ex_LatticeManifoldShowCase.cs (Apache-2.0, © LEAP 71).
 // Horizontal (local Z = +Y) manifold pipes with three overhang/extension settings.
 
-import type { PicoGK, Voxels } from 'picogk-js';
-import { LatticeManifold, localFrame } from 'picogk-js/shapekernel';
+import type { Pico, Voxels } from 'picovoxel';
+import { LatticeManifold, localFrame } from 'picovoxel/shapekernel';
 
-export function task(pk: PicoGK): Voxels[] {
+export function task(pk: Pico): Voxels[] {
   const results: Voxels[] = [];
   {
     const shape = new LatticeManifold(localFrame.createZ([-50, 0, 0], [0, 1, 0]), {

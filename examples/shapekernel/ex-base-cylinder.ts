@@ -1,13 +1,13 @@
 // Port of LEAP71_ShapeKernel Examples/Ex_BaseCylinderShowcase.cs (Apache-2.0, © LEAP 71).
 
-import type { PicoGK, Voxels } from 'picogk-js';
-import { BaseCylinder, Frames, LineModulation, localFrame, SurfaceModulation } from 'picogk-js/shapekernel';
+import type { Pico, Voxels } from 'picovoxel';
+import { BaseCylinder, Frames, LineModulation, localFrame, SurfaceModulation } from 'picovoxel/shapekernel';
 import { ExampleSpline } from './example-spline.ts';
 
 const lineModulation = (lengthRatio: number): number => 10 - 3 * Math.cos(8 * lengthRatio);
 const surfaceModulation = (phi: number, _lengthRatio: number): number => 12 + 3 * Math.cos(5 * phi);
 
-export function task(pk: PicoGK): Voxels[] {
+export function task(pk: Pico): Voxels[] {
   const results: Voxels[] = [];
   {
     // basic

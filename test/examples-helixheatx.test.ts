@@ -9,8 +9,8 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'vitest';
-import { createPicoGK } from '../src/index.ts';
-import { createPicoGK as createMulti } from '../src/multi.ts';
+import { createPico } from '../src/index.ts';
+import { createPico as createMulti } from '../src/multi.ts';
 
 const fixturePath = join(import.meta.dirname, 'fixtures', 'helixheatx.json');
 const updatePins = process.env.UPDATE_PINS === '1';
@@ -28,7 +28,7 @@ const PUBLISHED_STL_BYTES_AT_1MM = 94 * 2 ** 20;
 test('HelixHeatX @ 1.0 mm: pinned result, STL-size parity, single↔multi identity', async () => {
   const { task } = await import('../examples/helixheatx/run.ts');
 
-  const single = await createPicoGK({ voxelSize: 1.0 });
+  const single = await createPico({ voxelSize: 1.0 });
   const multi = await createMulti({ voxelSize: 1.0 });
   try {
     const singleRun = task(single);

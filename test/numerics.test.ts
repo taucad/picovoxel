@@ -8,7 +8,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import { PicoGkError } from '../src/errors.ts';
+import { PicoError } from '../src/errors.ts';
 import {
   cylindrical,
   frame,
@@ -29,7 +29,7 @@ import {
 } from '../src/numerics.ts';
 
 const invalidArg = (error: unknown): boolean =>
-  error instanceof PicoGkError && error.code === 'PICOGK_INVALID_ARGUMENT';
+  error instanceof PicoError && error.code === 'PICO_INVALID_ARGUMENT';
 
 function close(actual: number, expected: number, eps = 1e-12): void {
   assert.ok(Math.abs(actual - expected) <= eps, `expected ${actual} ≈ ${expected} (±${eps})`);

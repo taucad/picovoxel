@@ -2,15 +2,15 @@
 
 import assert from 'node:assert/strict';
 import { afterAll, beforeAll, test } from 'vitest';
-import { createPicoGK, PicoGkError, type PicoGK } from '../src/index.ts';
+import { createPico, PicoError, type Pico } from '../src/index.ts';
 
-let pk: PicoGK;
+let pk: Pico;
 beforeAll(async () => {
-  pk = await createPicoGK({ voxelSize: 0.5 });
+  pk = await createPico({ voxelSize: 0.5 });
 });
 afterAll(() => pk.dispose());
 
-test('SG3 — all four reserved classes throw PICOGK_RESERVED_METADATA', () => {
+test('SG3 — all four reserved classes throw PICO_RESERVED_METADATA', () => {
   const metadata = pk.createVoxels({ shape: 'sphere', radius: 5 }).metadata;
   for (const name of ['PicoGK.Custom', 'picogk.sneaky', 'class', 'Name', 'file_thing', 'FILE_X']) {
     for (const op of [() => metadata.set(name, 'x'), () => metadata.remove(name)]) {
@@ -18,8 +18,8 @@ test('SG3 — all four reserved classes throw PICOGK_RESERVED_METADATA', () => {
         op();
         assert.fail(`reserved name '${name}' accepted`);
       } catch (error) {
-        assert.ok(error instanceof PicoGkError, `${name}: got ${String(error)}`);
-        assert.equal(error.code, 'PICOGK_RESERVED_METADATA', name);
+        assert.ok(error instanceof PicoError, `${name}: got ${String(error)}`);
+        assert.equal(error.code, 'PICO_RESERVED_METADATA', name);
       }
     }
   }
@@ -43,7 +43,7 @@ test('typed set/get round-trips with type dispatch string/float/vector', () => {
   const metadata = pk.createVoxels({ shape: 'sphere', radius: 4 }).metadata;
   const before = metadata.count;
 
-  metadata.set('author', 'picogk-js');
+  metadata.set('author', 'picovoxel');
   metadata.set('density', 7.5);
   metadata.set('origin', [1, 2, 3]);
   assert.equal(metadata.count, before + 3);
@@ -53,7 +53,7 @@ test('typed set/get round-trips with type dispatch string/float/vector', () => {
   assert.equal(metadata.typeOf('origin'), 'vector');
   assert.equal(metadata.typeOf('nonexistent'), 'unknown');
 
-  assert.equal(metadata.get('author'), 'picogk-js');
+  assert.equal(metadata.get('author'), 'picovoxel');
   assert.equal(metadata.get('density'), 7.5);
   assert.deepEqual(metadata.get('origin'), [1, 2, 3]);
   assert.equal(metadata.get('nonexistent'), undefined);
@@ -79,8 +79,8 @@ test('invalid value types are refused', () => {
       metadata.set('key', bad as never);
       assert.fail(`value ${JSON.stringify(bad)} accepted`);
     } catch (error) {
-      assert.ok(error instanceof PicoGkError);
-      assert.equal(error.code, 'PICOGK_INVALID_ARGUMENT');
+      assert.ok(error instanceof PicoError);
+      assert.equal(error.code, 'PICO_INVALID_ARGUMENT');
     }
   }
 });

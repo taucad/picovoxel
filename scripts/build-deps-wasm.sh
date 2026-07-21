@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the wasm OpenVDB + oneTBB prefix that build-picogk-{wasm,module}.sh link.
+# Builds the wasm OpenVDB + oneTBB prefix that build-pico-{wasm,module}.sh link.
 # Extracted from bench/build.sh (R6) so the prefix is rebuildable without running
 # the native benches.
 #

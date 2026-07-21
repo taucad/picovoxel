@@ -10,7 +10,7 @@
 // unchanged), NOT vec3.safeNormalized's tolerance-based zero — the distinction
 // is load-bearing for degenerate-input parity with C#.
 
-import { PicoGkError } from '../errors.ts';
+import { PicoError } from '../errors.ts';
 import type { Mat4, Vec3 } from '../types.ts';
 import type { Rad } from './angles.ts';
 import { mat4 } from './matrix.ts';
@@ -67,7 +67,7 @@ export const frame = {
   /** From a row-vector rigid matrix — rows [X; Y; Z; origin] (C# `frmFromMatrix4x4`). */
   fromMat4(m: Mat4): Frame {
     if (m.length !== 16) {
-      throw new PicoGkError('PICOGK_INVALID_ARGUMENT', `frame matrix needs 16 elements, got ${m.length}.`);
+      throw new PicoError('PICO_INVALID_ARGUMENT', `frame matrix needs 16 elements, got ${m.length}.`);
     }
     return frame.fromZX([m[12]!, m[13]!, m[14]!], [m[8]!, m[9]!, m[10]!], [m[0]!, m[1]!, m[2]!]);
   },

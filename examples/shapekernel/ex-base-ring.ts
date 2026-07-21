@@ -1,14 +1,14 @@
 // Port of LEAP71_ShapeKernel Examples/Ex_BaseRingShowCase.cs (Apache-2.0, © LEAP 71).
 
-import type { PicoGK, Voxels } from 'picogk-js';
-import { BaseRing, localFrame, SurfaceModulation } from 'picogk-js/shapekernel';
+import type { Pico, Voxels } from 'picovoxel';
+import { BaseRing, localFrame, SurfaceModulation } from 'picovoxel/shapekernel';
 
 const ringRadius0 = (phi: number, _alpha: number): number => 10 - 2 * Math.cos(5 * phi);
 const ringRadius1 = (_phi: number, alpha: number): number => 10 + 3 * Math.cos(5 * alpha);
 const ringRadius2 = (phi: number, alpha: number): number =>
   10 - 2 * Math.cos(5 * (phi + alpha)) + 3 * Math.cos(5 * alpha);
 
-export function task(pk: PicoGK): Voxels[] {
+export function task(pk: Pico): Voxels[] {
   const results: Voxels[] = [];
   {
     // basic

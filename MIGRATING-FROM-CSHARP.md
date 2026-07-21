@@ -1,10 +1,10 @@
 # Migrating from C# PicoGK
 
-The picogk-js surface is a **semantic port** of PicoGK's C# library (reviewed at `leap71/PicoGK` @ `389d4d9`, runtime 26.2): every behaviour that matters is preserved, while the surface grammar is translated to TypeScript idiom. This is the member-by-member map.
+The picovoxel surface is a **semantic port** of PicoGK's C# library (reviewed at `leap71/PicoGK` @ `389d4d9`, runtime 26.2): every behaviour that matters is preserved, while the surface grammar is translated to TypeScript idiom. This is the member-by-member map.
 
 ## Idiom rules (apply everywhere)
 
-| C# construct | picogk-js rule |
+| C# construct | picovoxel rule |
 | --- | --- |
 | Constructor overloads | Named factories with options objects (`new Voxels(...)` ×10 → `createVoxels({ shape })`, `clone()`, `mesh.toVoxels()`) |
 | Operator overloads (`+`, `-`, `&`) | Methods: `a.union(b)`, `a.subtract(b)`, `a.intersect(b)` |
@@ -13,16 +13,16 @@ The picogk-js surface is a **semantic port** of PicoGK's C# library (reviewed at
 | `out`/`ref` params | Return objects: `CalculateProperties(out v, out b)` → `properties(): { volume, bounds }` |
 | `bool Try…(out T)` duals | `T \| null` returns: `bClosestPointOnSurface` → `closestPointOnSurface(p): Vec3 \| null` |
 | `IDisposable` + finalizer | Hidden: the GC frees wrappers via `FinalizationRegistry`; `dispose()` is optional; `using` still works |
-| Global `Library.oLibrary()` | Not ported — sessions are explicit (`createPicoGK()`), never ambient |
+| Global `Library.oLibrary()` | Not ported — sessions are explicit (`createPico()`), never ambient |
 | File paths | Bytes in, bytes out (`Uint8Array`); MEMFS is internal |
 | `System.Numerics.Vector3` | `Vec3 = readonly [number, number, number]` |
-| Exceptions | `PicoGkError` with a typed `code` |
+| Exceptions | `PicoError` with a typed `code` |
 
-## Library → `createPicoGK()` session
+## Library → `createPico()` session
 
-| C# | picogk-js |
+| C# | picovoxel |
 | --- | --- |
-| `new Library(fVoxelSizeMM)` | `await createPicoGK({ voxelSize })` |
+| `new Library(fVoxelSizeMM)` | `await createPico({ voxelSize })` |
 | `Library.strName/strVersion/strBuildInfo` | `pk.name` / `pk.version` / `pk.buildInfo` |
 | `lib.fVoxelSize` | `pk.voxelSize` |
 | `n*MemUsage()` ×9 | `pk.memory` (camelCase map incl. `total`) |
@@ -33,7 +33,7 @@ The picogk-js surface is a **semantic port** of PicoGK's C# library (reviewed at
 
 ## Voxels
 
-| C# | picogk-js |
+| C# | picovoxel |
 | --- | --- |
 | `voxSphere` / `voxLatticeBeam` / ctors | `pk.createVoxels({ shape: 'empty' \| 'sphere' \| 'beam' \| 'implicit' })` |
 | `voxDuplicate` / copy ctor | `voxels.clone()` |
@@ -58,7 +58,7 @@ The picogk-js surface is a **semantic port** of PicoGK's C# library (reviewed at
 
 ## Mesh
 
-| C# | picogk-js |
+| C# | picovoxel |
 | --- | --- |
 | `new Mesh(lib)` + `nAddVertex`/`nAddTriangle` | `pk.createMesh({ vertices, triangles })` — two bulk ABI crossings |
 | `vVertices()` / `vTriangles()` | `mesh.vertices` / `mesh.triangles` (caller-owned copies) |
@@ -71,13 +71,13 @@ The picogk-js surface is a **semantic port** of PicoGK's C# library (reviewed at
 | `new Voxels(msh)` | `toVoxels()` |
 | `voxMeshShell` | `shellVoxels({ radius })` — offsets in ALL directions from a not-necessarily-closed mesh |
 | `SaveToStlFile` / `mshFromStlFile` | `toStl({ unit?, scale?, offset? })` / `pk.meshFromStl(bytes, { unit?, scale?, offset? })` — binary STL, `UNITS=` header honoured |
-| — | `toGlb()` (picogk-js original) |
+| — | `toGlb()` (picovoxel original) |
 
-Per-element `nAddVertex`/`vecVertexAt`/`oTriangleAt` live on `picogk-js/raw` only — the facade is bulk-first.
+Per-element `nAddVertex`/`vecVertexAt`/`oTriangleAt` live on `picovoxel/raw` only — the facade is bulk-first.
 
 ## Lattice / PolyLine
 
-| C# | picogk-js |
+| C# | picovoxel |
 | --- | --- |
 | `AddSphere(vecCenter, fRadius)` | `lattice.addSphere({ center, radius })` |
 | `AddBeam(...)` — two overloads differing only in parameter order | **one** signature: `addBeam({ start, end, radius \| startRadius/endRadius, roundCap? })` (`roundCap` defaults `true`) |
@@ -87,30 +87,30 @@ Per-element `nAddVertex`/`vecVertexAt`/`oTriangleAt` live on `picogk-js/raw` onl
 
 ## ScalarField / VectorField / Metadata / VdbFile
 
-| C# | picogk-js |
+| C# | picovoxel |
 | --- | --- |
 | 4 field ctors | `pk.createScalarField()` / `({ from })` / `({ from, value, sdThreshold? })`; same for `createVectorField` |
 | `SetValue` / `bGetValue` / `RemoveValue` | `set(p, v)` / `get(p): v \| null` / `remove(p)` |
 | `TraverseActive(ITraverse…)` | `traverse((x, y, z, …values) => {})` — scalars, no per-visit allocation |
 | `fSignedDistance` | `scalarField.signedDistanceAt(p)` (stored value × voxelSize, as C# does) |
-| `GuardInternalFields` | `metadata.set/remove` throw `PICOGK_RESERVED_METADATA` for `PicoGK.*`, `class`, `name`, `file_*` |
+| `GuardInternalFields` | `metadata.set/remove` throw `PICO_RESERVED_METADATA` for `PicoGK.*`, `class`, `name`, `file_*` |
 | Auto `PicoGK.Class` tag | Preserved on every Voxels/ScalarField/VectorField creation (.vdb interchange) |
 | `OpenVdbFile` | `pk.createVdb()` / `pk.openVdb(bytes)`; `add(field, name?)`, `fields()`, `getVoxels/getScalarField/getVectorField(indexOrName)`, `toBytes()` |
 | `voxFromVdbFile` | `pk.voxelsFromVdb(bytes)` — first `GRID_LEVEL_SET` field wins; the error lists what was found |
-| `libCreateCompatibleLibraryFor` | `pk.vdbVoxelSize(bytes)` — read the size, then `createPicoGK({ voxelSize })` to match |
+| `libCreateCompatibleLibraryFor` | `pk.vdbVoxelSize(bytes)` — read the size, then `createPico({ voxelSize })` to match |
 | `SaveToFile` metadata stamping | Preserved: `toBytes()` stamps `PicoGK.Library/Version/VoxelSize` on every field |
 
 ### FieldUtils (headless pair, blueprint R14)
 
-| C# | picogk-js |
+| C# | picovoxel |
 | --- | --- |
 | `SurfaceNormalFieldExtractor.oExtract(vox, fSurfaceThresholdVx, vecDirectionFilter, fDirectionFilterTolerance, vecScaleBy)` | `surfaceNormalFieldExtractor(pk, voxels, { surfaceThresholdVx?, directionFilter?, directionFilterTolerance?, scaleBy? })` — over `traverse()`, no ABI change |
 | `VectorFieldMerge.Merge(oSource, oTarget)` | `vectorFieldMerge(source, target)` |
 | `SdfVisualizer` / `AddVectorFieldToViewer` (rest of `Utils/FieldUtils.cs`) | N/A — image/viewer-bound |
 
-## Slicing (`picogk-js/slicing`)
+## Slicing (`picovoxel/slicing`)
 
-| C# | picogk-js |
+| C# | picovoxel |
 | --- | --- |
 | `Voxels.oVectorize` | `sliceVoxels(voxels, { layerHeight?, useAbsoluteXY?, onProgress? })` |
 | `PolySlice` / `PolyContour` | `SliceStack` → `Slice { z, contours }` → `SliceContour { points: Float64Array, winding }` (solids CCW, holes CW) |
@@ -118,7 +118,7 @@ Per-element `nAddVertex`/`vecVertexAt`/`oTriangleAt` live on `picogk-js/raw` onl
 | `CliIo.WriteSlicesToCliFile` / `oSlicesFromCliFile` | `slicesToCli(stack, { units?, emptyFirstLayer?, date? })` / `slicesFromCli(bytes)` |
 | `IProgress` | A plain `(fraction: number) => void` callback |
 
-## Numerics (`picogk-js/numerics`)
+## Numerics (`picovoxel/numerics`)
 
 The CEM numerics foundation: the System.Numerics analog JS lacks, the
 `PicoGK.Numerics` domain layer, and the canonical rigid frame. Pure math — no
@@ -135,7 +135,7 @@ need no port — native JS semantics cover them. Those rows are marked *native*.
 
 ### System.Numerics (BCL analog)
 
-| C# | picogk-js |
+| C# | picovoxel |
 | --- | --- |
 | `Vector2` | `Vec2 = readonly [number, number]` + `vec2.add/sub/scale/dot/length/lengthSquared/distanceSquared/lerp/zero` |
 | `Vector2.Normalize` | `vec2.normalized` (throws on zero) / `vec2.safeNormalized` (component-wise division, as .NET) |
@@ -154,7 +154,7 @@ need no port — native JS semantics cover them. Those rows are marked *native*.
 
 ### PicoGK.Numerics
 
-| C# | picogk-js |
+| C# | picovoxel |
 | --- | --- |
 | `Rad` | `Rad` — branded number in radians; arithmetic/comparisons are native (results re-brand via `rad.add/sub/scale/div/neg`; `Rad / Rad` → `rad.ratio`) |
 | `Rad.TwoPi` | `TWO_PI` |
@@ -172,11 +172,11 @@ need no port — native JS semantics cover them. Those rows are marked *native*.
 | `Rad` operators / `CompareTo` / `Equals` / `GetHashCode` / `ToString` | native (`ToString` → template literal + `rad.deg`) |
 | `Overhang` | `Overhang` — branded normalized severity 0..1 |
 | `uNone` / `uFull` | `overhang.none` / `overhang.full` |
-| `uFromNormalized/uFromPercent/uFromRad/uFromDeg/uFromDegFromHorizontal` | `overhang.fromNormalized/fromPercent/fromRad/fromDeg/fromDegFromHorizontal` (range-validated, throw `PICOGK_INVALID_ARGUMENT`) |
+| `uFromNormalized/uFromPercent/uFromRad/uFromDeg/uFromDegFromHorizontal` | `overhang.fromNormalized/fromPercent/fromRad/fromDeg/fromDegFromHorizontal` (range-validated, throw `PICO_INVALID_ARGUMENT`) |
 | `fNormalized/fPercent/fRad/fDeg/fDegFromHorizontal` | the number itself / `overhang.percent/rad/deg/degFromHorizontal` |
 | `bExceeds` / comparison operators | native `>` on the branded number |
 | `Polar` / `Cylindrical` / `Spherical` | interfaces `Polar { r, phi }` / `Cylindrical { r, phi, z }` / `Spherical { r, phi, theta }` |
-| coordinate ctors (validated) | `polar.create` / `cylindrical.create(..)`·`fromPolar` / `spherical.create` — same range checks, `PicoGkError` instead of `ArgumentException` |
+| coordinate ctors (validated) | `polar.create` / `cylindrical.create(..)`·`fromPolar` / `spherical.create` — same range checks, `PicoError` instead of `ArgumentException` |
 | conversion ctors (`Polar(Vector2)`, `Cylindrical(Vector3/Spherical)`, `Spherical(Vector3/Cylindrical)`) | `polar.fromCartesian` / `cylindrical.fromCartesian/fromSpherical` / `spherical.fromCartesian/fromCylindrical` |
 | `vecAsCartesian` | `polar/cylindrical/spherical.toCartesian` |
 | `oLerp` (static + instance) | `polar/cylindrical/spherical.lerp` (angular deltas short-way-around, as C#) |
@@ -191,9 +191,9 @@ need no port — native JS semantics cover them. Those rows are marked *native*.
 | `VectorExt.bIsFinite` (both arities) | `vec2/vec3.isFinite` |
 | `FloatExt.bIsFinite` | native `Number.isFinite` |
 
-### Frame3d (`PicoGK.Shapes` → folded into `picogk-js/numerics`, Finding 9)
+### Frame3d (`PicoGK.Shapes` → folded into `picovoxel/numerics`, Finding 9)
 
-| C# | picogk-js |
+| C# | picovoxel |
 | --- | --- |
 | `Frame3d` | `Frame { pos, lx, ly, lz }` — readonly value object |
 | `frmWorld` | `frame.world` |
@@ -219,16 +219,16 @@ need no port — native JS semantics cover them. Those rows are marked *native*.
 The rest of `PicoGK.Shapes` (2D paths/contours, `OrientedPath`) stays deferred
 until a consumer adopts it — see below.
 
-## ShapeKernel (`picogk-js/shapekernel`)
+## ShapeKernel (`picovoxel/shapekernel`)
 
 TypeScript port of LEAP71_ShapeKernel as a layer on top of the public
-picogk-js API + `picogk-js/numerics` (blueprint D3: subpath export, no wasm
+picovoxel API + `picovoxel/numerics` (blueprint D3: subpath export, no wasm
 changes). Explicit-session surface: shapes are pure authoring objects and the
 session enters at the construction boundary (`shape.voxConstruct(pk)`,
 `sh.*(pk, …)`) — never an ambient Library. `LocalFrame` **is** the numerics
 `Frame` plus construction helpers (Finding 9).
 
-| C# | picogk-js |
+| C# | picovoxel |
 | --- | --- |
 | `VecOperations` | `vecOps` — non-obsolete members; the `[Obsolete]` frame/vector helpers are `vec3`/`frame` in numerics |
 | `LocalFrame` ctors / `oTranslate`/`oRotate`/`oGetInvertFrame`/`vecGetLocalY` | `localFrame.create/createZ/createZX/at/translated/rotated/inverted/localY` (normalizing, throwing on zero axes, NO Gram-Schmidt — upstream semantics) |
@@ -249,7 +249,7 @@ session enters at the construction boundary (`shape.voxConstruct(pk)`,
 | `Sh` lattice builders / export functions | `sh` (session-first; bytes not paths; `latFromGrid`'s last-row-wins quirk ported verbatim and pinned) |
 | `Sh` `[Obsolete]` voxel/boolean/query pass-throughs | N/A — the facade methods on `Voxels` |
 | `Sh.Preview*` / TGA/PNG/CSV exports / `strGetExportPath` | N/A — see Visualizations below |
-| `Visualizations/*` (MeshPainter, ColorScales, Cp palette, RotationAnimator) | **N/A — deliberate (blueprint R16 decision, recorded here):** the layer binds to the desktop GL viewer; headless examples emit volume/STL/GLB, and interactive viewing is the `picogk-js/three` subpath + your scene. Revisit only if a headless consumer demands `Sh.Preview*`-shaped helpers. |
+| `Visualizations/*` (MeshPainter, ColorScales, Cp palette, RotationAnimator) | **N/A — deliberate (blueprint R16 decision, recorded here):** the layer binds to the desktop GL viewer; headless examples emit volume/STL/GLB, and interactive viewing is the `picovoxel/three` subpath + your scene. Revisit only if a headless consumer demands `Sh.Preview*`-shaped helpers. |
 | `Measure`/`Bisection`/`LineDecimation`/`ListOperations`/`CylUtility`/`RectUtility`/`GridOperations` (beyond `inverseGrid`)/`CSVWriter` | N/A until a subject pulls them (port-on-demand discipline; `inverseGrid` is exported from `sh`) |
 
 Known upstream limitation carried faithfully (not fixable without patching the
@@ -261,14 +261,14 @@ Verified on the pure callback path (0.34 mm works, 0.33 mm throws); the R9
 tape entry replicates the truncation bit-compatibly so the two paths stay
 differential-identical.
 
-## LatticeLibrary (`picogk-js/latticelibrary`)
+## LatticeLibrary (`picovoxel/latticelibrary`)
 
 TypeScript port of LEAP71_LatticeLibrary as the third subpath export — the
 interface-driven beam-lattice pipeline plus the implicit/TPMS library
 (blueprint R13). Same conventions as ShapeKernel: explicit session, seeded
 randomness only, derived-from headers.
 
-| C# | picogk-js |
+| C# | picovoxel |
 | --- | --- |
 | `ICellArray`/`ILatticeType`/`IBeamThickness`/`IUnitCell`/`ICoordinateTrafo`/`ISplittingLogic`/`IRawTPMSPattern` | TS interfaces (same contracts) |
 | `RegularCellArray`/`RegularUnitCell`/`ConformalCellArray` (+ showcase shapes)/`CuboidCell` | same names |
@@ -281,7 +281,7 @@ randomness only, derived-from headers.
 
 ## Upstream bugs fixed here (do-not-port list)
 
-| # | C# location | Bug | picogk-js behaviour |
+| # | C# location | Bug | picovoxel behaviour |
 | --- | --- | --- | --- |
 | B1 | `Base/Mesh.cs:86-88` | `mshCreateTransformed(vecScale, …)` multiplies corner A by `scale.X`, B by `scale.Y`, C by `scale.Z` | `transform({ scale })` scales every vertex component-wise |
 | B2 | `Library/Library.cs:276` | `MmToVoxels` calls `_VoxelsToMm` — the inverse conversion | `mmToVoxel` binds the real export, rounds to nearest index |
@@ -291,4 +291,4 @@ randomness only, derived-from headers.
 
 ## Deliberately not on this surface
 
-`Viewer/*` (browser rendering is `picogk-js/three` + your scene), `Library.Go()` and the global registry, `Shapes/` 2D paths/contours + `OrientedPath` (deferred until any consumer adopts them; the 3D `Frame3d` is ported — see `picogk-js/numerics`), Skia imaging / `LogFile` / `Animation` / `Csv` / `TgaIo` (platform natives replace them), `MeshMath.bFindTriangleFromSurfacePoint` (use `bounds()` + an external BVH).
+`Viewer/*` (browser rendering is `picovoxel/three` + your scene), `Library.Go()` and the global registry, `Shapes/` 2D paths/contours + `OrientedPath` (deferred until any consumer adopts them; the 3D `Frame3d` is ported — see `picovoxel/numerics`), Skia imaging / `LogFile` / `Animation` / `Csv` / `TgaIo` (platform natives replace them), `MeshMath.bFindTriangleFromSurfacePoint` (use `bounds()` + an external BVH).

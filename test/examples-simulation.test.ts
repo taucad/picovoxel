@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'vitest';
-import { createPicoGK } from '../src/index.ts';
+import { createPico } from '../src/index.ts';
 
 const fixturePath = join(import.meta.dirname, 'fixtures', 'simulation.json');
 const updatePins = process.env.UPDATE_PINS === '1';
@@ -28,7 +28,7 @@ const INLET_VELOCITY_Z = Math.fround(-1.5); // m/s, -Z flow
 
 test('SimpleFluidSimulation @ 1.0 mm: pinned device, 5-field round-trip, probe-grid values', async () => {
   const { writeTask, readTask } = await import('../examples/simulation/run.ts');
-  const pk = await createPicoGK({ voxelSize: 1 });
+  const pk = await createPico({ voxelSize: 1 });
   try {
     const written = writeTask(pk);
 

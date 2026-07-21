@@ -3,11 +3,11 @@
 // rule: no Math.random in library code; the seeded corpus is
 // self-referential). Callback-only preset — the tape has no data gather.
 
-import type { PicoGK, Voxels } from 'picogk-js';
-import { ImplicitRandomizedSchwarzPrimitive, RandomDeformationField } from 'picogk-js/latticelibrary';
-import { BaseBox, createRandom, localFrame } from 'picogk-js/shapekernel';
+import type { Pico, Voxels } from 'picovoxel';
+import { ImplicitRandomizedSchwarzPrimitive, RandomDeformationField } from 'picovoxel/latticelibrary';
+import { BaseBox, createRandom, localFrame } from 'picovoxel/shapekernel';
 
-export function task(pk: PicoGK): Voxels[] {
+export function task(pk: Pico): Voxels[] {
   const voxBounding = new BaseBox(localFrame.identity, 50, 50, 50).voxConstruct(pk);
 
   const deformationAmplitude = 8;

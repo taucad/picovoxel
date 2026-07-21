@@ -39,8 +39,8 @@ execFileSync('./node_modules/.bin/tsdown', ['--config', 'tsdown.gate.config.ts']
 
 // ── 2. Node-side records from the same wasm ──
 console.log('computing node records…');
-const { createPicoGK } = await import('../src/index.ts');
-const { createGearOutline, triangulate, buildGearMesh } = await import('../examples/picogk/gear.ts');
+const { createPico } = await import('../src/index.ts');
+const { createGearOutline, triangulate, buildGearMesh } = await import('../examples/pico/gear.ts');
 
 const hexFloat = (value) => {
   const view = new DataView(new ArrayBuffer(8));
@@ -48,7 +48,7 @@ const hexFloat = (value) => {
   return view.getBigUint64(0).toString(16);
 };
 
-const pk = await createPicoGK({ voxelSize: 0.5 });
+const pk = await createPico({ voxelSize: 0.5 });
 const sphere = pk.createVoxels({ shape: 'sphere', radius: 10 });
 const sphereMesh = sphere.toMesh();
 const s = (2 * Math.PI) / 10;

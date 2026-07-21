@@ -5,9 +5,9 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import { guard, PicoGkError } from '../src/errors.ts';
-import { createGearOutline, triangulate } from '../examples/picogk/gear.ts';
-import { createPicoGK, type PicoGK } from '../src/index.ts';
+import { guard, PicoError } from '../src/errors.ts';
+import { createGearOutline, triangulate } from '../examples/pico/gear.ts';
+import { createPico, type Pico } from '../src/index.ts';
 import { contoursFromSdf, detectWinding, sliceToSvg, sliceVoxels, slicesFromCli, slicesToCli as slicesToCliLocal } from '../src/slicing.ts';
 import { meshFromBufferGeometry, toBufferGeometry } from '../src/three.ts';
 import { emptyBounds, isEmptyBounds } from '../src/types.ts';
@@ -30,8 +30,8 @@ const grab = (fn: () => unknown): unknown => {
 };
 const expectInvalid = (fn: () => unknown, pattern?: RegExp) => {
   const error = grab(fn);
-  assert.ok(error instanceof PicoGkError, `expected PicoGkError, got ${String(error)}`);
-  assert.equal(error.code, 'PICOGK_INVALID_ARGUMENT');
+  assert.ok(error instanceof PicoError, `expected PicoError, got ${String(error)}`);
+  assert.equal(error.code, 'PICO_INVALID_ARGUMENT');
   if (pattern) assert.match(error.message, pattern);
 };
 
@@ -43,7 +43,7 @@ test('guard renders argument detail on every rewrap arm', () => {
 });
 
 test('session-death sweep: every wrapper kind no-ops its dispose after teardown, handles readable', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   const voxels = pk.createVoxels({ shape: 'sphere', radius: 3 });
   const wrappers = [
     voxels,
@@ -64,7 +64,7 @@ test('session-death sweep: every wrapper kind no-ops its dispose after teardown,
 });
 
 test('validation arms: fields getSlice, mesh triples/matrix/normal/radius, three position', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   const field = pk.createScalarField({ from: pk.createVoxels({ shape: 'sphere', radius: 4 }) });
   expectInvalid(() => field.getSlice({ index: -1 }), /out of range/);
 
@@ -84,7 +84,7 @@ test('validation arms: fields getSlice, mesh triples/matrix/normal/radius, three
 });
 
 test('voxels: finite-number arms, empty-shell error, slice z-validation, toScalarField', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   const sphere = pk.createVoxels({ shape: 'sphere', radius: 4 });
   expectInvalid(() => sphere.offset({ distance: Number.NaN }), /finite/);
   expectInvalid(() => sphere.doubleOffset({ first: 1, second: Number.POSITIVE_INFINITY }), /finite/);
@@ -97,7 +97,7 @@ test('voxels: finite-number arms, empty-shell error, slice z-validation, toScala
 });
 
 test('createVectorField({ from }) without value builds the gradient field', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   const sphere = pk.createVoxels({ shape: 'sphere', radius: 5 });
   const gradient = pk.createVectorField({ from: sphere });
   // The gradient of an SD field near the surface points radially: probe it.
@@ -107,7 +107,7 @@ test('createVectorField({ from }) without value builds the gradient field', asyn
 });
 
 test('vdb: default field name, index getters, unstamped/empty bytes for the handshake arms', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   const vdb = pk.createVdb();
   const index = vdb.add(pk.createVoxels({ shape: 'sphere', radius: 3 })); // default name ''
   assert.equal(index, 0);
@@ -145,7 +145,7 @@ test('vdb: default field name, index getters, unstamped/empty bytes for the hand
   raw.FS.unlink('/empty.vdb');
   assert.equal(pk.vdbVoxelSize(emptyBytes), 0);
   const error = grab(() => pk.voxelsFromVdb(emptyBytes));
-  assert.equal((error as PicoGkError).code, 'PICOGK_VDB_NO_COMPATIBLE_FIELD');
+  assert.equal((error as PicoError).code, 'PICO_VDB_NO_COMPATIBLE_FIELD');
   assert.match((error as Error).message, /No fields contained/);
 
   // First-field-type arms of the handshake: scalar-first and vector-first bytes.
@@ -174,7 +174,7 @@ test('gear: high tooth counts (root above base circle) and degenerate triangulat
 });
 
 test('stl: auto write rejected; every unit header parses back; unknown unit defaults to mm', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   const mesh = pk.createMesh({ vertices: [0, 0, 0, 10, 0, 0, 0, 10, 0], triangles: [0, 1, 2] });
   expectInvalid(() => mesh.toStl({ unit: 'auto' }), /auto/);
 
@@ -272,7 +272,7 @@ test('types: the SG15 sentinel helpers', () => {
 });
 
 test('stl: degenerate triangle writes a zero normal; solid-headed binary parses; headerless units default mm', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   // All three corners identical -> zero-area facet -> unnormalizable normal.
   const degenerate = pk.createMesh({ vertices: [1, 1, 1, 1, 1, 1, 1, 1, 1], triangles: [0, 1, 2] });
   const stl = degenerate.toStl();
@@ -295,7 +295,7 @@ test('stl: degenerate triangle writes a zero normal; solid-headed binary parses;
 });
 
 test('vdb: empty-container listing, index-keyed type mismatch, non-field wrapper refused', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   const vdb = pk.createVdb();
   const missing = grab(() => vdb.getVoxels('anything'));
   assert.match((missing as Error).message, /has: none/, 'empty container listing says none');
@@ -327,7 +327,7 @@ test('slicing: border-clipped blobs stitch one-sidedly and drop open fragments',
 });
 
 test('cli: absolute-XY stacks write signed dimensions; prose before GEOMETRYSTART tolerated', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   const negative = pk.createVoxels({ shape: 'sphere', center: [-30, -30, 0], radius: 4 });
   const stack = sliceVoxels(negative, { useAbsoluteXY: true });
   const text = new TextDecoder().decode(slicesToCliLocal(stack, { date: '2026-07-18' }));
@@ -371,7 +371,7 @@ test('cli: units validation, default date, empty geometry, header variants', () 
 });
 
 test('sliceVoxels with useAbsoluteXY shifts contours to world coordinates', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   const off = pk.createVoxels({ shape: 'sphere', center: [30, 0, 0], radius: 3 });
   const relative = sliceVoxels(off);
   const absolute = sliceVoxels(off, { useAbsoluteXY: true });
@@ -387,7 +387,7 @@ test('withSdfPointer rejects a non-function before touching the module (internal
   const { withSdfPointer } = await import('../src/context.ts');
   assert.throws(
     () => withSdfPointer(undefined as never, 42 as never, () => 0),
-    (error: unknown) => error instanceof PicoGkError && /must be a function/.test((error as Error).message),
+    (error: unknown) => error instanceof PicoError && /must be a function/.test((error as Error).message),
   );
 });
 
@@ -399,8 +399,8 @@ test('checkedMalloc: a failed wasm allocation throws the typed OOM error, not a 
   assert.throws(
     () => checkedMalloc(failing, 1024, 'a test buffer'),
     (error: unknown) =>
-      error instanceof PicoGkError &&
-      error.code === 'PICOGK_OUT_OF_MEMORY' &&
+      error instanceof PicoError &&
+      error.code === 'PICO_OUT_OF_MEMORY' &&
       /1024 bytes.*a test buffer/.test(error.message),
   );
   // A zero-byte request may legitimately return 0 without throwing.

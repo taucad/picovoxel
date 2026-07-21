@@ -1,7 +1,7 @@
 // Derived from LEAP71_ShapeKernel — ShapeKernel/Frames/LocalFrame.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picogk-js (blueprint R4); see NOTICE.
+// Ported to TypeScript for picovoxel (blueprint R4); see NOTICE.
 //
 // Per Finding 9 of the real-world-subjects blueprint there is ONE frame type:
 // a LocalFrame IS the numerics `Frame`. This module ports only the
@@ -12,7 +12,7 @@
 // caller-supplied skew X stays skew, exactly as C# behaves. Zero-length axes
 // throw, where Frame3d would silently safe-normalize.
 
-import { PicoGkError } from '../errors.ts';
+import { PicoError } from '../errors.ts';
 import { type Frame, frame } from '../numerics/frame.ts';
 import { vec3 } from '../numerics/vector.ts';
 import type { Vec3 } from '../types.ts';
@@ -20,7 +20,7 @@ import { vecOps } from './vecOperations.ts';
 
 function normalizedAxis(v: Vec3, name: string): Vec3 {
   if (vec3.lengthSquared(v) === 0) {
-    throw new PicoGkError('PICOGK_INVALID_ARGUMENT', `Local ${name} Coordinate has a length of Zero!`);
+    throw new PicoError('PICO_INVALID_ARGUMENT', `Local ${name} Coordinate has a length of Zero!`);
   }
   const length = vec3.length(v);
   return [v[0] / length, v[1] / length, v[2] / length];

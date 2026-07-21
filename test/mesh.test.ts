@@ -4,12 +4,12 @@
 
 import assert from 'node:assert/strict';
 import { afterAll, beforeAll, test } from 'vitest';
-import { createPicoGK, isEmptyBounds, PicoGkError, type PicoGK } from '../src/index.ts';
+import { createPico, isEmptyBounds, PicoError, type Pico } from '../src/index.ts';
 import { fnv1a } from './helpers.ts';
 
-let pk: PicoGK;
+let pk: Pico;
 beforeAll(async () => {
-  pk = await createPicoGK({ voxelSize: 0.5 });
+  pk = await createPico({ voxelSize: 0.5 });
 });
 afterAll(() => pk.dispose());
 
@@ -147,8 +147,8 @@ test('createMesh validation: out-of-range triangle index is refused in JS', () =
     pk.createMesh({ vertices: [0, 0, 0, 1, 0, 0, 0, 1, 0], triangles: [0, 1, 7] });
     assert.fail('bad index accepted');
   } catch (error) {
-    assert.ok(error instanceof PicoGkError);
-    assert.equal(error.code, 'PICOGK_INVALID_ARGUMENT');
+    assert.ok(error instanceof PicoError);
+    assert.equal(error.code, 'PICO_INVALID_ARGUMENT');
     assert.match(error.message, /vertex 7/);
   }
 });

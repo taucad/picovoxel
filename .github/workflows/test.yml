@@ -43,10 +43,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            build/picogk_core_module.o
-            build/picogk_bulk_module.o
+            build/pico_core_module.o
+            build/pico_bulk_module.o
             build/PicoGKLibraryCore.cpp
-          key: core-${{ runner.os }}-${{ hashFiles('scripts/fetch-deps.sh', 'scripts/make-core-tu.sh', 'scripts/build-picogk-module.sh', 'src/picogk-bulk.cpp', 'src/picogk-exports.txt') }}
+          key: core-${{ runner.os }}-${{ hashFiles('scripts/fetch-deps.sh', 'scripts/make-core-tu.sh', 'scripts/build-pico-module.sh', 'src/pico-bulk.cpp', 'src/pico-exports.txt') }}
 
       - name: Fetch pinned sources (and emsdk on cache miss)
         run: bash scripts/fetch-deps.sh
@@ -56,8 +56,8 @@ jobs:
         run: bash scripts/build-deps-wasm.sh
 
       # The link always runs — it keeps the exports list honest per commit.
-      - name: Build picogk module
-        run: bash scripts/build-picogk-module.sh
+      - name: Build pico module
+        run: bash scripts/build-pico-module.sh
 
       # Build BEFORE typecheck: examples/ import the built package by name
       # (self-reference), so their types resolve from dist/*.d.ts — that IS the
@@ -83,8 +83,8 @@ jobs:
         with:
           name: wasm-and-coverage
           path: |
-            src/picogk.mjs
-            src/picogk.wasm
+            src/pico.mjs
+            src/pico.wasm
             coverage/lcov.info
           if-no-files-found: warn
 
@@ -113,7 +113,7 @@ jobs:
       - run: bash scripts/fetch-deps.sh
       - if: steps.cache-prefix-mac.outputs.cache-hit != 'true'
         run: bash scripts/build-deps-wasm.sh
-      - run: bash scripts/build-picogk-module.sh
+      - run: bash scripts/build-pico-module.sh
       - run: npm run build
       - run: npm run typecheck
       - run: npm test

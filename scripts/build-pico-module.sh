@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Library module build — produces picogk.mjs + picogk.wasm (MODULARIZE/EXPORT_ES6),
+# Library module build — produces pico.mjs + pico.wasm (MODULARIZE/EXPORT_ES6),
 # the artifact `src/index.mjs` loads. Reconstructed 2026-07-18 from the build-harness
 # flag matrix + shipped-artifact forensics (256MB initial memory, 144 exported
 # functions, runtime-method set measured from src/*.mjs usage); this build was
-# previously ad hoc. The parity CLI harness lives in build-picogk-wasm.sh.
+# previously ad hoc. The parity CLI harness lives in build-pico-wasm.sh.
 #
 # Exceptions: -fwasm-exceptions (native wasm EH). JS EH (-fexceptions) routed every
 # potentially-throwing call in EH-aware frames through JS invoke_* trampolines; wasm
@@ -31,7 +31,7 @@ OUT_JS="${OUT_JS:-$HERE/src}"
 WASM_FLAGS="${WASM_FLAGS:--O3 -msimd128}"
 EH_FLAGS="${EH_FLAGS:--fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=1}"
 # THREADS=1 — pthread variant: links the -mt prefix (shared-memory ABI, built by
-# THREADS=1 build-deps-wasm.sh) into picogk-multi.mjs/.wasm. The pool is
+# THREADS=1 build-deps-wasm.sh) into pico-multi.mjs/.wasm. The pool is
 # pre-spawned at nproc: TBB workers park in it, and a pre-spawned pool is the
 # only shape that can't deadlock when the main thread blocks in a parallel_for
 # (spawn-on-demand needs the event loop, which a blocked main thread never
@@ -39,14 +39,14 @@ EH_FLAGS="${EH_FLAGS:--fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=1}"
 # import.meta.url, so the sibling-pair asset shape is unchanged.
 RUNTIME_METHODS=ccall,cwrap,UTF8ToString,stringToUTF8,lengthBytesUTF8,addFunction,removeFunction,FS,HEAPF32,HEAPF64,HEAP32,HEAPU32
 if [ "${THREADS:-0}" = "1" ]; then
-  MT="-mt"; VARIANT="picogk-multi"
+  MT="-mt"; VARIANT="pico-multi"
   WASM_FLAGS="$WASM_FLAGS -pthread"
   THREAD_LINK_FLAGS=(-sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency)
   # PThread exposes pool state: the multi entry's thread warmup is observable
   # (tests assert workers actually engaged — oneTBB serializes silently if not).
   RUNTIME_METHODS="$RUNTIME_METHODS,PThread"
 else
-  MT=""; VARIANT="picogk"
+  MT=""; VARIANT="pico"
   THREAD_LINK_FLAGS=()
 fi
 PREFIX="${PREFIX:-$OUT/wasm-prefix$MT}"
@@ -62,22 +62,22 @@ INCLUDES=(-I"$HERE/shim" -I"$PICOGK_RUNTIME/API" -I"$PICOGK_RUNTIME/Source" -I"$
 
 echo "=== compile core + bulk TUs ==="
 em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$OUT/PicoGKLibraryCore.cpp" \
-  -o "$OUT/picogk_core_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
-em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$HERE/src/picogk-bulk.cpp" \
-  -o "$OUT/picogk_bulk_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
-em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$HERE/src/picogk-tape.cpp" \
-  -o "$OUT/picogk_tape_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
+  -o "$OUT/pico_core_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
+em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$HERE/src/pico-bulk.cpp" \
+  -o "$OUT/pico_bulk_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
+em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$HERE/src/pico-tape.cpp" \
+  -o "$OUT/pico_tape_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
 
 echo "=== link -> $VARIANT.mjs ==="
 em++ -std=c++20 $WASM_FLAGS $EH_FLAGS \
-  "$OUT/picogk_core_module$MT.o" "$OUT/picogk_bulk_module$MT.o" "$OUT/picogk_tape_module$MT.o" \
+  "$OUT/pico_core_module$MT.o" "$OUT/pico_bulk_module$MT.o" "$OUT/pico_tape_module$MT.o" \
   "$PREFIX/lib/libopenvdb.a" "$PREFIX/lib/libtbb.a" \
   -o "$OUT_JS/$VARIANT.mjs" \
   ${THREAD_LINK_FLAGS[@]+"${THREAD_LINK_FLAGS[@]}"} \
-  -sMODULARIZE -sEXPORT_ES6=1 -sEXPORT_NAME=createPicoGKModule \
+  -sMODULARIZE -sEXPORT_ES6=1 -sEXPORT_NAME=createPicoModule \
   -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=256MB -sMAXIMUM_MEMORY=4GB \
   -sSTACK_SIZE=8388608 -sALLOW_TABLE_GROWTH=1 \
-  -sEXPORTED_FUNCTIONS=@"$HERE/src/picogk-exports.txt" \
+  -sEXPORTED_FUNCTIONS=@"$HERE/src/pico-exports.txt" \
   -sEXPORTED_RUNTIME_METHODS="$RUNTIME_METHODS"
 
 echo "$VARIANT.wasm: $(stat -f%z "$OUT_JS/$VARIANT.wasm") bytes; $VARIANT.mjs: $(stat -f%z "$OUT_JS/$VARIANT.mjs") bytes"

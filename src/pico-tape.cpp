@@ -57,10 +57,10 @@
 // min(sdf, existing) into a live grid (parallel eval, serial apply), and
 // Voxels_IntersectImplicitTape mirrors upstream IntersectImplicit's
 // fresh-render + csgIntersection dance. Like the bulk TU, this lives in
-// picogk-js so the vendored PicoGKRuntime tree stays pristine (R4/B21).
+// picovoxel so the vendored PicoGKRuntime tree stays pristine (R4/B21).
 
 // Include order is load-bearing and must match PicoGKLibrary.cpp — see
-// src/picogk-bulk.cpp for the PKVector3 aliasing trap. Do not let a formatter
+// src/pico-bulk.cpp for the PKVector3 aliasing trap. Do not let a formatter
 // sort these.
 #include "PicoGKTypes.h"
 #include "PicoGK.h"

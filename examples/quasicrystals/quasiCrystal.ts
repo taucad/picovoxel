@@ -6,9 +6,9 @@
 // The C# List.Contains dedup scan becomes a Set keyed on the rounded centre
 // (identical result — the -0/0 case is folded by the rounding helper).
 
-import type { PicoGK, Voxels } from 'picogk-js';
-import { PicoGkError } from 'picogk-js';
-import { frame } from 'picogk-js/numerics';
+import type { Pico, Voxels } from 'picovoxel';
+import { PicoError } from 'picovoxel';
+import { frame } from 'picovoxel/numerics';
 import type { IcosehedralFace } from './icosahedralFace.ts';
 import { type QuasiTile, QuasiTile_01, QuasiTile_04 } from './quasiTile.ts';
 import { inflatedFace } from './quasiTileInflation.ts';
@@ -25,7 +25,7 @@ export class QuasiCrystal {
   constructor(generations: number, initial: QuasiTile[] | IcosehedralFace) {
     if (!Number.isInteger(generations) || generations < 1) {
       // C# would crash indexing a zero-length generation array.
-      throw new PicoGkError('PICOGK_INVALID_ARGUMENT', `QuasiCrystal needs at least 1 generation, got ${generations}.`);
+      throw new PicoError('PICO_INVALID_ARGUMENT', `QuasiCrystal needs at least 1 generation, got ${generations}.`);
     }
     this.tileGenerations = [Array.isArray(initial) ? initial : inflatedFace(initial)];
 
@@ -52,7 +52,7 @@ export class QuasiCrystal {
    * Lattice wireframe of a generation at a constant beam radius, voxelized
    * (C# `voxGetWireframe`).
    */
-  voxGetWireframe(pk: PicoGK, generation: number, beamRadius: number): Voxels {
+  voxGetWireframe(pk: Pico, generation: number, beamRadius: number): Voxels {
     const tiles = this.tileGeneration(generation);
     const lattice = pk.createLattice();
     for (const tile of tiles) {

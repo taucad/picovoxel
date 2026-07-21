@@ -17,7 +17,7 @@ import {
   withSdfTape,
   type SessionContext,
 } from './context.ts';
-import { assertLive, guard, PicoGkError } from './errors.ts';
+import { assertLive, guard, PicoError } from './errors.ts';
 import { wrapScalarField, type ScalarField } from './fields.ts';
 import type { Lattice } from './lattice.ts';
 import { tagFieldClass, wrapMetadata, type Metadata } from './metadata.ts';
@@ -155,7 +155,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
 
   const requireFinite = (value: number, field: string, where: string): number => {
     if (!Number.isFinite(value)) {
-      throw new PicoGkError('PICOGK_INVALID_ARGUMENT', `${where} needs a finite ${field} in millimetres, got ${value}.`);
+      throw new PicoError('PICO_INVALID_ARGUMENT', `${where} needs a finite ${field} in millimetres, got ${value}.`);
     }
     return value;
   };
@@ -250,8 +250,8 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
         return result;
       }
       if (options.inner === undefined || options.outer === undefined) {
-        throw new PicoGkError(
-          'PICOGK_INVALID_ARGUMENT',
+        throw new PicoError(
+          'PICO_INVALID_ARGUMENT',
           'shell() takes { offset } or { inner, outer, smoothInner? } — both offsets are required in the two-offset form.',
         );
       }
@@ -313,7 +313,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
         );
       }
       // R9 — compose-into-existing tape path: min(sdf, existing) with upstream
-      // semantics, slab-parallel (src/picogk-tape.cpp ParallelTapeComposeGrid).
+      // semantics, slab-parallel (src/pico-tape.cpp ParallelTapeComposeGrid).
       return derive('Voxels_RenderImplicitTapeCompose', (copy) =>
         withSdfTape(ctx, sdf, (instrPtr, instrCount, constPtr, constCount) => {
           ctx.writeVec3(ctx.scratch, boundsMin);
@@ -330,7 +330,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
         );
       }
       // R9 — fresh parallel render over the active bounds + csg-intersect,
-      // mirroring upstream IntersectImplicit (src/picogk-tape.cpp).
+      // mirroring upstream IntersectImplicit (src/pico-tape.cpp).
       return derive('Voxels_IntersectImplicitTape', (copy) =>
         withSdfTape(ctx, sdf, (instrPtr, instrCount, constPtr, constCount) =>
           ctx.raw.Voxels_IntersectImplicitTape(ctx.lib, copy, instrPtr, instrCount, constPtr, constCount),
@@ -405,8 +405,8 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
 
       const at = interpolated ? (options as { z: number }).z : (options as { index: number }).index;
       if (!Number.isFinite(at) || at < 0 || at >= depth || (!interpolated && !Number.isInteger(at))) {
-        throw new PicoGkError(
-          'PICOGK_INVALID_ARGUMENT',
+        throw new PicoError(
+          'PICO_INVALID_ARGUMENT',
           `getSlice ${interpolated ? 'z' : 'index'} ${at} out of range [0, ${depth})${interpolated ? '' : ' (integer)'} on axis ${axis}.`,
         );
       }

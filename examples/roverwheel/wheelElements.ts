@@ -2,20 +2,20 @@
 // EgyptianStruts,RosettaStruts,SpiralStruts}.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picogk-js (blueprint R10); see NOTICE.
+// Ported to TypeScript for picovoxel (blueprint R10); see NOTICE.
 //
 // The C# abstract WheelElements class (three fields + one method) becomes a
 // function type; the C# static RoverWheel reads become the explicit ctx
 // parameter. Each element keeps the exact construction algorithm.
 
-import type { PicoGK, Vec3, Voxels } from 'picogk-js';
-import { vec3 } from 'picogk-js/numerics';
-import { BaseCylinder, localFrame, meshUtility, sh, splineOps, uf, vecOps } from 'picogk-js/shapekernel';
+import type { Pico, Vec3, Voxels } from 'picovoxel';
+import { vec3 } from 'picovoxel/numerics';
+import { BaseCylinder, localFrame, meshUtility, sh, splineOps, uf, vecOps } from 'picovoxel/shapekernel';
 import { WheelContext, type WheelLayer } from './wheelContext.ts';
 
 /** C# `WheelElements.voxConstruct` (session-first, context-explicit). */
 export type WheelElementsBuilder = (
-  pk: PicoGK,
+  pk: Pico,
   ctx: WheelContext,
   layer: WheelLayer,
   symmetry: number,
@@ -32,7 +32,7 @@ function overriddenSymmetry(symmetry: number, refInnerRadius: number, refOuterRa
 }
 
 /** Shared tail: union → flatten between the z planes → per-vertex map into wheel space. */
-function projectIntoWheel(pk: PicoGK, ctx: WheelContext, voxelList: Voxels[], zList: readonly number[]): Voxels {
+function projectIntoWheel(pk: Pico, ctx: WheelContext, voxelList: Voxels[], zList: readonly number[]): Voxels {
   const combined = voxelList[0]!
     .union(...voxelList.slice(1))
     .projectZSlice({ startZ: zList[0]!, endZ: zList[zList.length - 1]! });
@@ -120,7 +120,7 @@ export const tubeStruts: WheelElementsBuilder = (pk, ctx, layer, symmetry, wallT
 
 /** Shared driver of the three NURBS-strut elements: per-z, per-strut spline → lattice line. */
 function splineStruts(
-  pk: PicoGK,
+  pk: Pico,
   ctx: WheelContext,
   layer: WheelLayer,
   symmetry: number,

@@ -2,14 +2,14 @@
 // NOTE the C# modulation callbacks name their params (fTheta, fPhi) but
 // BaseSphere passes (phi, theta) — the swap is upstream's, ported verbatim.
 
-import type { PicoGK, Voxels } from 'picogk-js';
-import { BaseSphere, localFrame, SurfaceModulation } from 'picogk-js/shapekernel';
+import type { Pico, Voxels } from 'picovoxel';
+import { BaseSphere, localFrame, SurfaceModulation } from 'picovoxel/shapekernel';
 
 const sphereRadius0 = (_theta: number, phi: number): number => 40 - 10 * Math.cos(6 * phi);
 const sphereRadius1 = (theta: number, phi: number): number =>
   40 - 10 * Math.cos(6 * phi) + 30 * Math.cos(2 * theta);
 
-export function task(pk: PicoGK): Voxels[] {
+export function task(pk: Pico): Voxels[] {
   const results: Voxels[] = [];
   {
     // basic

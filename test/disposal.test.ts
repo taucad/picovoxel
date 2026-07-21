@@ -5,15 +5,15 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { createMemoryWarning, expectHandle } from '../src/context.ts';
-import { PicoGkError } from '../src/errors.ts';
-import { createPicoGK } from '../src/index.ts';
+import { PicoError } from '../src/errors.ts';
+import { createPico } from '../src/index.ts';
 import { createFakeRegistry, gcUntil } from './helpers.ts';
 
 const DISPOSE_SYMBOL = Symbol.for('Symbol.dispose');
 
 test('D5/D6 — every wrapper registers exactly once and aliases [Symbol.dispose] to dispose', async () => {
   const fake = createFakeRegistry();
-  const pk = await createPicoGK({ registry: fake });
+  const pk = await createPico({ registry: fake });
   assert.equal(fake.registered, 1, 'session itself must be registered');
 
   const sphere = pk.createVoxels({ shape: 'sphere', radius: 5 });
@@ -29,7 +29,7 @@ test('D5/D6 — every wrapper registers exactly once and aliases [Symbol.dispose
 
 test('D1 — held values carry only primitives + the free cwrap, never the wrapper', async () => {
   const fake = createFakeRegistry();
-  const pk = await createPicoGK({ registry: fake });
+  const pk = await createPico({ registry: fake });
   const sphere = pk.createVoxels({ shape: 'sphere', radius: 5 });
 
   const entry = fake.entries.get(sphere as object);
@@ -46,7 +46,7 @@ test('D1 — held values carry only primitives + the free cwrap, never the wrapp
 
 test('D2 — explicit dispose unregisters first; the GC path can never double-free', async () => {
   const fake = createFakeRegistry();
-  const pk = await createPicoGK({ registry: fake });
+  const pk = await createPico({ registry: fake });
   const sphere = pk.createVoxels({ shape: 'sphere', radius: 5 });
 
   assert.ok(fake.entries.has(sphere as object));
@@ -59,7 +59,7 @@ test('D2 — explicit dispose unregisters first; the GC path can never double-fr
 
 test('GC-callback path (driven by hand) frees the native handle', async () => {
   const fake = createFakeRegistry();
-  const pk = await createPicoGK({ registry: fake });
+  const pk = await createPico({ registry: fake });
   const sphere = pk.createVoxels({ shape: 'sphere', radius: 5 });
   assert.equal(pk.allocated.voxels, 1);
 
@@ -69,7 +69,7 @@ test('GC-callback path (driven by hand) frees the native handle', async () => {
 });
 
 test('D3 — dispose is idempotent on every wrapper type', async () => {
-  const pk = await createPicoGK();
+  const pk = await createPico();
   const sphere = pk.createVoxels({ shape: 'sphere', radius: 5 });
   const mesh = sphere.toMesh();
   for (const wrapper of [mesh, sphere]) {
@@ -87,20 +87,20 @@ test('D3 — dispose is idempotent on every wrapper type', async () => {
       return e;
     }
   })();
-  assert.ok(error instanceof PicoGkError && error.code === 'PICOGK_DISPOSED');
+  assert.ok(error instanceof PicoError && error.code === 'PICO_DISPOSED');
   pk.dispose();
   pk.dispose(); // session dispose idempotent too
 });
 
 test('D4 — session teardown wins: wrapper dispose after session death is a safe no-op', async () => {
-  const pk = await createPicoGK();
+  const pk = await createPico();
   const sphere = pk.createVoxels({ shape: 'sphere', radius: 5 });
   pk.dispose(); // destroys the instance and everything it owns
   assert.doesNotThrow(() => sphere.dispose(), 'late wrapper dispose must consult the dead flag, not the ABI');
 });
 
 test('real GC integration — dropped wrappers are reclaimed (counter oracle)', async () => {
-  const pk = await createPicoGK({ voxelSize: 1.5 });
+  const pk = await createPico({ voxelSize: 1.5 });
   const N = 20;
   const allocate = () => {
     for (let i = 0; i < N; i++) pk.createVoxels({ shape: 'sphere', radius: 3 });
@@ -147,7 +147,7 @@ test('memory warning is wired into the factories', async () => {
   console.warn = (message: string) => void warns.push(message);
   try {
     let t = 10_000;
-    const pk = await createPicoGK({ memoryWarningBytes: 1, now: () => (t += 2000) });
+    const pk = await createPico({ memoryWarningBytes: 1, now: () => (t += 2000) });
     pk.createVoxels({ shape: 'sphere', radius: 8 }); // pushes native mem over 1 byte
     pk.createVoxels({ shape: 'sphere', radius: 8 });
     assert.equal(warns.length, 1, 'factory calls must sample the warning exactly once past threshold');
@@ -157,7 +157,7 @@ test('memory warning is wired into the factories', async () => {
   }
 });
 
-test('expectHandle — SG14: null handles become PICOGK_ALLOC_FAILED', () => {
+test('expectHandle — SG14: null handles become PICO_ALLOC_FAILED', () => {
   assert.equal(expectHandle('X', 42n), 42n);
   const error = (() => {
     try {
@@ -167,7 +167,7 @@ test('expectHandle — SG14: null handles become PICOGK_ALLOC_FAILED', () => {
       return e;
     }
   })();
-  assert.ok(error instanceof PicoGkError);
-  assert.equal(error.code, 'PICOGK_ALLOC_FAILED');
+  assert.ok(error instanceof PicoError);
+  assert.equal(error.code, 'PICO_ALLOC_FAILED');
   assert.match(error.message, /Voxels_hCreate/);
 });

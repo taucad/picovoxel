@@ -2,11 +2,11 @@
 // C# default preset: ImplicitSchwarzDiamond. The mask runs through
 // maskedByImplicit's tape variant (R9) — the accelerated path.
 
-import type { PicoGK, Voxels } from 'picogk-js';
-import { ImplicitSchwarzDiamond } from 'picogk-js/latticelibrary';
-import { BaseBox, localFrame } from 'picogk-js/shapekernel';
+import type { Pico, Voxels } from 'picovoxel';
+import { ImplicitSchwarzDiamond } from 'picovoxel/latticelibrary';
+import { BaseBox, localFrame } from 'picovoxel/shapekernel';
 
-export function task(pk: PicoGK): Voxels[] {
+export function task(pk: Pico): Voxels[] {
   const voxBounding = new BaseBox(localFrame.identity, 50, 50, 50).voxConstruct(pk);
   const pattern = new ImplicitSchwarzDiamond(10, 0.5);
   const voxImplicit = voxBounding.maskedByImplicit({ sdf: pattern.expression });

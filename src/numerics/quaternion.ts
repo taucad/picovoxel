@@ -5,7 +5,7 @@
 // ShapeKernel's vecRotateAroundAxis). Algorithms mirror the .NET reference
 // implementations so differential goldens line up.
 
-import { PicoGkError } from '../errors.ts';
+import { PicoError } from '../errors.ts';
 import type { Mat4, Vec3 } from '../types.ts';
 import type { Rad } from './angles.ts';
 
@@ -34,7 +34,7 @@ export const quat = {
    */
   fromMat4(m: Mat4): Quat {
     if (m.length !== 16) {
-      throw new PicoGkError('PICOGK_INVALID_ARGUMENT', `rotation matrix needs 16 elements, got ${m.length}.`);
+      throw new PicoError('PICO_INVALID_ARGUMENT', `rotation matrix needs 16 elements, got ${m.length}.`);
     }
     const m11 = m[0]!, m12 = m[1]!, m13 = m[2]!;
     const m21 = m[4]!, m22 = m[5]!, m23 = m[6]!;

@@ -8,7 +8,7 @@
 
 import assert from 'node:assert/strict';
 import { afterAll, beforeAll, expect, test } from 'vitest';
-import { createPicoGK, type PicoGK } from '../src/index.ts';
+import { createPico, type Pico } from '../src/index.ts';
 import {
   BodyCentreLattice,
   BoundaryBeamThickness,
@@ -53,9 +53,9 @@ import {
 import { BaseBox, createRandom, type Implicit, localFrame, uf } from '../src/shapekernel.ts';
 import type { Vec3 } from '../src/types.ts';
 
-let pk: PicoGK;
+let pk: Pico;
 beforeAll(async () => {
-  pk = await createPicoGK({ voxelSize: 0.5 });
+  pk = await createPico({ voxelSize: 0.5 });
 });
 afterAll(() => pk.dispose());
 
@@ -270,7 +270,7 @@ test('BodyCentre with cell-based thickness: sub-sampling changes the taper', () 
 
 test('RandomSplineLattice: seeded determinism, growing passes, and the self-connection retry', () => {
   const constant = new ConstantBeamThickness(2);
-  const build = (passes?: number, seed = 7): ReturnType<PicoGK['createLattice']> => {
+  const build = (passes?: number, seed = 7): ReturnType<Pico['createLattice']> => {
     const lattice = pk.createLattice();
     const splines =
       passes === undefined

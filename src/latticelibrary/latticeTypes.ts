@@ -2,14 +2,14 @@
 // {BodyCentreLattice,OctahedronLattice,RandomSplineLattice}.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picogk-js (blueprint R13); see NOTICE.
+// Ported to TypeScript for picovoxel (blueprint R13); see NOTICE.
 //
 // The identical private `AddBeam` in the two C# 8-corner types is one shared
 // helper here. `RandomSplineLattice` swaps C#'s ambient `Uf` randomness for an
 // explicit RandomSource (no Math.random in library code; self-referential
 // seeded corpus, as the shapekernel port).
 
-import { PicoGkError } from '../errors.ts';
+import { PicoError } from '../errors.ts';
 import type { Lattice } from '../lattice.ts';
 import { vec3 } from '../numerics/vector.ts';
 import { splineOps } from '../shapekernel/splineOperations.ts';
@@ -49,7 +49,7 @@ function addSampledBeam(lattice: Lattice, pt1: Vec3, pt2: Vec3, beamThickness: B
 function requireEightCorners(cell: UnitCell, latticeName: string): readonly Vec3[] {
   const corners = cell.cornerPoints();
   if (corners.length !== 8) {
-    throw new PicoGkError('PICOGK_INVALID_ARGUMENT', `${latticeName} only supports Unit Cells with 8 Corners.`);
+    throw new PicoError('PICO_INVALID_ARGUMENT', `${latticeName} only supports Unit Cells with 8 Corners.`);
   }
   return corners;
 }

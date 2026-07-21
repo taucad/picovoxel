@@ -7,7 +7,7 @@
 
 import assert from 'node:assert/strict';
 import { afterAll, beforeAll, expect, test } from 'vitest';
-import { createPicoGK, type PicoGK } from '../src/index.ts';
+import { createPico, type Pico } from '../src/index.ts';
 import {
   ImplicitGenus,
   ImplicitGyroid,
@@ -24,9 +24,9 @@ import {
 import { slicesFromCli } from '../src/slicing.ts';
 import type { Vec3 } from '../src/types.ts';
 
-let pk: PicoGK;
+let pk: Pico;
 beforeAll(async () => {
-  pk = await createPicoGK({ voxelSize: 0.5 });
+  pk = await createPico({ voxelSize: 0.5 });
 });
 afterAll(() => pk.dispose());
 

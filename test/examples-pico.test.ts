@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, beforeAll, test } from 'vitest';
-import type { PicoGK } from '../src/index.ts';
+import type { Pico } from '../src/index.ts';
 
 const distEntry = join(import.meta.dirname, '..', 'dist', 'index.js');
 assert.ok(
@@ -17,13 +17,13 @@ assert.ok(
 );
 
 // Import AFTER the dist guard so staleness reports as the guard message.
-const { booleanShowcase } = await import('../examples/picogk/boolean-showcase.ts');
-const { helloWorld } = await import('../examples/picogk/hello-world.ts');
-const { createPicoGK } = await import('picogk-js');
+const { booleanShowcase } = await import('../examples/pico/boolean-showcase.ts');
+const { helloWorld } = await import('../examples/pico/hello-world.ts');
+const { createPico } = await import('picovoxel');
 
-let pk: PicoGK;
+let pk: Pico;
 beforeAll(async () => {
-  pk = await createPicoGK({ voxelSize: 0.5 });
+  pk = await createPico({ voxelSize: 0.5 });
 });
 afterAll(() => pk.dispose());
 

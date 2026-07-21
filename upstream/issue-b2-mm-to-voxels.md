@@ -19,5 +19,5 @@ A secondary note: the `(int)(v + 0.5f)` rounding truncates toward zero, which
 mis-rounds negative coordinates (−3.0 becomes −2); `MathF.Round` would round to
 the nearest index on both sides of the origin.
 
-Found while porting to TypeScript (picogk-js); our `mmToVoxel` binds
+Found while porting to TypeScript (picovoxel); our `mmToVoxel` binds
 `Library_MmToVoxels` and pins negative-coordinate round-trips in tests.

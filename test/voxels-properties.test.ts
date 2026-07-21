@@ -3,11 +3,11 @@
 
 import assert from 'node:assert/strict';
 import { afterAll, beforeAll, test } from 'vitest';
-import { createPicoGK, type PicoGK } from '../src/index.ts';
+import { createPico, type Pico } from '../src/index.ts';
 
-let pk: PicoGK;
+let pk: Pico;
 beforeAll(async () => {
-  pk = await createPicoGK({ voxelSize: 0.4 });
+  pk = await createPico({ voxelSize: 0.4 });
 });
 afterAll(() => pk.dispose());
 

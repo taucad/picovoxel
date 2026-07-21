@@ -5,9 +5,9 @@
 // the (oversized) inlet patch. The preview-only pieces — voxGetSegmentCut and
 // every Sh.Preview* call — are viewer-bound and dropped for the headless port.
 
-import type { PicoGK, Voxels } from 'picogk-js';
-import { vec3 } from 'picogk-js/numerics';
-import { BaseCylinder, ImplicitGyroid, localFrame, SurfaceModulation, uf } from 'picogk-js/shapekernel';
+import type { Pico, Voxels } from 'picovoxel';
+import { vec3 } from 'picovoxel/numerics';
+import { BaseCylinder, ImplicitGyroid, localFrame, SurfaceModulation, uf } from 'picovoxel/shapekernel';
 
 /** C# `Uf.fLimitValue` (obsolete upstream, not on the ported `uf` surface). */
 const limit01 = (value: number): number => Math.min(1, Math.max(0, value));
@@ -41,7 +41,7 @@ export interface FlowDeviceDomains {
 }
 
 /** The geometric input data for the simulation (C# `SimpleFlowDevice` ctor). */
-export function createSimpleFlowDevice(pk: PicoGK): FlowDeviceDomains {
+export function createSimpleFlowDevice(pk: Pico): FlowDeviceDomains {
   // fluid domain: inner pipe
   const pipeLength = 150;
   const pipeFrame = localFrame.create([0, 0, 0]);

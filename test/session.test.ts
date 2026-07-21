@@ -3,7 +3,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import { createPicoGK, PicoGkError } from '../src/index.ts';
+import { createPico, PicoError } from '../src/index.ts';
 
 function grab(fn: () => unknown, what = 'call'): unknown {
   try {
@@ -15,7 +15,7 @@ function grab(fn: () => unknown, what = 'call'): unknown {
 }
 
 test('factory info: name/version/buildInfo/voxelSize', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.7 });
+  const pk = await createPico({ voxelSize: 0.7 });
   assert.equal(pk.voxelSize, 0.7);
   assert.match(pk.name, /^PicoGK Core Library/);
   assert.match(pk.version, /^\d+\.\d+\.\d+$/);
@@ -24,7 +24,7 @@ test('factory info: name/version/buildInfo/voxelSize', async () => {
 });
 
 test('B2 — mmToVoxel binds the REAL export and inverts voxelToMm', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
 
   // Under the upstream bug (Library.cs:276 calls _VoxelsToMm), 10mm would map to
   // 5 "voxels" (× voxelSize) instead of 20 (÷ voxelSize). Pin the correct scaling.
@@ -39,7 +39,7 @@ test('B2 — mmToVoxel binds the REAL export and inverts voxelToMm', async () =>
 });
 
 test('memory map: nine camelCase keys, total grows with an allocation', async () => {
-  const pk = await createPicoGK();
+  const pk = await createPico();
   const before = pk.memory;
   assert.deepEqual(
     Object.keys(before).sort(),
@@ -54,7 +54,7 @@ test('memory map: nine camelCase keys, total grows with an allocation', async ()
 });
 
 test('allocated map: eight camelCase keys, tracks creations', async () => {
-  const pk = await createPicoGK();
+  const pk = await createPico();
   assert.deepEqual(
     Object.keys(pk.allocated).sort(),
     ['lattices', 'meshes', 'metadata', 'polyLines', 'scalarFields', 'vdbFiles', 'vectorFields', 'voxels'],
@@ -70,24 +70,24 @@ test('allocated map: eight camelCase keys, tracks creations', async () => {
 test('factory validation: voxelSize must be positive and finite', async () => {
   for (const bad of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
     await assert.rejects(
-      () => createPicoGK({ voxelSize: bad }),
-      (e: unknown) => e instanceof PicoGkError && e.code === 'PICOGK_INVALID_ARGUMENT',
+      () => createPico({ voxelSize: bad }),
+      (e: unknown) => e instanceof PicoError && e.code === 'PICO_INVALID_ARGUMENT',
       `voxelSize ${bad} must be rejected`,
     );
   }
 });
 
-test('wasm init failure path: invalid binary surfaces as PICOGK_WASM_INIT_FAILED', async () => {
+test('wasm init failure path: invalid binary surfaces as PICO_WASM_INIT_FAILED', async () => {
   await assert.rejects(
-    () => createPicoGK({ wasm: { wasmBinary: new Uint8Array([1, 2, 3, 4]) } }),
-    (e: unknown) => e instanceof PicoGkError && e.code === 'PICOGK_WASM_INIT_FAILED' && /instantiate/.test(e.message),
+    () => createPico({ wasm: { wasmBinary: new Uint8Array([1, 2, 3, 4]) } }),
+    (e: unknown) => e instanceof PicoError && e.code === 'PICO_WASM_INIT_FAILED' && /instantiate/.test(e.message),
   );
 });
 
 test('session methods refuse a disposed session', async () => {
-  const pk = await createPicoGK();
+  const pk = await createPico();
   pk.dispose();
   const error = grab(() => pk.createVoxels({ shape: 'empty' }), 'factory on a disposed session');
-  assert.ok(error instanceof PicoGkError);
-  assert.equal(error.code, 'PICOGK_DISPOSED');
+  assert.ok(error instanceof PicoError);
+  assert.equal(error.code, 'PICO_DISPOSED');
 });

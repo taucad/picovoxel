@@ -1,7 +1,7 @@
 // Derived from LEAP71_ShapeKernel — ShapeKernel/BaseShapes/BaseSphere.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picogk-js (blueprint R5); see NOTICE.
+// Ported to TypeScript for picovoxel (blueprint R5); see NOTICE.
 //
 // Upstream quirks ported verbatim: the tessellation's inner loop starts at
 // step 0 (its first band reaches one step BELOW ratio 0), and the radius
@@ -9,7 +9,7 @@
 
 import type { Mesh } from '../mesh.ts';
 import type { Frame } from '../numerics/frame.ts';
-import type { PicoGK } from '../session.ts';
+import type { Pico } from '../session.ts';
 import type { Vec3 } from '../types.ts';
 import type { Voxels } from '../voxels.ts';
 import { BaseShape, MeshBuilder, type MeshBaseShape, type SurfaceBaseShape } from './baseShape.ts';
@@ -41,11 +41,11 @@ export class BaseSphere extends BaseShape implements MeshBaseShape, SurfaceBaseS
     this.polarSteps = steps;
   }
 
-  voxConstruct(pk: PicoGK): Voxels {
+  voxConstruct(pk: Pico): Voxels {
     return this.mshConstruct(pk).toVoxels();
   }
 
-  mshConstruct(pk: PicoGK): Mesh {
+  mshConstruct(pk: Pico): Mesh {
     const builder = new MeshBuilder();
     const radiusRatio = 1;
     for (let thetaStep = 1; thetaStep < this.azimuthalSteps; thetaStep += 1) {

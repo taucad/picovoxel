@@ -3,10 +3,10 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import { createPicoGK, PicoGkError } from '../src/index.ts';
+import { createPico, PicoError } from '../src/index.ts';
 
 test('empty shape: isEmpty true, zero volume, SG2 oracle available', async () => {
-  const pk = await createPicoGK();
+  const pk = await createPico();
   const empty = pk.createVoxels({ shape: 'empty' });
   assert.equal(empty.isEmpty, true);
   assert.equal(empty.volume, 0);
@@ -14,7 +14,7 @@ test('empty shape: isEmpty true, zero volume, SG2 oracle available', async () =>
 });
 
 test('sphere: analytic volume within marching tolerance', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.4 });
+  const pk = await createPico({ voxelSize: 0.4 });
   const sphere = pk.createVoxels({ shape: 'sphere', center: [3, -2, 1], radius: 10 });
   const analytic = (4 / 3) * Math.PI * 1000;
   assert.ok(Math.abs(sphere.volume - analytic) / analytic < 0.02, `${sphere.volume} vs ${analytic}`);
@@ -23,7 +23,7 @@ test('sphere: analytic volume within marching tolerance', async () => {
 });
 
 test('beam ≙ raw capsule primitive; capsule alias identical; tapered radii differ', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.4 });
+  const pk = await createPico({ voxelSize: 0.4 });
   const beam = pk.createVoxels({ shape: 'beam', start: [-10, 0, 0], end: [10, 0, 0], radius: 4 });
 
   // Analytic: cylinder + two hemispheres.
@@ -42,7 +42,7 @@ test('beam ≙ raw capsule primitive; capsule alias identical; tapered radii dif
 });
 
 test('implicit: JS SDF sphere ≙ native primitive within 2%', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   const implicit = pk.createVoxels({
     shape: 'implicit',
     boundsMin: [-12, -12, -12],
@@ -56,7 +56,7 @@ test('implicit: JS SDF sphere ≙ native primitive within 2%', async () => {
 });
 
 test('shape validation errors are typed and name the problem', async () => {
-  const pk = await createPicoGK();
+  const pk = await createPico();
   const cases: Array<[object, RegExp]> = [
     [{ shape: 'sphere', radius: 0 }, /positive radius/],
     [{ shape: 'beam', start: [0, 0, 0], end: [1, 0, 0] }, /radius/],
@@ -68,8 +68,8 @@ test('shape validation errors are typed and name the problem', async () => {
       pk.createVoxels(options as never);
       assert.fail(`createVoxels(${JSON.stringify(options)}) did not throw`);
     } catch (error) {
-      assert.ok(error instanceof PicoGkError, `got ${String(error)}`);
-      assert.equal(error.code, 'PICOGK_INVALID_ARGUMENT');
+      assert.ok(error instanceof PicoError, `got ${String(error)}`);
+      assert.equal(error.code, 'PICO_INVALID_ARGUMENT');
       assert.match(error.message, pattern);
     }
   }

@@ -1,4 +1,4 @@
-// picogk-js/slicing — manufacturing output (subpaths doc, Part 1).
+// picovoxel/slicing — manufacturing output (subpaths doc, Part 1).
 //
 // Ported from upstream Types/Slice.cs (marching squares + the partially-sorted
 // greedy segment stitcher + winding detection, PolySlice.oFromSdf:293) and
@@ -6,7 +6,7 @@
 // compatibility oracle). Everything here is pure TypeScript driven by
 // voxels.getSlice()/dimensions() — zero native touchpoints and zero dependencies.
 
-import { PicoGkError } from './errors.ts';
+import { PicoError } from './errors.ts';
 import type { Voxels } from './voxels.ts';
 
 export type ContourWinding = 'ccw' | 'cw' | 'unknown';
@@ -289,7 +289,7 @@ export function sliceVoxels(voxels: Voxels, options: SliceVoxelsOptions = {}): S
 
   const layerHeight = options.layerHeight ?? voxelSize;
   if (!(layerHeight > 0)) {
-    throw new PicoGkError('PICOGK_INVALID_ARGUMENT', `layerHeight must be positive millimetres, got ${layerHeight}.`);
+    throw new PicoError('PICO_INVALID_ARGUMENT', `layerHeight must be positive millimetres, got ${layerHeight}.`);
   }
   const zStep = layerHeight / voxelSize;
 
@@ -316,7 +316,7 @@ export function sliceVoxels(voxels: Voxels, options: SliceVoxelsOptions = {}): S
   }
 
   if (slices.length === 0) {
-    throw new PicoGkError('PICOGK_INVALID_ARGUMENT', 'Voxel field is empty — nothing to slice.');
+    throw new PicoError('PICO_INVALID_ARGUMENT', 'Voxel field is empty — nothing to slice.');
   }
   while (slices.length > 0 && slices[slices.length - 1]!.contours.length === 0) slices.pop();
   onProgress?.(1);
@@ -444,10 +444,10 @@ function formatDimension(value: number): string {
 export function slicesToCli(stack: SliceStack, options: ToCliOptions = {}): Uint8Array {
   const { units = 1, emptyFirstLayer = false, onProgress } = options;
   if (stack.slices.length < 1) {
-    throw new PicoGkError('PICOGK_INVALID_ARGUMENT', 'No valid slices detected (empty stack).');
+    throw new PicoError('PICO_INVALID_ARGUMENT', 'No valid slices detected (empty stack).');
   }
   if (!(units > 0)) {
-    throw new PicoGkError('PICOGK_INVALID_ARGUMENT', `units must be positive mm per CLI unit, got ${units}.`);
+    throw new PicoError('PICO_INVALID_ARGUMENT', `units must be positive mm per CLI unit, got ${units}.`);
   }
   const date = options.date ?? new Date().toISOString().slice(0, 10);
 
@@ -508,7 +508,7 @@ export function slicesFromCli(bytes: Uint8Array, options: { onProgress?: (fracti
   let label = -1;
 
   const fail = (message: string): never => {
-    throw new PicoGkError('PICOGK_INVALID_ARGUMENT', `CLI parse: ${message}`);
+    throw new PicoError('PICO_INVALID_ARGUMENT', `CLI parse: ${message}`);
   };
 
   // Parameter extraction exactly as upstream bExtractParameter (Cli.cs:747-768).

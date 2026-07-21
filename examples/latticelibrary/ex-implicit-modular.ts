@@ -3,17 +3,17 @@
 // FullWallLogic × ConstantBeamThickness(0.5). ImplicitModular composes
 // arbitrary callbacks → serial callback mask path.
 
-import type { PicoGK, Voxels } from 'picogk-js';
+import type { Pico, Voxels } from 'picovoxel';
 import {
   ConstantBeamThickness,
   FullWallLogic,
   ImplicitModular,
   RawTransitionTpmsPattern,
   ScaleTrafo,
-} from 'picogk-js/latticelibrary';
-import { BasePipe, localFrame } from 'picogk-js/shapekernel';
+} from 'picovoxel/latticelibrary';
+import { BasePipe, localFrame } from 'picovoxel/shapekernel';
 
-export function task(pk: PicoGK): Voxels[] {
+export function task(pk: Pico): Voxels[] {
   const voxBounding = new BasePipe(localFrame.identity, 50, 20, 50).voxConstruct(pk);
   const pattern = new ImplicitModular(
     new RawTransitionTpmsPattern(),

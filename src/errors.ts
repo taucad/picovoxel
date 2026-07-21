@@ -9,25 +9,25 @@
 // So this layer exists for legibility, not survival: an opaque WebAssembly.Exception
 // tells a caller nothing. One higher-order wrapper beats 140 C++ try/catch blocks.
 
-export type PicoGkErrorCode =
-  | 'PICOGK_INVALID_HANDLE'
-  | 'PICOGK_WASM_INIT_FAILED'
-  | 'PICOGK_OUT_OF_MEMORY'
-  | 'PICOGK_DISPOSED'
-  | 'PICOGK_CALL_FAILED'
-  | 'PICOGK_INVALID_ARGUMENT'
-  | 'PICOGK_SESSION_MISMATCH'
-  | 'PICOGK_ALLOC_FAILED'
-  | 'PICOGK_RESERVED_METADATA'
-  | 'PICOGK_VDB_NO_COMPATIBLE_FIELD'
-  | 'PICOGK_NOT_IMPLEMENTED';
+export type PicoErrorCode =
+  | 'PICO_INVALID_HANDLE'
+  | 'PICO_WASM_INIT_FAILED'
+  | 'PICO_OUT_OF_MEMORY'
+  | 'PICO_DISPOSED'
+  | 'PICO_CALL_FAILED'
+  | 'PICO_INVALID_ARGUMENT'
+  | 'PICO_SESSION_MISMATCH'
+  | 'PICO_ALLOC_FAILED'
+  | 'PICO_RESERVED_METADATA'
+  | 'PICO_VDB_NO_COMPATIBLE_FIELD'
+  | 'PICO_NOT_IMPLEMENTED';
 
-export class PicoGkError extends Error {
-  code: PicoGkErrorCode;
+export class PicoError extends Error {
+  code: PicoErrorCode;
 
-  constructor(code: PicoGkErrorCode, message: string, options?: ErrorOptions) {
+  constructor(code: PicoErrorCode, message: string, options?: ErrorOptions) {
     super(message, options);
-    this.name = 'PicoGkError';
+    this.name = 'PicoError';
     this.code = code;
   }
 }
@@ -50,8 +50,8 @@ export function guard<A extends unknown[], R>(
       // it accordingly rather than emit a generic failure the caller cannot act on.
       const detail = describe(...args);
       if (cause instanceof WebAssembly.Exception) {
-        throw new PicoGkError(
-          'PICOGK_INVALID_HANDLE',
+        throw new PicoError(
+          'PICO_INVALID_HANDLE',
           `${operation} was called with a handle PicoGK does not know${detail ? ` (${detail})` : ''}. ` +
             'The handle was never created, belongs to another Library instance, or has already been disposed. ' +
             'PicoGK handles are never reused, so this is always a real lifetime bug — check for use after dispose().',
@@ -59,16 +59,16 @@ export function guard<A extends unknown[], R>(
         );
       }
       if (cause instanceof WebAssembly.RuntimeError) {
-        throw new PicoGkError(
-          'PICOGK_OUT_OF_MEMORY',
+        throw new PicoError(
+          'PICO_OUT_OF_MEMORY',
           `${operation} aborted inside WebAssembly${detail ? ` (${detail})` : ''}. ` +
             'The usual cause on wasm32 is exhausting the 4GB linear-memory ceiling with voxel grids — ' +
             'raise voxelSize, shrink the bounds, or dispose intermediate Voxels sooner.',
           { cause },
         );
       }
-      if (cause instanceof PicoGkError) throw cause;
-      throw new PicoGkError('PICOGK_CALL_FAILED', `${operation} failed${detail ? ` (${detail})` : ''}.`, { cause });
+      if (cause instanceof PicoError) throw cause;
+      throw new PicoError('PICO_CALL_FAILED', `${operation} failed${detail ? ` (${detail})` : ''}.`, { cause });
     }
   };
 }
@@ -76,8 +76,8 @@ export function guard<A extends unknown[], R>(
 /** Throws a typed, actionable error when a disposed wrapper is used. */
 export function assertLive(disposed: boolean, kind: string): void {
   if (disposed) {
-    throw new PicoGkError(
-      'PICOGK_DISPOSED',
+    throw new PicoError(
+      'PICO_DISPOSED',
       `This ${kind} has already been disposed. Handles are not reusable after dispose(); ` +
         `create a new ${kind} — in ordinary use you never need to dispose at all.`,
     );
@@ -86,5 +86,5 @@ export function assertLive(disposed: boolean, kind: string): void {
 
 /** R3 placeholder thrown by subpath stubs until their phases land. */
 export function notImplemented(what: string): never {
-  throw new PicoGkError('PICOGK_NOT_IMPLEMENTED', `${what} is not implemented yet — it lands in a later charter phase.`);
+  throw new PicoError('PICO_NOT_IMPLEMENTED', `${what} is not implemented yet — it lands in a later charter phase.`);
 }

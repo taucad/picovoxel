@@ -5,7 +5,7 @@
 // typed fields and probes the fluid domain on the C# 2 mm grid. The path-based
 // Sh export plumbing, Library.Log and Preview* calls are dropped.
 
-import type { PicoGK, Vec3, Voxels } from 'picogk-js';
+import type { Pico, Vec3, Voxels } from 'picovoxel';
 import { createSimpleFlowDevice } from './simpleFlowDevice.ts';
 import { readSimpleFluidSimulationInput, type SimulationInput } from './simpleFluidSimulationInput.ts';
 import { createSimpleFluidSimulationOutput } from './simpleFluidSimulationOutput.ts';
@@ -19,7 +19,7 @@ export interface WriteTaskResult {
 }
 
 /** C# `SimulationSetup.WriteTask`. */
-export function writeTask(pk: PicoGK): WriteTaskResult {
+export function writeTask(pk: Pico): WriteTaskResult {
   // physical inputs
   const fluidDensity = 1000; // kg/m3
   const fluidViscosity = 0.00000897; // m2/s
@@ -56,7 +56,7 @@ export interface ReadTaskResult {
 }
 
 /** C# `SimulationSetup.ReadTask` — typed read-back plus the 2 mm probe grid. */
-export function readTask(pk: PicoGK, bytes: Uint8Array): ReadTaskResult {
+export function readTask(pk: Pico, bytes: Uint8Array): ReadTaskResult {
   const input = readSimpleFluidSimulationInput(pk, bytes);
 
   // get bounding box and probe fluid domain values (C# fStep = 2f)

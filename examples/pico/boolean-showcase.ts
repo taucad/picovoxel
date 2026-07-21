@@ -4,15 +4,16 @@
 // package by name (Node self-reference through the exports map), so running
 // this doubles as the packaging gate: `npm run build` first.
 
-import type { PicoGK } from 'picogk-js';
+import type { Mesh, Pico } from 'picovoxel';
 
 export interface BooleanShowcaseResult {
+  mesh: Mesh;
   volume: number;
   triangleCount: number;
   stlBytes: Uint8Array;
 }
 
-export function booleanShowcase(pk: PicoGK): BooleanShowcaseResult {
+export function booleanShowcase(pk: Pico): BooleanShowcaseResult {
   const sphere = (x: number) => pk.createVoxels({ shape: 'sphere', center: [x, 0, 0], radius: 20 });
 
   // --- Boolean Add: two overlapping spheres ---
@@ -28,6 +29,7 @@ export function booleanShowcase(pk: PicoGK): BooleanShowcaseResult {
   const all = union.union(subtract, intersect);
   const mesh = all.toMesh();
   return {
+    mesh,
     volume: all.properties().volume,
     triangleCount: mesh.triangleCount,
     stlBytes: mesh.toStl(),

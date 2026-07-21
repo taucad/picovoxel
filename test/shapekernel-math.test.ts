@@ -7,7 +7,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import { PicoGkError } from '../src/errors.ts';
+import { PicoError } from '../src/errors.ts';
 import { frame } from '../src/numerics/frame.ts';
 import { vec3 } from '../src/numerics/vector.ts';
 import {
@@ -21,11 +21,11 @@ import {
   uf,
   vecOps,
 } from '../src/shapekernel.ts';
-import { createPicoGK } from '../src/index.ts';
+import { createPico } from '../src/index.ts';
 import type { Vec3 } from '../src/types.ts';
 
 const invalidArg = (error: unknown): boolean =>
-  error instanceof PicoGkError && error.code === 'PICOGK_INVALID_ARGUMENT';
+  error instanceof PicoError && error.code === 'PICO_INVALID_ARGUMENT';
 
 function close(actual: number, expected: number, eps = 1e-12): void {
   assert.ok(Math.abs(actual - expected) <= eps, `expected ${actual} ≈ ${expected} (±${eps})`);
@@ -315,7 +315,7 @@ test('splineOps: frame transforms round-trip; averages, closest points, clusteri
 });
 
 test('splineOps.snappedSpline: points land on the surface; empty targets give zeros', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   try {
     const sphere = pk.createVoxels({ shape: 'sphere', radius: 10 });
     const snapped = splineOps.snappedSpline([[20, 0, 0], [0, 30, 0]], sphere);

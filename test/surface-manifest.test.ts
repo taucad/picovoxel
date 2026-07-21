@@ -5,17 +5,17 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import * as picogkModule from '../src/index.ts';
-import { createPicoGK } from '../src/index.ts';
+import * as picoModule from '../src/index.ts';
+import { createPico } from '../src/index.ts';
 import manifest from './surface-manifest.json' with { type: 'json' };
 
 test('every wrapper key set matches the checked-in manifest exactly', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   const voxels = pk.createVoxels({ shape: 'sphere', radius: 3 });
   const keys = (value: object) => Object.keys(value).sort();
 
   const live: Record<string, string[]> = {
-    module: keys(picogkModule),
+    module: keys(picoModule),
     session: keys(pk),
     voxels: keys(voxels),
     mesh: keys(voxels.toMesh()),

@@ -20,5 +20,5 @@ Expected:
 A = new Vector3(A.X * vecScale.X, A.Y * vecScale.Y, A.Z * vecScale.Z); // same for B, C
 ```
 
-Found while porting the library surface to TypeScript (picogk-js); our port
+Found while porting the library surface to TypeScript (picovoxel); our port
 implements component-wise scaling and pins it with a hand-computed test.

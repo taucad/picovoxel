@@ -16,8 +16,8 @@ import { cpus, loadavg, platform, release, totalmem } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { createPicoGK as createSingle } from '../src/index.ts';
-import { createPicoGK as createMulti } from '../src/multi.ts';
+import { createPico as createSingle } from '../src/index.ts';
+import { createPico as createMulti } from '../src/multi.ts';
 import { task } from '../examples/helixheatx/run.ts';
 
 const HERE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -52,7 +52,7 @@ const fnv1a = (typedArray) => {
 };
 
 const git = (...args) => execFileSync('git', args, { cwd: HERE, encoding: 'utf8' }).trim();
-const wasmBytes = readFileSync(join(HERE, 'src/picogk.wasm'));
+const wasmBytes = readFileSync(join(HERE, 'src/pico.wasm'));
 const fingerprint = {
   cpu: cpus()[0]?.model ?? 'unknown',
   cores: cpus().length,

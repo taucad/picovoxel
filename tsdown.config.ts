@@ -1,9 +1,9 @@
 import { defineConfig } from 'tsdown';
 
 // ESM-only build (L12): one entry per subpath, .d.ts alongside. The Emscripten glue
-// and wasm are COPIED assets, never bundled — the glue locates picogk.wasm via
+// and wasm are COPIED assets, never bundled — the glue locates pico.wasm via
 // import.meta.url, which bundling breaks. All entry chunks land at dist/ root, so
-// the './picogk.mjs' specifier keeps resolving after the copy.
+// the './pico.mjs' specifier keeps resolving after the copy.
 export default defineConfig({
   entry: {
     index: 'src/index.ts',
@@ -22,11 +22,11 @@ export default defineConfig({
   platform: 'neutral',
   dts: true,
   exports: false,
-  deps: { neverBundle: [/picogk(-multi)?\.mjs$/, 'three'] },
+  deps: { neverBundle: [/pico(-multi)?\.mjs$/, 'three'] },
   copy: [
-    { from: 'src/picogk.mjs', to: 'dist' },
-    { from: 'src/picogk.wasm', to: 'dist' },
-    { from: 'src/picogk-multi.mjs', to: 'dist' },
-    { from: 'src/picogk-multi.wasm', to: 'dist' },
+    { from: 'src/pico.mjs', to: 'dist' },
+    { from: 'src/pico.wasm', to: 'dist' },
+    { from: 'src/pico-multi.mjs', to: 'dist' },
+    { from: 'src/pico-multi.wasm', to: 'dist' },
   ],
 });

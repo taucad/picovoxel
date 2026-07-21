@@ -5,16 +5,16 @@
 // helpers (`vecPtWorld` and friends) live in frame.ts — in TS they are the
 // frame functions themselves, not extension-method sugar.
 
-import { PicoGkError } from '../errors.ts';
+import { PicoError } from '../errors.ts';
 import type { Mat4, Vec3 } from '../types.ts';
 import { scalar, tolerances } from './comparison.ts';
 
 /** A 2D vector as an immutable tuple (System.Numerics `Vector2` analog). */
 export type Vec2 = readonly [number, number];
 
-function zeroLength(kind: string): PicoGkError {
-  return new PicoGkError(
-    'PICOGK_INVALID_ARGUMENT',
+function zeroLength(kind: string): PicoError {
+  return new PicoError(
+    'PICO_INVALID_ARGUMENT',
     `Cannot normalize a zero-length ${kind}. Use safeNormalized() if a zero result is acceptable.`,
   );
 }
@@ -115,7 +115,7 @@ export const vec3 = {
    */
   transformed(v: Vec3, m: Mat4): Vec3 {
     if (m.length !== 16) {
-      throw new PicoGkError('PICOGK_INVALID_ARGUMENT', `transform matrix needs 16 elements, got ${m.length}.`);
+      throw new PicoError('PICO_INVALID_ARGUMENT', `transform matrix needs 16 elements, got ${m.length}.`);
     }
     const [x, y, z] = v;
     return [

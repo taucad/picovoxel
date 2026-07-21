@@ -2,17 +2,17 @@
 // src/raw.mjs shim). Same conveniences (scratch buffers, vec marshalling, bulk
 // read/write), but every call goes through raw.generated.ts bindings.
 
-import { loadPicoGkRaw } from '../src/raw.ts';
-import type { PicoGkRaw } from '../src/raw.generated.ts';
-import type { PicoGkWasmModule } from '../src/types.ts';
+import { loadPicoRaw } from '../src/raw.ts';
+import type { PicoRaw } from '../src/raw.generated.ts';
+import type { PicoWasmModule } from '../src/types.ts';
 
 const PKINFOSTRINGLEN = 255;
 const VEC3_BYTES = 12;
 const TRI_BYTES = 12;
 
 export interface RawHarness {
-  module: PicoGkWasmModule;
-  raw: PicoGkRaw;
+  module: PicoWasmModule;
+  raw: PicoRaw;
   name(): string;
   version(): string;
   buildInfo(): string;
@@ -45,7 +45,7 @@ const COUNTERS = ['Voxels', 'Meshes', 'Lattices', 'PolyLines', 'ScalarFields', '
 
 /** Loads the wasm module and returns the generated bindings plus test conveniences. */
 export async function loadRawHarness(options: object = {}): Promise<RawHarness> {
-  const { module, raw } = await loadPicoGkRaw(options);
+  const { module, raw } = await loadPicoRaw(options);
   const { _malloc, _free, UTF8ToString } = module;
 
   // Scratch buffers for pointer-taking calls. One allocation per shape, reused.

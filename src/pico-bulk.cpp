@@ -9,7 +9,7 @@
 // 12-byte #pragma pack(1) types identical in layout to PKVector3/PKTriangle. So two
 // exports turn 522k crossings into 2.
 //
-// This lives in picogk-js rather than as a patch to PicoGKRuntime, keeping the
+// This lives in picovoxel rather than as a patch to PicoGKRuntime, keeping the
 // vendored tree pristine (see R4). It is a separate translation unit that links
 // alongside the generated core TU. Signature follows the existing caller-supplied
 // buffer precedent, Voxels_GetZSlice (PicoGK.h:341).

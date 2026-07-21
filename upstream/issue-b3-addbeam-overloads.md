@@ -13,5 +13,5 @@ based on argument types, so transposing a point and a radius compiles and
 produces a subtly wrong lattice instead of an error.
 
 Suggestion: deprecate one form (or introduce a single parameter-object/named-
-argument style call). Found while porting to TypeScript (picogk-js), where the
+argument style call). Found while porting to TypeScript (picovoxel), where the
 port exposes a single options-object signature.

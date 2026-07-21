@@ -3,9 +3,9 @@
 // though the file is IcosahedralFace.cs — the typo'd class name is kept for
 // traceability against upstream. The viewer-bound Preview method is dropped.
 
-import type { Vec3 } from 'picogk-js';
-import { type Frame, frame, vec3 } from 'picogk-js/numerics';
-import { vecOps } from 'picogk-js/shapekernel';
+import type { Vec3 } from 'picovoxel';
+import { type Frame, frame, vec3 } from 'picovoxel/numerics';
+import { vecOps } from 'picovoxel/shapekernel';
 
 export type Connector = 'arrow' | 'triangle' | 'line';
 export type FaceDef = 'centre' | 'shortAxis' | 'longAxis';

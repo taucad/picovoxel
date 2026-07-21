@@ -8,7 +8,7 @@
 
 import assert from 'node:assert/strict';
 import { afterAll, beforeAll, test } from 'vitest';
-import { createPicoGK, type PicoGK } from '../src/index.ts';
+import { createPico, type Pico } from '../src/index.ts';
 import { vec3 } from '../src/numerics/vector.ts';
 import {
   BaseBox,
@@ -30,9 +30,9 @@ import {
 } from '../src/shapekernel.ts';
 import type { Vec3 } from '../src/types.ts';
 
-let pk: PicoGK;
+let pk: Pico;
 beforeAll(async () => {
-  pk = await createPicoGK({ voxelSize: 0.5 });
+  pk = await createPico({ voxelSize: 0.5 });
 });
 afterAll(() => pk.dispose());
 

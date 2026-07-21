@@ -6,7 +6,7 @@
 // (mshCreateTransformed scales each triangle corner by a DIFFERENT axis component).
 
 import { adoptHandle, assertSameSession, checkedMalloc, expectHandle, TRI_BYTES, VEC3_BYTES, type SessionContext } from './context.ts';
-import { assertLive, guard, PicoGkError } from './errors.ts';
+import { assertLive, guard, PicoError } from './errors.ts';
 import { createGlb } from './glb.ts';
 import { meshToStlBytes, type ToStlOptions } from './stl.ts';
 import type { Bounds, Mat4, Vec3 } from './types.ts';
@@ -55,16 +55,16 @@ export function bulkCreateMesh(ctx: SessionContext, vertices: ArrayLike<number>,
   const vertexCount = vertices.length / 3;
   const triangleCount = triangles.length / 3;
   if (!Number.isInteger(vertexCount) || !Number.isInteger(triangleCount)) {
-    throw new PicoGkError(
-      'PICOGK_INVALID_ARGUMENT',
+    throw new PicoError(
+      'PICO_INVALID_ARGUMENT',
       `createMesh needs xyz/index triples: got ${vertices.length} vertex floats, ${triangles.length} indices.`,
     );
   }
   for (let i = 0; i < triangles.length; i++) {
     const index = triangles[i]!;
     if (!(index >= 0 && index < vertexCount) || !Number.isInteger(index)) {
-      throw new PicoGkError(
-        'PICOGK_INVALID_ARGUMENT',
+      throw new PicoError(
+        'PICO_INVALID_ARGUMENT',
         `Triangle corner ${i} references vertex ${index}, outside [0, ${vertexCount}). ` +
           'The native side does not range-check in release builds — this would corrupt geometry silently.',
       );
@@ -156,7 +156,7 @@ export function wrapMesh(ctx: SessionContext, handle: bigint): Mesh {
       if ('matrix' in options) {
         const m = options.matrix;
         if (m.length !== 16) {
-          throw new PicoGkError('PICOGK_INVALID_ARGUMENT', `transform matrix needs 16 elements, got ${m.length}.`);
+          throw new PicoError('PICO_INVALID_ARGUMENT', `transform matrix needs 16 elements, got ${m.length}.`);
         }
         return deriveVertices((x, y, z, out, at) => {
           out[at] = x * (m[0] as number) + y * (m[4] as number) + z * (m[8] as number) + (m[12] as number);
@@ -177,7 +177,7 @@ export function wrapMesh(ctx: SessionContext, handle: bigint): Mesh {
     mirror({ point, normal }: { point: Vec3; normal: Vec3 }): Mesh {
       const length = Math.hypot(normal[0], normal[1], normal[2]);
       if (!(length > 0)) {
-        throw new PicoGkError('PICOGK_INVALID_ARGUMENT', 'mirror needs a non-zero plane normal.');
+        throw new PicoError('PICO_INVALID_ARGUMENT', 'mirror needs a non-zero plane normal.');
       }
       const [nx, ny, nz] = [normal[0] / length, normal[1] / length, normal[2] / length];
       // Winding is preserved as upstream does (mshCreateMirrored keeps corner order),
@@ -210,7 +210,7 @@ export function wrapMesh(ctx: SessionContext, handle: bigint): Mesh {
     },
     shellVoxels({ radius }: { radius: number }): Voxels {
       if (!(radius > 0)) {
-        throw new PicoGkError('PICOGK_INVALID_ARGUMENT', `shellVoxels needs a positive radius in millimetres, got ${radius}.`);
+        throw new PicoError('PICO_INVALID_ARGUMENT', `shellVoxels needs a positive radius in millimetres, got ${radius}.`);
       }
       return wrapVoxels(
         ctx,

@@ -8,7 +8,7 @@
 // discipline, no tolerances. The single↔multi bit-identity differential lives
 // in multi.test.ts next to the other cross-variant proofs.
 import { expect, test } from 'vitest';
-import { createPicoGK, PicoGkError, type SdfExpression } from '../src/index.ts';
+import { createPico, PicoError, type SdfExpression } from '../src/index.ts';
 import { compileSdfExpression } from '../src/tape.ts';
 
 // ── encoding ──
@@ -51,12 +51,12 @@ test("variadic '+' left-folds; '-' is unary or binary", () => {
 
 // ── compiler error paths ──
 
-const compileError = (expression: unknown): PicoGkError => {
+const compileError = (expression: unknown): PicoError => {
   try {
     compileSdfExpression(expression as SdfExpression);
   } catch (error) {
-    expect(error).toBeInstanceOf(PicoGkError);
-    return error as PicoGkError;
+    expect(error).toBeInstanceOf(PicoError);
+    return error as PicoError;
   }
   throw new Error('expected compileSdfExpression to throw');
 };
@@ -99,7 +99,7 @@ export const gyroidFunction = (x: number, y: number, z: number): number =>
   ) - 0.4;
 
 test('tape gyroid is exactly the JS-callback gyroid: volume, counts, STL bytes', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   try {
     const bounds = { boundsMin: [-12, -12, -12] as const, boundsMax: [12, 12, 12] as const };
     const fromTape = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: gyroidExpression });
@@ -132,7 +132,7 @@ test('an all-operator expression matches its JS twin exactly', async () => {
         Math.floor(y / 4) * Math.exp(-Math.log(Math.abs(z) + 1)),
       ),
     );
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   try {
     const bounds = { boundsMin: [-8, -8, -8] as const, boundsMax: [8, 8, 8] as const };
     const fromTape = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: expression });
@@ -150,7 +150,7 @@ test('a z-independent expression matches its JS twin exactly (TP7a: result regis
   // per-voxel level list is EMPTY — the value must still reach every voxel.
   const expression: SdfExpression = ['-', ['sqrt', ['+', ['pow', 'x', 2], ['pow', 'y', 2]]], 8];
   const twin = (x: number, y: number, _z: number): number => Math.sqrt(x ** 2 + y ** 2) - 8;
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   try {
     const bounds = { boundsMin: [-12, -12, -6] as const, boundsMax: [12, 12, 6] as const };
     const fromTape = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: expression });
@@ -163,7 +163,7 @@ test('a z-independent expression matches its JS twin exactly (TP7a: result regis
 });
 
 test('a constant-free expression renders (empty constant pool marshals)', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   try {
     // x+y+z = 0 plane through the box — no constants anywhere in the tape.
     const plane = pk.createVoxels({
@@ -187,7 +187,7 @@ test('a constant-free expression renders (empty constant pool marshals)', async 
 // voxels, same values, same csg behaviour.
 
 test('pruned interior keeps its sign through csg: tape sphere ∩ inner sphere ≡ callback sphere ∩ inner sphere', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   try {
     const bounds = { boundsMin: [-12, -12, -12] as const, boundsMax: [12, 12, 12] as const };
     const sphereExpression: SdfExpression = [
@@ -233,7 +233,7 @@ test('a min-fold sphere lattice matches its JS twin exactly (decided branches sh
   // left fold (no NaNs here, and x−x is always +0, so no -0 ties either).
   const twin = (x: number, y: number, z: number): number =>
     Math.min(...centers.map(([cx, cy, cz]) => Math.sqrt((x - cx) ** 2 + (y - cy) ** 2 + (z - cz) ** 2) - 3));
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   try {
     const bounds = { boundsMin: [-10, -10, -10] as const, boundsMax: [10, 10, 10] as const };
     const fromTape = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: expression });
@@ -251,7 +251,7 @@ test('a NaN-producing domain is never pruned: sqrt(x)-1 matches its JS twin', as
   // For x < 0 the SDF is NaN, which upstream stores as ACTIVE voxels — the
   // interval evaluator must flag the possibility and refuse to classify those
   // blocks, falling back to the dense loop.
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   try {
     const bounds = { boundsMin: [-6, -6, -6] as const, boundsMax: [6, 6, 6] as const };
     const fromTape = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: ['-', ['sqrt', 'x'], 1] });
@@ -277,7 +277,7 @@ test('a NaN-producing domain is never pruned: sqrt(x)-1 matches its JS twin', as
 // same reason it is documented "approximate after booleans".
 
 test('withImplicit(expression) composes into NON-empty voxels exactly like the callback', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   try {
     const bounds = { boundsMin: [-12, -12, -12] as const, boundsMax: [12, 12, 12] as const };
     const base = pk.createVoxels({ shape: 'sphere', center: [10, 0, 0], radius: 6 });
@@ -297,7 +297,7 @@ test('withImplicit(expression) composes into NON-empty voxels exactly like the c
 });
 
 test('withImplicit(expression) on EMPTY voxels equals the fresh-grid tape fill', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   try {
     const bounds = { boundsMin: [-12, -12, -12] as const, boundsMax: [12, 12, 12] as const };
     const composed = pk.createVoxels({ shape: 'empty' }).withImplicit({ ...bounds, sdf: gyroidExpression });
@@ -311,7 +311,7 @@ test('withImplicit(expression) on EMPTY voxels equals the fresh-grid tape fill',
 });
 
 test('compose writes solid-interior tiles that csg ops read correctly', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   try {
     // A big implicit sphere composed into a small off-center seed: deep inside
     // the big sphere the pruned compose writes -background tiles; intersecting
@@ -334,7 +334,7 @@ test('compose writes solid-interior tiles that csg ops read correctly', async ()
 });
 
 test('maskedByImplicit(expression) is exactly the callback gyroid-in-sphere', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   try {
     const sphere = pk.createVoxels({ shape: 'sphere', radius: 10 });
     const fromTape = sphere.maskedByImplicit({ sdf: gyroidExpression });
@@ -355,7 +355,7 @@ test('maskedByImplicit(expression) is exactly the callback gyroid-in-sphere', as
 });
 
 test('maskedByImplicit(expression) on empty voxels stays empty', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   try {
     const empty = pk.createVoxels({ shape: 'empty' });
     expect(empty.maskedByImplicit({ sdf: gyroidExpression }).isEmpty).toBe(true);
@@ -365,7 +365,7 @@ test('maskedByImplicit(expression) on empty voxels stays empty', async () => {
 });
 
 test('a malformed expression on the compose paths neither renders nor leaks', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   try {
     const sphere = pk.createVoxels({ shape: 'sphere', radius: 4 });
     const before = pk.allocated.voxels;
@@ -375,8 +375,8 @@ test('a malformed expression on the compose paths neither renders nor leaks', as
         boundsMax: [4, 4, 4],
         sdf: ['spin', 'x'] as never,
       }),
-    ).toThrow(PicoGkError);
-    expect(() => sphere.maskedByImplicit({ sdf: ['spin', 'x'] as never })).toThrow(PicoGkError);
+    ).toThrow(PicoError);
+    expect(() => sphere.maskedByImplicit({ sdf: ['spin', 'x'] as never })).toThrow(PicoError);
     expect(pk.allocated.voxels).toBe(before);
   } finally {
     pk.dispose();
@@ -384,7 +384,7 @@ test('a malformed expression on the compose paths neither renders nor leaks', as
 });
 
 test('a malformed expression neither renders nor leaks the target voxels', async () => {
-  const pk = await createPicoGK({ voxelSize: 0.5 });
+  const pk = await createPico({ voxelSize: 0.5 });
   try {
     const before = pk.allocated.voxels;
     expect(() =>
@@ -394,7 +394,7 @@ test('a malformed expression neither renders nor leaks the target voxels', async
         boundsMax: [4, 4, 4],
         sdf: ['spin', 'x'] as never,
       }),
-    ).toThrow(PicoGkError);
+    ).toThrow(PicoError);
     expect(pk.allocated.voxels).toBe(before);
   } finally {
     pk.dispose();

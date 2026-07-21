@@ -3,7 +3,7 @@
 // A JS SDF callback is pinned to the main thread (addFunction entries exist only
 // in the registering thread's wasm table), which forces upstream's serial fill.
 // A serialized expression crosses the boundary once as data and is evaluated
-// in-module on every thread by src/picogk-tape.cpp. This file owns the JS half
+// in-module on every thread by src/pico-tape.cpp. This file owns the JS half
 // of that contract: the op list, encoding, and validation are mirrored in the
 // C++ TU — instruction i is two u32 words [op, a | (b << 16)], its result
 // register is i itself (SSA, dst implicit), operands must reference earlier
@@ -19,7 +19,7 @@
 // JSON-serializability is deliberate: expressions can cross workers, be stored,
 // or be generated — none of which a closure can do.
 
-import { PicoGkError } from './errors.ts';
+import { PicoError } from './errors.ts';
 
 /** A serializable SDF: a constant, a coordinate, or an operation node. */
 export type SdfExpression = number | 'x' | 'y' | 'z' | readonly [SdfOperator, ...SdfExpression[]];
@@ -41,7 +41,7 @@ export type SdfOperator =
   | 'min'
   | 'max'; // 2+ operands, left-folded
 
-/** Opcode values shared with src/picogk-tape.cpp — never renumber. */
+/** Opcode values shared with src/pico-tape.cpp — never renumber. */
 const OP = {
   const: 0, x: 1, y: 2, z: 3,
   add: 4, sub: 5, mul: 6, div: 7,
@@ -66,15 +66,15 @@ export interface SdfTape {
   constants: Float64Array;
 }
 
-function invalid(detail: string): PicoGkError {
-  return new PicoGkError(
-    'PICOGK_INVALID_ARGUMENT',
+function invalid(detail: string): PicoError {
+  return new PicoError(
+    'PICO_INVALID_ARGUMENT',
     `Invalid SDF expression: ${detail}. An SdfExpression is a number, 'x' | 'y' | 'z', ` +
       `or ['op', ...operands] — see the SdfExpression type for the operator list.`,
   );
 }
 
-/** Compiles an expression tree to the flat tape src/picogk-tape.cpp evaluates. */
+/** Compiles an expression tree to the flat tape src/pico-tape.cpp evaluates. */
 export function compileSdfExpression(expression: SdfExpression): SdfTape {
   const words: number[] = [];
   const constants: number[] = [];

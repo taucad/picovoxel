@@ -1,7 +1,7 @@
 // Derived from LEAP71_RoverWheel — RoverWheel/Wheels/RandomWheel.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picogk-js (blueprint R10); see NOTICE.
+// Ported to TypeScript for picovoxel (blueprint R10); see NOTICE.
 //
 // C# draws from an ambient `Random`; here every draw comes from ONE explicit
 // mulberry32 stream seeded per wheel (`createRandom(seed)`), in the exact C#
@@ -9,8 +9,8 @@
 // port's sequence, it does not match any C# Random sequence. Screenshot /
 // viewer / Wait calls are dropped (headless).
 
-import type { PicoGK, Voxels } from 'picogk-js';
-import { ControlPointSpline, createRandom, type RandomSource, uf } from 'picogk-js/shapekernel';
+import type { Pico, Voxels } from 'picovoxel';
+import { ControlPointSpline, createRandom, type RandomSource, uf } from 'picovoxel/shapekernel';
 import { treadPattern01, treadPattern02, treadPattern03 } from './treadPatterns.ts';
 import { WheelContext, type WheelLayer } from './wheelContext.ts';
 import {
@@ -36,7 +36,7 @@ function randomUpperHeightPoints(refWidth: number, rng: RandomSource) {
 }
 
 /** Random tread: random pattern, profile vs. solid layer (C# `voxGetRandomTread` + `xGetRandomTreadPattern`). */
-function randomTread(pk: PicoGK, ctx: WheelContext, rng: RandomSource): Voxels {
+function randomTread(pk: Pico, ctx: WheelContext, rng: RandomSource): Voxels {
   const patternIndex = Math.min(2, Math.trunc(uf.randomLinear(0, 3, rng)));
   const pattern = [treadPattern01, treadPattern02, treadPattern03][patternIndex]!;
   const tread = new WheelTread(ctx.outerRadiusFrames, pattern);
@@ -50,7 +50,7 @@ function randomTread(pk: PicoGK, ctx: WheelContext, rng: RandomSource): Voxels {
 }
 
 /** Random elements for a layer (C# `oGetRandomWheelElements`, same draw order and index mapping). */
-function randomElements(pk: PicoGK, ctx: WheelContext, layer: WheelLayer, rng: RandomSource): Voxels {
+function randomElements(pk: Pico, ctx: WheelContext, layer: WheelLayer, rng: RandomSource): Voxels {
   const symmetry = Math.trunc(uf.randomLinear(8, 30, rng));
   const wallThickness = uf.randomLinear(1, 3, rng);
   const elementIndex = Math.min(4, Math.trunc(uf.randomLinear(0, 5, rng)));
@@ -62,7 +62,7 @@ function randomElements(pk: PicoGK, ctx: WheelContext, layer: WheelLayer, rng: R
  * A randomized rover wheel: random key dimensions, contour, layers and
  * elements (C# `RandomWheel` ctor + `voxConstruct`).
  */
-export function randomWheel(pk: PicoGK, seed: number): Voxels {
+export function randomWheel(pk: Pico, seed: number): Voxels {
   const rng = createRandom(seed);
 
   // C# ctor: dimensions first, then the contour draws.

@@ -2,11 +2,11 @@
 
 import assert from 'node:assert/strict';
 import { afterAll, beforeAll, test } from 'vitest';
-import { createPicoGK, PicoGkError, type PicoGK } from '../src/index.ts';
+import { createPico, PicoError, type Pico } from '../src/index.ts';
 
-let pk: PicoGK;
+let pk: Pico;
 beforeAll(async () => {
-  pk = await createPicoGK({ voxelSize: 0.5 });
+  pk = await createPico({ voxelSize: 0.5 });
 });
 afterAll(() => pk.dispose());
 
@@ -61,8 +61,8 @@ test('lattice validation: radius required through one options signature (B3)', (
       bad();
       assert.fail('invalid lattice input accepted');
     } catch (error) {
-      assert.ok(error instanceof PicoGkError);
-      assert.equal(error.code, 'PICOGK_INVALID_ARGUMENT');
+      assert.ok(error instanceof PicoError);
+      assert.equal(error.code, 'PICO_INVALID_ARGUMENT');
     }
   }
 });

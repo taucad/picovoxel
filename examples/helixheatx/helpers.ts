@@ -1,12 +1,12 @@
 // Derived from LEAP71_HelixHeatX — src/{ScrewHole,ThreadCutter,ThreadReinforcement}.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picogk-js (blueprint R11); see NOTICE.
+// Ported to TypeScript for picovoxel (blueprint R11); see NOTICE.
 // The three standalone construction modules the heat exchanger composes.
 
-import type { PicoGK, Vec3, Voxels } from 'picogk-js';
-import { frame, type Frame, BaseCylinder, BasePipe, SurfaceModulation, vecOps } from 'picogk-js/shapekernel';
-import { vec3 } from 'picogk-js/numerics';
+import type { Pico, Vec3, Voxels } from 'picovoxel';
+import { frame, type Frame, BaseCylinder, BasePipe, SurfaceModulation, vecOps } from 'picovoxel/shapekernel';
+import { vec3 } from 'picovoxel/numerics';
 
 /** Dummy screw shape cut out where screws land after printing (C# `ScrewHole`). */
 export class ScrewHole {
@@ -24,7 +24,7 @@ export class ScrewHole {
     this.headRadius = headRadius;
   }
 
-  voxConstruct(pk: PicoGK): Voxels {
+  voxConstruct(pk: Pico): Voxels {
     const lattice = pk.createLattice();
     const dir = this.frame.lz;
     const pt1 = this.frame.pos;
@@ -54,7 +54,7 @@ export class ThreadCutter {
     this.maxRadius = maxRadius;
   }
 
-  voxConstruct(pk: PicoGK): Voxels {
+  voxConstruct(pk: Pico): Voxels {
     const voxCore = new BaseCylinder(this.frame, this.length, this.coreRadius).voxConstruct(pk);
     const voxBounding = new BaseCylinder(this.frame, this.length, this.maxRadius).voxConstruct(pk);
     const turns = this.length / this.slope;
@@ -85,7 +85,7 @@ export class ThreadReinforcement {
     this.outerRadius = outerRadius;
   }
 
-  voxConstruct(pk: PicoGK): Voxels {
+  voxConstruct(pk: Pico): Voxels {
     const pipe = new BasePipe(this.frame, this.length);
     pipe.setRadius(
       new SurfaceModulation(() => this.innerRadius),

@@ -1,7 +1,7 @@
 // Manual A/B harness for TP6 (MPR-style interval pruning in the tape fill).
 //
 // Usage: node bench/tape-prune-ab.mjs <moduleDir> <label>
-//   moduleDir holds a picogk.mjs/.wasm + picogk-multi.mjs/.wasm pair — src/
+//   moduleDir holds a pico.mjs/.wasm + pico-multi.mjs/.wasm pair — src/
 //   for the current build, a preserved pre-change copy for the baseline.
 //
 // Ratios are only meaningful for back-to-back runs under the same machine
@@ -13,7 +13,7 @@
 import { loadavg } from 'node:os';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { createPicoGKSession } from '../src/session.ts';
+import { createPicoSession } from '../src/session.ts';
 
 const moduleDir = resolve(process.argv[2] ?? 'src');
 const label = process.argv[3] ?? moduleDir;
@@ -57,8 +57,8 @@ const FIXTURES = [
 
 const glue = async (file) => (await import(pathToFileURL(resolve(moduleDir, file)).href)).default;
 const VARIANTS = [
-  { name: 'single', file: 'picogk.mjs' },
-  { name: 'multi', file: 'picogk-multi.mjs' },
+  { name: 'single', file: 'pico.mjs' },
+  { name: 'multi', file: 'pico-multi.mjs' },
 ];
 
 console.log(`# tape-prune A/B — ${label}`);
@@ -67,10 +67,10 @@ for (const variant of VARIANTS) {
   const factory = await glue(variant.file);
   console.log(`\n## ${variant.name}  (loadavg ${loadavg().map((v) => v.toFixed(2)).join(' ')})`);
   for (const fixture of FIXTURES) {
-    const pk = await createPicoGKSession(factory, { voxelSize: fixture.voxelSize });
+    const pk = await createPicoSession(factory, { voxelSize: fixture.voxelSize });
     try {
       if (variant.name === 'multi') {
-        // Mirror src/multi.ts createPicoGK: oneTBB launches workers on the
+        // Mirror src/multi.ts createPico: oneTBB launches workers on the
         // first parallel region and completes the handshake only while the
         // main thread is off the wasm stack — without this, TBB serializes
         // silently and multi measures identical to single.

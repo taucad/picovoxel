@@ -3,7 +3,7 @@
 // HelixHeatX.Task) does. Returns the final part plus the authoring-time split
 // the benchmark protocol reports (Finding 8 promotion trigger).
 
-import type { PicoGK, Voxels } from 'picogk-js';
+import type { Pico, Voxels } from 'picovoxel';
 import { HelixHeatX } from './helixHeatX.ts';
 
 export interface HeatXResult {
@@ -12,7 +12,7 @@ export interface HeatXResult {
   authorMs: number;
 }
 
-export function task(pk: PicoGK): HeatXResult {
+export function task(pk: Pico): HeatXResult {
   const heatX = new HelixHeatX(pk);
   const voxels = heatX.voxConstruct();
   return { voxels, authorMs: heatX.authorMs };
