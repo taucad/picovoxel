@@ -1,6 +1,7 @@
 // Static server for the demo with COOP/COEP headers — the multi (pthreads)
 // variant needs crossOriginIsolated, which plain `python3 -m http.server`
-// can't provide. Serves the repo root: http://localhost:8918/demo/
+// can't provide. Serves the repo root and demo model routes:
+// http://localhost:8918/demo/gyroid-implicit-sdf
 //
 //   node demo/serve.mjs          # or PORT=xxxx node demo/serve.mjs
 import { readFile } from 'node:fs/promises';
@@ -23,6 +24,7 @@ const types = {
 createServer(async (request, response) => {
   try {
     let path = normalize(decodeURIComponent(new URL(request.url, 'http://localhost').pathname));
+    if (/^\/demo\/[a-z0-9-]+$/.test(path)) path = '/demo/index.html';
     if (path.endsWith(sep) || path.endsWith('/')) path = join(path, 'index.html');
     const file = join(root, path);
     if (!file.startsWith(root)) throw new Error('path escapes root');

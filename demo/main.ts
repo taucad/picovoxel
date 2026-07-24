@@ -51,6 +51,7 @@ import * as llRegular from '../examples/latticelibrary/ex-implicit-regular.ts';
 import * as llRegularLattice from '../examples/latticelibrary/ex-lattice-regular.ts';
 import type { CreatePicoOptions, Mesh, Pico, Voxels } from '../src/index.ts';
 import { meshFromBufferGeometry, toBufferGeometry } from '../src/three.ts';
+import { clampVoxelSize, modelRoute } from './routing.ts';
 
 const byId = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 const controls = byId<HTMLFieldSetElement>('controls');
@@ -93,6 +94,8 @@ interface DemoEntry extends Partial<VoxelRange> {
 }
 
 const DEFAULT_RANGE: VoxelRange = { min: 0.05, max: 1, step: 0.05 };
+const DEFAULT_MODEL = modelRoute('gyroid (implicit SDF)');
+const ROUTE_BASE = new URL('../', import.meta.url).pathname.replace(/\/$/, '');
 // Reusable slider bounds keyed to what each family can afford.
 const RANGE = {
   shape: { min: 0.5, max: 2, step: 0.1 }, // large mesh shapes (±50 mm spans)
@@ -198,23 +201,23 @@ const GROUPS: Record<string, Record<string, DemoEntry>> = {
   },
 };
 
-// Flatten to a lookup and generate the grouped <option> list.
+// Flatten to a kebab-case route lookup and generate the grouped <option> list.
 const entries = new Map<string, DemoEntry>();
 modelSelect.replaceChildren();
 for (const [groupName, group] of Object.entries(GROUPS)) {
   const optgroup = document.createElement('optgroup');
   optgroup.label = groupName;
   for (const [label, entry] of Object.entries(group)) {
-    const key = `${groupName}/${label}`;
-    entries.set(key, entry);
+    const route = modelRoute(label);
+    if (entries.has(route)) throw new Error(`Duplicate demo route: ${route}`);
+    entries.set(route, entry);
     const option = document.createElement('option');
-    option.value = key;
+    option.value = route;
     option.textContent = label;
     optgroup.append(option);
   }
   modelSelect.append(optgroup);
 }
-modelSelect.value = 'pico core/gyroid (implicit SDF)';
 
 // ── three scene ──
 const scene = new Scene();
@@ -281,13 +284,12 @@ function resolveDisplay(display: Displayable): { mesh: Mesh; note: string } {
 
 }
 
-// Seed the slider + number field to an example's bounds and default when it's
-// selected; the user then drives the size freely within that range.
-function applyVoxelConfig(entry: DemoEntry): void {
+// Apply a model's bounds while preserving the requested size whenever it fits.
+function applyVoxelConfig(entry: DemoEntry, requested: number): void {
   const min = entry.min ?? DEFAULT_RANGE.min;
   const max = entry.max ?? DEFAULT_RANGE.max;
   const step = entry.step ?? DEFAULT_RANGE.step;
-  const value = entry.voxel ?? 0.5;
+  const value = clampVoxelSize(requested, entry.voxel ?? 0.5, { min, max });
   for (const input of [voxelSlider, voxelNumber]) {
     input.min = String(min);
     input.max = String(max);
@@ -307,10 +309,7 @@ async function rebuild(): Promise<void> {
   await new Promise((resume) => setTimeout(resume, 0));
   try {
     const entry = entries.get(modelSelect.value)!;
-    // On a model switch, reseat the slider to this example's range + default;
-    // on a plain voxel change the slider already holds the value the user chose.
     const modelChanged = lastModel !== modelSelect.value;
-    if (modelChanged) applyVoxelConfig(entry);
     const voxelSize = currentVoxelSize();
     const startedAt = performance.now();
     const { mesh, note } = resolveDisplay(entry.build(await session(voxelSize)));
@@ -347,25 +346,64 @@ async function rebuild(): Promise<void> {
 const currentVoxelSize = () => {
   const min = Number(voxelSlider.min);
   const max = Number(voxelSlider.max);
-  return Math.min(max, Math.max(min, Number(voxelNumber.value) || min));
+  return clampVoxelSize(Number(voxelNumber.value), min, { min, max });
 };
 
-modelSelect.addEventListener('change', rebuild);
-threadingSelect.addEventListener('change', rebuild);
+const routeFromLocation = (): string => {
+  const prefix = `${ROUTE_BASE}/`;
+  return location.pathname.startsWith(prefix) ? location.pathname.slice(prefix.length) : '';
+};
+
+const applyLocation = (): void => {
+  const requestedModel = routeFromLocation();
+  modelSelect.value = entries.has(requestedModel) ? requestedModel : DEFAULT_MODEL;
+  const entry = entries.get(modelSelect.value)!;
+  const params = new URLSearchParams(location.search);
+  const voxelSize = params.has('voxelSize') ? Number(params.get('voxelSize')) : (entry.voxel ?? 0.5);
+  applyVoxelConfig(entry, voxelSize);
+  threadingSelect.value = params.get('threading') === 'multi' && globalThis.crossOriginIsolated ? 'multi' : 'single';
+};
+
+const updateLocation = (mode: 'push' | 'replace'): void => {
+  const url = new URL(location.href);
+  url.pathname = `${ROUTE_BASE}/${modelSelect.value}`;
+  url.searchParams.set('voxelSize', String(currentVoxelSize()));
+  url.searchParams.set('threading', threadingSelect.value);
+  history[`${mode}State`](null, '', url);
+};
+
+modelSelect.addEventListener('change', () => {
+  applyVoxelConfig(entries.get(modelSelect.value)!, currentVoxelSize());
+  updateLocation('push');
+  void rebuild();
+});
+threadingSelect.addEventListener('change', () => {
+  updateLocation('replace');
+  void rebuild();
+});
 voxelSlider.addEventListener('input', () => {
   voxelNumber.value = voxelSlider.value;
+  updateLocation('replace');
 });
-voxelSlider.addEventListener('change', rebuild);
+voxelSlider.addEventListener('change', () => void rebuild());
 voxelNumber.addEventListener('change', () => {
   voxelNumber.value = String(currentVoxelSize());
   voxelSlider.value = voxelNumber.value;
+  updateLocation('replace');
   void rebuild();
 });
 wireframeToggle.addEventListener('change', () => {
   material.wireframe = wireframeToggle.checked;
 });
+globalThis.addEventListener('popstate', () => {
+  applyLocation();
+  updateLocation('replace');
+  void rebuild();
+});
 
 // Debug/console handle — also handy for users poking at the scene.
 (globalThis as { __demo?: unknown }).__demo = { scene, camera, renderer, displayed, material, orbit };
 
+applyLocation();
+updateLocation('replace');
 await rebuild();
