@@ -25,6 +25,49 @@ const hexFloat = (value: number): string => Buffer.from(Float64Array.of(value).b
 /** LEAP71's published STL size at 1.0 mm (README table): 94 MB. */
 const PUBLISHED_STL_BYTES_AT_1MM = 94 * 2 ** 20;
 
+const EXPECTED_KERNEL_STAGES = [
+  'bounding.create',
+  'turning-fins.hot',
+  'turning-fins.cool',
+  'corner-fins.union',
+  'straight-fins.hot',
+  'straight-fins.cool',
+  'straight-fins.union',
+  'fins.union',
+  'outer-structure.create',
+  'helical-void.hot',
+  'helical-void.cool',
+  'cool-inner.offset',
+  'hot-fluid-void.subtract',
+  'hot-inner.offset',
+  'cool-fluid-void.subtract',
+  'inner-volume.union',
+  'splitters.union',
+  'outer-volume.offset',
+  'flange.create',
+  'finished-flange.fillet',
+  'finished-flange.smoothen',
+  'outer-volume.union-flange',
+  'io-supports.create',
+  'outer-volume.union-supports',
+  'outer-volume.fillet',
+  'outer-volume.smoothen',
+  'centre-piece.add',
+  'outer-volume.union-structure',
+  'outer-volume.subtract-screw-holes',
+  'outer-volume.project-z-slice',
+  'print-web.create',
+  'outer-volume.subtract-print-web',
+  'result.subtract-inner-volume',
+  'result.union-fins',
+  'result.union-splitters',
+  'result.intersect-bounding',
+  'io-threads.create',
+  'result.union-threads',
+  'io-cuts.create',
+  'result.subtract-io-cuts',
+] as const;
+
 test('HelixHeatX @ 1.0 mm: pinned result, STL-size parity, single↔multi identity', async () => {
   const { task } = await import('../examples/helixheatx/run.ts');
 
@@ -45,6 +88,29 @@ test('HelixHeatX @ 1.0 mm: pinned result, STL-size parity, single↔multi identi
 
     // Authoring stays a sliver of wall time (Finding 8's premise, sanity-level).
     assert.ok(singleRun.authorMs < 10_000, `authoring ${singleRun.authorMs.toFixed(0)} ms is JS-cheap`);
+
+    assert.deepEqual(
+      singleRun.kernelTimings.map(({ stage }) => stage),
+      EXPECTED_KERNEL_STAGES,
+      'every HeatX kernel stage is timed in execution order',
+    );
+    assert.ok(Object.isFrozen(singleRun.kernelTimings), 'kernel timing collection is immutable');
+    for (const timing of singleRun.kernelTimings) {
+      assert.ok(Object.isFrozen(timing), `${timing.stage} timing is immutable`);
+      assert.ok(Number.isFinite(timing.ms) && timing.ms >= 0, `${timing.stage} has a finite non-negative duration`);
+    }
+    const accountedMs =
+      singleRun.authorMs +
+      singleRun.unattributedMs +
+      singleRun.kernelTimings.reduce((total, timing) => total + timing.ms, 0);
+    assert.ok(
+      Math.abs(accountedMs - singleRun.constructMs) < 1e-6,
+      `HeatX timing accounts for the full construct: ${accountedMs} vs ${singleRun.constructMs}`,
+    );
+    assert.ok(
+      singleRun.unattributedMs >= 0 && singleRun.unattributedMs <= singleRun.constructMs * 0.01,
+      `unattributed ${singleRun.unattributedMs.toFixed(1)} ms stays below 1% of construct time`,
+    );
 
     const recorded = {
       volumeHex: hexFloat(singleRun.voxels.volume),

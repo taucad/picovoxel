@@ -2,7 +2,7 @@
   "name": "picovoxel",
   "version": "0.1.0",
   "type": "module",
-  "description": "PicoGK \u2014 voxel/implicit computational geometry on OpenVDB \u2014 compiled to WebAssembly, with an idiomatic TypeScript API",
+  "description": "PicoGK — voxel/implicit computational geometry on OpenVDB — compiled to WebAssembly, with an idiomatic TypeScript API",
   "license": "Apache-2.0",
   "keywords": [
     "picogk",
@@ -68,7 +68,15 @@
     "test:watch": "vitest",
     "test:browser": "node scripts/browser-gate.mjs",
     "bench": "node bench/run.mjs",
-    "build:demo": "tsdown --config tsdown.demo.config.ts"
+    "build:demo": "tsdown --config tsdown.demo.config.ts",
+    "build:emdawnwebgpu-spike": "bash scripts/build-emdawnwebgpu-spike.sh",
+    "build:node-webgpu-spike": "bash scripts/build-node-webgpu-spike.sh",
+    "build:webgpu-picovoxel-spike": "bash scripts/build-webgpu-picovoxel-spike.sh",
+    "build:webgpu-cpu-probe": "bash scripts/build-webgpu-cpu-probe.sh",
+    "build:webgpu-spike": "tsdown --config tsdown.webgpu.config.ts",
+    "spike:emdawnwebgpu": "node scripts/emdawnwebgpu-spike.mjs",
+    "spike:node-webgpu": "node scripts/node-webgpu-spike.mjs",
+    "spike:webgpu": "node scripts/webgpu-spike.mjs"
   },
   "peerDependencies": {
     "three": ">=0.160"

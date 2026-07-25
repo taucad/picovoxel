@@ -1,0 +1,18 @@
+[package]
+name = "picovoxel-webgpu-native-core"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+bytemuck = "1.25.1"
+futures-channel = "0.3.32"
+serde = { version = "1.0.228", features = ["derive"] }
+wgpu = { version = "30.0.0", default-features = false, features = [
+  "std",
+  "wgsl",
+  "parking_lot",
+  "metal",
+  "vulkan",
+  "dx12",
+] }

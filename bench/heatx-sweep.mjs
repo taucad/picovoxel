@@ -32,8 +32,8 @@ const builds = (argValue('--builds') ?? 'single,multi').split(',');
 
 /** The published cells we can quote from context (the full table is pixels in upstream's README). */
 const PUBLISHED = {
-  '1': { seconds: 34, stlMB: 94 },
-  '0.5': { seconds: 98, stlMB: 502 },
+  1: { seconds: 34, stlMB: 94 },
+  0.5: { seconds: 98, stlMB: 502 },
 };
 
 const hexFloat = (value) => {
@@ -65,7 +65,9 @@ const fingerprint = {
   startLoad: loadavg()[0],
 };
 
-console.log(`HelixHeatX sweep on ${fingerprint.cpu} (${fingerprint.cores} cores), load ${fingerprint.startLoad.toFixed(2)}`);
+console.log(
+  `HelixHeatX sweep on ${fingerprint.cpu} (${fingerprint.cores} cores), load ${fingerprint.startLoad.toFixed(2)}`,
+);
 console.log('size(mm)  build   task(s)  author(ms)  mesh(s)  stl(s)  stl(MB)  volumeHex        published(s/MB)');
 
 const rows = [];
@@ -75,7 +77,7 @@ for (const voxelSize of sizes) {
     const make = build === 'multi' ? createMulti : createSingle;
     const session = await make({ voxelSize });
     const t0 = now();
-    const { voxels, authorMs } = task(session);
+    const { voxels, authorMs, constructMs, kernelTimings, unattributedMs } = task(session);
     const taskMs = now() - t0;
     const t1 = now();
     const mesh = voxels.toMesh();
@@ -88,7 +90,10 @@ for (const voxelSize of sizes) {
       build,
       threads: (session.module.PThread?.runningWorkers.length ?? 0) + 1,
       taskMs,
+      constructMs,
       authorMs,
+      kernelTimings,
+      unattributedMs,
       meshMs,
       stlMs,
       stlBytes: stl.length,
@@ -110,7 +115,9 @@ for (const voxelSize of sizes) {
   if (identities.single && identities.multi) {
     const same = JSON.stringify(identities.single) === JSON.stringify(identities.multi);
     if (!same) {
-      console.error(`IDENTITY DRIFT at ${voxelSize}mm: single ${JSON.stringify(identities.single)} vs multi ${JSON.stringify(identities.multi)}`);
+      console.error(
+        `IDENTITY DRIFT at ${voxelSize}mm: single ${JSON.stringify(identities.single)} vs multi ${JSON.stringify(identities.multi)}`,
+      );
       process.exit(1);
     }
     console.log(`          identity single≡multi OK`);

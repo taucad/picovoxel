@@ -1,0 +1,22 @@
+[package]
+name = "picovoxel-webgpu-node-spike"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[[bin]]
+name = "picovoxel-webgpu-node-spike-native"
+path = "src/main.rs"
+
+[dependencies]
+napi = { version = "3", default-features = false, features = ["napi8"] }
+napi-derive = "3"
+picovoxel-webgpu-native-core = { path = "core" }
+pollster = "1.0.1"
+serde_json = "1.0.150"
+
+[build-dependencies]
+napi-build = "2"

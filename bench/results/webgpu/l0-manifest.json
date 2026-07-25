@@ -1,0 +1,85 @@
+{
+  "baseCommit": "36220997ffa9b9710ea9b49239869f36a4065aca",
+  "branch": "webgpu",
+  "capturedAt": "2026-07-23",
+  "environment": {
+    "machine": "Apple M2 Pro",
+    "node": "v26.5.0",
+    "memoryToResizableBuffer": true,
+    "nodeNavigatorGpu": false
+  },
+  "artifacts": {
+    "src/pico.mjs": {
+      "bytes": 80684,
+      "sha256": "b3b8302abdf09819ca27b5acdb34f74e8ec8abcfb602edab4e40af420d6eab64"
+    },
+    "src/pico.wasm": {
+      "bytes": 5835133,
+      "sha256": "70304cfe70a0dc93adf7a4f8c294845cc63af163b8483ecf57697cfcf1794744"
+    },
+    "src/pico-multi.mjs": {
+      "bytes": 96715,
+      "sha256": "a22d816296dc0cd370eeeaa3e5f0d249638937f19608ae08f9fd613239c00684"
+    },
+    "src/pico-multi.wasm": {
+      "bytes": 5812965,
+      "sha256": "fc9cf68f31a521b08ae5d56e6b5d3bdd3c4dda099b79278574d828f08a54777c"
+    }
+  },
+  "fixtures": {
+    "test/fixtures/helixheatx.json": "56298c702d37ed991180117019e16edf584d2f01291b34e327053ec1d74c2eec",
+    "test/fixtures/latticelibrary-examples.json": "9e360d57ee590b2d3bc0ea26620eaad182ec7e0e5477904586e9d09705af6c0a",
+    "test/fixtures/quasicrystals.json": "b120759423e59d2319626719cf1222adf003a2f0a2213ec96a2978913ec9f1c0",
+    "test/fixtures/roverwheel.json": "5a5ee9da71e7f6920e9cc6db0f85eae0e263a350a0af8cd054729d291f718749",
+    "test/fixtures/shapekernel-examples.json": "52e2702d51b41b2b2dc18a67de1b15628ff536f78f929d25266d4ce94504218f",
+    "test/fixtures/simulation.json": "08c9a479c2e225cbcc35699422865a93998956c4e2be8e0c1c76805d6fe926b6"
+  },
+  "baseline": {
+    "build": "pass",
+    "typecheck": "pass after build",
+    "tests": {
+      "files": 40,
+      "passed": 406,
+      "failed": 0,
+      "durationSeconds": 528.15
+    },
+    "coveragePercent": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "browserGate": {
+      "chromium": "17/17",
+      "webkit": "17/17",
+      "firefox": "17/17"
+    },
+    "benchUpdate": {
+      "status": "pass",
+      "result": "bench/results/2026-07-23-3622099.json",
+      "startLoad": 5.7880859375,
+      "loadCeiling": 6,
+      "heatXKernelStages": 40
+    },
+    "p0Gate": {
+      "status": "go",
+      "result": "bench/results/webgpu/p0-gate.json"
+    },
+    "p0PhaseBoundary": {
+      "build": "pass",
+      "typecheck": "pass",
+      "tests": {
+        "files": 48,
+        "passed": 440,
+        "failed": 0,
+        "coveragePercent": 100
+      },
+      "browserGate": {
+        "chromium": "17/17",
+        "webkit": "17/17",
+        "firefox": "17/17"
+      },
+      "protectedHashes": "all match"
+    }
+  }
+}
