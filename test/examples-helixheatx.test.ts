@@ -161,9 +161,13 @@ test('HelixHeatX @ 1.0 mm: pinned result, STL-size parity, single↔multi identi
 // geometry AND run-to-run variance — because a nondeterministic multi build cannot
 // hit a fixed pin. Reference: bench/results/webgpu-v2/sk-0.1-heatx-sweep-dlmalloc.json
 // (0.7 mm, where single ≡ multi still held).
+// SK-0.4 pin move (tube-complex lattice default): volume hex UNCHANGED, +8
+// triangles (band-edge meshing difference; contrast the P0 failure mode —
+// FEWER triangles with per-run variance). Old serial-lane value: 4,542,736,
+// still reproduced under PICOVOXEL_SERIAL_LATTICE=1. See SK-0.4.md §8/§10.
 const FINE_CELL_MM = 0.7;
 const FINE_CELL_VOLUME_HEX = '000000a0e5ff2141'; // 589810.8125
-const FINE_CELL_TRIANGLES = 4_542_736;
+const FINE_CELL_TRIANGLES = 4_542_744;
 
 test(
   `HelixHeatX @ ${FINE_CELL_MM} mm: multi build reproduces the pinned fine-cell geometry`,

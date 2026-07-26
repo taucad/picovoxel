@@ -20,11 +20,13 @@ import type { PicoWasmModule, SdfFunction, Vec3 } from './types.ts';
  * pre-SK-0.4 byte pins certify. Read once at module load; browsers have no
  * `process` and always get the default. Both exports share one signature.
  */
-export const RENDER_LATTICE_EXPORT: 'Voxels_RenderLattice' | 'Voxels_RenderLatticeTubes' =
-  (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env
-    ?.PICOVOXEL_SERIAL_LATTICE === '1'
-    ? 'Voxels_RenderLattice'
-    : 'Voxels_RenderLatticeTubes';
+export function resolveRenderLatticeExport(
+  env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env,
+): 'Voxels_RenderLattice' | 'Voxels_RenderLatticeTubes' {
+  return env?.PICOVOXEL_SERIAL_LATTICE === '1' ? 'Voxels_RenderLattice' : 'Voxels_RenderLatticeTubes';
+}
+
+export const RENDER_LATTICE_EXPORT = resolveRenderLatticeExport();
 
 export const VEC3_BYTES = 12;
 export const TRI_BYTES = 12;

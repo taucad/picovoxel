@@ -9,7 +9,7 @@
   {
    "tileCount": 170,
    "beamCount": 5824,
-   "volumeHex": "000000c087a8e340",
+   "volumeHex": "000000e0a4a8e340",
    "triangles": 64920
   },
   {
@@ -20,11 +20,11 @@
   }
  ],
  "crystalFromFace": {
-  "volumeHex": "000000203f7f1841",
+  "volumeHex": "000000003f7f1841",
   "triangles": 678696
  },
  "crystalFromTile": {
-  "volumeHex": "000000a0ebb5f740",
+  "volumeHex": "00000080ebb5f740",
   "triangles": 155736
  }
 }

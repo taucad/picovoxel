@@ -64,6 +64,11 @@ export interface PicoWasmModule {
     stat(path: string): { size: number };
   };
   wasmTable?: { length: number };
-  /** Pthread pool state — present on the multi glue only (exported for observability). */
-  PThread?: { runningWorkers: readonly unknown[]; unusedWorkers: readonly unknown[] };
+  /** Pthread pool state — present on the multi glue only (exported for observability,
+   *  and for the dispose-time pool join — see session.dispose()). */
+  PThread?: {
+    runningWorkers: readonly unknown[];
+    unusedWorkers: readonly unknown[];
+    terminateAllThreads(): void;
+  };
 }

@@ -160,6 +160,15 @@ The working tree's single-build artifact was stale enough to predate SK-0.5's
 error until rebuilt — while the tracked multi artifact stayed current. The asymmetry means a
 fresh checkout and a long-lived one disagree about which tests can even run.
 
+**H1b — deleting `build/wasm-prefix*` alone is not a clean dep rebuild (SK-0.4, observed
+live).** H1's trap has a second stage: with the prefixes deleted but the cmake build dirs
+(`build/{tbb,ovdb}-wasm*`) retained, `build-deps-wasm.sh` compiled **zero** units and
+`cmake --install` simply reinstalled the previous stale archives into fresh prefixes —
+tar's restored mtimes make make see no work, so the "rebuild" is a copy. A genuine clean
+dep rebuild after a patch/fetch-deps change must delete `build/{tbb,ovdb}-wasm*` together
+with `build/wasm-prefix*` (verify by counting compile lines in the build log; SK-0.4's
+clean run compiled 128 units where the trapped run compiled 0).
+
 ## Recommended next steps
 
 1. SK-0.5 follow-up: determine whether the race is upstream (`TreeToMerge` + `DeepCopy`) or in

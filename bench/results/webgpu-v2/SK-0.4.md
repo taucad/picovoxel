@@ -208,7 +208,7 @@ The 1.0 mm HeatX stage pins pass **unchanged** on the new default. Note the 0.7 
 fine-cell differential itself (single≡multi within the new lane) holds — the drift is
 old-lane-vs-new-lane, not thread-vs-thread.
 
-## 9. Artifact index
+## 9. Artifact index (commit 1)
 
 - `sk-0.4-equivalence.json` — §4 (single glue, 0.5 mm)
 - `sk-0.4-determinism-{single,multi}.json` — §5 (0.5 mm, 3 runs)
@@ -218,3 +218,80 @@ old-lane-vs-new-lane, not thread-vs-thread.
 - harness: `bench/lattice-tubes-ab.mjs`
 - ledgers: `WORKLOAD-EXECUTORS.md` (`Voxels_RenderLattice` row), `MIGRATING-FROM-CSHARP.md`
   (U5 spiked, U23 new, facade-surface row)
+
+## 10. Pin regeneration protocol (commit 2 — orchestrator approved)
+
+Commit 1 landed the lane with the 4 pins deliberately red on the default (§8); this
+regeneration is the operator-approved one-time L0 pin move, executed via each test's own
+`UPDATE_PINS=1` mechanism on the new default lane (plus the one hardcoded fine-cell
+constant, which has no fixture file). Nothing else in any fixture file moved — the diffs
+are exactly the lattice-bearing entries.
+
+**Changed-pin identity, before → after:**
+
+| pin | volume (hex LE) before → after | volume mm³ | rel Δ | triangles before → after |
+| --- | --- | --- | --- | --- |
+| helixheatx fine-cell @0.7 mm (multi, hardcoded) | `000000a0e5ff2141` → **unchanged** | 589,810.8125 | 0 | 4,542,736 → 4,542,744 (+8) |
+| quasicrystals gen-1 wireframe | `000000c087a8e340` → `000000e0a4a8e340` | 40,260.24 → 40,261.15 | 2.3e-5 | 64,920 (unchanged) |
+| quasicrystals crystalFromFace | `000000203f7f1841` → `000000003f7f1841` | 401,359.78 → 401,359.75 | 7.8e-8 | 678,696 (unchanged) |
+| quasicrystals crystalFromTile | `000000a0ebb5f740` → `00000080ebb5f740` | 97,118.727 → 97,118.719 | 8.0e-8 | 155,736 (unchanged) |
+| roverwheel wheel-02 | `000000003b5b3f41` → `000000c03b5b3f41` | 2,054,971.00 → 2,054,971.75 | 3.7e-7 | 3,310,844 (unchanged) |
+| shapekernel ex-lattice-pipe [1] | `000000406ff2d540` → `000000c06ef2d540` | 22,473.738 → 22,473.730 | 3.5e-7 | 57,004 → 57,012 (+8) |
+| shapekernel ex-lattice-pipe [2] | `0000006080b1e040` → `000000e080b1e040` | 34,188.012 → 34,188.027 | 4.6e-7 | 83,376 → 83,360 (−16) |
+| shapekernel ex-lattice-pipe [3] | `000000605639c040` → `000000005639c040` | 8,306.6748 → 8,306.6719 | 3.5e-7 | 37,832 → 37,800 (−32) |
+
+(gen-0 and gen-2 quasicrystal entries, all other shapekernel entries, and every non-lattice
+pin in every fixture: byte-identical.)
+
+**Same-runtime C#-parity argument**: these pins certify *this runtime's* default lattice
+path, and a C# PicoGK front-end bound to this runtime takes the same
+`Voxels_RenderLatticeTubes` code path — the pins move because the runtime's default moved,
+for every consumer at once, not because the wasm port diverged from C# semantics. The old
+values remain reproducible bit-for-bit under `PICOVOXEL_SERIAL_LATTICE=1` (re-verified: the
+4 files pass 42/42 on the flag against the OLD pins — §8), so the serial lane's contract is
+intact, merely no longer the default one. The largest volume move is 2.3e-5 relative; every
+one is orders of magnitude inside §4's gates.
+
+**U23 caveat on the old values**: the serial numbers being retired were themselves
+defective on the nested-end-spheres beam class — `fSdvRoundCone` takes `sqrtf` of a
+negative product there and renders −90.7% of the closed-form volume where the tube lane is
+−0.37% and `checkLevelSet`-clean (§3). The regeneration moves the pins *toward* the more
+correct lane.
+
+**Fine-cell identity gate on the new default**: the 0.7 mm multi gate was run 3× against
+the new fixed pin — 3/3 green (a nondeterministic lane cannot hit a fixed pin thrice);
+volume hex is unchanged from the serial-lane era, only the mesh gained 8 triangles.
+
+**Last ceremony of its kind** (NON-DETERMINISM.md §12, item 5): future same-geometry lane
+changes gate on the G0 identity oracles (canonical grid hash / hex volume / mesh multiset),
+not on pin bytes — this regeneration is intended to be the final byte-pin move for a
+same-geometry default swap.
+
+**H1b** (hardening, discovered executing this spike; appended to
+`SK-0-P0-finecell.md` §Hardening): deleting `build/wasm-prefix*` alone is NOT a clean dep
+rebuild — the retained cmake build dirs (`build/{tbb,ovdb}-wasm*`) reinstall the stale
+archives with zero compiles, because tar's restored mtimes make make see no work. Delete
+the build dirs with the prefixes.
+
+### What "full suite green" additionally surfaced (fixed in the same commit)
+
+**Coverage gate had been masked by the red pins.** With the 4 pin failures gone, the
+100%-threshold coverage gate ran to completion for the first time in a while and failed on
+two counts: (a) this spike's `RENDER_LATTICE_EXPORT` env ternary (`src/context.ts`) had an
+untaken branch — restructured as `resolveRenderLatticeExport(env?)` with a direct test in
+`test/coverage-gaps.test.ts`; (b) **pre-existing, SK-0.8's**: `doubleOffset`/`fillet`
+`fastRenorm` arms (`src/voxels.ts:282,295`) were never exercised — SK-0.8 landed while pin
+failures short-circuited the coverage report. Closed by adding both to the existing
+fastRenorm gate matrix in `test/voxels-offsets.test.ts` (they now run through the same
+volume/area/bounds/level-set gates, 467th test).
+
+**Pre-existing multi-glue teardown race, now fixed at the root.** 3 of 4 full-suite runs
+exited 1 with all tests passing: a vitest fork crashed AFTER reporting its results. macOS
+crash reports (4×, incl. one from a commit-1-era bench run — the race predates this
+regeneration) show the identical signature: **SIGILL on an `em-pthread` worker while the
+main thread frees the wasm BackingStore** (`munmap` under `BackingStore` destruction).
+Nothing ever joined the pthread pool: workers outlive every JS reference to their module,
+and at process teardown V8 frees the shared memory while a worker can still be executing
+in it. Fix: `session.dispose()` now calls `module.PThread?.terminateAllThreads()` (multi
+glue only; each session owns its module, so its pool dies with it). Suite green twice
+consecutively + three-engine browser gate after the fix.

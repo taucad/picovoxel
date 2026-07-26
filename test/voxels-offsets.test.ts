@@ -228,7 +228,9 @@ test('fastRenorm engages, and stays inside the SK-0.8 accuracy gates', () => {
   const base = bumpyBody();
   const cases: [string, (fast: boolean) => Voxels][] = [
     ['offset', (fast) => base.offset({ distance: 2, fastRenorm: fast })],
+    ['doubleOffset', (fast) => base.doubleOffset({ first: 2, second: -2, fastRenorm: fast })],
     ['smoothen', (fast) => base.smoothen({ distance: 1, fastRenorm: fast })],
+    ['fillet', (fast) => base.fillet({ rounding: 2, fastRenorm: fast })],
     ['shell', (fast) => base.shell({ inner: -1, outer: 1, fastRenorm: fast })],
   ];
   for (const [label, run] of cases) {

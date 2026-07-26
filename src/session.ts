@@ -516,6 +516,14 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
       ctx.registry.unregister(session); // D2
       module._free(scratch);
       raw.Library_DestroyInstance(lib);
+      // Join the module's pthread pool (multi glue only — absent on the serial glue).
+      // Nothing ever joined the em-pthread workers, so they outlive every JS reference
+      // to this module, and at process teardown V8 can free the wasm backing store
+      // while a worker is still executing in it — SIGILL, timing-dependent (observed
+      // as vitest fork crashes; crash reports show an em-pthread faulting under a
+      // main-thread BackingStore free. SK-0.4.md §10). Each session instantiates its
+      // own module, so its pool dies with it and no other session is affected.
+      module.PThread?.terminateAllThreads();
     },
   };
   adoptHandle(ctx, session, lib, raw.Library_DestroyInstance);

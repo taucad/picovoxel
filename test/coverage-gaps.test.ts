@@ -406,3 +406,12 @@ test('checkedMalloc: a failed wasm allocation throws the typed OOM error, not a 
   // A zero-byte request may legitimately return 0 without throwing.
   assert.equal(checkedMalloc(failing, 0, 'nothing'), 0);
 });
+
+test('serial-lattice escape hatch resolves per env, tubes by default', async () => {
+  const { resolveRenderLatticeExport, RENDER_LATTICE_EXPORT } = await import('../src/context.ts');
+  assert.equal(resolveRenderLatticeExport({ PICOVOXEL_SERIAL_LATTICE: '1' }), 'Voxels_RenderLattice');
+  assert.equal(resolveRenderLatticeExport({}), 'Voxels_RenderLatticeTubes');
+  assert.equal(resolveRenderLatticeExport(undefined), 'Voxels_RenderLatticeTubes');
+  // The suite never sets the flag, so the module-level default is the tube lane.
+  assert.equal(RENDER_LATTICE_EXPORT, 'Voxels_RenderLatticeTubes');
+});
