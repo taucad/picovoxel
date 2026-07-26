@@ -115,3 +115,70 @@ test('SG10 — cross-session operands throw PICO_SESSION_MISMATCH', async () => 
   }
   other.dispose();
 });
+
+// SK-0.5 — the operand is no longer materialised.
+//
+// openvdb's csg ops steal from their second operand, so a const operand used to be
+// deep-copied whole before the call (PicoGKVdbVoxels.h); the merge ops take a
+// DeepCopy tag instead and copy only the nodes they actually graft. The fixture
+// makes that difference the ONLY variable: `inner` sits strictly inside `outer`,
+// so the union grafts nothing from it and the result is outer's own tree.
+//
+// The measurement is the emscripten heap high-water mark, which never shrinks —
+// deterministic for a deterministic allocation sequence, unlike wall clock. Each
+// arm gets its own session so neither reuses the other's freed blocks.
+test('a boolean materialises the result clone and nothing else', async () => {
+  const arm = async (op: (a: Voxels, b: Voxels) => Voxels) => {
+    const session = await createPico({ voxelSize: 0.1 });
+    const heap = () => session.module.HEAPU32.buffer.byteLength;
+    const outer = session.createVoxels({ shape: 'sphere', center: [0, 0, 0], radius: 40 });
+    const inner = session.createVoxels({ shape: 'sphere', center: [0, 0, 0], radius: 30 });
+    const before = heap();
+    const result = op(outer, inner);
+    const growth = heap() - before;
+    const operandBytes = inner.memUsage;
+    assert.equal(result.memUsage, outer.memUsage, 'inner is contained: the union is outer’s tree');
+    session.dispose();
+    return { growth, operandBytes };
+  };
+
+  // The clone `union` must make is unavoidable; the operand copy is not. Comparing
+  // against `clone()` isolates it: with a whole-operand copy the union arm grew by
+  // the operand's size on top (measured 186.5 MB vs 112.8 MB at 0.1 mm).
+  const cloned = await arm((a) => a.clone());
+  const united = await arm((a, b) => a.union(b));
+  assert.ok(
+    united.growth - cloned.growth < cloned.operandBytes / 2,
+    `union grew ${united.growth} vs clone ${cloned.growth}; a whole-operand copy would add ~${cloned.operandBytes}`,
+  );
+});
+
+// SK-0.5 — the dense per-voxel fills prune before they hand the grid on.
+//
+// `union(empty)` is a clone plus csgUnion, and csgUnion ends in pruneLevelSet, so
+// it yields the pruned form of any field. A fill that already pruned has nothing
+// left to give. Before the change these paths carried 5.5% (lattice), 36%
+// (projectZSlice) and 68% (implicit callback) of prunable tree.
+test('per-voxel fills leave no prunable tree behind', () => {
+  const empty = pk.createVoxels({ shape: 'empty' });
+  const lattice = pk.createLattice();
+  for (let i = 0; i < 8; i++) lattice.addBeam({ start: [-15, 0, i * 3 - 12], end: [15, 0, i * 3 - 12], radius: 2 });
+
+  const cases: Array<[string, Voxels]> = [
+    ['RenderLattice', lattice.toVoxels()],
+    [
+      'RenderImplicit',
+      pk.createVoxels({
+        shape: 'implicit',
+        boundsMin: [-15, -15, -15],
+        boundsMax: [15, 15, 15],
+        sdf: (x, y, z) => Math.sqrt(x * x + y * y + z * z) - 12,
+      }),
+    ],
+    ['ProjectZSlice', sphere(12).projectZSlice({ startZ: 0, endZ: 8 })],
+  ];
+
+  for (const [name, filled] of cases) {
+    assert.equal(filled.memUsage, filled.union(empty).memUsage, `${name} still ships prunable tree`);
+  }
+});

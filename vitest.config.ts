@@ -22,6 +22,7 @@ export default defineConfig({
         'src/raw.generated.ts',
         'src/pico-bulk.cpp',
         'src/pico-tape.cpp',
+        'src/pico-props.cpp',
         'src/pico-exports.txt',
         'src/abi.json',
       ],

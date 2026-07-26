@@ -149,3 +149,4 @@ _Voxels_RenderImplicitTapeCompose
 _Voxels_IntersectImplicitTape
 _Lattice_AddBeams
 _Lattice_AddSpheres
+_Voxels_GetProperties

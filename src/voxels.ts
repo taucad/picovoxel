@@ -97,8 +97,13 @@ export interface Voxels {
   maskedByImplicit(options: { sdf: SdfFunction | SdfExpression }): Voxels;
   /** Volume in mm³ from the raw grid — fast but approximate after booleans (SG1). */
   readonly volume: number;
-  /** SG1 — the correct volume+bounds: mesh → fresh voxels round-trip. */
-  properties(): { volume: number; bounds: Bounds };
+  /**
+   * SG1 — the correct volume (mm³), surface area (mm²) and bounds, from one
+   * native traversal of the mesh → fresh-voxels round-trip (src/pico-props.cpp).
+   * Area is openvdb's `levelSetArea` over the same corrected grid; it costs no
+   * extra meshing pass.
+   */
+  properties(): { volume: number; area: number; bounds: Bounds };
   /** SG1 — bounding box via the intermediate mesh (the only accurate way). */
   bounds(): Bounds;
   /** True if the point is at or below the surface. */
@@ -341,19 +346,19 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
     get volume() {
       return guard('Voxels_fCalculateVolume', () => ctx.raw.Voxels_fCalculateVolume(ctx.lib, live()))();
     },
-    properties(): { volume: number; bounds: Bounds } {
+    properties(): { volume: number; area: number; bounds: Bounds } {
       // C# CalculateProperties (Voxels.cs:812-825): mesh (skips distance-0 surface
-      // voxels) -> fresh voxels -> volume of THAT; bounds from the mesh.
-      return meshRoundTrip((meshHandle) => {
-        const bounds = readBoundsFrom(meshHandle);
-        const fresh = expectHandle('Voxels_hCreate', ctx.raw.Voxels_hCreate(ctx.lib));
-        try {
-          ctx.raw.Voxels_RenderMesh(ctx.lib, fresh, meshHandle);
-          return { volume: ctx.raw.Voxels_fCalculateVolume(ctx.lib, fresh), bounds };
-        } finally {
-          ctx.raw.Voxels_Destroy(ctx.lib, fresh);
-        }
-      });
+      // voxels) -> fresh voxels -> volume of THAT; bounds from the mesh. SK-0.5
+      // moved the whole sequence in-module (src/pico-props.cpp) — same floats, one
+      // crossing instead of four, and area comes along for free.
+      const floats = ctx.scratch;
+      const box = ctx.scratch + 8;
+      guard('Voxels_GetProperties', () => ctx.raw.Voxels_GetProperties(ctx.lib, live(), floats, floats + 4, box))();
+      return {
+        volume: ctx.module.HEAPF32[floats >> 2]!,
+        area: ctx.module.HEAPF32[(floats + 4) >> 2]!,
+        bounds: { min: ctx.readVec3(box), max: ctx.readVec3(box + VEC3_BYTES) },
+      };
     },
     bounds(): Bounds {
       return meshRoundTrip(readBoundsFrom);

@@ -8,7 +8,7 @@
 
 import { loadPicoRaw } from '../src/raw.ts';
 
-/** Binds all 149 exports (140 core + 9 own-TU), counting calls per name. */
+/** Binds all 150 exports (140 core + 10 own-TU), counting calls per name. */
 export async function loadInstrumented(options = {}) {
   const { module, raw } = await loadPicoRaw(options);
   const calls = new Map();

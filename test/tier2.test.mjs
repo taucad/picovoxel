@@ -61,6 +61,17 @@ test('C1 — voxel creation: sphere/capsule/copy/mesh-shell vs analytic volume',
     assert.equal(fns.Voxels_fCalculateVolume(lib, copy), volume, 'copy has a different volume');
     assert.ok(fns.Voxels_bIsEqual(lib, copy, sphere), 'copy not equal to source');
 
+    // Voxels_GetProperties (src/pico-props.cpp) — volume, area and the iso-surface
+    // box in one crossing. Oracles are analytic: 4πr² for the sphere's area, and
+    // the box is the sphere's own extent.
+    fns.Voxels_GetProperties(lib, sphere, scratch, scratch + 4, scratch + 8);
+    const [propVolume, propArea] = [module.HEAPF32[scratch >> 2], module.HEAPF32[(scratch + 4) >> 2]];
+    assert.ok(Math.abs(propVolume - analytic) / analytic < 0.02, `properties volume ${propVolume} vs ${analytic}`);
+    const areaAnalytic = 4 * Math.PI * 100;
+    assert.ok(Math.abs(propArea - areaAnalytic) / areaAnalytic < 0.02, `properties area ${propArea} vs ${areaAnalytic}`);
+    assert.deepEqual(readVec(scratch + 8).map(Math.round), [-10, -10, -10], 'properties box min');
+    assert.deepEqual(readVec(scratch + 8 + VEC3).map(Math.round), [10, 10, 10], 'properties box max');
+
     vec(scratch, -10, 0, 0); vec(scratch + VEC3, 10, 0, 0);
     const capsule = fns.Voxels_hCreateCapsule(lib, scratch, scratch + VEC3, 4, 4);
     const capsuleAnalytic = Math.PI * 16 * 20 + (4 / 3) * Math.PI * 64; // cylinder + 2 hemispheres

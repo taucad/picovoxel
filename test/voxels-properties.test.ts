@@ -65,3 +65,23 @@ test('SG2 — isEmpty on empty/full fields; memUsage is a live number', () => {
   assert.ok(body.memUsage > 0, 'a real field uses memory');
   assert.ok(body.memUsage > empty.memUsage, 'sphere outweighs empty');
 });
+
+// SK-0.5 — area rides along on the round-trip properties() already pays for
+// (openvdb levelSetArea over the corrected grid, src/pico-props.cpp).
+test('properties().area is the level-set surface area', () => {
+  const r = 10;
+  const { area, volume } = sphere(r).properties();
+  const analytic = 4 * Math.PI * r ** 2;
+  assert.ok(Math.abs(area - analytic) / analytic < 0.02, `sphere area ${area} vs analytic ${analytic}`);
+  // A second analytic subject, so the check is not "one shape agrees with itself":
+  // a capsule's area is the cylinder wall plus one whole sphere of end caps.
+  const capsule = pk.createVoxels({ shape: 'capsule', start: [-10, 0, 0], end: [10, 0, 0], radius: 5 }).properties();
+  const capsuleArea = 2 * Math.PI * 5 * 20 + 4 * Math.PI * 25;
+  assert.ok(Math.abs(capsule.area - capsuleArea) / capsuleArea < 0.02, `capsule area ${capsule.area} vs ${capsuleArea}`);
+  assert.ok(capsule.volume < volume, `capsule volume ${capsule.volume} vs sphere ${volume}`);
+
+  // Empty fields report zero rather than a level-set measure of nothing.
+  const nothing = pk.createVoxels({ shape: 'empty' }).properties();
+  assert.equal(nothing.area, 0);
+  assert.equal(nothing.volume, 0);
+});

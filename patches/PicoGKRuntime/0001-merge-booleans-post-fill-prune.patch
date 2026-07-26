@@ -1,0 +1,176 @@
+SK-0.5 — merge-based CSG booleans and post-fill level-set pruning.
+
+Two changes to PicoGKVdbVoxels.h, both value-neutral (proved against this repo's
+byte-locked fixture corpus: identical raw levelSetVolume, identical mesh-roundtrip
+volume, identical STL bytes, identical triangle counts on all five subjects).
+
+U-SK05-a  BoolAdd/BoolSubtract/BoolIntersect deep-copied the WHOLE operand grid
+          before calling csgUnion/csgDifference/csgIntersection, because those
+          steal from their second argument. openvdb's merge operators
+          (tools/Merge.h) accept a DeepCopy tag that copies only the nodes
+          actually grafted and tracks consumption in a lightweight mask tree —
+          the same operator, the same top-down DynamicNodeManager traversal and
+          the same terminating pruneLevelSet that Composite.h's csg* wrappers
+          run. One full-grid materialization per boolean disappears. Measured at
+          0.1 mm on a 78 MB operand: heap high-water 442.5 MB -> 368.8 MB.
+
+U-SK05-b  The fills that walk a dense accessor over a bounding box
+          (RenderImplicit, RenderLattice, ProjectZSliceUp/Dn) allocate a leaf for
+          every 8^3 block they touch, including blocks that end up uniformly
+          +background or -background. The csg paths already end in pruneLevelSet;
+          these did not, so every downstream op iterated the slack. Measured
+          reduction: RenderImplicit -68.1%, ProjectZSlice -36.1%,
+          RenderLattice -5.5% of tree memory.
+
+Upstream status: both are candidates to report to LEAP 71 (leap71/PicoGKRuntime).
+Neither changes the public API or any produced value.
+
+--- a/Source/PicoGKVdbVoxels.h
++++ b/Source/PicoGKVdbVoxels.h
+@@ -243,34 +243,61 @@
+         
+         return true;
+      }
++
++    /// [picovoxel U-SK05-a] Merge-based CSG.
++    ///
++    /// openvdb's csg{Union,Difference,Intersection} steal from their second
++    /// operand, so a const operand had to be deep-copied WHOLE before the call —
++    /// one full-grid materialization thrown away per boolean. The very same
++    /// merge operators take a DeepCopy tag instead (tools/Merge.h, TreeToMerge):
++    /// they copy only the nodes actually grafted and track consumption in a
++    /// lightweight mask tree, which is what the Steal path does by removing the
++    /// node from the source. Same operator, same traversal (DynamicNodeManager
++    /// top-down over A), same prune — so values and tree topology are identical;
++    /// only the eager copy is gone.
++    ///
++    /// The body is what csgUnion/csgIntersection/csgDifference do with
++    /// prune=true, pruneCancelledTiles=false (Composite.h) minus the steal.
++    template<class TCsgOp>
++    void CsgMergeFrom(const Voxels& oOther)
++    {
++        FloatTree&       oTree      = m_roGrid->tree();
++        const FloatTree& oOtherTree = oOther.m_roGrid->tree();
++
++        openvdb::tools::composite::validateLevelSet(oTree, "A");
++        openvdb::tools::composite::validateLevelSet(oOtherTree, "B");
+ 
++        TCsgOp oOp(oOtherTree, openvdb::DeepCopy());
++        openvdb::tree::DynamicNodeManager<FloatTree> oNodes(oTree);
++        oNodes.foreachTopDown(oOp);
++
++        openvdb::tools::pruneLevelSet(oTree);
++    }
++
+     void BoolAdd(const Voxels& oOther)
+     {
+         PKTRACE(Voxels_BoolAdd);
+-        
+-        FloatGrid::Ptr roOperand = deepCopyTypedGrid<FloatGrid>(oOther.m_roGrid);
+-        openvdb::tools::csgUnion(*m_roGrid, *roOperand);
+-        
++
++        CsgMergeFrom<openvdb::tools::CsgUnionOp<FloatTree>>(oOther);
++
+         RebuildGrid();
+     }
+ 
+     void BoolSubtract(const Voxels& oOther)
+     {
+         PKTRACE(Voxels_BoolSubtract);
+-        
+-        FloatGrid::Ptr roOperand = deepCopyTypedGrid<FloatGrid>(oOther.m_roGrid);
+-        openvdb::tools::csgDifference(*m_roGrid, *roOperand);
+-        
++
++        CsgMergeFrom<openvdb::tools::CsgDifferenceOp<FloatTree>>(oOther);
++
+         RebuildGrid();
+     }
+ 
+     void BoolIntersect(const Voxels& oOther)
+     {
+         PKTRACE(Voxels_BoolIntersect);
+-        
+-        FloatGrid::Ptr roOperand = deepCopyTypedGrid<FloatGrid>(oOther.m_roGrid);
+-        openvdb::tools::csgIntersection(*m_roGrid, *roOperand);
+-        
++
++        CsgMergeFrom<openvdb::tools::CsgIntersectionOp<FloatTree>>(oOther);
++
+         RebuildGrid();
+     }
+     
+@@ -355,6 +382,8 @@
+         {
+             DoRenderLattice(&oAccess, *roBeam, oVoxelSize(), m_nSdfNarrowBand);
+         }
++
++        PruneFill();
+     }
+     
+     void RenderImplicit(    const BBox3& oBBox,
+@@ -379,10 +408,11 @@
+             
+             SetSdValue(&oAccess, xyz, fBackgroundMM(), fValue);
+         }
+-        
++
++        PruneFill();
+         RebuildGrid();
+     }
+-    
++
+     void IntersectImplicit(PKPFnfSdf pfn)
+     {
+         PKTRACE(Voxels_IntersectImplicit);
+@@ -491,10 +521,11 @@
+                 SetSdValue(&oAccess, xyz, fBackgroundMM(), fValue);
+             }
+         }
+-        
++
++        PruneFill();
+         RebuildGrid();
+     }
+-    
++
+     void ProjectZSliceUp(   float fZStart,
+                             float fZEnd)
+     {
+@@ -532,7 +563,8 @@
+                 SetSdValue(&oAccess, xyz, fBackgroundMM(), fValue);
+             }
+         }
+-        
++
++        PruneFill();
+         RebuildGrid();
+     }
+ 
+@@ -767,6 +799,25 @@
+     bool bLevelSetNeedsRebuild() const
+     {
+         return strDiagnose().length() > 0;
++    }
++
++    /// [picovoxel U-SK05-b] Collapse the dense leaves a per-voxel fill leaves behind.
++    ///
++    /// The fills that walk a dense accessor over a bounding box (RenderImplicit,
++    /// RenderLattice, ProjectZSlice*) allocate a leaf for every 8³ block they
++    /// touch, including the blocks that end up uniformly outside (+background)
++    /// or uniformly inside (−background). The csg paths already end in
++    /// pruneLevelSet (Composite.h, prune=true), so only these fills ship the
++    /// slack — and every downstream op then iterates it.
++    ///
++    /// Value-neutral by construction: a leaf is only replaced when every voxel
++    /// in it is already at ±background, and the replacement tile carries that
++    /// same value. Measured on the fills above: identical raw levelSetVolume,
++    /// identical mesh-roundtrip volume, identical STL bytes; 5.5% (lattice),
++    /// 36% (ProjectZSlice) and 68% (RenderImplicit) less tree.
++    void PruneFill()
++    {
++        openvdb::tools::pruneLevelSet(m_roGrid->tree());
+     }
+     
+     /// Rebuilds the grid after possibly destructive changes to the signed distances

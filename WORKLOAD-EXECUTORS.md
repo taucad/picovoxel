@@ -23,6 +23,23 @@ Ledger of every PicoGK runtime compute entry point and its **current workload ex
 > Evidence: `bench/results/webgpu-v2/SK-0.7.md`. Stage baselines were not re-taken — a
 > sibling spike shared the machine — so SK-0.1's numbers still stand as the comparator.
 >
+> **Boolean and fill memory traffic cut 2026-07-26 (SK-0.5); no row changes executor.** Two
+> more vendored PicoGKRuntime fixes (`patches/PicoGKRuntime/`, both upstreamable as
+> U20/b) apply under the boolean and dense-fill rows. Booleans no longer deep-copy the
+> whole operand — the `Csg*Op` merge operators take a `DeepCopy` tag and copy only the nodes
+> they graft — which puts the per-boolean count at the **semantic minimum of one** full-grid
+> materialization, and that one is the result the pure API owes the caller. The three
+> dense-accessor fills (`RenderImplicit`, `RenderLattice`, `ProjectZSlice*`) now end in
+> `pruneLevelSet` like every csg path already did, shedding 68.1% / 5.5% / 36.1% of tree.
+> `properties()` moved into its own TU and gained `area` from `tools::levelSetArea`.
+>
+> **Read the deviation before trusting the audit here**: A4/A5 read `properties()`'s
+> re-voxelization as laziness that grid-native `levelSetVolume` would fix. It would not — the
+> mesh round-trip is what removes the distance-0 voxels csg leaves on coincident surfaces,
+> and without it `a − a` measures 205.39 mm³ for a field with no interior. Volume and bounds
+> therefore stay mesh-derived (also: five fixture files pin `properties().volume` as a hex
+> float64). Evidence: `bench/results/webgpu-v2/SK-0.5.md`.
+>
 > The A/B is still informative for this ledger: the allocator moved **MT paths only** and
 > left every ST row flat, so no row below changes executor. Two ST rows are now confirmed
 > by allocator-insensitivity — the `RenderLattice` stages (`turning-fins`, `helical-void`)
@@ -67,10 +84,10 @@ Ledger of every PicoGK runtime compute entry point and its **current workload ex
 
 | Op (C ABI) | Executor today | Why it suits / doesn't | Graduation status |
 | --- | --- | --- | --- |
-| `Voxels_RenderImplicit` (JS/native callback) | ST — structurally serial (one callback per voxel across the boundary) | boundary-crossing pins the loop; parallelism impossible with a foreign callback in the loop | **graduated** → tape (below); callback path kept for API compat only |
+| `Voxels_RenderImplicit` (JS/native callback) | ST — structurally serial (one callback per voxel across the boundary) | boundary-crossing pins the loop; parallelism impossible with a foreign callback in the loop | **graduated** → tape (below); callback path kept for API compat only. Since SK-0.5 (U21) it prunes on exit: **−68.1% tree**, which also makes it agree with the tape path on representation, not just on values |
 | `Voxels_RenderImplicitTape(Compose)` | MT — TBB parallel eval, thread-local grids, node-steal merge (TP6/TP7) | tape eval is embarrassingly parallel per voxel; merge is node-parallel | graduated 2026-07 (2.4×/8.6× vs callback). GPU M1 single-op offload **measured-dead** (iteration-1 spike: 0.673×, ingest-dominated — see blueprint AR1–AR3). GPU deep-tape kernel + M2-resident: **candidate**, gates G1/G3 |
 | `Voxels_IntersectImplicit(Tape)` | MT via tape (mirrors upstream swap dance) | as above | carries upstream narrow-band int-truncation bug (<⅓ mm); fix queued in upstreamables ledger |
-| `Voxels_RenderLattice` | **ST** — single dense accessor loop over per-beam bboxes | nothing about it suits ST: analytic SDF min-splat is embarrassingly parallel; this is the top serial wall (HeatX creation stages ≈30 s of 35.5 s @1.0 mm/12T) | **candidate ×2**: W1.2 T4 parallel TU (~thread-count) and GPU G4/N6 (bar ≥10× vs serial) |
+| `Voxels_RenderLattice` | **ST** — single dense accessor loop over per-beam bboxes, pruned on exit (SK-0.5) | nothing about it suits ST: analytic SDF min-splat is embarrassingly parallel; this is the top serial wall (HeatX creation stages ≈30 s of 35.5 s @1.0 mm/12T) | **candidate ×2**: W1.2 T4 parallel TU (~thread-count) and GPU G4/N6 (bar ≥10× vs serial). SK-0.5's prune took 5.5% of tree off the output; it does not touch the serial wall |
 | `Voxels_RenderMesh` (`meshToLevelSet`) | MT — per-triangle voxelize → thread-local trees → merge | triangle-parallel by construction | candidate: GPU P7 (3–10× honest bar — baseline already MT) |
 | Sphere / capsule / dilated-mesh constructors | MT (`createLevelSet*`) | primitive rasterization, TBB inside OpenVDB | current |
 
@@ -78,9 +95,9 @@ Ledger of every PicoGK runtime compute entry point and its **current workload ex
 
 | Op | Executor today | Why | Graduation status |
 | --- | --- | --- | --- |
-| `Voxels_BoolAdd/Subtract/Intersect` | MT — `tools::csg*` node-steal via `DynamicNodeManager` | node-parallel merge | deficiency: **deep-copies operand first** (pure memory traffic) — W1.2 T6 `.consume()`; GPU value-merge P6 candidate at assembly scale |
+| `Voxels_BoolAdd/Subtract/Intersect` | MT — `Csg*Op` merge via `DynamicNodeManager`, operand copied **lazily per grafted node** (`DeepCopy` tag) | node-parallel merge; the operand copy is now proportional to what survives, not to the operand | **graduated 2026-07-26 (SK-0.5, U20)** — the whole-operand `deepCopyTypedGrid` is gone: 2 → 1 full-grid materializations per boolean, and the one left IS the result. Heap high-water 442.5 → 368.8 MB on a 78 MB operand; byte-identical output. Executor unchanged (still MT). W1.2 T6 `.consume()` is **closed by this**; GPU value-merge P6 still a candidate at assembly scale |
 | `Voxels_Offset` / `DoubleOffset` / `TripleOffset` | MT — `LevelSetFilter` leaf-parallel, CFL-iterated | leaf sweeps are band-parallel | candidate: GPU P5 resident stencil chains (anchor: NanoVDB CUDA LevelSet 5×, Fog 44× vs native MT CPU) |
-| `Voxels_ProjectZSlice` | **ST** — per-column z-scan | columns are independent — ST is unjustified | candidate: W1.2 T5 parallel TU; carries end-cap seal bug (upstreamables ledger) |
+| `Voxels_ProjectZSlice` | **ST** — per-column z-scan, now pruned on exit (SK-0.5) | columns are independent — ST is unjustified | candidate: W1.2 T5 parallel TU; carries end-cap seal bug (U2). Ships **36.1% less tree** since SK-0.5 (U21) — the executor did not move, the output representation did |
 | `Voxels_bIsEqual` | **ST** — dense bbox compare | trivially parallel + early-exit reduce | candidate: W1.2 T11 |
 
 ## Voxels — interrogate
@@ -88,11 +105,12 @@ Ledger of every PicoGK runtime compute entry point and its **current workload ex
 | Op | Executor today | Why | Graduation status |
 | --- | --- | --- | --- |
 | `Mesh_hCreateFromVoxels` (`volumeToMesh`) | MT (disjoint-slot flatten, SK-0.6) | the "serial adaptivity/stitch" attribution was wrong — the wall was four serial copy passes AROUND the parallel mesher (`doVolumeToMesh`'s per-element primitive copy + roAsMesh's three re-copies); repaired via pool-indexed count→scan→emit into pre-sized slots (`patches/PicoGKRuntime/0001`), byte-identical output, layout = the WGSL port's input shape | current (SK-0.6 measured: ST 43.3→38.4 ms, 12T 32.9→24.0 ms, scaling 1.31→1.60× on dlmalloc — residual is tree lifecycle (identify/auxdata/clear ≈19 of 24 ms), an allocator/S-A wall, not extraction; mimalloc probe on the patched tree: 12T ≈10 ms, ≈3.9× scaling, byte-identical — see `bench/results/webgpu-v2/SK-0.6.md`) |
-| `Voxels_fCalculateVolume` | MT — Gauss-divergence reduce | reduce-shaped | current |
+| `Voxels_fCalculateVolume` | MT — Gauss-divergence reduce (`levelSetVolume`) | reduce-shaped | current. **Not** a substitute for `properties().volume`: on a post-boolean grid the distance-0 voxels csg leaves on coincident surfaces measure as real surface — `a − a` reports 205.39 mm³ for a field with no interior. SK-0.5 §4 has the corpus-wide delta table and the five byte-locked pins that fix this |
 | `Voxels_bClosestPointOnSurface` | ST per query — Bresenham shell scan O(r³)/call | algorithmically wrong before executor-wrong | candidate: gradient-walk algorithm fix + batched ABI (W1.2 T11 / P8) |
 | `Voxels_bRayCastToSurface` | ST per ABI call | HDDA exists in NanoVDB; no batch entry | candidate: batched query ABI (P8, 10–50×) |
 | `Voxels_GetX/Y/ZSlice`, `GetInterpolatedZSlice` | ST dense accessor reads | readback-bound; per-call ABI — now ~35 ns/crossing (SK-0.2), so the batch case rests on amortizing the accessor re-seek and the copy, not on the boundary | candidate: batched `GetZSliceRange` (W1.2 T9) |
 | `Voxels_GetVoxelDimensions` etc. (metadata) | ST trivial | O(1) | non-improvable |
+| `Voxels_GetProperties` (own TU, `src/pico-props.cpp`) | MT — inherits `volumeToMesh` + `meshToLevelSet` + `levelSetVolume`/`levelSetArea` | the mesh round-trip is load-bearing, not laziness: it is what launders the distance-0 voxels out of a post-boolean grid (SK-0.5 §4). Area is the grid-native part | **new 2026-07-26 (SK-0.5)** — collapses the old 5-crossing / 2-temp-handle TS sequence into one call and adds `properties().area` from `tools::levelSetArea` over the grid the sequence already builds (0.11% of analytic on a sphere). Volume and bounds bit-identical. Inherits `Mesh_hCreateFromVoxels`'s non-scaling shape, so it graduates when W1.3 / P8 does |
 
 ## Fields / metadata / IO
 

@@ -64,17 +64,20 @@ bash "$HERE/scripts/make-core-tu.sh" \
 
 INCLUDES=(-I"$HERE/shim" -I"$PICOGK_RUNTIME/API" -I"$PICOGK_RUNTIME/Source" -I"$PREFIX/include")
 
-echo "=== compile core + bulk TUs ==="
+echo "=== compile core + bulk + tape + props TUs ==="
 em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$OUT/PicoGKLibraryCore.cpp" \
   -o "$OUT/pico_core_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
 em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$HERE/src/pico-bulk.cpp" \
   -o "$OUT/pico_bulk_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
 em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$HERE/src/pico-tape.cpp" \
   -o "$OUT/pico_tape_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
+em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$HERE/src/pico-props.cpp" \
+  -o "$OUT/pico_props_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
 
 echo "=== link -> $VARIANT.mjs ==="
 em++ -std=c++20 $WASM_FLAGS $EH_FLAGS \
   "$OUT/pico_core_module$MT.o" "$OUT/pico_bulk_module$MT.o" "$OUT/pico_tape_module$MT.o" \
+  "$OUT/pico_props_module$MT.o" \
   "$PREFIX/lib/libopenvdb.a" "$PREFIX/lib/libtbb.a" \
   -o "$OUT_JS/$VARIANT.mjs" \
   ${THREAD_LINK_FLAGS[@]+"${THREAD_LINK_FLAGS[@]}"} \
