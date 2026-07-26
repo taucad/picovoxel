@@ -437,6 +437,10 @@ this regime.
 
 1. Land the G0 oracle tooling (canonical grid hash, multiset mesh hash,
    identity-triple harness) — prerequisite for everything; ~S effort.
+   **LANDED 2026-07-27 (SKv2-0 V0.1)**: in-module hash `src/pico-hash.cpp` /
+   `voxels.gridHash()`, harness `bench/g0-identity.mjs`, per-commit gate
+   `test/g0-gate.test.ts` — evidence in
+   `bench/results/webgpu-v2/SKv2-0-V0.1.md`.
 2. Run the three §11 diagnostics.
 3. ~~Flip `MALLOC=mimalloc` on the MT fast lane (L0 stays dlmalloc).~~
    ~~**WITHDRAWN 2026-07-27 (SK-0.9)** — mimalloc MT is corrupt at ≤0.6 mm (§11.2

@@ -150,5 +150,7 @@ _Voxels_IntersectImplicitTape
 _Lattice_AddBeams
 _Lattice_AddSpheres
 _Voxels_GetProperties
+_Voxels_GetGridHash
+_Voxels_DensifyInterior
 _Voxels_OffsetTuned
 _Voxels_RenderLatticeTubes

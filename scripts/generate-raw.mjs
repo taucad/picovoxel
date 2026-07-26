@@ -90,6 +90,20 @@ export const BULK_FUNCTIONS = [
     { name: 'pfArea', type: 'float*', cwrap: 'number' },
     { name: 'poBBox', type: 'PKBBox3*', cwrap: 'number' },
   ] },
+  // The hash TU (src/pico-hash.cpp) — the G0 canonical grid hash + its self-test
+  // densifier (NON-DETERMINISM.md §14.5).
+  { name: 'Voxels_GetGridHash', cwrapReturn: null, args: [
+    { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+    { name: 'hThis', type: 'PKVOXELS', cwrap: 'bigint' },
+    { name: 'pnHash16', type: 'uint8_t*', cwrap: 'number' },
+    { name: 'pnActiveVoxels', type: 'uint64_t*', cwrap: 'number' },
+    { name: 'pnInsideTiles', type: 'uint64_t*', cwrap: 'number' },
+    { name: 'pnInsideOffVoxels', type: 'uint64_t*', cwrap: 'number' },
+  ] },
+  { name: 'Voxels_DensifyInterior', cwrapReturn: null, args: [
+    { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+    { name: 'hThis', type: 'PKVOXELS', cwrap: 'bigint' },
+  ] },
   // The offset TU (src/pico-offset.cpp) — the offset family's renormalization knobs.
   { name: 'Voxels_OffsetTuned', cwrapReturn: null, args: [
     { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },

@@ -137,6 +137,21 @@ export interface Voxels {
    * extra meshing pass.
    */
   properties(): { volume: number; area: number; bounds: Bounds };
+  /**
+   * SKv2-0 V0.1 — the G0 canonical grid hash (NON-DETERMINISM.md §14.5):
+   * representation-normalized XXH3-128 over the level set's exact content
+   * (src/pico-hash.cpp). Two grids hash equal iff they classify and value
+   * every voxel identically — tile vs dense-leaf encodings of one field hash
+   * equal. Index-space only: voxel size is pinned by the tuple's volume/counts.
+   */
+  gridHash(): { hash: string; activeVoxels: number; insideTiles: number; insideOffVoxels: number };
+  /**
+   * Oracle test tooling: rewrites the grid as fully dense leaves over its
+   * active bounding box — same field, maximally different representation, so
+   * `gridHash()` must not move while `memUsage` proves the tree changed.
+   * O(bbox volume): small fixtures only.
+   */
+  densifyInterior(): void;
   /** SG1 — bounding box via the intermediate mesh (the only accurate way). */
   bounds(): Bounds;
   /** True if the point is at or below the surface. */
@@ -411,6 +426,31 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
         area: ctx.module.HEAPF32[(floats + 4) >>> 2]!,
         bounds: { min: ctx.readVec3(box), max: ctx.readVec3(box + VEC3_BYTES) },
       };
+    },
+    gridHash(): { hash: string; activeVoxels: number; insideTiles: number; insideOffVoxels: number } {
+      // 16-byte digest, then three u64 counts — 40 bytes, inside the 255-byte
+      // scratch; scratch is malloc-aligned so the u64 slots at +16 stay 8-aligned.
+      const hashAt = ctx.scratch;
+      const countsAt = ctx.scratch + 16;
+      guard('Voxels_GetGridHash', () =>
+        ctx.raw.Voxels_GetGridHash(ctx.lib, live(), hashAt, countsAt, countsAt + 8, countsAt + 16),
+      )();
+      let hash = '';
+      for (let i = 0; i < 4; i++) {
+        const word = ctx.module.HEAPU32[(hashAt + 4 * i) >>> 2]!;
+        for (let b = 0; b < 4; b++) hash += ((word >>> (8 * b)) & 0xff).toString(16).padStart(2, '0');
+      }
+      // Counts are exact below 2^53 — a wasm32/wasm64 grid cannot reach that.
+      const u64 = (at: number) => ctx.module.HEAPU32[at >>> 2]! + ctx.module.HEAPU32[(at + 4) >>> 2]! * 2 ** 32;
+      return {
+        hash,
+        activeVoxels: u64(countsAt),
+        insideTiles: u64(countsAt + 8),
+        insideOffVoxels: u64(countsAt + 16),
+      };
+    },
+    densifyInterior(): void {
+      guard('Voxels_DensifyInterior', () => ctx.raw.Voxels_DensifyInterior(ctx.lib, live()))();
     },
     bounds(): Bounds {
       return meshRoundTrip(readBoundsFrom);

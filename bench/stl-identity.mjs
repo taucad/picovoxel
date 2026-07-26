@@ -304,12 +304,16 @@ function cmdSelftest() {
   console.log('stl-identity selftest: ok');
 }
 
-const [command, ...rest] = process.argv.slice(2);
-if (command === 'selftest') cmdSelftest();
-else if (command === 'run') await cmdRun(rest);
-else if (command === 'diff') cmdDiff(rest[0], rest[1]);
-else if (command === 'hash') cmdHash(rest);
-else {
-  console.error('usage: stl-identity.mjs hash <file>... | diff <a> <b> | run --build B --size S [--label L] [--jsonl F] [--dump FILE]');
-  process.exit(2);
+// Import-safe: bench/g0-identity.mjs consumes stlIdentity as a library.
+const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) {
+  const [command, ...rest] = process.argv.slice(2);
+  if (command === 'selftest') cmdSelftest();
+  else if (command === 'run') await cmdRun(rest);
+  else if (command === 'diff') cmdDiff(rest[0], rest[1]);
+  else if (command === 'hash') cmdHash(rest);
+  else {
+    console.error('usage: stl-identity.mjs hash <file>... | diff <a> <b> | run --build B --size S [--label L] [--jsonl F] [--dump FILE]');
+    process.exit(2);
+  }
 }

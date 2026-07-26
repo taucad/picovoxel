@@ -847,6 +847,43 @@ test('C15 — every allocation counter returns to zero', () => {
   fns.Library_DestroyInstance(lib);
 });
 
+// ── C17 — the G0 grid-hash oracle (SKv2-0 V0.1, src/pico-hash.cpp) ─────────────
+test('C17 — grid hash: stable, representation-blind, content-sensitive', () => {
+  withLib(0.4, (lib) => {
+    const hash = _malloc(48); // 16 B digest + 3 × u64 counts, 8-aligned
+    const digest = () => Array.from({ length: 4 }, (_, i) => module.HEAPU32[(hash >> 2) + i]).join('-');
+    const counts = () => Array.from({ length: 6 }, (_, i) => module.HEAPU32[((hash + 16) >> 2) + i]).join('-');
+    const sphere = sphereOf(lib, 8);
+
+    fns.Voxels_GetGridHash(lib, sphere, hash, hash + 16, hash + 24, hash + 32);
+    const [first, firstCounts] = [digest(), counts()];
+    const active = module.HEAPU32[(hash + 16) >> 2];
+    assert.ok(active > 0, 'a real level set has active voxels');
+
+    fns.Voxels_GetGridHash(lib, sphere, hash, hash + 16, hash + 24, hash + 32);
+    assert.equal(digest(), first, 'repeated hashing is bit-stable');
+
+    // Densify a copy: same field, dense-leaf representation — the hash and
+    // every count must hold while memUsage proves the tree changed.
+    const dense = fns.Voxels_hCreateCopy(lib, sphere);
+    const memBefore = Number(fns.Voxels_nMemUsage(lib, dense));
+    fns.Voxels_DensifyInterior(lib, dense);
+    assert.ok(Number(fns.Voxels_nMemUsage(lib, dense)) > memBefore, 'densify must change the representation');
+    fns.Voxels_GetGridHash(lib, dense, hash, hash + 16, hash + 24, hash + 32);
+    assert.equal(digest(), first, 'tile vs dense-leaf encodings of one field hash equal');
+    assert.equal(counts(), firstCounts, 'post-prune counts are representation-invariant too');
+
+    const other = sphereOf(lib, 9);
+    fns.Voxels_GetGridHash(lib, other, hash, hash + 16, hash + 24, hash + 32);
+    assert.notEqual(digest(), first, 'different content is a different hash');
+
+    fns.Voxels_Destroy(lib, dense);
+    fns.Voxels_Destroy(lib, other);
+    fns.Voxels_Destroy(lib, sphere);
+    _free(hash);
+  });
+});
+
 // ── C16 — negative tests (R16) ─────────────────────────────────────────────────
 test('C16 — invalid handles throw and the module survives every one', () => {
   const lib = fns.Library_hCreateInstance(0.5);
