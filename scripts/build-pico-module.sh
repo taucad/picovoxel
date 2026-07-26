@@ -30,6 +30,10 @@ OUT="${OUT:-$HERE/build}"
 OUT_JS="${OUT_JS:-$HERE/src}"
 WASM_FLAGS="${WASM_FLAGS:--O3 -msimd128}"
 EH_FLAGS="${EH_FLAGS:--fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=1}"
+# Allocator (SK-0.1): link-time only — the dep archives call malloc/free and bind
+# at link, so A/B needs no dep rebuild. emscripten's default is dlmalloc, whose
+# global free-list mutex serializes the 12-thread creation paths.
+MALLOC="${MALLOC:-dlmalloc}"
 # THREADS=1 — pthread variant: links the -mt prefix (shared-memory ABI, built by
 # THREADS=1 build-deps-wasm.sh) into pico-multi.mjs/.wasm. The pool is
 # pre-spawned at nproc: TBB workers park in it, and a pre-spawned pool is the
@@ -75,12 +79,13 @@ em++ -std=c++20 $WASM_FLAGS $EH_FLAGS \
   -o "$OUT_JS/$VARIANT.mjs" \
   ${THREAD_LINK_FLAGS[@]+"${THREAD_LINK_FLAGS[@]}"} \
   -sMODULARIZE -sEXPORT_ES6=1 -sEXPORT_NAME=createPicoModule \
+  -sMALLOC="$MALLOC" \
   -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=256MB -sMAXIMUM_MEMORY=4GB \
   -sSTACK_SIZE=8388608 -sALLOW_TABLE_GROWTH=1 \
   -sEXPORTED_FUNCTIONS=@"$HERE/src/pico-exports.txt" \
   -sEXPORTED_RUNTIME_METHODS="$RUNTIME_METHODS"
 
-echo "$VARIANT.wasm: $(stat -f%z "$OUT_JS/$VARIANT.wasm") bytes; $VARIANT.mjs: $(stat -f%z "$OUT_JS/$VARIANT.mjs") bytes"
+echo "$VARIANT.wasm: $(stat -f%z "$OUT_JS/$VARIANT.wasm") bytes; $VARIANT.mjs: $(stat -f%z "$OUT_JS/$VARIANT.mjs") bytes; malloc=$MALLOC"
 
 N=$("$EMSDK/upstream/bin/wasm-dis" "$OUT_JS/$VARIANT.wasm" | grep -cE '\b(f32x4|i32x4|v128)\.' || true)
 echo "SIMD instructions: $N"

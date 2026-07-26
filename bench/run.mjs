@@ -15,6 +15,9 @@
 // Usage: node bench/run.mjs [--allow-loaded] [--update]
 //   --allow-loaded  skip the loadavg guard (CI drift canaries only, never baselines)
 //   --update        regenerate bench/BENCHMARKS.md from this run (R28)
+//   BENCH_REPEATS=N measured repeats per metric (default 5). SK-0.1 runs at 10+:
+//                   a bootstrap CI over 5 samples resolves only gross differences,
+//                   and allocator deltas are expected in the tens of percent.
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -25,7 +28,7 @@ import { fileURLToPath } from 'node:url';
 import { createPico } from '../src/index.ts';
 import { buildGearMesh } from '../examples/pico/gear.ts';
 import { sliceVoxels } from '../src/slicing.ts';
-import { preserveAppendix, summarizeSamples } from './stats.mjs';
+import { preserveAppendix, summarizeBootstrapMedian } from './stats.mjs';
 
 const HERE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ALLOW_LOADED = process.argv.includes('--allow-loaded');
@@ -80,7 +83,11 @@ const fnv1a = (typedArray) => {
   return (hash >>> 0).toString(16);
 };
 // ── Runner: 1 warmup + 5 measured; identity must be bit-stable across repeats ──
-const REPEATS = 5;
+const REPEATS = Number(process.env.BENCH_REPEATS ?? 5);
+if (!Number.isInteger(REPEATS) || REPEATS < 1) {
+  console.error(`REFUSED: BENCH_REPEATS must be a positive integer, got ${process.env.BENCH_REPEATS}`);
+  process.exit(1);
+}
 const results = {};
 async function metric(id, description, body) {
   const phaseSamples = {};
@@ -104,7 +111,7 @@ async function metric(id, description, body) {
   const loadAfter = loadavg()[0];
   const phases = Object.fromEntries(
     Object.entries(phaseSamples).map(([phase, samples]) => {
-      const summary = summarizeSamples(samples);
+      const summary = summarizeBootstrapMedian(samples);
       return [
         phase,
         {
@@ -113,6 +120,8 @@ async function metric(id, description, body) {
           maxMs: +summary.max.toFixed(3),
           madMs: +summary.mad.toFixed(3),
           p95Ms: +summary.p95.toFixed(3),
+          ci95LowMs: +summary.ci95.low.toFixed(3),
+          ci95HighMs: +summary.ci95.high.toFixed(3),
           samplesMs: summary.samples.map((sample) => +sample.toFixed(3)),
         },
       ];

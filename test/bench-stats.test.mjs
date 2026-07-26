@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { test } from 'vitest';
 import {
   assertAccelerationEngaged,
@@ -130,6 +134,49 @@ test('should fail loudly when an accelerated path did not engage', () => {
         'accelerated path did not engage: requested=gpu active=cpu adapter=missing dispatches=0 resultConsumed=false',
     },
   );
+});
+
+test('should pair allocator A/B samples across blocks and name regressions honestly', () => {
+  // A silent mis-pairing here would corrupt the SK-0.1 headline rather than fail
+  // loudly, so the script is driven end to end over two blocks per side.
+  const run = (win, lose) => ({
+    fingerprint: {},
+    results: {
+      M: { phases: { win: { samplesMs: win }, lose: { samplesMs: lose } }, identity: null },
+    },
+  });
+  const dir = mkdtempSync(join(tmpdir(), 'alloc-ab-'));
+  const write = (name, body) => {
+    const path = join(dir, name);
+    writeFileSync(path, JSON.stringify(body));
+    return path;
+  };
+  // Two blocks per side: 'win' halves under B, 'lose' doubles under B.
+  const a1 = write('a1.json', run([100, 100], [10, 10]));
+  const a2 = write('a2.json', run([100, 100], [10, 10]));
+  const b1 = write('b1.json', run([50, 50], [20, 20]));
+  const b2 = write('b2.json', run([50, 50], [20, 20]));
+
+  const out = execFileSync(process.execPath, [resolve('bench/alloc-ab.mjs'), `${a1},${a2}`, `${b1},${b2}`], {
+    encoding: 'utf8',
+  });
+
+  assert.match(out, /\| M \| win \| 100\.000 \| 50\.000 \| -50\.0% \| 2\.000× \|.*\| faster \|/);
+  assert.match(out, /\| M \| lose \| 10\.000 \| 20\.000 \| \+100\.0% \| 0\.500× \|.*\| \*\*REGRESSION\*\* \|/);
+  assert.match(out, /2 phases compared: 1 faster, 1 regressions/);
+  assert.match(out, /REGRESSION M\/lose: 0\.500×/);
+});
+
+test('should skip allocator phases whose sample counts do not match', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'alloc-ab-'));
+  const body = (samples) => ({ fingerprint: {}, results: { M: { phases: { p: { samplesMs: samples } } } } });
+  const a = join(dir, 'a.json');
+  const b = join(dir, 'b.json');
+  writeFileSync(a, JSON.stringify(body([1, 2, 3])));
+  writeFileSync(b, JSON.stringify(body([1, 2])));
+  const out = execFileSync(process.execPath, [resolve('bench/alloc-ab.mjs'), a, b], { encoding: 'utf8' });
+  assert.match(out, /skipped \(sample-count mismatch\)/);
+  assert.match(out, /M\/p \(A=3 B=2 samples\)/);
 });
 
 test('should preserve the hand-written benchmark appendix', () => {

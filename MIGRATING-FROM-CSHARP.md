@@ -289,6 +289,64 @@ randomness only, derived-from headers.
 | B4 | `IO/OpenVdbFile.cs` era `Voxels.cs:680-700` | `voxShell(neg, pos, smooth)` calls the *copy* forms of subtract/smoothen and discards the results — the two-offset shell never subtracts and never smooths | `shell({ inner, outer, smoothInner })` implements the documented intent |
 | B5 | `Shapes/3D/Frame3d.cs:229-241` | `frmInverse` copies `vecLz`/`vecLx` into the inverse unchanged — the translation is inverted but the rotation is not, so `frmCompose(frmInverse())` ≠ identity for any rotated frame | `frame.inverse` transposes the rotation (inverse basis = rows of R); compose∘inverse ≡ identity is a pinned test |
 
+## Upstreamable spikes ledger
+
+Per-component queue of fixes/improvements we carry (or plan) locally that belong upstream. Status: `identified` → `spiked` (implemented + measured here) → `pr-drafted` → `landed`. Convergent-evidence notes strengthen the PR case. Companion: `WORKLOAD-EXECUTORS.md`; program docs in `docs/research/picogk-webgpu-*` (tau monorepo).
+
+### PicoGKRuntime (leap71/PicoGKRuntime)
+
+| # | Item | Evidence | Status |
+| --- | --- | --- | --- |
+| U1 | `IntersectImplicit` narrow-band int-truncation (`Voxels oVox(oVoxelSize(), fBackgroundMM())` → `m_nSdfNarrowBand`); breaks below ~0.33 mm | our R7 root-cause + PicoPie `scripts/patch_runtime.py` Fix 2 — two independent bindings, identical diagnosis | identified |
+| U2 | `ProjectZSliceDn/Up` end-cap seal uses mm as a voxel count (`(int)(0.5f + background())`, `PicoGKVdbVoxels.h:482,523`); caps silently unsealed <0.167 mm, wrong count at 0.5 mm | PicoPie Fix 3; on HeatX + RoverWheel hot paths; L0-visible (pins regenerate on adoption) | identified |
+| U3 | Active-voxel-count export (pre-size batch buffers; kills count-then-fill double passes) | PicoPie `_fastloop.pyx:143-144` needs it; our batch ABIs need it | identified |
+| U4 | Bulk mesh ABI (vertices/triangles arrays in one call) | our R11 implementation + measured wins; staged in `upstream/` | spiked |
+| U5 | Parallel `RenderLattice` TU (thread-local grids + node-steal merge) | serial today (`PicoGKVdbVoxels.h:343-358`); HeatX creation ≈30 s of 35.5 s | identified (W1.2 T4) |
+| U6 | Never-abort guard (try/catch → error flag on every `PICOGK_API`; uncatchable OpenVDB aborts become recoverable errors) | PicoPie Fix 1 pattern; our TU has zero try/catch | identified |
+| U7 | GPU compute lane (WGSL kernels + C-ABI TUs + Dawn scheduler) as optional capability | program P9 exit; offered with benchmarks | identified (gated on program GO) |
+
+### OpenVDB / NanoVDB (AcademySoftwareFoundation/openvdb)
+
+| # | Item | Evidence | Status |
+| --- | --- | --- | --- |
+| U8 | NanoVDB fallback scheduler deadlocks under Emscripten's fixed pthread pool (nested `std::thread` fan-out); `NANOVDB_USE_TBB` reuses the linked scheduler — document/build-guard for wasm builds | iteration-1 spike bring-up (findings doc, Finding 6) | identified |
+| U9 | WGSL/WebGPU compute layer for NanoVDB (leaf transforms, grid building) — no WebGPU target exists upstream (fVDB is CUDA-only) | program frontier position; survey S7; ASWF discussions #1486/#1625 | identified (gated on program GO) |
+| U10 | `volumeToMesh` scaling at small/medium grids (non-scaling serial phases: 50.2 ms ST vs 46.2 ms 12T; extend the existing disjoint-slot points pattern `:5092-5123` to polygons — per-leaf upper bound already computed `:4060-4066`) | OCCT learnings doc: bulk of the wall is PicoGK-side glue (no `reserve()`, serial passes), remainder is this upstream shape | identified |
+| U12 | Unconditional `${CMAKE_SOURCE_DIR}` references in `openvdb/openvdb/CMakeLists.txt` (:22 include, :600-603 required Half.cc source, post-13.0) break `add_subdirectory` consumers — 2-line fix (`OpenVDB_SOURCE_DIR`) | upstream-delta doc; PicoGKRuntime is the proof case; unblocks any future pin move | identified |
+
+### oneTBB (uxlfoundation/oneTBB) + emscripten
+
+| # | Item | Evidence | Status |
+| --- | --- | --- | --- |
+| U13 | wasm `machine_pause` is one `sched_yield` (~55 ns JS-boundary call, delay param ignored) — exponential backoff flattens, workers over-park; fix = worker-side register spin, main-thread yield kept | `tbb-emscripten-substrate-audit.md` (probe-measured) | identified |
+| U14 | External-thread steal-budget mis-derivation on emscripten (64 KB stack fallback kept → main thread stops stealing 32 KB into its 8 MB stack; silent ≤1/12 participation loss) — 3-line fix via `emscripten_stack_get_end()` | same doc, `governor.cpp:154-163,220-223` | identified |
+
+(Ours, not upstream: `-sMALLOC=mimalloc` link flag — the 113× figure is an allocation-only
+microbench on 12T leaf churn against dlmalloc's global mutex, **not** a production ratio.
+Measured at application scale (SK-0.1, 2026-07-26, ABAB ×20 samples/side): the win is
+confined to genuinely multithreaded paths — HeatX `construct` **1.208×** (CI 1.171–1.262)
+on the multi build, `io-threads.create` 4.58×, tape `mesh` 1.998× — while the single-thread
+build is flat (0.991×, CI 0.974–1.024) and five small single-thread boolean stages regress
+up to 21.8%. Costs: peak wasm heap 1.81× at 1.0 mm (0.866 → 1.567 GiB; a largely fixed
+segment-cache overhead, falling to ~1.3× by 0.5 mm — the OOM boundary does **not** move,
+both allocators clear 0.5 mm and fail at 0.4 mm), and — the reason it is **not** the
+default — **loss of STL byte reproducibility at 0.5 mm**: identical geometry, three
+different byte streams across three multi runs. Kept as `MALLOC=` in
+`scripts/build-pico-module.sh`, default `dlmalloc`. See
+`bench/results/webgpu-v2/SK-0.1.md`. Also ours:
+warmup-sleep → `PThread.runningWorkers` poll; `global_control(thread_stack_size)` for 64 KB
+worker stacks.)
+
+### emdawnwebgpu (google/dawn, `src/emdawnwebgpu`)
+
+| # | Item | Evidence | Status |
+| --- | --- | --- | --- |
+| U11a | `HEAPU8.fill` end-index bug in mapped-shadow zeroing (`library_webgpu.js:1040` — no-op as written; writable shadows start as heap garbage) | port-internals audit; 1-line fix; crbug component known | identified |
+| U11b | Asyncify futures-table growth (wrapper promise per async op, deleted only by a WaitAny race winner — unbounded in long sessions) | port-internals audit; ~3-line fix | identified |
+| U11c | Asyncify-free build hygiene (preprocess out `emwgpuWaitAny` timed-wait plumbing — upstream's own TODO, crbug.com/377760848) | port-internals audit; upstream-first | identified |
+
+Note: a "bulk write path" patch was assessed and **rejected** — `wgpuQueueWriteBuffer` already adds zero copies over the browser-inherent snapshot (`docs/research/emdawnwebgpu-memory-boundary-audit.md`).
+
 ## Deliberately not on this surface
 
 `Viewer/*` (browser rendering is `picovoxel/three` + your scene), `Library.Go()` and the global registry, `Shapes/` 2D paths/contours + `OrientedPath` (deferred until any consumer adopts them; the 3D `Frame3d` is ported — see `picovoxel/numerics`), Skia imaging / `LogFile` / `Animation` / `Csv` / `TgaIo` (platform natives replace them), `MeshMath.bFindTriangleFromSurfacePoint` (use `bounds()` + an external BVH).
