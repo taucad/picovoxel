@@ -87,7 +87,7 @@ Ledger of every PicoGK runtime compute entry point and its **current workload ex
 
 | Op | Executor today | Why | Graduation status |
 | --- | --- | --- | --- |
-| `Mesh_hCreateFromVoxels` (`volumeToMesh`) | MT nominal, **non-scaling** (50.2 ms ST vs 46.2 ms 12T) | serial adaptivity/stitch phases dominate at our grid sizes; gates `properties()`/`bounds()` triple-pass | candidate: W1.3 investigation → parallel extraction TU or GPU dual contouring (P8); OCCT meshing learnings feeding in |
+| `Mesh_hCreateFromVoxels` (`volumeToMesh`) | MT (disjoint-slot flatten, SK-0.6) | the "serial adaptivity/stitch" attribution was wrong — the wall was four serial copy passes AROUND the parallel mesher (`doVolumeToMesh`'s per-element primitive copy + roAsMesh's three re-copies); repaired via pool-indexed count→scan→emit into pre-sized slots (`patches/PicoGKRuntime/0001`), byte-identical output, layout = the WGSL port's input shape | current (SK-0.6 measured: ST 43.3→38.4 ms, 12T 32.9→24.0 ms, scaling 1.31→1.60× on dlmalloc — residual is tree lifecycle (identify/auxdata/clear ≈19 of 24 ms), an allocator/S-A wall, not extraction; mimalloc probe on the patched tree: 12T ≈10 ms, ≈3.9× scaling, byte-identical — see `bench/results/webgpu-v2/SK-0.6.md`) |
 | `Voxels_fCalculateVolume` | MT — Gauss-divergence reduce | reduce-shaped | current |
 | `Voxels_bClosestPointOnSurface` | ST per query — Bresenham shell scan O(r³)/call | algorithmically wrong before executor-wrong | candidate: gradient-walk algorithm fix + batched ABI (W1.2 T11 / P8) |
 | `Voxels_bRayCastToSurface` | ST per ABI call | HDDA exists in NanoVDB; no batch entry | candidate: batched query ABI (P8, 10–50×) |

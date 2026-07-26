@@ -82,9 +82,9 @@ fetch PicoGKRuntime leap71/PicoGKRuntime "$PICOGK_RUNTIME_SHA" "$PICOGK_RUNTIME_
 fetch openvdb AcademySoftwareFoundation/openvdb "$OPENVDB_SHA" "$OPENVDB_SHA256"
 fetch oneTBB uxlfoundation/oneTBB "$ONETBB_SHA" "$ONETBB_SHA256"
 
-extract "$DL/PicoGKRuntime-${PICOGK_RUNTIME_SHA:0:8}.tar.gz" "$VENDOR/PicoGKRuntime"
+extract "$DL/PicoGKRuntime-${PICOGK_RUNTIME_SHA:0:8}.tar.gz" "$VENDOR/PicoGKRuntime" "$HERE/patches/PicoGKRuntime"
 # The openvdb submodule ships empty in the runtime tarball; fill it at its mount point.
-extract "$DL/openvdb-${OPENVDB_SHA:0:8}.tar.gz" "$VENDOR/PicoGKRuntime/openvdb"
+extract "$DL/openvdb-${OPENVDB_SHA:0:8}.tar.gz" "$VENDOR/PicoGKRuntime/openvdb" "$HERE/patches/openvdb"
 extract "$DL/oneTBB-${ONETBB_SHA:0:8}.tar.gz" "$VENDOR/oneTBB" "$HERE/patches/oneTBB"
 
 # emsdk: honour an existing toolchain (local fallback), else install into vendor/.
