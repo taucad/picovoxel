@@ -1,0 +1,93 @@
+oneTBB v2022.2.0 (06ce6212) — three emscripten-substrate fixes, all upstreamable.
+
+Applied to vendor/oneTBB by scripts/fetch-deps.sh. The vendored trees are
+otherwise kept pristine (fetch-deps.sh R4); these are here because they are
+compile-time behaviour of the dependency itself and have no flag-level override.
+
+1. include/oneapi/tbb/detail/_machine.h — machine_pause() on wasm fell to the
+   Generic branch, i.e. one sched_yield per pause, which under emscripten is a
+   JS-boundary call (measured 54.8 ns) that also ignores `delay` and flattens
+   atomic_backoff's exponential shape. Spin in-register instead; keep yielding
+   on the main runtime thread, whose yield drains the proxied-call queue that
+   worker launch depends on.
+2. src/tbb/governor.cpp — get_stack_attributes()'s EMSCRIPTEN branch set only
+   stack_base, leaving stack_size at the worker-stack fallback for the external
+   thread, which actually runs on -sSTACK_SIZE. The stealing threshold
+   (base - size/2) was therefore derived from the wrong stack and the external
+   thread stopped stealing worker_stack_size/2 into its own stack.
+3. cmake/compilers/Clang.cmake — TBB_EMSCRIPTEN_STACK_SIZE was a plain set(),
+   so -DTBB_EMSCRIPTEN_STACK_SIZE=... was silently ignored. Guard it so the
+   worker stack size is configurable (we build with 1 MB).
+
+Evidence: docs/research/tbb-emscripten-substrate-audit.md (F2, F3, F4),
+bench/results/webgpu-v2/SK-0.7.md.
+--- a/include/oneapi/tbb/detail/_machine.h
++++ b/include/oneapi/tbb/detail/_machine.h
+@@ -53,6 +53,10 @@
+ #include <thread> // std::this_thread::yield()
+ #endif
+ 
++#if __EMSCRIPTEN__
++#include <emscripten/threading.h> // emscripten_is_main_runtime_thread()
++#endif
++
+ namespace tbb {
+ namespace detail {
+ inline namespace d0 {
+@@ -97,6 +101,22 @@
+     while (delay-- > 0) { _mm_pause(); }
+ #elif __ARM_ARCH_7A__ || __aarch64__
+     while (delay-- > 0) { __asm__ __volatile__("isb sy" ::: "memory"); }
++#elif __EMSCRIPTEN__
++    // WebAssembly has no pause instruction, but the Generic fallback below is
++    // far worse than nothing here: yield() lands on emscripten's sched_yield,
++    // which calls out to JS (emscripten_get_now import) on every single pause.
++    // Measured on a worker: 54.8 ns per call, 52.0 ns of it the JS boundary.
++    // Because the fallback also ignores `delay`, atomic_backoff's exponential
++    // 1,2,4,...,16 shape collapses to a flat one-JS-call-per-iteration spin and
++    // prolonged_pause()'s intended ~PauseTime wait collapses to a single yield.
++    // An empty volatile asm is a compiler barrier that emits no instructions,
++    // so the loop stays in-register and both the cost and the shape are back.
++    //
++    // The main runtime thread keeps yielding: _emscripten_yield() drains the
++    // proxied-call queue there, and proxied pthread_create (how TBB's worker
++    // pool actually launches under emscripten) blocks until it is drained.
++    if (emscripten_is_main_runtime_thread()) { yield(); return; }
++    while (delay-- > 0) { __asm__ __volatile__("" ::: "memory"); }
+ #else /* Generic */
+     (void)delay; // suppress without including _template_helpers.h
+     yield();
+--- a/src/tbb/governor.cpp
++++ b/src/tbb/governor.cpp
+@@ -161,6 +161,15 @@
+     stack_base = reinterpret_cast<std::uintptr_t>(pteb->StackBase);
+ #elif defined(EMSCRIPTEN)
+     stack_base = reinterpret_cast<std::uintptr_t>(emscripten_stack_get_base());
++    // Emscripten knows the calling thread's real stack bounds, so fill in the
++    // size too instead of leaving the caller's fallback in place. That fallback
++    // is the *worker* stack size, but this function's only caller is
++    // init_external_thread() — the external thread runs on -sSTACK_SIZE (8 MB by
++    // default), not on a worker stack. Deriving the stealing threshold
++    // (base - size/2) from the worker default made the external thread stop
++    // stealing once it was worker_stack_size/2 deep in its own much larger
++    // stack, silently dropping it out of nested parallel regions.
++    stack_size = stack_base - reinterpret_cast<std::uintptr_t>(emscripten_stack_get_end());
+ #else
+     // There is no portable way to get stack base address in Posix, so we use
+     // non-portable method (on all modern Linux) or the simplified approach
+--- a/cmake/compilers/Clang.cmake
++++ b/cmake/compilers/Clang.cmake
+@@ -19,7 +19,12 @@
+     if (NOT EMSCRIPTEN_WITHOUT_PTHREAD)
+         set_property(TARGET Threads::Threads PROPERTY INTERFACE_LINK_LIBRARIES "-pthread")
+     endif()
+-    set(TBB_EMSCRIPTEN_STACK_SIZE 65536)
++    # Overridable: 64 KB is a floor that suits emscripten's own test suite, not
++    # every application. A plain set() here made -DTBB_EMSCRIPTEN_STACK_SIZE=...
++    # on the cmake command line silently ineffective.
++    if (NOT DEFINED TBB_EMSCRIPTEN_STACK_SIZE)
++        set(TBB_EMSCRIPTEN_STACK_SIZE 65536)
++    endif()
+     set(TBB_LIB_COMPILE_FLAGS -D__TBB_EMSCRIPTEN_STACK_SIZE=${TBB_EMSCRIPTEN_STACK_SIZE})
+     set(TBB_TEST_LINK_FLAGS ${TBB_TEST_LINK_FLAGS} -sTOTAL_STACK=${TBB_EMSCRIPTEN_STACK_SIZE})
+     unset(TBB_EMSCRIPTEN_STACK_SIZE)

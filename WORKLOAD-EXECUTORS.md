@@ -12,6 +12,17 @@ Ledger of every PicoGK runtime compute entry point and its **current workload ex
 > `bench/results/webgpu-v2/SK-0.1.md`. It stays available as `MALLOC=` in
 > `scripts/build-pico-module.sh`.
 >
+> **MT substrate changed 2026-07-26 (SK-0.7); no row changes executor.** Three vendored
+> oneTBB fixes (`patches/oneTBB/`) apply under every `MT` row: `machine_pause` is an
+> in-register spin instead of a JS-boundary `sched_yield` (65.8 → 2.1 ns), the external
+> thread's stealing threshold is derived from its real stack so it keeps its share in
+> deep/nested regions (0.71× → 0.98× of fair share at 72 KB depth), and worker stacks are
+> 1 MB instead of 64 KB — which is the precondition for U5 / W1.2 T4's deeper parallel
+> `RenderLattice` recursion. `createPico` on the multi build also got ~96 ms faster
+> (readiness poll replacing a fixed sleep), which shifts *session* wall, not stage wall.
+> Evidence: `bench/results/webgpu-v2/SK-0.7.md`. Stage baselines were not re-taken — a
+> sibling spike shared the machine — so SK-0.1's numbers still stand as the comparator.
+>
 > The A/B is still informative for this ledger: the allocator moved **MT paths only** and
 > left every ST row flat, so no row below changes executor. Two ST rows are now confirmed
 > by allocator-insensitivity — the `RenderLattice` stages (`turning-fins`, `helical-void`)

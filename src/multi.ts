@@ -30,9 +30,21 @@ export async function createPico(options: CreatePicoOptions = {}): Promise<Pico>
   const warm = session.createVoxels({ shape: 'sphere', radius: 2 });
   warm.offset({ distance: 0.5 });
   warm.dispose();
-  // ponytail: fixed ramp-up yield (11ms measured on 12 cores; 100ms for slow
-  // machines/browsers). Poll module.PThread.runningWorkers if this ever flakes.
-  await new Promise((resume) => setTimeout(resume, 100));
+  // The yielding is load-bearing (the handshake needs the main thread off the
+  // wasm stack) but the *duration* never was: poll the pool instead of sleeping
+  // a flat 100 ms. TBB wants one worker per core besides this thread, and a
+  // 12-core machine gets there in 2–4 ms. The deadline is the old constant, so
+  // a slow host — or one whose browser caps workers below hardwareConcurrency —
+  // is never worse off than it was, it just stops being the common case.
+  // No fallbacks on the two lookups: navigator.hardwareConcurrency exists in
+  // every supported engine (Node >=21, all three gated browsers) and PThread is
+  // unconditionally present in the -pthread glue this entry is bound to.
+  const pool = session.module.PThread!;
+  const wanted = navigator.hardwareConcurrency - 1;
+  const deadline = Date.now() + 100;
+  while (pool.runningWorkers.length < wanted && Date.now() < deadline) {
+    await new Promise((resume) => setTimeout(resume, 0));
+  }
   return session;
 }
 

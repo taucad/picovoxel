@@ -49,18 +49,33 @@ fetch() {
   echo "fetch-deps: $name ${commit:0:8} verified"
 }
 
-# extract <tarball> <dest> — strip the GitHub top-level dir; stamped for idempotence.
+# extract <tarball> <dest> [patchdir] — strip the GitHub top-level dir; stamped
+# for idempotence. Patches (SK-0.7) are part of the stamp, not a separate step:
+# editing one changes the stamp, which forces a clean re-extract, so a patched
+# tree can never be double-patched or left stale. Vendored trees stay pristine
+# apart from what patches/ says (see patches/*/*.patch for the why + upstream
+# status); a flag-level override is always preferred to a patch.
 extract() {
-  local tarball="$1" dest="$2"
+  local tarball="$1" dest="$2" patchdir="${3:-}"
   local stamp="$dest/.fetch-deps-stamp"
-  if [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$(basename "$tarball")" ]; then
+  local want="$(basename "$tarball")"
+  if [ -n "$patchdir" ]; then
+    want="$want $(cat "$patchdir"/*.patch | shasum -a 256 | cut -d' ' -f1)"
+  fi
+  if [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$want" ]; then
     return 0
   fi
   rm -rf "$dest"
   mkdir -p "$dest"
   tar -xzf "$tarball" -C "$dest" --strip-components=1
-  basename "$tarball" > "$stamp"
   echo "fetch-deps: extracted $(basename "$tarball") -> ${dest#"$HERE"/}"
+  if [ -n "$patchdir" ]; then
+    for p in "$patchdir"/*.patch; do
+      patch -p1 -d "$dest" < "$p"
+      echo "fetch-deps: applied ${p#"$HERE"/}"
+    done
+  fi
+  echo "$want" > "$stamp"
 }
 
 fetch PicoGKRuntime leap71/PicoGKRuntime "$PICOGK_RUNTIME_SHA" "$PICOGK_RUNTIME_SHA256"
@@ -70,7 +85,7 @@ fetch oneTBB uxlfoundation/oneTBB "$ONETBB_SHA" "$ONETBB_SHA256"
 extract "$DL/PicoGKRuntime-${PICOGK_RUNTIME_SHA:0:8}.tar.gz" "$VENDOR/PicoGKRuntime"
 # The openvdb submodule ships empty in the runtime tarball; fill it at its mount point.
 extract "$DL/openvdb-${OPENVDB_SHA:0:8}.tar.gz" "$VENDOR/PicoGKRuntime/openvdb"
-extract "$DL/oneTBB-${ONETBB_SHA:0:8}.tar.gz" "$VENDOR/oneTBB"
+extract "$DL/oneTBB-${ONETBB_SHA:0:8}.tar.gz" "$VENDOR/oneTBB" "$HERE/patches/oneTBB"
 
 # emsdk: honour an existing toolchain (local fallback), else install into vendor/.
 if [ -n "${EMSDK:-}" ] && [ -x "$EMSDK/emsdk" ]; then

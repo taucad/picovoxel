@@ -44,11 +44,17 @@ source "$EMSDK/emsdk_env.sh" >/dev/null 2>&1
 [ -d "$EMSDK/upstream/emscripten/node_modules/acorn" ] || \
   (cd "$EMSDK/upstream/emscripten" && npm install acorn --no-save --no-audit --no-fund)
 
+# TBB_EMSCRIPTEN_STACK_SIZE (SK-0.7): worker pthread stack, 64 KB upstream. Deep
+# OpenVDB tree recursion runs on those stacks and -O3 emits no overflow check, so
+# an overflow is silent heap corruption rather than a crash. 1 MB is native-ish
+# headroom and costs ~1 MB per launched worker of a 256 MB heap. The knob is only
+# reachable because patches/oneTBB makes it overridable.
 echo "=== oneTBB -> wasm (${MT:+pthread}${MT:-serial}) ==="
 emcmake cmake -B "$OUT/tbb-wasm$MT" -S "$ONETBB_SRC" -DCMAKE_BUILD_TYPE=Release \
   -DTBB_STRICT=OFF \
   -DTBB_DISABLE_HWLOC_AUTOMATIC_SEARCH=ON -DBUILD_SHARED_LIBS=OFF \
   -DTBB_TEST=OFF -DTBB_EXAMPLES=OFF ${TBB_PTHREAD_ARGS[@]+"${TBB_PTHREAD_ARGS[@]}"} \
+  -DTBB_EMSCRIPTEN_STACK_SIZE="${TBB_STACK_SIZE:-1048576}" \
   -DCMAKE_CXX_FLAGS="-Wno-unused-command-line-argument $WASM_FLAGS $EH_FLAGS" \
   -DCMAKE_INSTALL_PREFIX="$PREFIX"
 cmake --build "$OUT/tbb-wasm$MT" -j"$(sysctl -n hw.ncpu)" --target install

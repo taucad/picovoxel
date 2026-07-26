@@ -39,7 +39,7 @@ save/restore for arguments that needed no conversion at all. The four survivors 
 — the only exports that take no handle. (The spike charter's "139 of 143" was close; the real
 figures are 143 of 147.)
 
-Filed upstream as **U15** in `MIGRATING-FROM-CSHARP.md` (a two-token fix, plus two adjacent
+Filed upstream as **U16** in `MIGRATING-FROM-CSHARP.md` (a two-token fix, plus two adjacent
 defects in the same block: the fast path skips `ccall`'s `Boolean(ret)` conversion, so `cwrap`
 and `ccall` disagree on a boolean-returning numeric-args export; and the whole fast path is
 `#if !ASSERTIONS`, so debug builds marshal everything).

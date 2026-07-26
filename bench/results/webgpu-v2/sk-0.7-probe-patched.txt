@@ -1,0 +1,86 @@
+# SK-0.7 tbb-substrate-probe — patched (5 runs)
+--- run 1
+hw_concurrency=12 max_concurrency=12 is_main_runtime_thread=0
+worker_stack_size=1048576
+warm participants=12/12 slot0_tasks=211 total_tasks=2048
+warm per-slot: 0:211 1:184 2:154 3:127 4:159 5:94 6:218 7:136 8:189 9:207 10:199 11:170
+pool heap delta: 11670640 bytes for 11 workers (1060967 bytes/worker)
+shallow participants=12/12 slot0_tasks=130 total_tasks=2048
+shallow per-slot: 0:130 1:113 2:182 3:187 4:215 5:213 6:180 7:98 8:109 9:216 10:192 11:213
+machine_pause(16): 2.1 ns/call (worker thread)
+contended spin_mutex: 200000 ops in 99.1 ms (495.7 ns/op) counter=200000
+deep-stack: base=0x101e8a0 end=0x81e8a0 real_size=8388608 sp=0x100c580 depth_used=74528
+thresholds: worker_stack=1048576 fallback_threshold=0xf9e8a0 (steal=yes) real_threshold=0xc1e8a0 (steal=yes)
+deep participants=12/12 slot0_tasks=166 total_tasks=2048
+deep per-slot: 0:166 1:173 2:195 3:144 4:110 5:191 6:177 7:169 8:185 9:199 10:171 11:168
+shallow2 participants=12/12 slot0_tasks=196 total_tasks=2048
+shallow2 per-slot: 0:196 1:122 2:157 3:171 4:195 5:192 6:142 7:151 8:150 9:191 10:191 11:190
+done
+--- run 2
+hw_concurrency=12 max_concurrency=12 is_main_runtime_thread=0
+worker_stack_size=1048576
+warm participants=12/12 slot0_tasks=174 total_tasks=2048
+warm per-slot: 0:174 1:184 2:176 3:184 4:178 5:162 6:167 7:102 8:176 9:193 10:171 11:181
+pool heap delta: 11672888 bytes for 11 workers (1061171 bytes/worker)
+shallow participants=12/12 slot0_tasks=172 total_tasks=2048
+shallow per-slot: 0:172 1:202 2:219 3:175 4:160 5:108 6:133 7:177 8:193 9:209 10:169 11:131
+machine_pause(16): 2.4 ns/call (worker thread)
+contended spin_mutex: 200000 ops in 94.0 ms (470.0 ns/op) counter=200000
+deep-stack: base=0x101e8a0 end=0x81e8a0 real_size=8388608 sp=0x100c580 depth_used=74528
+thresholds: worker_stack=1048576 fallback_threshold=0xf9e8a0 (steal=yes) real_threshold=0xc1e8a0 (steal=yes)
+deep participants=12/12 slot0_tasks=152 total_tasks=2048
+deep per-slot: 0:152 1:209 2:142 3:125 4:162 5:192 6:165 7:187 8:204 9:204 10:206 11:100
+shallow2 participants=12/12 slot0_tasks=202 total_tasks=2048
+shallow2 per-slot: 0:202 1:165 2:181 3:101 4:206 5:157 6:186 7:170 8:173 9:206 10:177 11:124
+done
+--- run 3
+hw_concurrency=12 max_concurrency=12 is_main_runtime_thread=0
+worker_stack_size=1048576
+warm participants=12/12 slot0_tasks=219 total_tasks=2048
+warm per-slot: 0:219 1:213 2:202 3:207 4:170 5:198 6:204 7:189 8:74 9:174 10:197 11:1
+pool heap delta: 11669928 bytes for 11 workers (1060902 bytes/worker)
+shallow participants=12/12 slot0_tasks=215 total_tasks=2048
+shallow per-slot: 0:215 1:203 2:191 3:215 4:210 5:183 6:214 7:190 8:48 9:198 10:176 11:5
+machine_pause(16): 2.1 ns/call (worker thread)
+contended spin_mutex: 200000 ops in 71.5 ms (357.7 ns/op) counter=200000
+deep-stack: base=0x101e8a0 end=0x81e8a0 real_size=8388608 sp=0x100c580 depth_used=74528
+thresholds: worker_stack=1048576 fallback_threshold=0xf9e8a0 (steal=yes) real_threshold=0xc1e8a0 (steal=yes)
+deep participants=12/12 slot0_tasks=199 total_tasks=2048
+deep per-slot: 0:199 1:90 2:197 3:235 4:184 5:208 6:220 7:138 8:152 9:166 10:105 11:154
+shallow2 participants=12/12 slot0_tasks=209 total_tasks=2048
+shallow2 per-slot: 0:209 1:184 2:175 3:174 4:196 5:118 6:108 7:131 8:219 9:185 10:187 11:162
+done
+--- run 4
+hw_concurrency=12 max_concurrency=12 is_main_runtime_thread=0
+worker_stack_size=1048576
+warm participants=12/12 slot0_tasks=192 total_tasks=2048
+warm per-slot: 0:192 1:199 2:187 3:185 4:169 5:99 6:135 7:180 8:174 9:175 10:170 11:183
+pool heap delta: 11671672 bytes for 11 workers (1061061 bytes/worker)
+shallow participants=12/12 slot0_tasks=187 total_tasks=2048
+shallow per-slot: 0:187 1:145 2:127 3:180 4:183 5:165 6:221 7:136 8:153 9:165 10:209 11:177
+machine_pause(16): 2.7 ns/call (worker thread)
+contended spin_mutex: 200000 ops in 96.0 ms (480.0 ns/op) counter=200000
+deep-stack: base=0x101e8a0 end=0x81e8a0 real_size=8388608 sp=0x100c580 depth_used=74528
+thresholds: worker_stack=1048576 fallback_threshold=0xf9e8a0 (steal=yes) real_threshold=0xc1e8a0 (steal=yes)
+deep participants=12/12 slot0_tasks=181 total_tasks=2048
+deep per-slot: 0:181 1:190 2:117 3:163 4:153 5:215 6:184 7:162 8:180 9:185 10:183 11:135
+shallow2 participants=12/12 slot0_tasks=201 total_tasks=2048
+shallow2 per-slot: 0:201 1:166 2:191 3:137 4:153 5:130 6:186 7:154 8:155 9:194 10:170 11:211
+done
+--- run 5
+hw_concurrency=12 max_concurrency=12 is_main_runtime_thread=0
+worker_stack_size=1048576
+warm participants=12/12 slot0_tasks=212 total_tasks=2048
+warm per-slot: 0:212 1:198 2:195 3:154 4:185 5:168 6:182 7:138 8:206 9:170 10:102 11:138
+pool heap delta: 11670304 bytes for 11 workers (1060936 bytes/worker)
+shallow participants=12/12 slot0_tasks=231 total_tasks=2048
+shallow per-slot: 0:231 1:128 2:130 3:217 4:169 5:129 6:134 7:112 8:239 9:163 10:168 11:228
+machine_pause(16): 2.4 ns/call (worker thread)
+contended spin_mutex: 200000 ops in 99.8 ms (499.2 ns/op) counter=200000
+deep-stack: base=0x101e8a0 end=0x81e8a0 real_size=8388608 sp=0x100c580 depth_used=74528
+thresholds: worker_stack=1048576 fallback_threshold=0xf9e8a0 (steal=yes) real_threshold=0xc1e8a0 (steal=yes)
+deep participants=12/12 slot0_tasks=181 total_tasks=2048
+deep per-slot: 0:181 1:187 2:148 3:138 4:194 5:149 6:163 7:200 8:170 9:188 10:144 11:186
+shallow2 participants=12/12 slot0_tasks=149 total_tasks=2048
+shallow2 per-slot: 0:149 1:197 2:184 3:184 4:142 5:157 6:193 7:183 8:166 9:102 10:206 11:185
+done
