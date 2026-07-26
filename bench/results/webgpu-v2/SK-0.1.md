@@ -224,3 +224,111 @@ f507315ae4750a27cf2b29f360b77a3eb34161f57b3e54562aee21c5ff8db5d2  sk-0.1-baselin
 f27406dc628afd2e831d8477a63185187303829d6226d858fad31e00710a0a0f  sk-0.1-heatx-sweep-dlmalloc.json
 9bcd27c52f85e8da2d4b82425e232d3cd594b3f7c71ac1ef0f6e81f52d989588  sk-0.1-mimalloc.json
 ```
+
+---
+
+# Addendum — 2026-07-26 (later): mimalloc re-verdict BLOCKED by an MT regression in the default build
+
+Re-ran the original 0.5 mm cross-build byte oracle on the patched tree (`webgpu` @ `ff68494`,
+SK-0.2…SK-0.7 landed, SK-0.6 `ecdf907` having made mesh *emission* order
+allocation-independent). The original NO-GO above stands as written — it was correct for its
+tree. **This addendum does not deliver a mimalloc re-verdict, because the dlmalloc reference
+the oracle compares against is itself now broken.**
+
+Determinism run, not a timing run: AC power, `lowpowermode 0`, loads 2.7–8.3 recorded but
+not gated.
+
+## Setup
+
+`fetch-deps.sh` re-extracted PicoGKRuntime and openvdb and re-applied all three patches — the
+vendor tree **was** stale. The incremental dep rebuild then no-op'd despite sources being
+newer than `libopenvdb.a` (17:17 vs 14:57), so both prefixes were **deleted and rebuilt
+clean** rather than trusted (SK-0.3 stale-vendor hazard, confirmed live). Four variants built
+from that one toolchain state; mimalloc adds ~65 KB as before, so the flag took effect.
+
+## What the oracle returned (HeatX @0.5 mm)
+
+| run | allocator / build | `stlFnv` | triangles | STL bytes | volume hex |
+| --- | --- | --- | ---: | ---: | --- |
+| 1 | mimalloc multi | `73dbb934` | 9,969,668 | 498,483,484 | `4121cbc020000000` |
+| 2 | mimalloc multi | `39c14384` | 9,884,844 | 494,242,284 | `4121bd97c0000000` |
+| 3 | mimalloc multi | `e37d01a6` | 8,253,122 | 412,656,184 | `41257495a0000000` |
+| — | mimalloc single | `0ccaa277` | 10,048,032 | 502,401,684 | `4121d9c600000000` |
+| — | **dlmalloc multi** | `3683b12b` | **9,560,104** | 478,005,284 | **`41216a42a0000000`** |
+| — | dlmalloc single | `38cad381` | 10,048,032 | 502,401,684 | `4121d9c600000000` |
+
+Two things changed character versus SK-0.1:
+
+1. **dlmalloc single is byte-identical to SK-0.1** (`38cad381`, same triangles and bytes).
+   SK-0.6's byte-preservation claim holds on the single path.
+2. **The divergence is no longer confined to byte order.** In SK-0.1 every run agreed on
+   volume hex, triangle count and byte count, and only the byte *order* moved. Here the
+   **volume hex and triangle count differ per run** — the voxel grid itself differs, which is
+   upstream of mesh extraction. This is not an ordering artifact and not a mimalloc artifact.
+
+## The actual finding: the default (dlmalloc) multi build is wrong below 1.0 mm
+
+dlmalloc multi, against this document's own committed reference
+(`sk-0.1-heatx-sweep-dlmalloc.json`, where single ≡ multi held at every size):
+
+| voxel (mm) | volume hex now | reference | triangles now | reference | Δ |
+| ---: | --- | --- | ---: | ---: | ---: |
+| 1.0 | `41220895e0000000` | `41220895e0000000` | 1,873,340 | 1,873,340 | **0 — MATCH** |
+| 0.8 | `412377dd40000000` | `4121db72e0000000` | 2,968,482 | 3,303,448 | −334,966 |
+| 0.7 | `4127b85680000000` | `4121ffe5a0000000` | 3,158,084 | 4,542,736 | −1,384,652 |
+| 0.6 | `412676f5c0000000` | `4121db1ea0000000` | 4,658,772 | 6,560,004 | −1,901,232 |
+| 0.5 | `41238487a0000000` | `4121d9c600000000` | 8,863,058 | 10,048,032 | −1,184,974 |
+| 0.5 (rerun) | `4121cb1520000000` | `4121d9c600000000` | 9,983,648 | 10,048,032 | −64,384 |
+
+**The committed artifact has it too** — this is not a rebuild artifact. `src/pico-multi.wasm`
+as committed at `ff68494`, run directly:
+
+| artifact | size | volume hex | triangles | verdict |
+| --- | ---: | --- | ---: | --- |
+| committed `src/pico-multi.wasm` | 0.7 | `4123a61200000000` | 4,053,020 | divergent (a *third* distinct value) |
+| committed `src/pico-multi.wasm` | 1.0 run 1 | `41220895e0000000` | 1,873,340 | MATCH (`3fc21445`) |
+| committed `src/pico-multi.wasm` | 1.0 run 2 | `41220895e0000000` | 1,873,340 | MATCH (`3fc21445`) |
+
+Readings:
+
+- **Silent, nondeterministic geometry loss on the shipped multi build at every voxel size
+  finer than 1.0 mm.** Volume differs, so the defect is in voxel construction, not extraction.
+  Triangles are always *fewer* than the reference — geometry is being dropped, never added.
+- **Exactly 1.0 mm is clean and byte-stable**, which is why nothing caught this: the only
+  committed HeatX fixture (`test/fixtures/helixheatx.json`) pins 1.0 mm, and the suite is
+  green (453/453). This is the same blind spot SK-0.1 named — the fixtures pin one coarse
+  cell, and the sweep's cross-build oracle is the only check that sees finer ones.
+- mimalloc is not implicated. It shares the bug and amplifies it (its worst run lost 18% of
+  triangles vs dlmalloc's 4.9% at the same cell), consistent with a memory- or
+  scheduling-sensitive race rather than an allocator-specific fault.
+
+## Verdict
+
+**mimalloc: UNRESOLVED, re-test blocked.** A cross-build byte oracle cannot certify anything
+while its reference build is nondeterministic. mimalloc single vs dlmalloc single is the one
+comparison still meaningful, and it *fails* (`0ccaa277` vs `38cad381`, identical geometry) —
+so mimalloc still moves bytes on the single path even after SK-0.6. The default stays
+`dlmalloc`; no delta-table justification for flipping it is offered, and none should be
+accepted until the MT regression is fixed and this oracle re-run.
+
+**Priority inversion:** the MT correctness regression outranks the allocator question
+entirely. Suspect range is `d8ccfb5..ff68494`; on mechanism (voxel grid, not mesh) the
+candidates that touch MT voxel construction are SK-0.3 (`41d5b1e`, flat lattice storage /
+bulk beam ABI), SK-0.5 (`ff68494`, merge booleans / post-fill prune) and SK-0.7 (`85825da`,
+TBB substrate — steal budget and 1 MB worker stacks). SK-0.6 (`ecdf907`) is mesh extraction,
+downstream of `volume`, so it is unlikely on mechanism — but this is reasoning, **not
+measured**: a bisect was started in an isolated worktree and abandoned on setup friction
+(per-commit emsdk provisioning), so no commit is accused on evidence.
+
+**Recommended gate before further spikes**: add a fine-cell (≤0.7 mm) single≡multi identity
+assertion to the suite. One `it()` at 0.7 mm multi vs the committed volume hex would have
+failed on every landed spike since this regression appeared, in ~47 s.
+
+## Addendum evidence
+
+Raw per-run records: `sk-0.1-addendum-oracle.jsonl` (13 runs — the 0.5 mm oracle set, the
+dlmalloc-multi scale probe, and the committed-artifact checks).
+
+```
+815f698a696fc5a5c436dcda98dece725d6cf125848df2216a885c7b746c4eef  sk-0.1-addendum-oracle.jsonl
+```

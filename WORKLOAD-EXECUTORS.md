@@ -12,6 +12,17 @@ Ledger of every PicoGK runtime compute entry point and its **current workload ex
 > `bench/results/webgpu-v2/SK-0.1.md`. It stays available as `MALLOC=` in
 > `scripts/build-pico-module.sh`.
 >
+> **Re-test on the patched tree (SK-0.1 addendum, 2026-07-26 later) is BLOCKED, and found a
+> P0 instead.** The default **dlmalloc multi** build now produces silently wrong,
+> nondeterministic geometry at every voxel size finer than 1.0 mm — volume hex and triangle
+> count differ per run (0.7 mm: 3,158,084 tris vs the 4,542,736 reference; the committed
+> `src/pico-multi.wasm` gives a third value again). Exactly 1.0 mm is clean and byte-stable,
+> which is why the 453/453 suite is green: the only HeatX fixture pins 1.0 mm. Volume differs,
+> so the defect is in **voxel construction, not extraction**. Every MT row below is therefore
+> suspect on fine cells until this is fixed, and no MT measurement taken after `d8ccfb5`
+> should be trusted at <1.0 mm. mimalloc is not implicated (it shares and amplifies the bug).
+> Details, suspect range and the recommended fine-cell suite gate: `SK-0.1.md` addendum.
+>
 > **MT substrate changed 2026-07-26 (SK-0.7); no row changes executor.** Three vendored
 > oneTBB fixes (`patches/oneTBB/`) apply under every `MT` row: `machine_pause` is an
 > in-register spin instead of a JS-boundary `sched_yield` (65.8 → 2.1 ns), the external
