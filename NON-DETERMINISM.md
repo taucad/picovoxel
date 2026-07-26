@@ -221,7 +221,7 @@ and algorithm freeze):
 
 | Lever | Class | Verdict | Evidence |
 | --- | --- | --- | --- |
-| mimalloc (link-time) | 1 (MT emission order; single-path residual §11) | **flip on fast lane** after §11 diagnostics; L0 stays dlmalloc → zero pin churn | SK-0.1: 1.208× construct, 2× mesh; SK-0.6: 3.9× mesh scaling, byte-identical on M10; A8: 113× microbench |
+| mimalloc (link-time) | ~~1~~ → **X on MT** (SK-0.9) | **DO NOT FLIP — blocked on a correctness defect.** SK-0.9: single-path residual gone (byte-identical), but mimalloc *multi* @0.5 mm emits 91.8% `INVALID_IDX` triangle indices with volume/count/byte-count matching the reference, and traps at 0.6 mm. Fix, then re-measure; L0 stays dlmalloc regardless | SK-0.1: 1.208× construct, 2× mesh; SK-0.6: 3.9× mesh scaling, byte-identical on M10; A8: 113× microbench |
 | `fastRenorm` scheme (runtime opt-in, landed) | 2 | **default-on fast lane**; consider SECOND_BIAS accuracy case upstream | SK-0.8: 3.49–3.95×, all gates pass, 28% min margin |
 | Vectorized transcendentals (T2) + f32x4 tape (T1) | 2 | fast-lane, W1 kill bars, interval-widening rider | A8 F8 census (5 ops); TP7a's 1.91× precedent; est 1.5–3× trig-heavy eval |
 | `-mrelaxed-simd` | 3 | **last** — Safari can't parse it (module rejection → second artifact pair + dep prefixes), +2.4% measured pre-tape | W1 T3; safari-wasm doc |
@@ -332,9 +332,45 @@ this regime.
    residual is undiagnosed, not acceptable** — the one place a relaxed
    oracle could launder a real bug. If it is UB, it gets fixed under either
    gating philosophy.
+
+   > **CLOSED 2026-07-27 (SK-0.9) — the divergence no longer exists.** dlmalloc
+   > single and mimalloc single are **byte-identical** at 0.5 mm (the exact cell
+   > that produced `0ccaa277` vs `38cad381`) and at 0.7 mm, on tree `3284423`.
+   > No Class-1 residual, no UB on the single path, no sanitizer run needed.
+   > Attribution: triangle counts moved by the SK-0.4 signature (10,048,032 →
+   > 10,047,988 at 0.5 mm; 4,542,736 → 4,542,744 at 0.7 mm, volume hex
+   > unchanged), so the divergence tracked the retired serial
+   > `Voxels_RenderLattice` **construction** lane, not extraction — the
+   > hypothesis above was looking at the right *class* of fault in the wrong
+   > *place*. The confirming `PICOVOXEL_SERIAL_LATTICE=1` A/B is outstanding and
+   > is a post-mortem on an escape hatch, not a blocker. Evidence:
+   > `bench/results/webgpu-v2/SK-0.9.md` §3.
+
 2. **Re-run the mimalloc oracle post-revert** (P0 doc step 5 unblocked but
    not yet executed) — the 1.208× must be re-derived on the correct tree
    before being spent.
+
+   > **EXECUTED 2026-07-27 (SK-0.9) — mimalloc MT is a NO-GO on correctness.**
+   > It is *not* "geometry-stable, byte-unstable". At 0.5 mm the mimalloc multi
+   > build silently emits a **corrupt mesh**: four runs, four distinct multiset
+   > hashes, and the sampled run carries 9,231,100 of 10,047,988 STL records
+   > (91.9%) with NaN coordinates — 27,676,231 of 30,143,964 triangle indices
+   > (91.8%) out of range, max index `0xFFFFFFFF` = OpenVDB `util::INVALID_IDX`,
+   > vertex data intact. At 0.6 mm one of two runs **trapped** (`Illegal
+   > instruction: 4`). **Volume hex, triangle count and STL byte count match the
+   > reference bit-for-bit in every corrupt run** — Class X that a volume+count
+   > gate passes. dlmalloc multi is clean and byte-stable (3/3 @0.5 mm, ≡ single,
+   > plus 0.6/0.7 mm), so the default is unaffected and this is a latent, not a
+   > live, production defect. Best-fit mechanism: quad-index slots read stale
+   > rather than written — dlmalloc's zero-filled fresh pages mask it, mimalloc's
+   > recycled segments expose it. Whether the slots are in
+   > `patches/openvdb/0001-flat-quad-output.patch`, in `BulkResize` behind
+   > `patches/PicoGKRuntime/0001-parallel-disjoint-mesh-flatten.patch`, or in
+   > upstream `VolumeToMesh` is **not** established; a patch-toggle matrix of the
+   > SK-0-P0 shape is the next spike. **The 1.208× must not be spent, and §5's
+   > mimalloc row and §12.3 are blocked on a defect, not on ceremony.**
+   > Evidence: `bench/results/webgpu-v2/SK-0.9.md` §4–§5; oracle
+   > `bench/stl-identity.mjs`.
 3. **Native stock-TBB U20 reproducer** (~a day) to settle
    upstream-vs-substrate before any merge re-attempt; the recommended
    re-attempt vehicle is `csgUnionCopy` either way.
@@ -344,7 +380,10 @@ this regime.
 1. Land the G0 oracle tooling (canonical grid hash, multiset mesh hash,
    identity-triple harness) — prerequisite for everything; ~S effort.
 2. Run the three §11 diagnostics.
-3. Flip `MALLOC=mimalloc` on the MT fast lane (L0 stays dlmalloc).
+3. ~~Flip `MALLOC=mimalloc` on the MT fast lane (L0 stays dlmalloc).~~
+   **WITHDRAWN 2026-07-27 (SK-0.9)** — mimalloc MT is corrupt at ≤0.6 mm (§11.2
+   outcome line). Replaced by: fix the defect (patch-toggle matrix over the
+   flat-quad and parallel-flatten patches), then re-run the oracle.
 4. Flip `fastRenorm` (FIRST_BIAS×3) default-on in the fast lane; file the
    SECOND_BIAS accuracy finding upstream (U-row candidate).
 5. Execute the SK-0.4 pin regeneration as chartered (already operator-
@@ -372,3 +411,173 @@ against); and fine-cell coverage in every gate, exact or toleranced. These
 five are the things the evidence shows doing real safety work — everything
 else byte parity was buying turned out to be either free by construction,
 engineering ceremony, or a tax on measured wins.
+
+## 14. Addendum: second-pass coverage (2026-07-27)
+
+Six gaps identified in a post-delivery review; findings from a dedicated
+evidence pass. Landing order (the gaps interlock): G0 tooling with §14.5's
+constructions (already §12.1) → lane surfacing + cache-key amendment
+(**before** the §12.3–4 default flips, which create the first two-lane
+reality) → the §14.2 NaN policy as a G1/SK-2.2 entry criterion → the L2 pin
+protocol at SK-3.7.
+
+### 14.1 Lane surfacing and the cache-key contract
+
+**API**: `createPico({ lane: 'exact' | 'fast' | 'auto' })` — a lane is a
+named bundle (`'exact'` = L0: dlmalloc, byte-locked defaults, no GPU;
+`'fast'` = F: mimalloc MT artifact, `fastRenorm` on, T1/T2 when landed;
+`'auto'` = F + L1 when an adapter qualifies). Lane choice is structurally
+session-scoped: lanes differ partly at *artifact* granularity (allocator is
+link-time; relaxed-SIMD is a second artifact pair), and artifacts are chosen
+at instantiation. Per-op options stay the fine-grained mechanism with the
+`fastRenorm` precedence rule (explicit per-op > session default > library
+default), with one enforced asymmetry: an op may *tighten* inside a fast
+session; per-op *loosening* inside `'exact'` throws — one Class-2 op
+destroys the session's structural exactness claim.
+
+**Cross-lane feeds**: provenance tags (per-handle lane enum, least-upper-
+bound over ancestry) + a refusing L0 export/pin boundary — non-L0 provenance
+errors at export unless acknowledged (`acceptLane: 'fast'`), which routes
+through §7 canonical serialization and records provenance in artifact
+metadata. True re-canonicalization is **a replay, not a conversion** —
+`plan.commit(roots, { lane: 'exact' })` re-executes the DAG; there is no map
+from Class-2 values back to L0 values, and pretending otherwise would be
+value-laundering.
+
+**Cache keys — line-level findings against Tau**: input-addressing survives
+byte instability but not *value* instability across lanes — two lanes under
+one key means the first lane to run poisons the other's cache. The actual
+key (`kernel-worker.ts:4589-4623, 5113-5118` → used verbatim by all three
+caches at `geometry-cache.middleware.ts:319/379/433`) already captures wasm
+artifact digests (so per-artifact lanes key correctly for free), model-source
+per-op flags, and kernel init options. It does NOT capture: **ambient env
+state** — `PICOVOXEL_SERIAL_LATTICE=1` changes geometry today, invisibly to
+the key (a live instance, not hypothetical) — or **adapter identity** for
+future GPU lanes. Rule: *all lane-relevant state must be lifted into
+artifact identity or kernel init options; ambient state that changes
+geometry is a cache-key bug by definition.* Key composition:
+`H(inputs ∥ kernelId ∥ kernelVersion ∥ artifactSha256s ∥ laneId ∥
+lane-relevant flags ∥ [L1/L2: adapter family + driver/Dawn bucket])`, with
+`'auto'` resolved before hashing (an unresolved `'auto'` is exactly the
+value that resolves differently run to run). Geometry-invariant machine
+axes (thread count) stay out of the key deliberately. The S-C model/region
+caches need the same amendment — a tape hash addresses the *program*, not
+the *evaluator* — stated as an SK-3.6/B8a exit criterion since B8a ships
+first.
+
+### 14.2 WGSL NaN semantics for the tape port (G1 entry criterion)
+
+The CPU tape pins: NaN samples are ACTIVE voxels; interval pruning carries
+an explicit `bNaN` with per-op domain predicates; scalar min/max propagate
+NaN asymmetrically per C++ `(b<a)?b:a`. WGSL licenses implementations to
+assume NaN/Inf absent — expressions that would produce NaN may produce an
+**indeterminate value**, and Dawn compiles MSL with `math_mode(relaxed)` by
+default (per-module `strictMath` opt-in exists). A "let NaN flow" port is
+unsound **by spec, not by QoI** — and silent NaN→non-NaN divergence is
+Class X (mis-pruned blocks, flipped classifications), not Class 2.
+
+**Design: poison-mask sentinel with guarded-finite arithmetic.** One `u32`
+poison bitmask over the ≤32-slot register file. Guards keep every computed
+value finite (`sqrt(max(a,0))`, displaced denominators, clamped exp);
+poison predicates mirror `pico-tape.cpp`'s interval predicates op for op
+(including the add/mul inf−inf/0·inf interior cases); min/max reproduce the
+CPU asymmetry via three uniform branches on poison bits without ever
+materializing NaN; a poisoned final register forces the ACTIVE
+classification. Overflow poisons conservatively — the safe direction, same
+as interval widening. Cost ~2–4 uniform ALU ops per interpreted
+instruction; ~zero on specialized kernels (the tape compiler's interval
+pass can prove domains safe per-region and elide guards). Residual
+deviation, documented: CPU stores a NaN payload, GPU stores
+guarded-finite + active flag → the canonical grid hash must canonicalize
+NaN (§14.5). G1 must verify empirically per adapter (B9 rows): NaN
+materialization + min/max-with-NaN probes under relaxed and `strictMath`;
+zero-NaN/Inf output assertion over the corpus + a domain-torture tape;
+poisoned-sample *set* equality CPU vs GPU.
+
+### 14.3 Statistical power of identity runs
+
+P(detect) = 1 − (1−p)^N for a race manifesting per run with probability p
+(manifested runs are generically mutually distinct — both P0s' records
+confirm). Table: p=0.75 → N=3 suffices (98%); p=1/6 → N=3 gives only 42%,
+N=17 for 95%; p=0.01 → ~300 runs. Three structural conclusions: (i)
+repetition is brutally expensive below p≈0.1, but **per-commit gates
+compound** — a persistent 1-in-6 race is caught with 95% probability within
+9 commits by a cheap N=2 gate; (ii) pairwise identity can never catch
+deterministic wrongness (p=1, stable wrong value — the U2 class) at any N:
+every identity gate must pair with a reference or differential
+(single≡multi, cross-build, cross-lane); (iii) **diversity beats
+repetition** — both P0s had p≈1 in the uncovered scale region and p≈0 in
+the covered one; a condition sweep converts p from ~0 to ~1, which no
+affordable N can do. Recommended: per-commit N=2 + reference at {1.0,
+0.7} mm; spike acceptance N=3 for by-construction-deterministic kernels
+(the G3 review class decides), N=5 + two extra scales otherwise;
+release = full scale sweep {1.0, 0.7, 0.5} mm on HeatX + 0.25 mm on an
+M10-class fixture, ×3, + single≡multi + cross-build + cross-lane. Host
+load is free ambient variance: record it, don't control it, in identity
+runs.
+
+### 14.4 The L2 GPU-pinned lane, defined
+
+L2 is the GPU analog of L0's *oracle* role — a reproducibility instrument,
+not a truth anchor. A pin = per (adapter family × driver bucket × Dawn/Tint
+version × kernel version), for a 5–10-fixture corpus: the G0 identity tuple
+as produced by that configuration + the G1 metric *values* vs L0 + the
+declared math mode. Gates: same-configuration run-to-run identity (the GPU
+race canary — placement may vary, values may not); toolchain/driver rolls
+(diff before accept, attribution review on change); kernel changes
+(re-derive as part of landing). B9's adapter matrix is the pin keyspace
+(tier-1 per-commit, tier-2 nightly). A pin moves only in a commit that
+names the cause, shows G1 green vs L0, and attributes value changes to a
+named arithmetic site. L0 remains the anchor: L2 pins are derived
+instruments, regenerated from a G1-green state, never trusted over it.
+
+### 14.5 Hash constructions, rigorously
+
+**Mesh multiset hash**: per-record = strong 128-bit hash (xxh3-128/BLAKE3-
+truncated) of the canonicalized 36-byte vertex payload (9 f32; the STL
+normal is recomputed from vertices — hashing it adds a rounding-coupling
+site for zero discriminating power); combiner = **256-bit modular sum** of
+zero-extended per-record hashes, plus the record count. Commutative,
+incremental, MT-friendly; handles duplicates by multiset semantics. XOR
+rejected: even multiplicity cancels (two identical triangles hash to
+nothing — a real degenerate case). Collision setting is *accidental*, and
+additive combining of strong 128-bit hashes is negligible-collision at this
+corpus scale; the known adversarial weakness of additive multiset hashes
+(generalized-birthday) requires an adversarial record-chooser that does not
+exist here — if the hash ever guards a trust boundary, the named upgrade is
+a multiset-homomorphic construction (MSet-Mu-Hash/ECMH).
+**Canonicalization before hashing (both hashes)**: −0.0 → +0.0 and
+NaN → `0x7fc00000`; everything else raw f32 bits.
+**Canonical grid hash**: OpenVDB depth-first traversal is already
+coordinate-sorted — hash the (coord, canonical value bits) stream over
+active voxels, O(active), no sort; **normalize representation first** (run
+`pruneLevelSet`, then also hash the post-prune tile-space sign
+classification) — the `bIsEqual` lesson made structural: tile-vs-dense-leaf
+encodings of one field must hash equal, pinned by a tool self-test
+(interval-pruned vs dense fill of the same implicit).
+
+### 14.6 Simulation-derived fields and the agentic loop
+
+Ingested solver fields have no L0 ground truth for their *values* — the
+regime's oracles apply to the kernel's **processing** of the field, never
+its fidelity to physics: content-hash at the ingest boundary (§14.5
+constructions), then same-bytes-in → G0-identical processing out per lane;
+structural health booleans replace analytic cross-scoring; Class-2 lanes
+are trivially admissible by the input's own error budget (solver tolerance
+dwarfs f32-ulp drift) — but Class X remains absolute: approximate values,
+exact processing. NaN policy becomes a *product-surface* contract at ingest
+(solver exports carry NaN/Inf routinely). The agentic loop needs exactly
+one property: run-to-run geometry determinism — already mandatory,
+never-toleranced, on every lane; it is what makes B8a's
+hash-and-short-circuit sound and keeps agent search from chasing kernel
+noise. Cross-machine/build reproducibility attach only at the export
+boundary (§14.1's provenance gate; `plan.commit({lane:'exact'})` is the
+loop's exit ramp). B8 numbers carry laneId + adapter. `pk.plan()` rules:
+laneId is an *input* to the pass pipeline, never an output; value-changing
+rewrites are reachable only when the lane admits them and are recorded in
+plan provenance; and the optimizer itself is on the determinism hook —
+same plan hash → same placements → same G0 tuple (an SK-3.1 exit
+assertion), because a nondeterministic optimizer converts Class-0 kernels
+into a Class-4 system. The committed plan's canonical hash + laneId +
+pass-pipeline version is then the S-C model cache key, closing the loop
+with §14.1.
