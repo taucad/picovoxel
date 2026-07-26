@@ -1,0 +1,68 @@
+# SKv2-0 V0.2 — the nightly G0 identity shape (NON-DETERMINISM.md §14.3):
+# an 11-run identity spike on a rotating fixture, multi lane (the race-prone
+# one; the single lane is exercised per-commit by the byte pins and the
+# lane-invariant G0 reference in test/g0-gate.test.ts).
+#
+# 11 runs catches a 1-in-4 race with ~96% confidence in one night; the
+# rotation buys condition DIVERSITY, which §14.3 shows beats repetition —
+# both historical P0s were p≈1 in an uncovered scale region and p≈0 in the
+# covered one. The 0.5 mm HeatX leg is the deep-heap fixture (the SK-0.9/0.10
+# defect class only manifests past 2 GiB).
+#
+# Identity needs no load discipline: host load is recorded in every record,
+# never controlled (§14.3) — which is why this CAN run on CI while timing
+# benchmarks cannot (bench.yml stays a drift canary only).
+#
+# No wasm build: the multi artifact (src/pico-multi.wasm) is tracked, exactly
+# what the per-commit suite tests against.
+name: g0-nightly
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '43 3 * * *' # nightly
+
+jobs:
+  g0-identity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      # dist/ is needed at runtime: examples import the package by name.
+      - run: npm run build
+      - name: Pick tonight's fixture (rotation by day-of-year)
+        id: rotate
+        run: |
+          case $(( $(date +%-j) % 3 )) in
+            0) echo "fixture=heatx"  >> "$GITHUB_OUTPUT"; echo "size=0.7"  >> "$GITHUB_OUTPUT" ;;
+            1) echo "fixture=gyroid" >> "$GITHUB_OUTPUT"; echo "size=0.25" >> "$GITHUB_OUTPUT" ;;
+            2) echo "fixture=heatx"  >> "$GITHUB_OUTPUT"; echo "size=0.5"  >> "$GITHUB_OUTPUT" ;;
+          esac
+      - name: 11-run G0 identity spike
+        run: |
+          node bench/g0-identity.mjs triple \
+            --fixture ${{ steps.rotate.outputs.fixture }} \
+            --build multi \
+            --size ${{ steps.rotate.outputs.size }} \
+            --runs 11 --jsonl g0-nightly.jsonl
+      - name: Upload records
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: g0-nightly-${{ steps.rotate.outputs.fixture }}-${{ steps.rotate.outputs.size }}
+          path: g0-nightly.jsonl
+      - name: Open an issue on identity failure
+        if: failure()
+        run: |
+          gh issue create \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "G0 nightly identity failure: ${{ steps.rotate.outputs.fixture }}@${{ steps.rotate.outputs.size }}mm multi" \
+            --body "The 11-run G0 identity spike diverged or the oracles disagreed. Records are in the run's artifact: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID — treat as a race until attributed (NON-DETERMINISM.md §14.3; first suspect list in the SKv2-0 charter watch items)."
+        env:
+          GH_TOKEN: ${{ github.token }}

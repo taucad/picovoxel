@@ -10,7 +10,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # 90 rather than 60 since SKv2-0 V0.1: the per-commit G0 gate adds ~2 min
+    # of HeatX identity runs on the reference machine — more on CI hardware.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
