@@ -201,7 +201,7 @@ Ledger of every PicoGK runtime compute entry point and its **current workload ex
 ## Determined non-improvable / measured-dead (do not re-run without new architecture)
 
 - `-flto` (net negative), tail calls (hot path is switch-in-loop), `-ffast-math` (unbounded reassociation; excluded on all lanes), TP7c sincos-fusion, TP7d CPU affine-classify — `docs/research/picogk-cpu-fast-lane-workstream.md` measured-dead list.
-- memory64 as a performance path (10%–2× engine tax; capacity escape hatch only).
+- memory64 as a performance path (10%–2× engine tax) — it is a demand-triggered CAPACITY lane only; verdict, demand curve, and promotion triggers in `WASM-RUNTIME.md`.
 - **GPU M1 per-op offload of small Class-B fills** — measured-dead at gyroid@0.1 (iteration-1). Caveat per blueprint AR2/AR3: the measurement carried a serial-ingest deviation; the corrected bound (~1.5–2.5×) still fails the 5× bar, but the number must never be quoted as 0.673× without that context, and it says nothing about deep tapes, chains, or lattice (gates G1/G3/G4).
 
 ## Rules

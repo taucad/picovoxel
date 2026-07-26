@@ -513,7 +513,9 @@ protocol at SK-3.7.
 **API**: `createPico({ lane: 'exact' | 'fast' | 'auto' })` — a lane is a
 named bundle (`'exact'` = L0: dlmalloc, byte-locked defaults, no GPU;
 `'fast'` = F: mimalloc MT artifact, `fastRenorm` on, T1/T2 when landed;
-`'auto'` = F + L1 when an adapter qualifies). Lane choice is structurally
+`'auto'` = F + L1 when an adapter qualifies; a future `'large'` = wasm64
+capacity artifact, demand-selected per `WASM-RUNTIME.md` §5.1,
+Safari-excluded like relaxed-SIMD). Lane choice is structurally
 session-scoped: lanes differ partly at *artifact* granularity (allocator is
 link-time; relaxed-SIMD is a second artifact pair), and artifacts are chosen
 at instantiation. Per-op options stay the fine-grained mechanism with the

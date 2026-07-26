@@ -299,6 +299,13 @@ is one link-time flag away from executing.
 
 ## 6. Sanitizers — not run, and why
 
+> **Rider (2026-07-27, WASM-RUNTIME.md):** route (2) — "a wasm64 build to fit
+> the ASan shadow" — is permanently closed: emscripten hard-errors on
+> MEMORY64+ASAN (`vendor/emsdk/upstream/emscripten/tools/link.py:764`;
+> upstream #21029). The sentinel debug-fill probe is the standing instrument
+> for big-heap diagnostics, alongside the native lane.
+
+
 The §11.1 escalation path ("rebuild the serial variant with emscripten
 sanitizers") was not exercised, for a reason that superseded it rather than a
 toolchain obstacle: **the serial variant has no divergence left to sanitize**

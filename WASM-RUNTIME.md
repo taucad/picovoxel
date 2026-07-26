@@ -59,7 +59,7 @@ shipped.
 `scripts/build-pico-module.sh:90-92` links every artifact with:
 
 ```
--sMALLOC=$MALLOC            # dlmalloc default; mimalloc = knob, currently NO-GO (SK-0.9)
+-sMALLOC=$MALLOC            # dlmalloc default; mimalloc = knob, unblocked (SK-0.10: defect was our signed-shift readback; mimalloc Class 0) — flip gated on the exit baseline
 -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=256MB -sMAXIMUM_MEMORY=4GB
 -sSTACK_SIZE=8388608
 ```
