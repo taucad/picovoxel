@@ -43,6 +43,28 @@ Ledger of every PicoGK runtime compute entry point and its **current workload ex
 > matrix over the flat-quad and parallel-flatten patches. Details:
 > `bench/results/webgpu-v2/SK-0.9.md`.
 >
+> **SUPERSEDED 2026-07-27 (SK-0.10): the defect was ours, in TypeScript, and it was never an
+> allocator bug.** `src/mesh.ts` indexed the heap view with the **signed** shift
+> (`pointer >> 2`). Above 2 GiB that is a negative index, and `TypedArray.subarray` *clamps*
+> negatives instead of throwing, so the mesh index readback silently returned a window ~1.5 GiB
+> away — right length, right triangle count, right volume hex, somebody else's bytes. mimalloc
+> only decided *where* the 120 MB staging buffer landed; a sentinel-filled probe showed the
+> wasm-side mesh perfect (0 unwritten slots, 0 `INVALID_IDX`, 0 out-of-range, slack 0), which
+> falsifies the flat-quad patch, the parallel-flatten patch, upstream `VolumeToMesh` and the
+> oneTBB substrate at once, so **the toggle matrix was not needed**. dlmalloc was never immune:
+> its default peak on this fixture is already 2.1–2.8 GiB. Fixed by `>>>` at 39 sites in `src/`
+> (plus 3 spike files); dlmalloc byte-identity preserved at 0.5/0.6/0.7 mm, suite 466/466 with
+> 100% coverage, and a source-invariant guard added in `test/surface-manifest.test.ts`.
+> **mimalloc multi is now clean and byte-stable at 0.5/0.6/0.7 mm (5 runs each, ≡ the dlmalloc
+> single-thread reference)** — 32 runs across both allocators x single/multi x three cells
+> produce **four byte streams, exactly one per (cell, lane)**, and the retired serial lattice
+> lane is byte-identical across allocators too, which retires SK-0.9's §11.1 attribution and
+> shows SK-0.1's `0ccaa277`/`38cad381` was this same defect. The mimalloc wins — the 1.208× construct and the SK-0.6
+> extraction headroom below — are therefore **spendable pending the exit-baseline
+> measurement**; nothing in this spike flips a default, and `MALLOC=dlmalloc` remains the
+> shipped setting until that baseline is taken. Details:
+> `bench/results/webgpu-v2/SK-0.10.md`.
+>
 > **MT substrate changed 2026-07-26 (SK-0.7); no row changes executor.** Three vendored
 > oneTBB fixes (`patches/oneTBB/`) apply under every `MT` row: `machine_pause` is an
 > in-register spin instead of a JS-boundary `sched_yield` (65.8 → 2.1 ns), the external
@@ -144,7 +166,7 @@ Ledger of every PicoGK runtime compute entry point and its **current workload ex
 
 | Op | Executor today | Why | Graduation status | Non-det headroom (class/est — see `NON-DETERMINISM.md`) |
 | --- | --- | --- | --- | --- |
-| `Mesh_hCreateFromVoxels` (`volumeToMesh`) | MT (disjoint-slot flatten, SK-0.6) | the "serial adaptivity/stitch" attribution was wrong — the wall was four serial copy passes AROUND the parallel mesher (`doVolumeToMesh`'s per-element primitive copy + roAsMesh's three re-copies); repaired via pool-indexed count→scan→emit into pre-sized slots (`patches/PicoGKRuntime/0001`), byte-identical output, layout = the WGSL port's input shape | current (SK-0.6 measured: ST 43.3→38.4 ms, 12T 32.9→24.0 ms, scaling 1.31→1.60× on dlmalloc — residual is tree lifecycle (identify/auxdata/clear ≈19 of 24 ms), an allocator/S-A wall, not extraction; mimalloc probe on the patched tree: 12T ≈10 ms, ≈3.9× scaling, byte-identical — see `bench/results/webgpu-v2/SK-0.6.md`) | CPU C1: allocator order — mimalloc 12T mesh 24→~10 ms (2.4×) — **BLOCKED on a defect (SK-0.9, 2026-07-27)**: §11.1's single-path residual is gone (dlmalloc single ≡ mimalloc single, byte-identical), but mimalloc **multi** @0.5 mm emits 91.8% out-of-range triangle indices (`INVALID_IDX`) with volume/count/byte-count matching the reference exactly, and traps at 0.6 mm. Fix first, then re-measure. GPU: topology C0 (bit-exact f32 compares), positions C2 (2 named sites), order C1 (canonical slots free) |
+| `Mesh_hCreateFromVoxels` (`volumeToMesh`) | MT (disjoint-slot flatten, SK-0.6) | the "serial adaptivity/stitch" attribution was wrong — the wall was four serial copy passes AROUND the parallel mesher (`doVolumeToMesh`'s per-element primitive copy + roAsMesh's three re-copies); repaired via pool-indexed count→scan→emit into pre-sized slots (`patches/PicoGKRuntime/0001`), byte-identical output, layout = the WGSL port's input shape | current (SK-0.6 measured: ST 43.3→38.4 ms, 12T 32.9→24.0 ms, scaling 1.31→1.60× on dlmalloc — residual is tree lifecycle (identify/auxdata/clear ≈19 of 24 ms), an allocator/S-A wall, not extraction; mimalloc probe on the patched tree: 12T ≈10 ms, ≈3.9× scaling, byte-identical — see `bench/results/webgpu-v2/SK-0.6.md`) | CPU C1: allocator order — mimalloc 12T mesh 24→~10 ms (2.4×) — **UNBLOCKED 2026-07-27 (SK-0.10)**: SK-0.9's "mimalloc multi emits 91.8% `INVALID_IDX`" was our own signed-shift heap-view read in `src/mesh.ts`, not extraction and not the allocator; a sentinel probe found the wasm-side mesh perfect. Fixed; mimalloc multi is byte-identical to the dlmalloc ST reference at 0.5/0.6/0.7 mm ×5. **The 2.4× is spendable pending the exit-baseline measurement** — no default flipped here. GPU: topology C0 (bit-exact f32 compares), positions C2 (2 named sites), order C1 (canonical slots free) |
 | `Voxels_fCalculateVolume` | MT — Gauss-divergence reduce (`levelSetVolume`) | reduce-shaped | current. **Not** a substitute for `properties().volume`: on a post-boolean grid the distance-0 voxels csg leaves on coincident surfaces measure as real surface — `a − a` reports 205.39 mm³ for a field with no interior. SK-0.5 §4 has the corpus-wide delta table and the five byte-locked pins that fix this | none — keep bit-exact hex on EVERY lane: the program's cheapest, strongest race canary (caught both P0s) |
 | `Voxels_bClosestPointOnSurface` | ST per query — Bresenham shell scan O(r³)/call | algorithmically wrong before executor-wrong | candidate: gradient-walk algorithm fix + batched ABI (W1.2 T11 / P8) | C2 by nature (algorithm swap: sub-voxel + documented tie-band; the SDF is its own oracle) 10–1000×/query; GPU batch = keyed slots, ordering vacuous |
 | `Voxels_bRayCastToSurface` | ST per ABI call | HDDA exists in NanoVDB; no batch entry | candidate: batched query ABI (P8, 10–50×) | C1: cached intersector + batch ABI 10–50× (batch≡serial exact); GPU HDDA f32 C2 — deprioritized until CPU index-once beaten |

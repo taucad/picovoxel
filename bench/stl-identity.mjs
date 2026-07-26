@@ -3,23 +3,33 @@
 // (Class 1) from "different mesh" (Class X / UB) — the discriminator §11.1 asks
 // for. Built for SK-0.9; kept as general tooling.
 //
-// Construction
-// ------------
+// Construction (reconciled with NON-DETERMINISM.md §14.5, SK-0.10)
+// ----------------------------------------------------------------
 // A binary STL is an 80-byte header + uint32 count + N 50-byte records. Each
 // record is 12 little-endian f32 (facet normal, then three vertices) followed by
-// a 2-byte attribute word this writer always sets to 0 (src/stl.ts). The
-// geometric payload is therefore the first 48 bytes of the record, and it is
-// hashed verbatim — bytes, not decoded floats, so -0.0/NaN payload bits cannot
-// be laundered by JS number conversion.
+// a 2-byte attribute word this writer always sets to 0 (src/stl.ts).
 //
-// The normal IS included. It is a pure function of the three vertices
-// (normalize(cross(v2-v1, v3-v1)), computed in float64 then rounded to f32 by
-// the same writer for every build), so including it adds no independent degree
-// of freedom; it does make a record's hash sensitive to vertex *rotation* within
-// a facet, which is a real difference we want to see rather than fold away.
+// The payload is the **36-byte vertex triple only**. The normal is dropped: it
+// is recomputed by the writer from the three vertices
+// (normalize(cross(v2-v1, v3-v1)) in float64, rounded to f32), so it carries no
+// independent geometry — only a rounding-coupling site. Vertex *rotation*
+// within a facet still moves the hash, because the three vertices are hashed in
+// order.
 //
-// Per-record: d_i = SHA-256(payload_i), read as a 256-bit big-endian integer.
-// Combined: H = (sum_i d_i) mod 2^256, accumulated in 8 uint32 limbs with carry.
+// The 9 floats are canonicalized before hashing: -0.0 -> +0.0 and every NaN
+// bit pattern -> 0x7fc00000. Two builds that differ only in a signed zero or in
+// which NaN payload they happened to produce are the same mesh; a hash that
+// separates them reports noise. Canonicalization can never hide a NaN, because
+// `nonFiniteRecords` below counts them independently of the hash.
+//
+// Per-record: d_i = SHA-256(canonical payload_i), read as a 256-bit big-endian
+// integer. Combined: H = (sum_i d_i) mod 2^256, in 8 uint32 limbs with carry.
+// SHA-256 rather than §14.5's 128-bit xxh3/BLAKE3: node stdlib, no dependency,
+// and strictly stronger. It costs ~4 min over a 10 M-record / 502 MB stream
+// against ~40 s of meshing, which is worth it for an oracle run offline; swap in
+// xxh3-128 the day this tool goes near CI.
+// The record count is carried as the sibling field `triangles` and compared
+// alongside rather than folded in — equivalent discriminating power.
 //
 // Why not XOR, and why not a sum of weak hashes:
 //   * XOR is multiplicity-blind — any record appearing an even number of times
@@ -49,7 +59,16 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const RECORD = 50;
-const PAYLOAD = 48;
+const NORMAL = 12; // bytes of recomputed facet normal, excluded from the hash
+const PAYLOAD = 36; // 9 f32 — the three vertices, canonicalized
+const ATTR = 48; // offset of the 2-byte attribute word
+const GEOMETRY = 48; // normal + vertices — what `diff` compares byte-wise
+
+/** -0.0 -> +0.0, any NaN -> 0x7fc00000, everything else raw f32 bits (§14.5). */
+export function canonicalizeF32Bits(bits) {
+  if ((bits & 0x7f800000) === 0x7f800000 && (bits & 0x007fffff) !== 0) return 0x7fc00000;
+  return bits === 0x80000000 ? 0 : bits;
+}
 
 /** Order-invariant multiset hash + the cheap scalar identities, over STL bytes. */
 export function stlIdentity(bytes) {
@@ -64,6 +83,9 @@ export function stlIdentity(bytes) {
   let nonFiniteRecords = 0;
   let firstNonFinite = -1;
   let lastNonFinite = -1;
+  // One reusable canonical payload buffer — 10 M allocations is the difference
+  // between a 20 s pass and a minute of GC.
+  const payload = Buffer.allocUnsafe(PAYLOAD);
   for (let t = 0; t < triangles; t++) {
     const at = 84 + t * RECORD;
     for (let f = 0; f < 12; f++) {
@@ -74,7 +96,10 @@ export function stlIdentity(bytes) {
         break;
       }
     }
-    const digest = hashOne('sha256', bytes.subarray(at, at + PAYLOAD), 'buffer');
+    for (let f = 0; f < 9; f++) {
+      payload.writeUInt32LE(canonicalizeF32Bits(view.getUint32(at + NORMAL + f * 4, true)), f * 4);
+    }
+    const digest = hashOne('sha256', payload, 'buffer');
     // 256-bit add, most-significant limb first so the carry walks downward.
     let carry = 0;
     for (let limb = 7; limb >= 0; limb--) {
@@ -82,7 +107,7 @@ export function stlIdentity(bytes) {
       limbs[limb] = sum >>> 0;
       carry = sum > 0xffffffff ? 1 : 0;
     }
-    if (view.getUint16(at + PAYLOAD, true) !== 0) attrNonZero++;
+    if (view.getUint16(at + ATTR, true) !== 0) attrNonZero++;
   }
   // FNV-1a over the whole stream: weak, but it is the identifier every prior
   // spike document quotes (SK-0.1's `0ccaa277`/`38cad381`), so it is carried for
@@ -137,7 +162,7 @@ function cmdDiff(fileA, fileB) {
   const viewA = new DataView(a.buffer, a.byteOffset, a.byteLength);
   const viewB = new DataView(b.buffer, b.byteOffset, b.byteLength);
   const count = Math.min(viewA.getUint32(80, true), viewB.getUint32(80, true));
-  const record = (bytes, index) => bytes.subarray(84 + index * RECORD, 84 + index * RECORD + PAYLOAD);
+  const record = (bytes, index) => bytes.subarray(84 + index * RECORD, 84 + index * RECORD + GEOMETRY);
   const decode = (view, index) =>
     Array.from({ length: 12 }, (_, i) => view.getFloat32(84 + index * RECORD + i * 4, true));
 
@@ -223,9 +248,18 @@ function cmdSelftest() {
   const make = (records) => {
     const bytes = new Uint8Array(84 + records.length * RECORD);
     new DataView(bytes.buffer).setUint32(80, records.length, true);
-    records.forEach((seed, t) => bytes.fill(seed, 84 + t * RECORD, 84 + t * RECORD + PAYLOAD));
+    records.forEach((seed, t) => bytes.fill(seed, 84 + t * RECORD, 84 + t * RECORD + GEOMETRY));
     return bytes;
   };
+  /** One record from twelve explicit f32 bit patterns (normal, then vertices). */
+  const makeBits = (...records) => {
+    const bytes = new Uint8Array(84 + records.length * RECORD);
+    const view = new DataView(bytes.buffer);
+    view.setUint32(80, records.length, true);
+    records.forEach((bits, t) => bits.forEach((b, f) => view.setUint32(84 + t * RECORD + f * 4, b, true)));
+    return bytes;
+  };
+  const twelve = (fill) => Array.from({ length: 12 }, (_, f) => fill(f));
   const ms = (records) => stlIdentity(make(records)).multiset;
   const eq = (claim, actual, expected) => {
     if (actual !== expected) throw new Error(`selftest: ${claim}`);
@@ -245,6 +279,28 @@ function cmdSelftest() {
   }
   eq('mod-2^256 wraparound', [...wrap].join(), new Array(8).fill(0).join());
   eq('permuted streams are not byte-identical', stlIdentity(make([1, 2, 3])).sha256 === stlIdentity(make([3, 1, 2])).sha256, false);
+
+  // §14.5 reconciliation (SK-0.10): the normal is out of the payload, and the
+  // two canonicalizations fold. Each claim also asserts the streams really do
+  // differ byte-wise, so a no-op construction cannot pass by accident.
+  const normalA = makeBits(twelve((f) => (f < 3 ? 0x3f800000 : 0x40000000 + f)));
+  const normalB = makeBits(twelve((f) => (f < 3 ? 0xbf800000 : 0x40000000 + f)));
+  eq('normal must not enter the hash', stlIdentity(normalA).multiset, stlIdentity(normalB).multiset);
+  eq('normal-only change must still move the bytes', stlIdentity(normalA).sha256 === stlIdentity(normalB).sha256, false);
+
+  const posZero = makeBits(twelve(() => 0x00000000));
+  const negZero = makeBits(twelve(() => 0x80000000));
+  eq('-0.0 canonicalizes to +0.0', stlIdentity(posZero).multiset, stlIdentity(negZero).multiset);
+  eq('signed zero must still move the bytes', stlIdentity(posZero).sha256 === stlIdentity(negZero).sha256, false);
+
+  const nanA = makeBits(twelve(() => 0x7fc00001));
+  const nanB = makeBits(twelve(() => 0xffc12345));
+  eq('every NaN payload canonicalizes alike', stlIdentity(nanA).multiset, stlIdentity(nanB).multiset);
+  // ...and canonicalization must NEVER mask the health counter.
+  eq('NaN still counted', stlIdentity(nanA).nonFiniteRecords, 1);
+  eq('NaN is not the finite hash', stlIdentity(nanA).multiset === stlIdentity(posZero).multiset, false);
+  eq('infinity is not a NaN', canonicalizeF32Bits(0x7f800000), 0x7f800000);
+
   console.log('stl-identity selftest: ok');
 }
 

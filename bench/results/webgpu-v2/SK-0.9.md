@@ -118,6 +118,18 @@ Whoever lands the §12.1 G0 tooling should treat this file as the starting point
 and either adopt the §14.5 payload/canonicalization or amend §14.5; the two
 should not both stand.
 
+> **RECONCILED 2026-07-27 (SK-0.10).** `bench/stl-identity.mjs` now uses the
+> §14.5 construction: 36-byte vertex-only payload (normal dropped) and
+> `−0.0 → +0.0` / `NaN → 0x7fc00000` canonicalization before hashing, with
+> `nonFiniteRecords` kept as the separate hard health boolean. SHA-256 and the
+> sibling record count stay as deviations, argued in `SK-0.10.md` §7.
+> **Consequence for this document: every `multiset` value below — §4's two
+> tables and all 17 records in `sk-0.9-oracle.jsonl` — is in the old 48-byte
+> uncanonicalized construction and is NOT comparable to any value in
+> `SK-0.10.md`.** Neither is rewritten (they are evidence of runs that happened,
+> and the jsonl is sha256-pinned). `stlFnv`, `sha256` and `volumeHex` are
+> unaffected and remain directly comparable across both documents.
+
 ## 2. Builds
 
 Four artifacts, one toolchain state, allocator as the only delta. `scripts/

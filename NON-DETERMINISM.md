@@ -70,7 +70,23 @@ check.
 
 **What it costs, measured.** (a) The mimalloc veto: 1.208× MT construct
 [CI 1.171–1.262], 1.998× M10 MT mesh, 4.58× on the largest creation stage —
-held hostage by triangle emission order (Class 1). (b) The `fastRenorm`
+held hostage by triangle emission order (Class 1). *[ERRATUM 2026-07-27,
+SK-0.9: the 0.5 mm MT case was misclassified by everyone including SK-0.1 —
+the multiset oracle's first run showed those streams contain NaN-coordinate
+records behind bit-identical volume/count/byte-count invariants, i.e.
+Class X, a stale-slot read that dlmalloc masks with zero-filled fresh pages.
+The mimalloc wins stay unspendable until the defect is rooted; the argument
+this paragraph makes survives on the single-thread record, which SK-0.9
+showed is now byte-identical cross-allocator. See §11 outcomes and
+`bench/results/webgpu-v2/SK-0.9.md`.]* *[ERRATUM TO THE ERRATUM, SK-0.10:
+Class X was right, the cause was not. There is no stale-slot read and no
+zero-page masking — the NaN records came from `src/mesh.ts` reading its own
+staging buffer through a **signed** shift, which goes negative past 2 GiB and
+which `subarray` silently clamps. mimalloc only chose the address. Fixed; the
+0.5 mm MT case is now Class 0 (byte-identical to the dlmalloc ST reference,
+5 runs), so this paragraph's "held hostage by emission order" reading is
+restored on BOTH paths and the wins are spendable pending the exit baseline.
+See `bench/results/webgpu-v2/SK-0.10.md`.]* (b) The `fastRenorm`
 paradox: the byte lock pins HJWENO5×3, which is measurably **slower and less
 accurate** than the available SECOND_BIAS×3 (0.094% vs 0.050% volume error
 against the closed form, at 2.1×) — SK-0.8's own words: "it is still not the
@@ -221,7 +237,7 @@ and algorithm freeze):
 
 | Lever | Class | Verdict | Evidence |
 | --- | --- | --- | --- |
-| mimalloc (link-time) | ~~1~~ → **X on MT** (SK-0.9) | **DO NOT FLIP — blocked on a correctness defect.** SK-0.9: single-path residual gone (byte-identical), but mimalloc *multi* @0.5 mm emits 91.8% `INVALID_IDX` triangle indices with volume/count/byte-count matching the reference, and traps at 0.6 mm. Fix, then re-measure; L0 stays dlmalloc regardless | SK-0.1: 1.208× construct, 2× mesh; SK-0.6: 3.9× mesh scaling, byte-identical on M10; A8: 113× microbench |
+| mimalloc (link-time) | ~~1~~ ~~→ **X on MT** (SK-0.9)~~ → **0 on MT** (SK-0.10) | ~~DO NOT FLIP — blocked on a correctness defect~~. **UNBLOCKED (SK-0.10)**: the "91.8% `INVALID_IDX`" was our own signed-shift heap-view read in `src/mesh.ts` (2 GiB pointer + `>> 2` + `subarray` clamping), not the allocator and not extraction. Fixed; mimalloc multi is byte-identical to the dlmalloc ST reference at 0.5/0.6/0.7 mm ×5. Flip gated only on the exit-baseline measurement; L0 stays dlmalloc regardless | SK-0.1: 1.208× construct, 2× mesh; SK-0.6: 3.9× mesh scaling, byte-identical on M10; A8: 113× microbench; SK-0.10: 15/15 clean, ≡ reference |
 | `fastRenorm` scheme (runtime opt-in, landed) | 2 | **default-on fast lane**; consider SECOND_BIAS accuracy case upstream | SK-0.8: 3.49–3.95×, all gates pass, 28% min margin |
 | Vectorized transcendentals (T2) + f32x4 tape (T1) | 2 | fast-lane, W1 kill bars, interval-widening rider | A8 F8 census (5 ops); TP7a's 1.91× precedent; est 1.5–3× trig-heavy eval |
 | `-mrelaxed-simd` | 3 | **last** — Safari can't parse it (module rejection → second artifact pair + dep prefixes), +2.4% measured pre-tape | W1 T3; safari-wasm doc |
@@ -345,6 +361,19 @@ this regime.
    > *place*. The confirming `PICOVOXEL_SERIAL_LATTICE=1` A/B is outstanding and
    > is a post-mortem on an escape hatch, not a blocker. Evidence:
    > `bench/results/webgpu-v2/SK-0.9.md` §3.
+   >
+   > **RE-OPENED AND PROPERLY CLOSED 2026-07-27 (SK-0.10).** The attribution
+   > above is wrong. The confirming A/B was run: the retired serial lane at
+   > 0.5 mm single, dlmalloc vs mimalloc, on the fixed tree, gives **one byte
+   > stream** (`b9ebd7b20ed1…`, 10,048,032 triangles — SK-0.1's exact count).
+   > The lane is not allocator-dependent. `0ccaa277` vs `38cad381` was the
+   > SK-0.10 defect: a signed-shift heap-view read of a staging buffer that one
+   > allocator placed above 2 GiB and the other below. SK-0.4's lane change did
+   > not fix it — it changed the mesh size, which moved the pointer, which
+   > stopped the bug firing. Coverage on the fixed tree: 32 runs across
+   > {dlmalloc, mimalloc} x {single, multi} x {0.5, 0.6, 0.7 mm} plus the serial
+   > lane, **four byte streams, exactly one per (cell, lane)**. Evidence:
+   > `bench/results/webgpu-v2/SK-0.10.md` §6, §8A.
 
 2. **Re-run the mimalloc oracle post-revert** (P0 doc step 5 unblocked but
    not yet executed) — the 1.208× must be re-derived on the correct tree
@@ -371,6 +400,35 @@ this regime.
    > mimalloc row and §12.3 are blocked on a defect, not on ceremony.**
    > Evidence: `bench/results/webgpu-v2/SK-0.9.md` §4–§5; oracle
    > `bench/stl-identity.mjs`.
+   >
+   > **CLOSED 2026-07-27 (SK-0.10) — the defect was ours, in TypeScript.**
+   > `src/mesh.ts` indexed the heap view with the **signed** shift
+   > (`trianglePointer >> 2`). A wasm pointer at or past 2 GiB is `>= 2**31`, JS
+   > `>>` coerces to int32 first, and `TypedArray.subarray` *clamps* a negative
+   > start instead of throwing — so the readback returned a correctly-sized
+   > window ~1.5 GiB away from the mesh. That is exactly why triangle count,
+   > volume hex and STL byte count all matched: they never came through that
+   > view. mimalloc's only role was placing the 120 MB triangle staging buffer
+   > above 2 GiB where dlmalloc placed it below; **dlmalloc was never immune, it
+   > was lucky about an address**, and a 400 MB ballast reproduces the identical
+   > corruption on the dlmalloc build. A sentinel-filled probe (`0xAB` over
+   > `mFlatQuads`, `0xCD` over the `BulkResize` triangle array, scanned over the
+   > exact consumed ranges) found **zero** surviving sentinels, zero
+   > `INVALID_IDX` and zero out-of-range indices inside wasm, which falsifies the
+   > flat-quad patch, the parallel-flatten patch, upstream `VolumeToMesh` and the
+   > oneTBB substrate simultaneously — so the chartered patch-toggle matrix was
+   > not needed. SK-0.9's two inferences were wrong and its measurements were
+   > right: `0xFFFFFFFF` was the *maximum* of a garbage distribution, not its
+   > mode (0.4–2% of the out-of-range values; the rest are narrow-band SDF float
+   > bit patterns). Fixed by `>>>` at 39 sites in `src/`; dlmalloc byte-identity
+   > preserved at 0.5/0.6/0.7 mm; suite 466/466 at 100% coverage; a
+   > source-invariant guard added in `test/surface-manifest.test.ts` because a
+   > behavioural test would need a 2.8 GiB heap. **Re-verdict: mimalloc multi is
+   > clean and byte-stable at 0.5/0.6/0.7 mm, 5 runs each, byte-identical to the
+   > dlmalloc single-thread reference** — 32 runs, four byte streams, one per
+   > (cell, lane). The 1.208× is spendable pending the
+   > exit-baseline measurement; no default is flipped by that spike.
+   > Evidence: `bench/results/webgpu-v2/SK-0.10.md`.
 3. **Native stock-TBB U20 reproducer** (~a day) to settle
    upstream-vs-substrate before any merge re-attempt; the recommended
    re-attempt vehicle is `csgUnionCopy` either way.
@@ -381,9 +439,14 @@ this regime.
    identity-triple harness) — prerequisite for everything; ~S effort.
 2. Run the three §11 diagnostics.
 3. ~~Flip `MALLOC=mimalloc` on the MT fast lane (L0 stays dlmalloc).~~
-   **WITHDRAWN 2026-07-27 (SK-0.9)** — mimalloc MT is corrupt at ≤0.6 mm (§11.2
+   ~~**WITHDRAWN 2026-07-27 (SK-0.9)** — mimalloc MT is corrupt at ≤0.6 mm (§11.2
    outcome line). Replaced by: fix the defect (patch-toggle matrix over the
-   flat-quad and parallel-flatten patches), then re-run the oracle.
+   flat-quad and parallel-flatten patches), then re-run the oracle.~~
+   **REINSTATED 2026-07-27 (SK-0.10)** — the corruption was a signed-shift heap
+   view in `src/mesh.ts`, not the allocator (§11.2 outcome line). Fixed, and
+   mimalloc MT is now byte-identical to the dlmalloc ST reference at
+   0.5/0.6/0.7 mm ×5. The flip is unblocked and **gated only on the
+   exit-baseline measurement**; SK-0.10 deliberately did not take it.
 4. Flip `fastRenorm` (FIRST_BIAS×3) default-on in the fast lane; file the
    SECOND_BIAS accuracy finding upstream (U-row candidate).
 5. Execute the SK-0.4 pin regeneration as chartered (already operator-
@@ -548,6 +611,12 @@ exist here — if the hash ever guards a trust boundary, the named upgrade is
 a multiset-homomorphic construction (MSet-Mu-Hash/ECMH).
 **Canonicalization before hashing (both hashes)**: −0.0 → +0.0 and
 NaN → `0x7fc00000`; everything else raw f32 bits.
+**RECONCILED 2026-07-27 (SK-0.10)**: `bench/stl-identity.mjs` implements the
+36-byte vertex-only payload and both canonicalizations; SHA-256 (stronger,
+stdlib) and a sibling record-count field are the two remaining deviations, and
+canonicalization ships *with* `nonFiniteRecords`, never instead of it — a NaN
+count must never be folded into the value it canonicalizes to. Every multiset
+hash recorded before that date is in the old construction and is not comparable.
 **Canonical grid hash**: OpenVDB depth-first traversal is already
 coordinate-sorted — hash the (coord, canonical value bits) stream over
 active voxels, O(active), no sort; **normalize representation first** (run
