@@ -11,7 +11,22 @@ Ledger of every PicoGK runtime compute entry point and its **current workload ex
 
 **Status legend**: `current` — executor is where it started; `graduated` — moved executor with measured evidence; `candidate` — graduation planned, gate named; `measured-dead` — a graduation was tried, measured, and rejected (do not re-run without new architecture); `non-improvable` — algorithmically at its ceiling on this executor.
 
-> **Baselines re-based 2026-07-26 (SK-0.1) and remain dlmalloc-denominated.** Every later
+> **BASELINE (current, 2026-07-27, SK-0 EXIT): `bench/results/webgpu-v2/sk-0-exit-baseline-dlmalloc.json`.**
+> Taken at `84e1515` on dlmalloc, 20 samples/phase, ABAB-blocked with bootstrap CI. **Every
+> SK-1…SK-3 comparison uses this file**; `sk-0.1-baseline-dlmalloc.json` is superseded as a
+> denominator (it predates SK-0.2…SK-0.8 + SK-0.10) and survives only as the scorecard's
+> "before" column. What the program delivered end-to-end on dlmalloc: HeatX multi `construct`
+> **2.078×** (34.66 → 16.69 s), single **1.404×**, multi mesh 1.709×, `helical-void` stages
+> **17.2×** — 88 phases faster, 4 regressions, 28 flat. The mimalloc fast-lane decision table
+> lives in the same spike: **2.164× on multi construct, byte-identical everywhere, MT-only**
+> (44/47 MT phases faster, 45/73 ST phases slower), **recommended for the `'fast'` lane and
+> NOT applied** — the shipped default stays `MALLOC=dlmalloc` pending an operator decision.
+> Also: 0.4 mm now passes on both allocators (SK-0.1 had it failing on both), and the small-
+> lattice tube-lane regression in §5.3 is filed. Details:
+> `bench/results/webgpu-v2/SK-0-EXIT.md`.
+>
+> **Baselines re-based 2026-07-26 (SK-0.1) and remain dlmalloc-denominated.** *(Superseded as
+> the denominator by the SK-0 EXIT baseline above; retained for history.)* Every later
 > spike (SK-1…SK-3) must compare against `bench/results/webgpu-v2/sk-0.1-baseline-dlmalloc.json`
 > (20 samples/phase, bootstrap CI), not the 2026-07-23 file. `-sMALLOC=mimalloc` was measured
 > and **rejected as the default**: it wins 1.208× on HeatX multi `construct` but loses STL

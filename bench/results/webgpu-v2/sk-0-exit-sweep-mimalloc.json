@@ -1,0 +1,727 @@
+{
+  "fingerprint": {
+    "cpu": "Apple M2 Pro",
+    "cores": 12,
+    "ramGiB": 32,
+    "os": "darwin 25.5.0",
+    "node": "v26.5.0",
+    "wasmSha256": "34ce6402169ac38e649dd6c98f08e9bfe3abd06083d7af98ce3bdc4f5786d0ef",
+    "gitSha": "7a90629",
+    "date": "2026-07-26T19:50:59.775Z",
+    "startLoad": 4.89111328125
+  },
+  "rows": [
+    {
+      "voxelSize": 1,
+      "build": "single",
+      "threads": 1,
+      "taskMs": 39376.342916999994,
+      "constructMs": 39376.262666999995,
+      "authorMs": 158.26766700000502,
+      "kernelTimings": [
+        {
+          "stage": "bounding.create",
+          "ms": 235.833125
+        },
+        {
+          "stage": "turning-fins.hot",
+          "ms": 1442.446625
+        },
+        {
+          "stage": "turning-fins.cool",
+          "ms": 1426.1401660000001
+        },
+        {
+          "stage": "corner-fins.union",
+          "ms": 4.7656660000002375
+        },
+        {
+          "stage": "straight-fins.hot",
+          "ms": 435.46799999999985
+        },
+        {
+          "stage": "straight-fins.cool",
+          "ms": 435.6745420000002
+        },
+        {
+          "stage": "straight-fins.union",
+          "ms": 3.4642499999999927
+        },
+        {
+          "stage": "fins.union",
+          "ms": 2.9352499999995416
+        },
+        {
+          "stage": "outer-structure.create",
+          "ms": 12969.086792000002
+        },
+        {
+          "stage": "helical-void.hot",
+          "ms": 1222.2234999999964
+        },
+        {
+          "stage": "helical-void.cool",
+          "ms": 1223.533625
+        },
+        {
+          "stage": "cool-inner.offset",
+          "ms": 958.7934999999998
+        },
+        {
+          "stage": "hot-fluid-void.subtract",
+          "ms": 7.817500000001019
+        },
+        {
+          "stage": "hot-inner.offset",
+          "ms": 959.7023330000011
+        },
+        {
+          "stage": "cool-fluid-void.subtract",
+          "ms": 4.42658400000073
+        },
+        {
+          "stage": "inner-volume.union",
+          "ms": 5.549708999998984
+        },
+        {
+          "stage": "splitters.union",
+          "ms": 2.0101250000006985
+        },
+        {
+          "stage": "outer-volume.offset",
+          "ms": 1046.3882079999967
+        },
+        {
+          "stage": "flange.create",
+          "ms": 2523.384209
+        },
+        {
+          "stage": "finished-flange.fillet",
+          "ms": 968.5020839999997
+        },
+        {
+          "stage": "finished-flange.smoothen",
+          "ms": 127.00587499999892
+        },
+        {
+          "stage": "outer-volume.union-flange",
+          "ms": 3.674541999997018
+        },
+        {
+          "stage": "io-supports.create",
+          "ms": 29.5511239999978
+        },
+        {
+          "stage": "outer-volume.union-supports",
+          "ms": 3.8814580000034766
+        },
+        {
+          "stage": "outer-volume.fillet",
+          "ms": 6639.716124999999
+        },
+        {
+          "stage": "outer-volume.smoothen",
+          "ms": 1100.866750000001
+        },
+        {
+          "stage": "centre-piece.add",
+          "ms": 18.870833000000857
+        },
+        {
+          "stage": "outer-volume.union-structure",
+          "ms": 4.834792000001471
+        },
+        {
+          "stage": "outer-volume.subtract-screw-holes",
+          "ms": 2.6298339999993914
+        },
+        {
+          "stage": "outer-volume.project-z-slice",
+          "ms": 6.645375000000058
+        },
+        {
+          "stage": "print-web.create",
+          "ms": 7.522165999995195
+        },
+        {
+          "stage": "outer-volume.subtract-print-web",
+          "ms": 2.1427919999987353
+        },
+        {
+          "stage": "result.subtract-inner-volume",
+          "ms": 5.014208000000508
+        },
+        {
+          "stage": "result.union-fins",
+          "ms": 5.665958999998111
+        },
+        {
+          "stage": "result.union-splitters",
+          "ms": 3.3707090000025346
+        },
+        {
+          "stage": "result.intersect-bounding",
+          "ms": 4.126375000007101
+        },
+        {
+          "stage": "io-threads.create",
+          "ms": 5349.2200410000005
+        },
+        {
+          "stage": "result.union-threads",
+          "ms": 3.0262080000029528
+        },
+        {
+          "stage": "io-cuts.create",
+          "ms": 19.554416999999376
+        },
+        {
+          "stage": "result.subtract-io-cuts",
+          "ms": 2.0217090000005555
+        }
+      ],
+      "unattributedMs": 0.5079149999874062,
+      "meshMs": 122.3260420000006,
+      "stlMs": 74.96520800000144,
+      "stlBytes": 93667084,
+      "peakHeapBytes": 1683685376,
+      "volumeHex": "41220895e0000000",
+      "stlFnv": "b57def4",
+      "triangles": 1873340
+    },
+    {
+      "voxelSize": 1,
+      "build": "multi",
+      "threads": 12,
+      "taskMs": 7750.979207999997,
+      "constructMs": 7750.878708000004,
+      "authorMs": 156.20375000000058,
+      "kernelTimings": [
+        {
+          "stage": "bounding.create",
+          "ms": 85.37545800000225
+        },
+        {
+          "stage": "turning-fins.hot",
+          "ms": 265.2832920000001
+        },
+        {
+          "stage": "turning-fins.cool",
+          "ms": 231.26154200000747
+        },
+        {
+          "stage": "corner-fins.union",
+          "ms": 3.071209000001545
+        },
+        {
+          "stage": "straight-fins.hot",
+          "ms": 66.66745799999626
+        },
+        {
+          "stage": "straight-fins.cool",
+          "ms": 70.31454200000007
+        },
+        {
+          "stage": "straight-fins.union",
+          "ms": 1.3082920000015292
+        },
+        {
+          "stage": "fins.union",
+          "ms": 1.3672499999956926
+        },
+        {
+          "stage": "outer-structure.create",
+          "ms": 1597.6961250000022
+        },
+        {
+          "stage": "helical-void.hot",
+          "ms": 203.67320800000016
+        },
+        {
+          "stage": "helical-void.cool",
+          "ms": 205.24450099998649
+        },
+        {
+          "stage": "cool-inner.offset",
+          "ms": 116.79987500000425
+        },
+        {
+          "stage": "hot-fluid-void.subtract",
+          "ms": 5.0943330000009155
+        },
+        {
+          "stage": "hot-inner.offset",
+          "ms": 117.61404200000106
+        },
+        {
+          "stage": "cool-fluid-void.subtract",
+          "ms": 1.785250000000815
+        },
+        {
+          "stage": "inner-volume.union",
+          "ms": 1.9440839999952004
+        },
+        {
+          "stage": "splitters.union",
+          "ms": 1.5310830000016722
+        },
+        {
+          "stage": "outer-volume.offset",
+          "ms": 127.4053750000021
+        },
+        {
+          "stage": "flange.create",
+          "ms": 2026.1289169999945
+        },
+        {
+          "stage": "finished-flange.fillet",
+          "ms": 151.58033299999806
+        },
+        {
+          "stage": "finished-flange.smoothen",
+          "ms": 22.798875000000407
+        },
+        {
+          "stage": "outer-volume.union-flange",
+          "ms": 1.67412499999773
+        },
+        {
+          "stage": "io-supports.create",
+          "ms": 7.873250000004191
+        },
+        {
+          "stage": "outer-volume.union-supports",
+          "ms": 1.6611659999980475
+        },
+        {
+          "stage": "outer-volume.fillet",
+          "ms": 827.5167500000025
+        },
+        {
+          "stage": "outer-volume.smoothen",
+          "ms": 139.4698750000025
+        },
+        {
+          "stage": "centre-piece.add",
+          "ms": 10.272917000002053
+        },
+        {
+          "stage": "outer-volume.union-structure",
+          "ms": 1.7924169999969308
+        },
+        {
+          "stage": "outer-volume.subtract-screw-holes",
+          "ms": 1.4673340000008466
+        },
+        {
+          "stage": "outer-volume.project-z-slice",
+          "ms": 7.102459000001545
+        },
+        {
+          "stage": "print-web.create",
+          "ms": 3.4457079999992857
+        },
+        {
+          "stage": "outer-volume.subtract-print-web",
+          "ms": 0.9048750000001746
+        },
+        {
+          "stage": "result.subtract-inner-volume",
+          "ms": 1.8691669999971054
+        },
+        {
+          "stage": "result.union-fins",
+          "ms": 1.9512089999989257
+        },
+        {
+          "stage": "result.union-splitters",
+          "ms": 1.8261249999995925
+        },
+        {
+          "stage": "result.intersect-bounding",
+          "ms": 2.1518749999959255
+        },
+        {
+          "stage": "io-threads.create",
+          "ms": 1256.5350420000032
+        },
+        {
+          "stage": "result.union-threads",
+          "ms": 1.4688329999989946
+        },
+        {
+          "stage": "io-cuts.create",
+          "ms": 18.296833000000333
+        },
+        {
+          "stage": "result.subtract-io-cuts",
+          "ms": 2.9978750000009313
+        }
+      ],
+      "unattributedMs": 0.4520790000096895,
+      "meshMs": 41.330375000005006,
+      "stlMs": 81.68725000000268,
+      "stlBytes": 93667084,
+      "peakHeapBytes": 1683750912,
+      "volumeHex": "41220895e0000000",
+      "stlFnv": "b57def4",
+      "triangles": 1873340
+    },
+    {
+      "voxelSize": 0.5,
+      "build": "single",
+      "threads": 1,
+      "taskMs": 243436.315083,
+      "constructMs": 243436.23399999997,
+      "authorMs": 153.7684170000357,
+      "kernelTimings": [
+        {
+          "stage": "bounding.create",
+          "ms": 660.6094169999997
+        },
+        {
+          "stage": "turning-fins.hot",
+          "ms": 2383.775167
+        },
+        {
+          "stage": "turning-fins.cool",
+          "ms": 2359.9603739999948
+        },
+        {
+          "stage": "corner-fins.union",
+          "ms": 16.961499999997613
+        },
+        {
+          "stage": "straight-fins.hot",
+          "ms": 708.7416250000024
+        },
+        {
+          "stage": "straight-fins.cool",
+          "ms": 705.7795000000042
+        },
+        {
+          "stage": "straight-fins.union",
+          "ms": 11.513708999998926
+        },
+        {
+          "stage": "fins.union",
+          "ms": 7.898541999995359
+        },
+        {
+          "stage": "outer-structure.create",
+          "ms": 114147.760458
+        },
+        {
+          "stage": "helical-void.hot",
+          "ms": 3645.6723339999735
+        },
+        {
+          "stage": "helical-void.cool",
+          "ms": 3638.849583000003
+        },
+        {
+          "stage": "cool-inner.offset",
+          "ms": 11309.593542000017
+        },
+        {
+          "stage": "hot-fluid-void.subtract",
+          "ms": 18.08141699997941
+        },
+        {
+          "stage": "hot-inner.offset",
+          "ms": 11269.314124999975
+        },
+        {
+          "stage": "cool-fluid-void.subtract",
+          "ms": 15.281709000002593
+        },
+        {
+          "stage": "inner-volume.union",
+          "ms": 21.341958000004524
+        },
+        {
+          "stage": "splitters.union",
+          "ms": 2.4224580000154674
+        },
+        {
+          "stage": "outer-volume.offset",
+          "ms": 13708.764874999993
+        },
+        {
+          "stage": "flange.create",
+          "ms": 4304.962208000012
+        },
+        {
+          "stage": "finished-flange.fillet",
+          "ms": 7466.113167000003
+        },
+        {
+          "stage": "finished-flange.smoothen",
+          "ms": 983.4692909999867
+        },
+        {
+          "stage": "outer-volume.union-flange",
+          "ms": 8.08283400000073
+        },
+        {
+          "stage": "io-supports.create",
+          "ms": 96.70658399999957
+        },
+        {
+          "stage": "outer-volume.union-supports",
+          "ms": 10.614249999984168
+        },
+        {
+          "stage": "outer-volume.fillet",
+          "ms": 50617.55674999999
+        },
+        {
+          "stage": "outer-volume.smoothen",
+          "ms": 8874.147375
+        },
+        {
+          "stage": "centre-piece.add",
+          "ms": 69.73050000000512
+        },
+        {
+          "stage": "outer-volume.union-structure",
+          "ms": 11.570459000009578
+        },
+        {
+          "stage": "outer-volume.subtract-screw-holes",
+          "ms": 5.316833000048064
+        },
+        {
+          "stage": "outer-volume.project-z-slice",
+          "ms": 32.36562499997672
+        },
+        {
+          "stage": "print-web.create",
+          "ms": 10.023709000030067
+        },
+        {
+          "stage": "outer-volume.subtract-print-web",
+          "ms": 5.653541000036057
+        },
+        {
+          "stage": "result.subtract-inner-volume",
+          "ms": 16.76754200004507
+        },
+        {
+          "stage": "result.union-fins",
+          "ms": 28.728125000023283
+        },
+        {
+          "stage": "result.union-splitters",
+          "ms": 8.360625000030268
+        },
+        {
+          "stage": "result.intersect-bounding",
+          "ms": 17.587249999982305
+        },
+        {
+          "stage": "io-threads.create",
+          "ms": 6024.728124999965
+        },
+        {
+          "stage": "result.union-threads",
+          "ms": 8.444667000032496
+        },
+        {
+          "stage": "io-cuts.create",
+          "ms": 43.6541670000297
+        },
+        {
+          "stage": "result.subtract-io-cuts",
+          "ms": 5.199291000026278
+        }
+      ],
+      "unattributedMs": 0.36037199973361567,
+      "meshMs": 594.7387909999816,
+      "stlMs": 381.18620799999917,
+      "stlBytes": 502399484,
+      "peakHeapBytes": 2672492544,
+      "volumeHex": "4121d9c600000000",
+      "stlFnv": "bc87d0fc",
+      "triangles": 10047988
+    },
+    {
+      "voxelSize": 0.5,
+      "build": "multi",
+      "threads": 12,
+      "taskMs": 32939.52500000002,
+      "constructMs": 32939.34829200001,
+      "authorMs": 149.2958319998579,
+      "kernelTimings": [
+        {
+          "stage": "bounding.create",
+          "ms": 121.39937499997905
+        },
+        {
+          "stage": "turning-fins.hot",
+          "ms": 358.79266700003063
+        },
+        {
+          "stage": "turning-fins.cool",
+          "ms": 370.3689579999773
+        },
+        {
+          "stage": "corner-fins.union",
+          "ms": 4.8080420000478625
+        },
+        {
+          "stage": "straight-fins.hot",
+          "ms": 112.24424999998882
+        },
+        {
+          "stage": "straight-fins.cool",
+          "ms": 112.66900100000203
+        },
+        {
+          "stage": "straight-fins.union",
+          "ms": 2.760749999957625
+        },
+        {
+          "stage": "fins.union",
+          "ms": 6.052666999981739
+        },
+        {
+          "stage": "outer-structure.create",
+          "ms": 13362.285291999986
+        },
+        {
+          "stage": "helical-void.hot",
+          "ms": 566.7114170000423
+        },
+        {
+          "stage": "helical-void.cool",
+          "ms": 580.387999000086
+        },
+        {
+          "stage": "cool-inner.offset",
+          "ms": 1321.7121669999906
+        },
+        {
+          "stage": "hot-fluid-void.subtract",
+          "ms": 6.8914159999694675
+        },
+        {
+          "stage": "hot-inner.offset",
+          "ms": 1318.6606250000186
+        },
+        {
+          "stage": "cool-fluid-void.subtract",
+          "ms": 5.776292000024114
+        },
+        {
+          "stage": "inner-volume.union",
+          "ms": 8.600082999968436
+        },
+        {
+          "stage": "splitters.union",
+          "ms": 1.6273749999818392
+        },
+        {
+          "stage": "outer-volume.offset",
+          "ms": 1607.5403340000194
+        },
+        {
+          "stage": "flange.create",
+          "ms": 3272.208875000011
+        },
+        {
+          "stage": "finished-flange.fillet",
+          "ms": 950.5252919999766
+        },
+        {
+          "stage": "finished-flange.smoothen",
+          "ms": 131.56633300002431
+        },
+        {
+          "stage": "outer-volume.union-flange",
+          "ms": 2.758624999958556
+        },
+        {
+          "stage": "io-supports.create",
+          "ms": 18.355834000045434
+        },
+        {
+          "stage": "outer-volume.union-supports",
+          "ms": 5.303500000038184
+        },
+        {
+          "stage": "outer-volume.fillet",
+          "ms": 6002.095708000008
+        },
+        {
+          "stage": "outer-volume.smoothen",
+          "ms": 1052.323832999973
+        },
+        {
+          "stage": "centre-piece.add",
+          "ms": 17.166499999992084
+        },
+        {
+          "stage": "outer-volume.union-structure",
+          "ms": 3.3325000000186265
+        },
+        {
+          "stage": "outer-volume.subtract-screw-holes",
+          "ms": 2.526000000012573
+        },
+        {
+          "stage": "outer-volume.project-z-slice",
+          "ms": 22.051124999998137
+        },
+        {
+          "stage": "print-web.create",
+          "ms": 3.047415999986697
+        },
+        {
+          "stage": "outer-volume.subtract-print-web",
+          "ms": 3.543249999987893
+        },
+        {
+          "stage": "result.subtract-inner-volume",
+          "ms": 6.620500000019092
+        },
+        {
+          "stage": "result.union-fins",
+          "ms": 10.313000000023749
+        },
+        {
+          "stage": "result.union-splitters",
+          "ms": 4.723832999996375
+        },
+        {
+          "stage": "result.intersect-bounding",
+          "ms": 8.634416999993846
+        },
+        {
+          "stage": "io-threads.create",
+          "ms": 1356.4417079999694
+        },
+        {
+          "stage": "result.union-threads",
+          "ms": 3.113000000012107
+        },
+        {
+          "stage": "io-cuts.create",
+          "ms": 41.477917000011075
+        },
+        {
+          "stage": "result.subtract-io-cuts",
+          "ms": 1.9948749999748543
+        }
+      ],
+      "unattributedMs": 0.639709000068251,
+      "meshMs": 89.15433400002075,
+      "stlMs": 3169.0041670000064,
+      "stlBytes": 502399484,
+      "peakHeapBytes": 2747990016,
+      "volumeHex": "4121d9c600000000",
+      "stlFnv": "bc87d0fc",
+      "triangles": 10047988
+    }
+  ]
+}

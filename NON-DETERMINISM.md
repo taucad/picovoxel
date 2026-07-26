@@ -447,6 +447,30 @@ this regime.
    mimalloc MT is now byte-identical to the dlmalloc ST reference at
    0.5/0.6/0.7 mm ×5. The flip is unblocked and **gated only on the
    exit-baseline measurement**; SK-0.10 deliberately did not take it.
+
+   > **OUTCOME 2026-07-27 (SK-0 EXIT) — measured, and the recommendation is
+   > YES for the fast lane only.** The exit baseline was taken at `84e1515`
+   > (ABAB, 20 samples/side, paired log-ratio bootstrap CI):
+   > `bench/results/webgpu-v2/sk-0-exit-baseline-dlmalloc.json` is now the
+   > forward denominator for SK-1…SK-3, replacing `sk-0.1-baseline-dlmalloc.json`.
+   > **HeatX multi `construct` is 2.164× on mimalloc (CI 2.141–2.178)** — not the
+   > 1.208× SK-0.1 recorded, because SK-0.4 converted the two largest serial
+   > lattice stages into parallel ones, so they are now allocator-bound; multi
+   > mesh extraction is 1.992×, and `io-threads.create` alone (4.729×) supplies
+   > 57% of the win. **Byte identity holds everywhere**: 64 identity-object
+   > comparisons across four blocks plus five (cell, build) cross-allocator pairs
+   > at 1.0/0.5/0.4 mm, all identical, with single ≡ multi inside each arm. The
+   > result is one-dimensional — **44 of 47 MT phases faster, 45 of 73 ST phases
+   > slower (0.84–0.99×)** — which is why the recommendation is lane-scoped:
+   > flip `'fast'` to mimalloc, leave L0/`'exact'` and the shipped single-thread
+   > default on dlmalloc. Two costs are recorded rather than netted out:
+   > `M10@multi/render` 0.723× (per-session thread-pool + first-touch segment
+   > cost) and memory headroom — mimalloc leaves **0.24 GiB** to the 4 GiB wasm32
+   > ceiling at 0.4 mm against dlmalloc's 0.66 GiB, so the fast lane reaches the
+   > ceiling first. Side finding: **0.4 mm now passes on both allocators**
+   > (SK-0.1: failed on both), so R12's boundary is finer than 0.4 mm and
+   > unlocated. **No default was flipped by that spike**; the flip itself remains
+   > an operator decision. Evidence: `bench/results/webgpu-v2/SK-0-EXIT.md`.
 4. Flip `fastRenorm` (FIRST_BIAS×3) default-on in the fast lane; file the
    SECOND_BIAS accuracy finding upstream (U-row candidate).
 5. Execute the SK-0.4 pin regeneration as chartered (already operator-
