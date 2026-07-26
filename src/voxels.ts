@@ -47,7 +47,30 @@ export interface ShellOptions {
   inner?: number;
   outer?: number;
   smoothInner?: number;
+  /** SK-0.8 — see `offset({ fastRenorm })`; applies to every offset this shell runs. */
+  fastRenorm?: boolean;
 }
+
+/**
+ * SK-0.8 — the certified opt-in renormalization setting for the offset family:
+ * `openvdb::math::FIRST_BIAS` (first-order upwind) instead of the LevelSetTracker
+ * default of `HJWENO5_BIAS`, with the sweep COUNT left at upstream's 3.
+ *
+ * Both knobs were swept against four offset fixtures (bench/results/webgpu-v2/SK-0.8.md)
+ * and they are not interchangeable. Dropping the spatial scheme's order keeps the
+ * Eikonal property — openvdb's own `tools::checkLevelSet` reports a clean field, i.e.
+ * |∇φ| stays inside [0.5, 1.5] — and buys 3.5–3.9x. Dropping the sweep count buys more
+ * but breaks it: every count < 3 setting measured left voxels outside that range on at
+ * least one fixture, and `HJWENO5` at one sweep is strictly dominated (slower AND
+ * broken) by `FIRST_BIAS` at three. So the count stays at the default and only the
+ * scheme moves; `Voxels_OffsetTuned` on the raw subpath still reaches both knobs for
+ * anyone who wants to re-sweep.
+ *
+ * This is an OPT-IN. The default path is the untuned upstream call, bit-for-bit, and
+ * the byte-locked fixtures plus test/voxels-offsets.test.ts pin that.
+ */
+const FAST_RENORM_SCHEME = 0; // openvdb::math::FIRST_BIAS (FiniteDifference.h:166)
+const FAST_RENORM_COUNT = -1; // < 0 == leave upstream's normCount (LEVEL_SET_HALF_WIDTH = 3)
 
 export interface Voxels {
   /** An independent copy of this field. */
@@ -62,14 +85,23 @@ export interface Voxels {
   equals(other: Voxels): boolean;
   /** SG2 — THE emptiness oracle. Never test volume ≈ 0. */
   readonly isEmpty: boolean;
-  /** Pure surface offset: positive grows, negative shrinks. */
-  offset(options: { distance: number }): Voxels;
+  /**
+   * Pure surface offset: positive grows, negative shrinks.
+   *
+   * `fastRenorm` (SK-0.8, opt-in) runs the renormalization upstream performs after
+   * every half-voxel CFL step with a first-order upwind gradient instead of 5th-order
+   * HJ-WENO — 3.5–3.9x on the offset family, since renormalization is 94–97% of the
+   * offset wall. It CHANGES THE OUTPUT (measured at ≤2.2% volume, ≤0.36 mm peak
+   * narrow-band displacement, level set still clean; gate values and the full sweep in
+   * bench/results/webgpu-v2/SK-0.8.md), so it is never the default.
+   */
+  offset(options: { distance: number; fastRenorm?: boolean }): Voxels;
   /** Two offsets in sequence (closing/opening when signs differ). */
-  doubleOffset(options: { first: number; second: number }): Voxels;
+  doubleOffset(options: { first: number; second: number; fastRenorm?: boolean }): Voxels;
   /** SG9 — in, 2× out, in again: strips detail below the distance threshold. */
-  smoothen(options: { distance: number }): Voxels;
+  smoothen(options: { distance: number; fastRenorm?: boolean }): Voxels;
   /** SG9 — over-offset composition; fillet-like rounding (C# voxFillet). */
-  fillet(options: { rounding: number; finalSurfaceDistance?: number }): Voxels;
+  fillet(options: { rounding: number; finalSurfaceDistance?: number; fastRenorm?: boolean }): Voxels;
   /** Shell: one-offset form ({offset}) or two-offset form ({inner, outer, smoothInner}). */
   shell(options: ShellOptions): Voxels;
   /** Everything outside the box is trimmed away (cube-mesh intersect, as C#). */
@@ -153,6 +185,19 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
     return wrapVoxels(ctx, copy);
   };
 
+  /**
+   * SK-0.8 — one offset sequence under FAST_RENORM_*. Distances carry PicoGK's sign
+   * (positive grows) and run on a single LevelSetFilter, exactly as the untuned
+   * Offset/DoubleOffset/TripleOffset exports do. ctx.scratch is BBOX_BYTES = 6
+   * floats, and the longest sequence in the family is 3.
+   */
+  const fastOffset = (distancesMM: number[]): Voxels =>
+    derive('Voxels_OffsetTuned', (copy) => {
+      const base = ctx.scratch >> 2;
+      for (let i = 0; i < distancesMM.length; i++) ctx.module.HEAPF32[base + i] = distancesMM[i]!;
+      ctx.raw.Voxels_OffsetTuned(ctx.lib, copy, ctx.scratch, distancesMM.length, FAST_RENORM_SCHEME, FAST_RENORM_COUNT);
+    });
+
   const operandHandle = (other: Voxels, what: string): bigint => {
     assertSameSession(ctx, other, what);
     return other.handle;
@@ -225,31 +270,37 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
       return guard('Voxels_bIsEmpty', () => ctx.raw.Voxels_bIsEmpty(ctx.lib, live()))();
     },
 
-    offset(options: { distance: number }) {
+    offset(options: { distance: number; fastRenorm?: boolean }) {
       const distance = requireFinite(options.distance, 'distance', 'offset({ distance })');
+      if (options.fastRenorm) return fastOffset([distance]);
       return derive('Voxels_Offset', (copy) => ctx.raw.Voxels_Offset(ctx.lib, copy, distance));
     },
-    doubleOffset(options: { first: number; second: number }) {
+    doubleOffset(options: { first: number; second: number; fastRenorm?: boolean }) {
       const first = requireFinite(options.first, 'first', 'doubleOffset');
       const second = requireFinite(options.second, 'second', 'doubleOffset');
+      if (options.fastRenorm) return fastOffset([first, second]);
       return derive('Voxels_DoubleOffset', (copy) => ctx.raw.Voxels_DoubleOffset(ctx.lib, copy, first, second));
     },
-    smoothen(options: { distance: number }) {
+    smoothen(options: { distance: number; fastRenorm?: boolean }) {
       const distance = requireFinite(options.distance, 'distance', 'smoothen');
+      // TripleOffset is grow d / shrink 2d / grow d on one filter (PicoGKVdbVoxels.h:310-330).
+      if (options.fastRenorm) return fastOffset([distance, -2 * distance, distance]);
       return derive('Voxels_TripleOffset', (copy) => ctx.raw.Voxels_TripleOffset(ctx.lib, copy, distance));
     },
-    fillet(options: { rounding: number; finalSurfaceDistance?: number }) {
+    fillet(options: { rounding: number; finalSurfaceDistance?: number; fastRenorm?: boolean }) {
       // C# voxOverOffset composition (Voxels.cs:613-621): DoubleOffset(r, −r + final).
       const rounding = requireFinite(options.rounding, 'rounding', 'fillet');
       const final = requireFinite(options.finalSurfaceDistance ?? 0, 'finalSurfaceDistance', 'fillet');
+      if (options.fastRenorm) return fastOffset([rounding, -rounding + final]);
       return derive('Voxels_DoubleOffset', (copy) => ctx.raw.Voxels_DoubleOffset(ctx.lib, copy, rounding, -rounding + final));
     },
     shell(options: ShellOptions): Voxels {
+      const fastRenorm = options.fastRenorm;
       if (options.offset !== undefined) {
         // C# voxShell(float) (Voxels.cs:659-668): sign chooses which side keeps
         // the original dimensions.
         const distance = requireFinite(options.offset, 'offset', 'shell({ offset })');
-        const moved = voxels.offset({ distance });
+        const moved = voxels.offset({ distance, fastRenorm });
         const result = distance < 0 ? voxels.subtract(moved) : moved.subtract(voxels as Voxels);
         moved.dispose();
         return result;
@@ -268,13 +319,13 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
       let outer = requireFinite(options.outer, 'outer', 'shell');
       const smoothInner = requireFinite(options.smoothInner ?? 0, 'smoothInner', 'shell');
       if (inner > outer) [inner, outer] = [outer, inner];
-      let innerVoxels = voxels.offset({ distance: inner });
+      let innerVoxels = voxels.offset({ distance: inner, fastRenorm });
       if (smoothInner > 0) {
-        const smoothed = innerVoxels.smoothen({ distance: smoothInner });
+        const smoothed = innerVoxels.smoothen({ distance: smoothInner, fastRenorm });
         innerVoxels.dispose();
         innerVoxels = smoothed;
       }
-      const outerVoxels = voxels.offset({ distance: outer });
+      const outerVoxels = voxels.offset({ distance: outer, fastRenorm });
       const result = outerVoxels.subtract(innerVoxels);
       innerVoxels.dispose();
       outerVoxels.dispose();

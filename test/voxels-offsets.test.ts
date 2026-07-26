@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict';
 import { afterAll, beforeAll, test } from 'vitest';
-import { createPico, type Pico } from '../src/index.ts';
+import { createPico, type Pico, type Voxels } from '../src/index.ts';
 import { hexFloat } from './helpers.ts';
 
 let pk: Pico;
@@ -129,4 +129,123 @@ test('projectZSlice: the start slice is stamped through to endZ', () => {
   assert.equal(projected.isInside([0, 0, 10.5]), false, 'beyond endZ (+band)');
   assert.ok(projected.volume > base.volume, 'projection must add material here');
   assert.equal(base.isInside([0, 0, 6]), false, 'source must be untouched (purity)');
+});
+
+// ── SK-0.8 — the fastRenorm opt-in ──
+//
+// Two things need pinning and they pull in opposite directions: the DEFAULT path must
+// be the untuned upstream call bit-for-bit (the byte-locked example fixtures cover the
+// whole-model case; this covers each entry point directly), and the OPT-IN must
+// actually engage. A knob that silently no-ops would pass every accuracy gate.
+
+/** The raw offset surface, straight off the module — same escape hatch the R12 differential above uses. */
+const rawOffsets = () => {
+  const { cwrap } = pk.module;
+  return {
+    copy: cwrap('Voxels_hCreateCopy', 'bigint', ['bigint', 'bigint']) as (l: bigint, v: bigint) => bigint,
+    offset: cwrap('Voxels_Offset', null, ['bigint', 'bigint', 'number']) as (l: bigint, v: bigint, d: number) => void,
+    double: cwrap('Voxels_DoubleOffset', null, ['bigint', 'bigint', 'number', 'number']) as (l: bigint, v: bigint, a: number, b: number) => void,
+    triple: cwrap('Voxels_TripleOffset', null, ['bigint', 'bigint', 'number']) as (l: bigint, v: bigint, d: number) => void,
+    tuned: cwrap('Voxels_OffsetTuned', null, ['bigint', 'bigint', 'number', 'number', 'number', 'number']) as (
+      l: bigint, v: bigint, p: number, n: number, scheme: number, count: number) => void,
+    equal: cwrap('Voxels_bIsEqual', 'boolean', ['bigint', 'bigint', 'bigint']) as (l: bigint, a: bigint, b: bigint) => boolean,
+    volume: cwrap('Voxels_fCalculateVolume', 'number', ['bigint', 'bigint']) as (l: bigint, v: bigint) => number,
+    destroy: cwrap('Voxels_Destroy', null, ['bigint', 'bigint']) as (l: bigint, v: bigint) => void,
+  };
+};
+
+const bumpyBody = () => sphere(8).union(pk.createVoxels({ shape: 'beam', start: [-2, -2, -2], end: [12, 2, 2], radius: 2 }));
+
+test('the default path is the untuned upstream call, bit-for-bit (all four entry points)', () => {
+  const r = rawOffsets();
+  const base = bumpyBody();
+  const cases: [string, Voxels, (h: bigint) => void][] = [
+    ['offset(+2)', base.offset({ distance: 2 }), (h) => r.offset(pk.handle, h, 2)],
+    ['offset(-1)', base.offset({ distance: -1 }), (h) => r.offset(pk.handle, h, -1)],
+    ['doubleOffset(2,-2)', base.doubleOffset({ first: 2, second: -2 }), (h) => r.double(pk.handle, h, 2, -2)],
+    ['smoothen(1)', base.smoothen({ distance: 1 }), (h) => r.triple(pk.handle, h, 1)],
+    ['fillet(2)', base.fillet({ rounding: 2 }), (h) => r.double(pk.handle, h, 2, -2)],
+  ];
+  for (const [label, facade, untuned] of cases) {
+    const expected = r.copy(pk.handle, base.handle);
+    untuned(expected);
+    assert.ok(r.equal(pk.handle, facade.handle, expected), `${label} drifted from the untuned export`);
+    assert.equal(hexFloat(facade.volume), hexFloat(r.volume(pk.handle, expected)), `${label} volume drifted`);
+    r.destroy(pk.handle, expected);
+    facade.dispose();
+  }
+});
+
+test('Voxels_OffsetTuned with default settings IS the untuned export (bit-exact)', () => {
+  // The whole opt-in rests on this: the new TU reproduces upstream exactly when asked
+  // to, so the only thing fastRenorm changes is the renormalization scheme.
+  const r = rawOffsets();
+  const base = bumpyBody();
+  const p = pk.module._malloc(16);
+  const write = (ds: number[]) => ds.forEach((d, i) => { pk.module.HEAPF32[(p >> 2) + i] = d; });
+  const sequences: [string, number[], (h: bigint) => void][] = [
+    ['Offset(+2)', [2], (h) => r.offset(pk.handle, h, 2)],
+    ['Offset(-2)', [-2], (h) => r.offset(pk.handle, h, -2)],
+    ['DoubleOffset(2,-2)', [2, -2], (h) => r.double(pk.handle, h, 2, -2)],
+    ['TripleOffset(1)', [1, -2, 1], (h) => r.triple(pk.handle, h, 1)],
+  ];
+  for (const [label, distances, untuned] of sequences) {
+    const a = r.copy(pk.handle, base.handle);
+    untuned(a);
+    for (const [scheme, count] of [[-1, -1], [4, 3]]) { // "leave defaults" and "spell them out"
+      const b = r.copy(pk.handle, base.handle);
+      write(distances);
+      r.tuned(pk.handle, b, p, distances.length, scheme!, count!);
+      assert.ok(r.equal(pk.handle, a, b), `${label} @(${scheme},${count}) is not the untuned export`);
+      assert.equal(hexFloat(r.volume(pk.handle, a)), hexFloat(r.volume(pk.handle, b)), `${label} @(${scheme},${count}) volume`);
+      r.destroy(pk.handle, b);
+    }
+    r.destroy(pk.handle, a);
+  }
+  pk.module._free(p);
+});
+
+test('fastRenorm engages, and stays inside the SK-0.8 accuracy gates', () => {
+  // Gates (bench/results/webgpu-v2/SK-0.8.md): volume and area within 3% of the L0
+  // output — the tolerance the analytic offset test at the top of this file already
+  // uses — bounds within one voxel, and the non-negotiable one: openvdb's own
+  // tools::checkLevelSet must still report a CLEAN field. That last gate is what
+  // rejected every lower-sweep-count setting in the sweep, so it is the gate that
+  // actually chose FIRST_BIAS-at-three-sweeps over the faster candidates.
+  const voxel = 0.4;
+  const diagnose = (v: Voxels): string => {
+    const bDiagnose = pk.module.cwrap('Voxels_bDiagnose', 'boolean', ['bigint', 'bigint', 'number']) as (
+      l: bigint, h: bigint, p: number) => boolean;
+    const p = pk.module._malloc(255);
+    try {
+      bDiagnose(pk.handle, v.handle, p);
+      return pk.module.UTF8ToString(p);
+    } finally {
+      pk.module._free(p);
+    }
+  };
+
+  const base = bumpyBody();
+  const cases: [string, (fast: boolean) => Voxels][] = [
+    ['offset', (fast) => base.offset({ distance: 2, fastRenorm: fast })],
+    ['smoothen', (fast) => base.smoothen({ distance: 1, fastRenorm: fast })],
+    ['shell', (fast) => base.shell({ inner: -1, outer: 1, fastRenorm: fast })],
+  ];
+  for (const [label, run] of cases) {
+    const slow = run(false);
+    const fast = run(true);
+    assert.ok(!slow.equals(fast), `${label}: fastRenorm did not change the result — the knob is a no-op`);
+
+    const a = slow.properties();
+    const b = fast.properties();
+    assert.ok(Math.abs(b.volume - a.volume) / a.volume < 0.03, `${label} volume ${b.volume} vs ${a.volume}`);
+    assert.ok(Math.abs(b.area - a.area) / a.area < 0.03, `${label} area ${b.area} vs ${a.area}`);
+    for (let axis = 0; axis < 3; axis++) {
+      assert.ok(Math.abs(b.bounds.min[axis]! - a.bounds.min[axis]!) < voxel, `${label} bounds min drifted past a voxel on axis ${axis}`);
+      assert.ok(Math.abs(b.bounds.max[axis]! - a.bounds.max[axis]!) < voxel, `${label} bounds max drifted past a voxel on axis ${axis}`);
+    }
+    assert.equal(diagnose(fast), '', `${label}: fastRenorm left the level set unhealthy`);
+    slow.dispose();
+    fast.dispose();
+  }
 });

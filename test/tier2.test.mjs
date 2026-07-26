@@ -159,7 +159,25 @@ test('C3 — offsets: analytic growth; double/triple offset', () => {
     fns.Voxels_TripleOffset(lib, tripled, 1);
     assert.ok(fns.Voxels_fCalculateVolume(lib, tripled) > 0, 'triple offset emptied the body');
 
-    for (const v of [base, grown, shrunk, closed, tripled]) fns.Voxels_Destroy(lib, v);
+    // Voxels_OffsetTuned (src/pico-offset.cpp) — the same offset with the level-set
+    // tracker's renormalization knobs reachable. Two oracles: (scheme, count) < 0 must
+    // reproduce Voxels_Offset bit-for-bit, and the tuned setting must still land on the
+    // analytic radius (a knob that silently emptied the band would pass neither).
+    const p = _malloc(4);
+    module.HEAPF32[p >> 2] = 2;
+    const asDefault = fns.Voxels_hCreateCopy(lib, base);
+    fns.Voxels_OffsetTuned(lib, asDefault, p, 1, -1, -1);
+    assert.ok(fns.Voxels_bIsEqual(lib, asDefault, grown), 'OffsetTuned(-1,-1) is not Voxels_Offset');
+    assert.equal(fns.Voxels_fCalculateVolume(lib, asDefault), v1, 'OffsetTuned(-1,-1) volume drifted');
+
+    const tuned = fns.Voxels_hCreateCopy(lib, base);
+    fns.Voxels_OffsetTuned(lib, tuned, p, 1, 0 /* FIRST_BIAS */, -1);
+    const v4 = fns.Voxels_fCalculateVolume(lib, tuned);
+    assert.ok(!fns.Voxels_bIsEqual(lib, tuned, grown), 'FIRST_BIAS must change the result');
+    assert.ok(Math.abs(v4 - analytic) / analytic < 0.03, `tuned offset sphere ${v4} vs ${analytic}`);
+    _free(p);
+
+    for (const v of [base, grown, shrunk, closed, tripled, asDefault, tuned]) fns.Voxels_Destroy(lib, v);
   });
 });
 
