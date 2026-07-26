@@ -99,6 +99,13 @@ export const BULK_FUNCTIONS = [
     { name: 'nSpatialScheme', type: 'int32_t', cwrap: 'number' },
     { name: 'nNormCount', type: 'int32_t', cwrap: 'number' },
   ] },
+  // The lattice TU (src/pico-lattice.cpp) — the parallel tube-complex lattice lane.
+  // Same three handles as Voxels_RenderLattice, which stays bound as the serial arm.
+  { name: 'Voxels_RenderLatticeTubes', cwrapReturn: null, args: [
+    { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+    { name: 'hThis', type: 'PKVOXELS', cwrap: 'bigint' },
+    { name: 'hLattice', type: 'PKLATTICE', cwrap: 'bigint' },
+  ] },
   { name: 'Voxels_IntersectImplicitTape', cwrapReturn: null, args: [
     { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
     { name: 'hThis', type: 'PKVOXELS', cwrap: 'bigint' },

@@ -12,6 +12,7 @@ import {
   assertSameSession,
   checkedMalloc,
   expectHandle,
+  RENDER_LATTICE_EXPORT,
   VEC3_BYTES,
   withSdfPointer,
   withSdfTape,
@@ -356,7 +357,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
     withLattice(lattice: Lattice): Voxels {
       assertSameSession(ctx, lattice, 'withLattice operand');
       const latticeHandle = lattice.handle;
-      return derive('Voxels_RenderLattice', (copy) => ctx.raw.Voxels_RenderLattice(ctx.lib, copy, latticeHandle));
+      return derive(RENDER_LATTICE_EXPORT, (copy) => ctx.raw[RENDER_LATTICE_EXPORT](ctx.lib, copy, latticeHandle));
     },
     withImplicit({ sdf, boundsMin, boundsMax }: { sdf: SdfFunction | SdfExpression; boundsMin: Vec3; boundsMax: Vec3 }): Voxels {
       if (typeof sdf === 'function') {

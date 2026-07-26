@@ -12,6 +12,20 @@ import { compileSdfExpression } from './tape.ts';
 import type { SdfExpression } from './tape.ts';
 import type { PicoWasmModule, SdfFunction, Vec3 } from './types.ts';
 
+/**
+ * SK-0.4 — which export renders a lattice into voxels. Default: the parallel
+ * tube-complex lane (`src/pico-lattice.cpp`, deterministic by construction).
+ * `PICOVOXEL_SERIAL_LATTICE=1` routes the facade down the serial C#-identical
+ * `Voxels::RenderLattice` loop instead — the escape hatch, and the arm the
+ * pre-SK-0.4 byte pins certify. Read once at module load; browsers have no
+ * `process` and always get the default. Both exports share one signature.
+ */
+export const RENDER_LATTICE_EXPORT: 'Voxels_RenderLattice' | 'Voxels_RenderLatticeTubes' =
+  (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env
+    ?.PICOVOXEL_SERIAL_LATTICE === '1'
+    ? 'Voxels_RenderLattice'
+    : 'Voxels_RenderLatticeTubes';
+
 export const VEC3_BYTES = 12;
 export const TRI_BYTES = 12;
 export const BBOX_BYTES = 24; // PKBBox3 = 2 x PKVector3

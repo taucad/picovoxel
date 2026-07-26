@@ -319,6 +319,95 @@ test('C6 — lattice: beams and spheres render to voxels', () => {
   });
 });
 
+// SK-0.4 tube-complex lattice lane (src/pico-lattice.cpp) — the lane the facade now
+// takes by default; Voxels_RenderLattice above stays bound as the serial arm. Geometry
+// equivalence is certified per fixture in bench/results/webgpu-v2/SK-0.4.md; here it is
+// an ABI-level differential plus the closed form, over one lattice that hits every beam
+// case at once: capsule, tapered capsule, sphere, and a FLAT-capped beam, which has no
+// tube-complex expression and falls back to the serial lane inside the export. A lane
+// that silently dropped the fallback subset would fail this. (The fifth case, nested end
+// spheres, is where the two lanes genuinely disagree — see the test below.)
+test('C6 — tube-complex lattice lane agrees with the serial lane on every beam case', () => {
+  withLib(0.5, (lib) => {
+    const lattice = fns.Lattice_hCreate(lib);
+    const beam = (y, r0, r1, round) => {
+      vec(scratch, -10, y, 0);
+      vec(scratch + VEC3, 10, y, 0);
+      fns.Lattice_AddBeam(lib, lattice, scratch, scratch + VEC3, r0, r1, round);
+    };
+    beam(0, 2, 2, true); // capsule (equal radii)
+    beam(20, 3, 1, true); // tapered capsule
+    beam(40, 2, 2, false); // FLAT cone — serial fallback
+    vec(scratch, 0, -20, 0);
+    fns.Lattice_AddSphere(lib, lattice, scratch, 3);
+
+    const serial = fns.Voxels_hCreate(lib);
+    const tubes = fns.Voxels_hCreate(lib);
+    fns.Voxels_RenderLattice(lib, serial, lattice);
+    fns.Voxels_RenderLatticeTubes(lib, tubes, lattice);
+
+    const vSerial = fns.Voxels_fCalculateVolume(lib, serial);
+    const vTubes = fns.Voxels_fCalculateVolume(lib, tubes);
+    assert.ok(vTubes > 0, 'tube lane produced an empty grid');
+    assert.ok(
+      Math.abs(vTubes - vSerial) / vSerial < 0.03,
+      `tube lane ${vTubes} vs serial ${vSerial} (>3% apart)`,
+    );
+
+    // The bounds have to cover all five elements in both lanes — the fallback subset
+    // sits at y=40, so a dropped fallback shows up here as a shrunken box.
+    for (const [name, handle] of [
+      ['serial', serial],
+      ['tubes', tubes],
+    ]) {
+      fns.Voxels_GetProperties(lib, handle, scratch, scratch + 4, scratch + 8);
+      const [, yMin] = readVec(scratch + 8);
+      const [, yMax] = readVec(scratch + 8 + VEC3);
+      assert.ok(yMin < -20, `${name} lane lost the sphere at y=-20 (yMin ${yMin})`);
+      assert.ok(yMax > 40, `${name} lane lost the flat-capped beam at y=40 (yMax ${yMax})`);
+    }
+
+    for (const v of [serial, tubes]) fns.Voxels_Destroy(lib, v);
+    fns.Lattice_Destroy(lib, lattice);
+  });
+});
+
+// SK-0.4 / U23 — the one beam case where the two lanes DISAGREE, and the serial lane is
+// the wrong one. A round-capped beam whose end spheres nest (|p0-p1|^2 <= (r0-r1)^2) is
+// by definition the larger sphere; PicoGK's fSdvRoundCone (PicoGKLattice.h:115-148, iq's
+// sdRoundCone) computes a2 = l^2 - (r0-r1)^2, which is NEGATIVE here, and then takes
+// sqrtf(x2 * a2 * il2). openvdb's tube complex dispatches the case explicitly
+// (LevelSetTubesImpl.h:1191) and emits the larger sphere. Pinned against the closed form
+// so the direction of the disagreement is recorded, not just its existence.
+test('C6 — nested-radius beam: the tube lane is right and the serial lane is not (U23)', () => {
+  withLib(0.5, (lib) => {
+    const lattice = fns.Lattice_hCreate(lib);
+    vec(scratch, -1, 0, 0);
+    vec(scratch + VEC3, 1, 0, 0);
+    fns.Lattice_AddBeam(lib, lattice, scratch, scratch + VEC3, 6, 1, true);
+
+    const analytic = (4 / 3) * Math.PI * 6 ** 3; // the r=6 sphere swallows the r=1 sphere
+    const render = (fn) => {
+      const h = fns.Voxels_hCreate(lib);
+      fn(lib, h, lattice);
+      fns.Voxels_GetProperties(lib, h, scratch, scratch + 4, scratch + 8);
+      const volume = module.HEAPF32[scratch >> 2];
+      fns.Voxels_Destroy(lib, h);
+      return volume;
+    };
+
+    const tubes = render(fns.Voxels_RenderLatticeTubes);
+    const serial = render(fns.Voxels_RenderLattice);
+    assert.ok(
+      Math.abs(tubes - analytic) / analytic < 0.01,
+      `tube lane ${tubes} is not the r=6 sphere ${analytic}`,
+    );
+    assert.ok(serial < 0.5 * analytic, `serial lane ${serial} unexpectedly close to ${analytic} — U23 fixed upstream?`);
+
+    fns.Lattice_Destroy(lib, lattice);
+  });
+});
+
 // SK-0.3 bulk lattice authoring (src/pico-bulk.cpp): the flat 8-float-per-beam
 // wire format must reconstruct EXACTLY what the per-element exports build — same
 // field order, same stride, same round-cap flags, same order of arrival.

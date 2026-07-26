@@ -151,3 +151,4 @@ _Lattice_AddBeams
 _Lattice_AddSpheres
 _Voxels_GetProperties
 _Voxels_OffsetTuned
+_Voxels_RenderLatticeTubes
