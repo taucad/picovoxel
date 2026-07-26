@@ -116,42 +116,14 @@ test('SG10 — cross-session operands throw PICO_SESSION_MISMATCH', async () => 
   other.dispose();
 });
 
-// SK-0.5 — the operand is no longer materialised.
-//
-// openvdb's csg ops steal from their second operand, so a const operand used to be
-// deep-copied whole before the call (PicoGKVdbVoxels.h); the merge ops take a
-// DeepCopy tag instead and copy only the nodes they actually graft. The fixture
-// makes that difference the ONLY variable: `inner` sits strictly inside `outer`,
-// so the union grafts nothing from it and the result is outer's own tree.
-//
-// The measurement is the emscripten heap high-water mark, which never shrinks —
-// deterministic for a deterministic allocation sequence, unlike wall clock. Each
-// arm gets its own session so neither reuses the other's freed blocks.
-test('a boolean materialises the result clone and nothing else', async () => {
-  const arm = async (op: (a: Voxels, b: Voxels) => Voxels) => {
-    const session = await createPico({ voxelSize: 0.1 });
-    const heap = () => session.module.HEAPU32.buffer.byteLength;
-    const outer = session.createVoxels({ shape: 'sphere', center: [0, 0, 0], radius: 40 });
-    const inner = session.createVoxels({ shape: 'sphere', center: [0, 0, 0], radius: 30 });
-    const before = heap();
-    const result = op(outer, inner);
-    const growth = heap() - before;
-    const operandBytes = inner.memUsage;
-    assert.equal(result.memUsage, outer.memUsage, 'inner is contained: the union is outer’s tree');
-    session.dispose();
-    return { growth, operandBytes };
-  };
-
-  // The clone `union` must make is unavoidable; the operand copy is not. Comparing
-  // against `clone()` isolates it: with a whole-operand copy the union arm grew by
-  // the operand's size on top (measured 186.5 MB vs 112.8 MB at 0.1 mm).
-  const cloned = await arm((a) => a.clone());
-  const united = await arm((a, b) => a.union(b));
-  assert.ok(
-    united.growth - cloned.growth < cloned.operandBytes / 2,
-    `union grew ${united.growth} vs clone ${cloned.growth}; a whole-operand copy would add ~${cloned.operandBytes}`,
-  );
-});
+// SK-0.5's operand-copy guard lived here and is GONE with the change it guarded.
+// U-SK05-a (merge-based CSG, which removed the eager whole-operand deep copy) was
+// reverted for nondeterministic fine-cell geometry loss on the multi build — see
+// bench/results/webgpu-v2/SK-0-P0-finecell.md. Booleans deep-copy the operand again,
+// so an assertion that they don't is simply false. The measurement shape it used
+// (heap high-water on a contained-operand union, clone arm as the control) is
+// written up in SK-0.5.md §1 and is what a re-attempt should re-run — but not as a
+// committed test until the race question in the P0 doc is answered.
 
 // SK-0.5 — the dense per-voxel fills prune before they hand the grid on.
 //

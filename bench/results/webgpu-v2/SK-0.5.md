@@ -1,5 +1,34 @@
 # SK-0.5 — merge-based booleans, post-fill `pruneLevelSet`, grid-native `properties()`
 
+> ## ⚠ SUPERSEDED IN PART — U20 (merge-based CSG) WAS REVERTED
+>
+> **Read this before citing any number below.** U20 made the 12-thread build drop geometry
+> **nondeterministically at every voxel size below 1.0 mm**. Every byte-locked pin in this
+> repo sits at ≥1.0 mm, so the "byte parity: PASS" verdict below was true *and* blind: it
+> could not see the defect. A patch-level toggle matrix found U20 necessary and sufficient
+> (3/3 divergent with it, 3/3 bit-exact without) and U21 innocent on its own — see
+> `bench/results/webgpu-v2/SK-0-P0-finecell.md`.
+>
+> **Status of each claim in this document:**
+>
+> | claim | status |
+> | --- | --- |
+> | §1 booleans at 1 materialization; 442.5 → 368.8 MB high-water | **VOID as a win.** The measurement itself was sound (0.1 mm, single-thread session, no HeatX), but it describes a code path that no longer exists. The method is the reusable part |
+> | §2 post-fill prune, −68.1% / −36.1% / −5.5% | **STANDS.** U21 measured clean in its own toggle row, and the probe is single-threaded and cell-size-independent |
+> | §3 `properties()` TU + grid-native `area` | **STANDS.** Independent of the boolean path |
+> | §4 why volume/bounds cannot come from the grid | **STANDS.** Analytic + pin-based, no MT involvement |
+> | §5 checksums | **STALE.** Those artifacts contained U20. Rebuilt hashes are in the revert commit |
+> | §6 exit assertions | superseded by the revert; the byte-parity line in particular was measured against a corpus with no sub-1.0 mm pin |
+>
+> **Any MT number anywhere measured under U20 at <1.0 mm is suspect in the same direction:
+> dropped geometry makes a stage look faster.** That includes anything sampled on
+> `ff68494..03eb200`. Re-derive before citing. The boolean high-water figure in §1 is *not*
+> in that class — it is a single-threaded allocation high-water on synthetic spheres — but it
+> is void anyway because the path is gone.
+>
+> Re-attempting U20 requires first answering the P0 doc's open question: is the race upstream
+> in openvdb's `TreeToMerge` under `DeepCopy`, or in how the patch drove it? Not established.
+
 **Date**: 2026-07-26 · **Branch**: `webgpu-sk05` (off `webgpu` @ `85825da`) · **Audits**: A4
 `picogk-runtime-performance-deficiency-audit`, A5 `openvdb-nanovdb-usage`
 
@@ -7,13 +36,15 @@
 
 | # | Change | Verification | Result |
 | --- | --- | --- | --- |
-| U20 | booleans: whole-operand `deepCopyTypedGrid` → `Csg*Op` with a `DeepCopy` tag (lazy per-node copy) | heap high-water on a contained-operand union, 0.1 mm, separate sessions per arm | **2 → 1** full-grid materializations per boolean. High-water **442.5 → 368.8 MB**; the 73.7 MB it drops is the 77.9 MB operand |
+| U20 **(REVERTED — see banner)** | booleans: whole-operand `deepCopyTypedGrid` → `Csg*Op` with a `DeepCopy` tag (lazy per-node copy) | heap high-water on a contained-operand union, 0.1 mm, separate sessions per arm | **2 → 1** full-grid materializations per boolean. High-water **442.5 → 368.8 MB**; the 73.7 MB it drops is the 77.9 MB operand |
 | U21 | `pruneLevelSet` after the dense per-voxel fills (`RenderImplicit`, `RenderLattice`, `ProjectZSlice*`) | prunable-slack probe (`union(empty)` yields the pruned form of any field) | **−68.1%** tree on `RenderImplicit`, **−36.1%** on `ProjectZSlice`, **−5.5%** on `RenderLattice`; all fill paths now at **0% residual slack** |
 | — | `properties()` → one native call in its own TU (`src/pico-props.cpp`), **plus** `area` from `tools::levelSetArea` | analytic oracles (4πr², capsule wall + caps) in tier-2 and the facade suite | volume and bounds **bit-identical** to the old four-call sequence; area within **0.11%** (sphere) and **0.23%** (capsule) of analytic |
 
-**Byte parity: PASS.** 456/456 tests, 100% coverage on all four metrics, browser gate
-17/17 on all engines with hex-float equality against node. All six byte-locked fixtures in
-`test/fixtures/` are byte-identical to `webgpu` (checksums below). No pin was regenerated.
+**Byte parity: PASS — and that verdict is the lesson.** 456/456 tests, 100% coverage on all
+four metrics, browser gate 17/17 on all engines with hex-float equality against node, all six
+byte-locked fixtures byte-identical, no pin regenerated. All of it true; none of it able to
+see a defect that only appears below 1.0 mm, because the corpus had no sub-1.0 mm pin. The
+gate that fixes that hole (0.7 mm HeatX multi, pinned) landed with the revert.
 
 **One charter deviation** (§"properties() computes from grid, mesher not invoked"): the
 mesher stays. Grid-native `levelSetVolume` is not a drop-in for `properties().volume` — it
@@ -214,6 +245,9 @@ public number (voxel-granular instead of sub-voxel-interpolated vertex extents) 
 
 ## 5. Checksums
 
+(File renamed to `patches/PicoGKRuntime/0001-post-fill-prune.patch` when U20 was reverted out
+of it; the U21 hunks are unchanged.)
+
 Built from `patches/PicoGKRuntime/0001-merge-booleans-post-fill-prune.patch` applied by
 `scripts/fetch-deps.sh` to a **clean re-extract** of the pinned tarball (`vendor/` is
 gitignored, so the patch is how the change survives a fresh clone — same mechanism
@@ -232,6 +266,8 @@ The delta is +23,801 B on the multi binary. Most of it is not the boolean bodies
 `initializeMask`, `probeConstNode`) — a whole new tree type — for three operators. Both
 variants moved by the same ~22.4 KB before the props TU was added, which is what confirms
 the cost is template instantiation rather than anything shape-dependent.
+
+**STALE — these artifacts contained U20.** Superseded by the revert commit's hashes.
 
 | artifact | sha256 |
 | --- | --- |

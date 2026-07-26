@@ -1,0 +1,105 @@
+PicoGKRuntime 26.2 (0f26321c) — post-fill level-set pruning, upstreamable to
+leap71/PicoGKRuntime.
+
+Applied to vendor/PicoGKRuntime by scripts/fetch-deps.sh. Kept as a patch because
+it modifies dependency source; no flag-level override exists.
+
+U-SK05-b  The fills that walk a dense accessor over a bounding box
+          (RenderImplicit, RenderLattice, ProjectZSliceUp/Dn) allocate a leaf for
+          every 8^3 block they touch, including the blocks that end up uniformly
+          +background or -background. The csg paths already end in pruneLevelSet
+          (Composite.h, prune=true) and LevelSetFilter prunes its own output, so
+          these three are the only unpruned producers — and every downstream op
+          then iterates the slack. Measured reduction: RenderImplicit -68.1%,
+          ProjectZSlice -36.1%, RenderLattice -5.5% of tree memory, with
+          bit-identical raw levelSetVolume, bit-identical mesh-roundtrip volume
+          and byte-identical STL output on every path.
+
+Value-neutral by construction: a leaf is only replaced when every voxel in it is
+already at +/-background, and the replacement tile carries that same value.
+
+HISTORY — this patch used to carry a second change, U-SK05-a (merge-based CSG:
+csg* replaced by the Merge.h operators under a DeepCopy tag, to avoid the eager
+whole-operand deep copy). It was REVERTED: the multi-thread build silently and
+nondeterministically drops geometry at every voxel size below 1.0 mm, and a
+patch-level toggle matrix showed U-SK05-a necessary and sufficient while
+U-SK05-b alone is bit-exact. See bench/results/webgpu-v2/SK-0-P0-finecell.md.
+Whether the race lives in openvdb's TreeToMerge under DeepCopy or in how the
+patch drove it is NOT established, and answering that is the precondition for any
+re-attempt. Do not reintroduce the merge path without it.
+
+--- a/Source/PicoGKVdbVoxels.h
++++ b/Source/PicoGKVdbVoxels.h
+@@ -355,6 +355,8 @@
+         {
+             DoRenderLattice(&oAccess, *roBeam, oVoxelSize(), m_nSdfNarrowBand);
+         }
++
++        PruneFill();
+     }
+     
+     void RenderImplicit(    const BBox3& oBBox,
+@@ -379,10 +381,11 @@
+             
+             SetSdValue(&oAccess, xyz, fBackgroundMM(), fValue);
+         }
+-        
++
++        PruneFill();
+         RebuildGrid();
+     }
+-    
++
+     void IntersectImplicit(PKPFnfSdf pfn)
+     {
+         PKTRACE(Voxels_IntersectImplicit);
+@@ -491,10 +494,11 @@
+                 SetSdValue(&oAccess, xyz, fBackgroundMM(), fValue);
+             }
+         }
+-        
++
++        PruneFill();
+         RebuildGrid();
+     }
+-    
++
+     void ProjectZSliceUp(   float fZStart,
+                             float fZEnd)
+     {
+@@ -532,7 +536,8 @@
+                 SetSdValue(&oAccess, xyz, fBackgroundMM(), fValue);
+             }
+         }
+-        
++
++        PruneFill();
+         RebuildGrid();
+     }
+ 
+@@ -767,6 +772,25 @@
+     bool bLevelSetNeedsRebuild() const
+     {
+         return strDiagnose().length() > 0;
++    }
++
++    /// [picovoxel U-SK05-b] Collapse the dense leaves a per-voxel fill leaves behind.
++    ///
++    /// The fills that walk a dense accessor over a bounding box (RenderImplicit,
++    /// RenderLattice, ProjectZSlice*) allocate a leaf for every 8³ block they
++    /// touch, including the blocks that end up uniformly outside (+background)
++    /// or uniformly inside (−background). The csg paths already end in
++    /// pruneLevelSet (Composite.h, prune=true), so only these fills ship the
++    /// slack — and every downstream op then iterates it.
++    ///
++    /// Value-neutral by construction: a leaf is only replaced when every voxel
++    /// in it is already at ±background, and the replacement tile carries that
++    /// same value. Measured on the fills above: identical raw levelSetVolume,
++    /// identical mesh-roundtrip volume, identical STL bytes; 5.5% (lattice),
++    /// 36% (ProjectZSlice) and 68% (RenderImplicit) less tree.
++    void PruneFill()
++    {
++        openvdb::tools::pruneLevelSet(m_roGrid->tree());
+     }
+     
+     /// Rebuilds the grid after possibly destructive changes to the signed distances

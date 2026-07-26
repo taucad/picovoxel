@@ -34,15 +34,24 @@ Ledger of every PicoGK runtime compute entry point and its **current workload ex
 > Evidence: `bench/results/webgpu-v2/SK-0.7.md`. Stage baselines were not re-taken — a
 > sibling spike shared the machine — so SK-0.1's numbers still stand as the comparator.
 >
-> **Boolean and fill memory traffic cut 2026-07-26 (SK-0.5); no row changes executor.** Two
-> more vendored PicoGKRuntime fixes (`patches/PicoGKRuntime/`, both upstreamable as
-> U20/b) apply under the boolean and dense-fill rows. Booleans no longer deep-copy the
-> whole operand — the `Csg*Op` merge operators take a `DeepCopy` tag and copy only the nodes
-> they graft — which puts the per-boolean count at the **semantic minimum of one** full-grid
-> materialization, and that one is the result the pure API owes the caller. The three
-> dense-accessor fills (`RenderImplicit`, `RenderLattice`, `ProjectZSlice*`) now end in
-> `pruneLevelSet` like every csg path already did, shedding 68.1% / 5.5% / 36.1% of tree.
-> `properties()` moved into its own TU and gained `area` from `tools::levelSetArea`.
+> **Fill pruning landed, merge-based CSG REVERTED 2026-07-26 (SK-0.5 → SK-0 P0); no row
+> changes executor.** What survives from SK-0.5: the three dense-accessor fills
+> (`RenderImplicit`, `RenderLattice`, `ProjectZSlice*`) now end in `pruneLevelSet` like every
+> csg path already did, shedding 68.1% / 5.5% / 36.1% of tree (`U21`,
+> `patches/PicoGKRuntime/0001-post-fill-prune.patch`), and `properties()` moved into its own
+> TU and gained `area` from `tools::levelSetArea`.
+>
+> **What was reverted: `U20`, merge-based CSG.** Replacing the eager whole-operand deep copy
+> with the `Csg*Op` merge operators under a `DeepCopy` tag made the 12-thread build drop
+> geometry **nondeterministically at every voxel size below 1.0 mm** — and every byte-locked
+> pin in this repo sits at ≥1.0 mm, so the suite was green for the entire life of the defect.
+> Toggle matrix: necessary and sufficient (3/3 divergent with it, 3/3 bit-exact without;
+> `U21` alone bit-exact). Booleans are back to the eager operand copy. The fine-cell identity
+> gate in `test/examples-helixheatx.test.ts` (0.7 mm, pinned) now closes that blind spot and
+> stays. Evidence: `bench/results/webgpu-v2/SK-0-P0-finecell.md`.
+>
+> **Therefore: every MT number in this ledger measured at <1.0 mm on `ff68494..03eb200` is
+> suspect** — dropped geometry makes a stage look faster. Re-derive before citing.
 >
 > **Read the deviation before trusting the audit here**: A4/A5 read `properties()`'s
 > re-voxelization as laziness that grid-native `levelSetVolume` would fix. It would not — the
@@ -106,7 +115,7 @@ Ledger of every PicoGK runtime compute entry point and its **current workload ex
 
 | Op | Executor today | Why | Graduation status |
 | --- | --- | --- | --- |
-| `Voxels_BoolAdd/Subtract/Intersect` | MT — `Csg*Op` merge via `DynamicNodeManager`, operand copied **lazily per grafted node** (`DeepCopy` tag) | node-parallel merge; the operand copy is now proportional to what survives, not to the operand | **graduated 2026-07-26 (SK-0.5, U20)** — the whole-operand `deepCopyTypedGrid` is gone: 2 → 1 full-grid materializations per boolean, and the one left IS the result. Heap high-water 442.5 → 368.8 MB on a 78 MB operand; byte-identical output. Executor unchanged (still MT). W1.2 T6 `.consume()` is **closed by this**; GPU value-merge P6 still a candidate at assembly scale |
+| `Voxels_BoolAdd/Subtract/Intersect` | MT — `tools::csg*` node-steal via `DynamicNodeManager`, operand **deep-copied whole** first | node-parallel merge | **deficiency stands: 2 full-grid materializations per boolean where 1 (the result) is the semantic minimum** — W1.2 T6 `.consume()`; GPU value-merge P6 candidate at assembly scale. **New constraint (SK-0 P0)**: the obvious fix — the `Merge.h` operators under a `DeepCopy` tag — was tried, landed, and **reverted** for nondeterministic fine-cell MT geometry loss (`U20`, `bench/results/webgpu-v2/SK-0-P0-finecell.md`). Any re-attempt must first settle whether the race is upstream in `TreeToMerge` or in our driving of it, and must clear the 0.7 mm identity gate |
 | `Voxels_Offset` / `DoubleOffset` / `TripleOffset` | MT — `LevelSetFilter` leaf-parallel, CFL-iterated | leaf sweeps are band-parallel | candidate: GPU P5 resident stencil chains (anchor: NanoVDB CUDA LevelSet 5×, Fog 44× vs native MT CPU) |
 | `Voxels_ProjectZSlice` | **ST** — per-column z-scan, now pruned on exit (SK-0.5) | columns are independent — ST is unjustified | candidate: W1.2 T5 parallel TU; carries end-cap seal bug (U2). Ships **36.1% less tree** since SK-0.5 (U21) — the executor did not move, the output representation did |
 | `Voxels_bIsEqual` | **ST** — dense bbox compare | trivially parallel + early-exit reduce | candidate: W1.2 T11 |

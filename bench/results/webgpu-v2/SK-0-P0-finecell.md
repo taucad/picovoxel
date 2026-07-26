@@ -19,6 +19,28 @@ can be kept.
 No fix is attempted here. The fix belongs to SK-0.5's follow-up with the orchestrator
 arbitrating.
 
+> **RESOLVED — U-SK05-a reverted.** Arbitration kept U-SK05-b and the `properties()` TU and
+> reverted the merge-based CSG. The combined patch was split: the boolean half is gone and the
+> file is now `patches/PicoGKRuntime/0001-post-fill-prune.patch` (references to the old
+> `0001-merge-booleans-post-fill-prune.patch` filename in this document and in `SK-0.1.md` are
+> left as written — they name the artifact as it existed when it was measured). Both dep
+> prefixes were rebuilt from scratch per **H1**, `src/pico.wasm` refreshed per **H2**, and the
+> gate's `skipIf` is deleted: it now passes. Post-revert oracle, 0.7 mm HeatX multi, one run
+> per process, all four identity fields against the `sk-0.1-heatx-sweep-dlmalloc.json`
+> reference:
+>
+> | run | volumeHex (LE) | stlFnv | stlBytes | triangles | Δ vs reference |
+> | --- | --- | --- | ---: | ---: | ---: |
+> | 1 | `000000a0e5ff2141` | `aa392ded` | 227,136,884 | 4,542,736 | **0** |
+> | 2 | `000000a0e5ff2141` | `aa392ded` | 227,136,884 | 4,542,736 | **0** |
+> | 3 | `000000a0e5ff2141` | `aa392ded` | 227,136,884 | 4,542,736 | **0** |
+>
+> Three runs, one value — and it is the reference value, not merely a stable one. (The bench
+> JSON records the same double big-endian as `4121ffe5a0000000`.) The mechanism question below — upstream `TreeToMerge` race vs. our driving of it —
+> is **still open** and is recorded as the precondition for any re-attempt (`U20`,
+> `MIGRATING-FROM-CSHARP.md`). Step 4 of "Recommended next steps" (re-baseline sub-1.0 mm MT
+> numbers) and step 5 (mimalloc) are now unblocked.
+
 ## Machine state
 
 Apple M2 Pro, 12 cores, 32 GiB · darwin 25.5.0 · node v26.5.0 · AC power, `lowpowermode 0`.
@@ -107,6 +129,8 @@ first question the fix should answer.
 - **U-SK05-b** (post-fill prune) — measured clean on its own.
 
 ## The gate
+
+(Gate now LIVE — the `SK0_P0_GATE=1` opt-in described below was removed with the fix.)
 
 `test(sk-0): fine-cell single==multi identity gate` — commit `9c21263`, one 0.7 mm assertion
 in `test/examples-helixheatx.test.ts` pinned to the reference geometry. The repo has no
