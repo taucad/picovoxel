@@ -1,6 +1,13 @@
 # [DRAFT PR] Add bulk mesh transfer to the C ABI: Mesh_GetVertices/GetTriangles/AddVertices/AddTriangles
 
-**Repo**: leap71/PicoGKRuntime · **Adds to**: `Source/PicoGKLibrary.cpp` (or a new TU) + `API/PicoGK.h`
+**Repo**: leap71/PicoGKRuntime · **Adds to**: `Source/PicoGKLibrary.cpp` + `API/PicoGK.h`
+
+**Patch**: `upstream/picogkruntime-bulk-mesh-abi.patch` — the C ABI half as an
+applyable diff against a pristine PicoGKRuntime `0f26321c` tree (`patch -p1`,
+dry-run clean). The C# binding half below targets **leap71/PicoGK**, a different
+repo, and stays as description. Ledger row: `MIGRATING-FROM-CSHARP.md` U4.
+The sibling entry points for lattice authoring are U17 /
+`upstream/picogkruntime-bulk-lattice-abi.patch`.
 
 ## Why
 
@@ -36,3 +43,31 @@ Implementation notes (working code in the picovoxel repo, `src/pico-bulk.cpp`):
 
 Differentially tested byte-identical against the per-element path (100k-vertex
 FNV-1a comparison) in the picovoxel suite.
+
+## The C# binding half (leap71/PicoGK — separate repo, described not diffed)
+
+The runtime patch is useless to C# until the binding stops looping. Reviewed at
+`leap71/PicoGK` @ `389d4d9`; the change is mechanical:
+
+- `Internals/Interop.cs` — four new `[DllImport]` entries beside the existing
+  `Mesh_nAddVertex` / `Mesh_GetVertex` / `Mesh_nAddTriangle` / `Mesh_GetTriangle`
+  ones (`:146-175`), with `Vector3[]` / `Triangle[]` array parameters. Both
+  structs are already blittable `#pragma pack(1)`-equivalent layouts, so the
+  marshaller pins rather than copies.
+- `Base/Mesh.cs` — `AddVertices(IEnumerable<Vector3>, out int[])` (`:158-170`)
+  currently calls `nAddVertex` once per vertex; it becomes one
+  `_AddVertices(…, array, count)` plus a `Range`-fill of the returned index
+  array, since the appended indices are contiguous by construction.
+- `Base/Mesh.cs` — add the bulk readers the class currently lacks
+  (`Vector3[] avecVertices()` / `Triangle[] atTriangles()`), sized from
+  `nVertexCount()` / `nTriangleCount()`. Everything that today walks
+  `vecVertexAt` / `oTriangleAt` in a loop — `mshCreateTransformed`,
+  `mshCreateMirrored`, the STL writer, `MeshUtility` — becomes one call plus a
+  managed loop with no P/Invoke in it.
+- The per-element entry points stay; nothing is removed and no existing
+  signature changes, so this is additive for every downstream consumer.
+
+The same split applies to the sibling lattice patch (ledger U17,
+`upstream/picogkruntime-bulk-lattice-abi.patch`): `Lattice.AddBeam` /
+`AddSphere` accumulate into a flat `float[]` and flush once, at the first call
+that can observe the lattice.
