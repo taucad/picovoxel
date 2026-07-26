@@ -141,6 +141,50 @@ test('HelixHeatX @ 1.0 mm: pinned result, STL-size parity, single↔multi identi
   }
 }, 600_000);
 
+// ── Fine-cell MT identity gate (SK-0 P0) ──
+//
+// FIXME(SK-0-P0): SKIPPED BECAUSE IT CURRENTLY FAILS — it is the gate for a live
+// defect, not a passing check. Enable it in the commit that fixes the P0.
+// See bench/results/webgpu-v2/SK-0-P0-finecell.md.
+//
+// The 1.0 mm differential above passes and always has; the defect only appears on
+// FINER cells, so 1.0 mm is exactly the one voxel size that cannot see it. Measured
+// on webgpu @ff68494: the multi build drops geometry nondeterministically at every
+// size below 1.0 mm (0.7 mm observed at 3,158,084 / 4,053,020 tris across builds vs
+// the 4,542,736 reference, with a different volume each run).
+//
+// Pinned against the single build rather than running one: single is stable and
+// already pinned at 1.0 mm, so re-deriving it here would cost ~126 s to re-learn a
+// known value. This shape is ~47 s and still catches both failure modes — wrong
+// geometry AND run-to-run variance — because a nondeterministic multi build cannot
+// hit a fixed pin. Reference: bench/results/webgpu-v2/sk-0.1-heatx-sweep-dlmalloc.json
+// (0.7 mm, where single ≡ multi still held).
+const FINE_CELL_MM = 0.7;
+const FINE_CELL_VOLUME_HEX = '000000a0e5ff2141'; // 589810.8125
+const FINE_CELL_TRIANGLES = 4_542_736;
+
+// Skipped by default so CI stays green while the defect is open, but runnable on
+// demand with SK0_P0_GATE=1 — a red gate nobody can execute is not a gate. The fix
+// commit deletes the skipIf.
+test.skipIf(!process.env.SK0_P0_GATE)(
+  `HelixHeatX @ ${FINE_CELL_MM} mm: multi build reproduces the pinned fine-cell geometry`,
+  async () => {
+    const { task } = await import('../examples/helixheatx/run.ts');
+    const multi = await createMulti({ voxelSize: FINE_CELL_MM });
+    try {
+      const run = task(multi);
+      assert.deepEqual(
+        { volumeHex: hexFloat(run.voxels.volume), triangles: run.voxels.toMesh().triangleCount },
+        { volumeHex: FINE_CELL_VOLUME_HEX, triangles: FINE_CELL_TRIANGLES },
+        'multi build drops geometry on fine cells — see bench/results/webgpu-v2/SK-0-P0-finecell.md',
+      );
+    } finally {
+      multi.dispose();
+    }
+  },
+  600_000,
+);
+
 function expectIdentical(actual: number, expected: number): void {
   assert.ok(Object.is(actual, expected), `volumes bit-identical: ${actual} vs ${expected}`);
 }
