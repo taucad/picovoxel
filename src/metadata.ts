@@ -99,7 +99,7 @@ export function wrapMetadata(ctx: SessionContext, handle: bigint): Metadata {
     }
     if (type === 'float') {
       withStrings(ctx, [name], (n) => ctx.raw.Metadata_bGetFloatAt(ctx.lib, handle, n, ctx.scratch));
-      return ctx.module.HEAPF32[ctx.scratch >> 2]!;
+      return ctx.module.HEAPF32[ctx.scratch >>> 2]!;
     }
     if (type === 'vector') {
       withStrings(ctx, [name], (n) => ctx.raw.Metadata_bGetVectorAt(ctx.lib, handle, n, ctx.scratch));

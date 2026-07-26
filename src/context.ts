@@ -87,6 +87,12 @@ export function assertSameSession(ctx: SessionContext, other: object, what: stri
  * malloc returns 0, and unchecked writes then surface as bare RangeErrors
  * from `HEAP*.set` (found by the R12 fine-voxel probe at 0.3 mm). A
  * zero-byte request may legitimately return 0.
+ *
+ * Pointers this returns routinely exceed 2 GiB on fine-cell work (a 0.5 mm
+ * HeatX mesh stages 120 MB at ~2.5 GiB). Index every heap view with `>>>`, never
+ * `>>`: a signed shift turns such a pointer into a negative index, and
+ * `subarray` *clamps* negatives instead of throwing, so the read silently
+ * returns a window 1–2 GiB away (SK-0.10).
  */
 export function checkedMalloc(module: PicoWasmModule, bytes: number, what: string): number {
   const pointer = module._malloc(bytes);
@@ -154,7 +160,7 @@ export function withSdfPointer<T>(ctx: SessionContext, sdf: unknown, body: (sdfP
   }
   const trampoline = (coordinatePointer: number): number => {
     const f32 = ctx.module.HEAPF32; // re-read per call: memory growth swaps the view
-    const i = coordinatePointer >> 2;
+    const i = coordinatePointer >>> 2;
     return (sdf as SdfFunction)(f32[i]!, f32[i + 1]!, f32[i + 2]!);
   };
   const pointer = ctx.module.addFunction(trampoline, 'fi'); // float (i32)
@@ -181,8 +187,8 @@ export function withSdfTape<T>(
   // Never malloc(0): a constant-free tape still needs a valid pointer.
   const constantPointer = checkedMalloc(module, Math.max(constants.byteLength, 8), 'the SDF tape constants');
   try {
-    module.HEAPU32.set(instructions, instructionPointer >> 2);
-    module.HEAPF64.set(constants, constantPointer >> 3);
+    module.HEAPU32.set(instructions, instructionPointer >>> 2);
+    module.HEAPF64.set(constants, constantPointer >>> 3);
     return body(instructionPointer, instructions.length / 2, constantPointer, constants.length);
   } finally {
     module._free(constantPointer);

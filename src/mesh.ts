@@ -76,7 +76,7 @@ export function bulkCreateMesh(ctx: SessionContext, vertices: ArrayLike<number>,
   if (vertexCount > 0) {
     const vertexPointer = checkedMalloc(module, vertexCount * VEC3_BYTES, 'mesh vertices');
     try {
-      module.HEAPF32.set(vertices as ArrayLike<number> & { length: number }, vertexPointer >> 2);
+      module.HEAPF32.set(vertices as ArrayLike<number> & { length: number }, vertexPointer >>> 2);
       raw.Mesh_AddVertices(lib, mesh, vertexPointer, vertexCount);
     } finally {
       module._free(vertexPointer);
@@ -85,7 +85,7 @@ export function bulkCreateMesh(ctx: SessionContext, vertices: ArrayLike<number>,
   if (triangleCount > 0) {
     const trianglePointer = checkedMalloc(module, triangleCount * TRI_BYTES, 'mesh triangles');
     try {
-      module.HEAPU32.set(triangles as ArrayLike<number> & { length: number }, trianglePointer >> 2);
+      module.HEAPU32.set(triangles as ArrayLike<number> & { length: number }, trianglePointer >>> 2);
       raw.Mesh_AddTriangles(lib, mesh, trianglePointer, triangleCount);
     } finally {
       module._free(trianglePointer);
@@ -112,8 +112,8 @@ export function wrapMesh(ctx: SessionContext, handle: bigint): Mesh {
       raw.Mesh_GetVertices(lib, handle, vertexPointer, vertexCount);
       raw.Mesh_GetTriangles(lib, handle, trianglePointer, triangleCount);
       return {
-        vertices: new Float32Array(module.HEAPF32.subarray(vertexPointer >> 2, (vertexPointer >> 2) + vertexCount * 3)),
-        triangles: new Uint32Array(module.HEAPU32.subarray(trianglePointer >> 2, (trianglePointer >> 2) + triangleCount * 3)),
+        vertices: new Float32Array(module.HEAPF32.subarray(vertexPointer >>> 2, (vertexPointer >>> 2) + vertexCount * 3)),
+        triangles: new Uint32Array(module.HEAPU32.subarray(trianglePointer >>> 2, (trianglePointer >>> 2) + triangleCount * 3)),
       };
     } finally {
       module._free(vertexPointer);

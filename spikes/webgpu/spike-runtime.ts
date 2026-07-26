@@ -153,7 +153,7 @@ const bindSpikeAbi = (module: SpikePicoModule): WebGpuSpikeAbi => {
           outputs + 16,
           outputs + 20,
         );
-        const base = outputs >> 2;
+        const base = outputs >>> 2;
         return {
           activeCount: module.HEAPU32[base + 3]!,
           byteSize: module.HEAPU32[base + 1]!,
@@ -188,7 +188,7 @@ const bindSpikeAbi = (module: SpikePicoModule): WebGpuSpikeAbi => {
       const info = module._malloc(40);
       try {
         tapeGetInfo(plan, info);
-        const words = info >> 2;
+        const words = info >>> 2;
         return {
           background: module.HEAPF32[words + 9]!,
           constantCount: module.HEAPU32[words + 5]!,

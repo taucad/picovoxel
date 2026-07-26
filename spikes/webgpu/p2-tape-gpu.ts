@@ -116,9 +116,9 @@ const allocateTape = (options: {
   const instructions = options.runtime.module._malloc(Math.max(8, tape.instructions.byteLength));
   const constants = options.runtime.module._malloc(Math.max(8, tape.constants.byteLength));
   const bounds = options.runtime.module._malloc(24);
-  options.runtime.module.HEAPU32.set(tape.instructions, instructions >> 2);
-  options.runtime.module.HEAPF64.set(tape.constants, constants >> 3);
-  options.runtime.module.HEAPF32.set([...options.boundsMin, ...options.boundsMax], bounds >> 2);
+  options.runtime.module.HEAPU32.set(tape.instructions, instructions >>> 2);
+  options.runtime.module.HEAPF64.set(tape.constants, constants >>> 3);
+  options.runtime.module.HEAPF32.set([...options.boundsMin, ...options.boundsMax], bounds >>> 2);
   let released = false;
   return {
     bounds,
@@ -197,10 +197,10 @@ const measureAccuracy = (options: {
     for (let index = 0; index < sampleCount; index += 1) {
       indices[index] = Math.floor(random() * options.info.outputCount);
     }
-    options.runtime.module.HEAPU32.set(indices, indicesPointer >> 2);
+    options.runtime.module.HEAPU32.set(indices, indicesPointer >>> 2);
     options.runtime.abi.tapeEvalCpuSamples(options.plan, indicesPointer, sampleCount, valuesPointer);
     const cpuValues = new Float32Array(
-      options.runtime.module.HEAPF32.slice(valuesPointer >> 2, (valuesPointer >> 2) + sampleCount),
+      options.runtime.module.HEAPF32.slice(valuesPointer >>> 2, (valuesPointer >>> 2) + sampleCount),
     );
     const tolerance = 4 * options.info.tapeCount * f32Ulp(options.info.background);
     const histogram = {

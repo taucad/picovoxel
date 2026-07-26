@@ -387,7 +387,7 @@ const runTrilinearProbe = async (options: {
       throw new Error('K4 fixture unexpectedly exceeds one reader binding');
     }
     options.runtime.abi.nanoBounds(snapshot.handle, boundsPointer);
-    const bounds = new Int32Array(options.runtime.module.HEAP32.slice(boundsPointer >> 2, (boundsPointer >> 2) + 6));
+    const bounds = new Int32Array(options.runtime.module.HEAP32.slice(boundsPointer >>> 2, (boundsPointer >>> 2) + 6));
     const random = xorshift(0x4b345031);
     const cpuCoordinates = new Float32Array(sampleCount * 3);
     const gpuCoordinates = new Float32Array(sampleCount * 4);
@@ -400,10 +400,10 @@ const runTrilinearProbe = async (options: {
         gpuCoordinates[4 * index + axis] = value;
       }
     }
-    options.runtime.module.HEAPF32.set(cpuCoordinates, cpuCoordinatesPointer >> 2);
+    options.runtime.module.HEAPF32.set(cpuCoordinates, cpuCoordinatesPointer >>> 2);
     options.runtime.abi.nanoSampleBox(snapshot.handle, cpuCoordinatesPointer, sampleCount, cpuValuesPointer);
     const cpuValues = new Float32Array(
-      options.runtime.module.HEAPF32.slice(cpuValuesPointer >> 2, (cpuValuesPointer >> 2) + sampleCount),
+      options.runtime.module.HEAPF32.slice(cpuValuesPointer >>> 2, (cpuValuesPointer >>> 2) + sampleCount),
     );
 
     const grid = options.device.createBuffer({

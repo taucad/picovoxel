@@ -194,7 +194,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
    */
   const fastOffset = (distancesMM: number[]): Voxels =>
     derive('Voxels_OffsetTuned', (copy) => {
-      const base = ctx.scratch >> 2;
+      const base = ctx.scratch >>> 2;
       for (let i = 0; i < distancesMM.length; i++) ctx.module.HEAPF32[base + i] = distancesMM[i]!;
       ctx.raw.Voxels_OffsetTuned(ctx.lib, copy, ctx.scratch, distancesMM.length, FAST_RENORM_SCHEME, FAST_RENORM_COUNT);
     });
@@ -215,7 +215,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
     const p = checkedMalloc(ctx.module, 24, 'a dimensions scratch buffer');
     try {
       ctx.raw.Voxels_GetVoxelDimensions(ctx.lib, live(), p, p + 4, p + 8, p + 12, p + 16, p + 20);
-      const i32 = (offset: number) => ctx.module.HEAP32[(p + offset) >> 2]!;
+      const i32 = (offset: number) => ctx.module.HEAP32[(p + offset) >>> 2]!;
       return { origin: [i32(0), i32(4), i32(8)] as Vec3, size: [i32(12), i32(16), i32(20)] as Vec3 };
     } finally {
       ctx.module._free(p);
@@ -407,8 +407,8 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
       const box = ctx.scratch + 8;
       guard('Voxels_GetProperties', () => ctx.raw.Voxels_GetProperties(ctx.lib, live(), floats, floats + 4, box))();
       return {
-        volume: ctx.module.HEAPF32[floats >> 2]!,
-        area: ctx.module.HEAPF32[(floats + 4) >> 2]!,
+        volume: ctx.module.HEAPF32[floats >>> 2]!,
+        area: ctx.module.HEAPF32[(floats + 4) >>> 2]!,
         bounds: { min: ctx.readVec3(box), max: ctx.readVec3(box + VEC3_BYTES) },
       };
     },
@@ -480,8 +480,8 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
         } else {
           ctx.raw.Voxels_GetXSlice(ctx.lib, handle, at, buffer, backgroundPtr);
         }
-        const background = ctx.module.HEAPF32[backgroundPtr >> 2]!;
-        const data = new Float32Array(ctx.module.HEAPF32.subarray(buffer >> 2, (buffer >> 2) + width * height));
+        const background = ctx.module.HEAPF32[backgroundPtr >>> 2]!;
+        const data = new Float32Array(ctx.module.HEAPF32.subarray(buffer >>> 2, (buffer >>> 2) + width * height));
         applyMode(data, mode, background);
         return { width, height, data, background };
       } finally {
@@ -550,9 +550,9 @@ export function cubeVoxels(ctx: SessionContext, bounds: Bounds): bigint {
       ctx.raw.Mesh_nAddVertex(ctx.lib, meshHandle, ctx.scratch);
     }
     for (const [a, b, c] of faces) {
-      ctx.module.HEAP32[(ctx.scratch >> 2) + 0] = a!;
-      ctx.module.HEAP32[(ctx.scratch >> 2) + 1] = b!;
-      ctx.module.HEAP32[(ctx.scratch >> 2) + 2] = c!;
+      ctx.module.HEAP32[(ctx.scratch >>> 2) + 0] = a!;
+      ctx.module.HEAP32[(ctx.scratch >>> 2) + 1] = b!;
+      ctx.module.HEAP32[(ctx.scratch >>> 2) + 2] = c!;
       ctx.raw.Mesh_nAddTriangle(ctx.lib, meshHandle, ctx.scratch);
     }
     const target = expectHandle('Voxels_hCreate', ctx.raw.Voxels_hCreate(ctx.lib));

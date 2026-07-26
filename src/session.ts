@@ -171,12 +171,12 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
     dead: { value: false },
     scratch,
     writeVec3(pointer, [x, y, z]) {
-      module.HEAPF32[(pointer >> 2) + 0] = x;
-      module.HEAPF32[(pointer >> 2) + 1] = y;
-      module.HEAPF32[(pointer >> 2) + 2] = z;
+      module.HEAPF32[(pointer >>> 2) + 0] = x;
+      module.HEAPF32[(pointer >>> 2) + 1] = y;
+      module.HEAPF32[(pointer >>> 2) + 2] = z;
     },
     readVec3(pointer) {
-      return [module.HEAPF32[pointer >> 2]!, module.HEAPF32[(pointer >> 2) + 1]!, module.HEAPF32[(pointer >> 2) + 2]!];
+      return [module.HEAPF32[pointer >>> 2]!, module.HEAPF32[(pointer >>> 2) + 1]!, module.HEAPF32[(pointer >>> 2) + 2]!];
     },
     maybeWarnMemory: createMemoryWarning({
       memoryWarningBytes,
@@ -429,7 +429,7 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
             const found = withStrings(ctx, ['PicoGK.VoxelSize'], (namePtr) =>
               raw.Metadata_bGetFloatAt(scratchLib, meta, namePtr, scratch),
             );
-            const size = found ? module.HEAPF32[scratch >> 2]! : 0;
+            const size = found ? module.HEAPF32[scratch >>> 2]! : 0;
             return size > 0 ? size * 1000 : 0; // stored in metres
           } finally {
             raw.VdbFile_Destroy(scratchLib, file);
