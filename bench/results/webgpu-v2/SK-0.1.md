@@ -311,6 +311,13 @@ so mimalloc still moves bytes on the single path even after SK-0.6. The default 
 `dlmalloc`; no delta-table justification for flipping it is offered, and none should be
 accepted until the MT regression is fixed and this oracle re-run.
 
+**RESOLVED 2026-07-26 (later same day): culprit isolated** to
+`patches/PicoGKRuntime/0001-merge-booleans-post-fill-prune.patch` sub-change **U-SK05-a**
+(merge-based CSG under openvdb's `DeepCopy` tag) — necessary and sufficient by a 2x2 patch
+toggle matrix, 3 runs per cell. U-SK05-b (post-fill prune) is innocent. Full toggle matrix,
+per-run hashes, mechanism and hardening items: **`SK-0-P0-finecell.md`**. The suspect list
+below is superseded by that measurement; SK-0.3, SK-0.6 and SK-0.7 are exonerated.
+
 **Priority inversion:** the MT correctness regression outranks the allocator question
 entirely. Suspect range is `d8ccfb5..ff68494`; on mechanism (voxel grid, not mesh) the
 candidates that touch MT voxel construction are SK-0.3 (`41d5b1e`, flat lattice storage /
