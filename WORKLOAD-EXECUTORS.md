@@ -18,6 +18,24 @@ Ledger of every PicoGK runtime compute entry point and its **current workload ex
 > sat at 0.99–1.00× across a 12-thread allocator swap, which is what a genuinely serial
 > stage looks like. U5 / W1.2 T4 keep their priority.
 
+> **Per-call ABI cost re-based 2026-07-26 (SK-0.2).** Every "per-call ABI" note below was
+> written against emscripten's `ccall` path: `cwrap` demotes any binding with a `bigint`
+> argument, and 143 of 147 exports take a handle. The generated layer now binds direct wasm
+> exports, so the crossing itself costs **56.4 ns** for a 7-argument call (`Lattice_AddBeam`,
+> was 176.6) and **33.1 ns** for a 2-argument boolean query (`Voxels_bIsEmpty`, was 109.1) —
+> see `bench/results/webgpu-v2/SK-0.2.md`. **No row changes executor**: the crossing was never
+> the reason a chatty entry point is slow. It does move the arithmetic on the batch-ABI
+> candidates (T9/T11/P8) — a batched entry now has to beat ~35 ns per skipped crossing rather
+> than ~100, so those rows are justified by the *work* they amortize (O(r³) shell scans, dense
+> accessor re-seeks), not by the boundary. Rule 3 stands unchanged for the same reason.
+>
+> Two corrections fell out of the same measurement. **HeatX makes 1,197,460 `Lattice_AddBeam`
+> calls across 37 lattices**, not the "~10⁵" R11 has carried — an order of magnitude, counted
+> directly. R11's conclusion survives (authoring is still ~0.9% of wall), but any future
+> per-call claim about this subject must use the real number. And the `author` phase moved
+> **−26%** on a quiet re-run (431.6 → 298.1 ms single) from the binding change alone, which is
+> 1.2M × the measured 123 ns facade delta to within 10–27%.
+
 ## Voxels — construction
 
 | Op (C ABI) | Executor today | Why it suits / doesn't | Graduation status |
@@ -46,7 +64,7 @@ Ledger of every PicoGK runtime compute entry point and its **current workload ex
 | `Voxels_fCalculateVolume` | MT — Gauss-divergence reduce | reduce-shaped | current |
 | `Voxels_bClosestPointOnSurface` | ST per query — Bresenham shell scan O(r³)/call | algorithmically wrong before executor-wrong | candidate: gradient-walk algorithm fix + batched ABI (W1.2 T11 / P8) |
 | `Voxels_bRayCastToSurface` | ST per ABI call | HDDA exists in NanoVDB; no batch entry | candidate: batched query ABI (P8, 10–50×) |
-| `Voxels_GetX/Y/ZSlice`, `GetInterpolatedZSlice` | ST dense accessor reads | readback-bound; per-call ABI | candidate: batched `GetZSliceRange` (W1.2 T9) |
+| `Voxels_GetX/Y/ZSlice`, `GetInterpolatedZSlice` | ST dense accessor reads | readback-bound; per-call ABI — now ~35 ns/crossing (SK-0.2), so the batch case rests on amortizing the accessor re-seek and the copy, not on the boundary | candidate: batched `GetZSliceRange` (W1.2 T9) |
 | `Voxels_GetVoxelDimensions` etc. (metadata) | ST trivial | O(1) | non-improvable |
 
 ## Fields / metadata / IO

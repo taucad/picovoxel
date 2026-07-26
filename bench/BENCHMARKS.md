@@ -139,7 +139,7 @@ sub-millisecond phases (e.g. M6 bulk readback) are timer-noise-dominated and may
 **Sanity anchors** (vs the research-doc records): M6's bulk-vs-per-element ratio grows with mesh size —
 ~50× here on a ~40k-vertex gyroid, consistent with R11's ~150× record at 174k vertices; M3's render phase
 (~130 ns/sample at 0.25 mm including voxel work) is consistent with R20's 3–9% JS-SDF callback overhead;
-M9 shows the facade adds no measurable cost over raw cwraps at 10k calls (within run-to-run noise).
+M9's raw10k is a deliberately retained emscripten ccall (SK-0.2) and the facade now runs on direct exports; the rows sit within a few percent because bIsEmpty on a real sphere field is ~1.6 µs of C++ against a ~65 ns boundary delta — the isolated per-call cost is measured by `bench/abi-call-cost.mjs`, not here.
 ## Appendix — TP7: post-pruning evaluation program (2026-07-18)
 
 The TP6 re-profile (throwaway phase instrumentation on commit `80f9a68`; percentages stable
@@ -260,7 +260,7 @@ pruning's 1.2–13.3×, all bit-identical to the JS-callback path.
 ### R11 — HelixHeatX voxel sweep vs LEAP71's published table (2026-07-19)
 
 The flagship real-world subject (blueprint R11): the whole HelixHeatX Task
-headless — geometry generation (~10⁵ lattice beams), the boolean assembly,
+headless — geometry generation (1,197,460 lattice beams across 37 lattices; the long-standing "~10⁵" figure was an order of magnitude low, counted directly in SK-0.2), the boolean assembly,
 the full finishing family (offset/fillet/smoothen/projectZSlice), meshing and
 binary-STL bytes. LEAP71's published numbers ("on a MacBook Air", README
 table.png) time the same Task INCLUDING viewer previews + screenshots, a

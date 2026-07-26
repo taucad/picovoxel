@@ -293,7 +293,13 @@ await metric('M8', 'full interpolated slice sweep + vectorize (sphere r=8)', () 
   return { phases: { sweep: sweepMs }, identity };
 });
 
-// ── M9 — facade overhead vs raw cwrap (A1's 33.6 ns/call baseline) ──
+// ── M9 — facade vs the legacy ccall path (A1's 33.6 ns/call baseline).
+// `rawIsEmpty` is deliberately a hand-built cwrap: with a bigint argType it falls
+// back to ccall, the path SK-0.2 removed from the generated bindings. Holding it
+// fixed keeps the metric comparable across history. Expect only a few percent
+// between the two rows, not SK-0.2's 3× — `bIsEmpty` on a REAL sphere field costs
+// ~1.6 µs of C++, so the ~65 ns boundary delta is noise against it. The per-call
+// number itself is measured in isolation by bench/abi-call-cost.mjs. ──
 await metric('M9', 'facade vs raw: 10k isEmpty calls', () => {
   const sphere = pk.createVoxels({ shape: 'sphere', radius: 5 });
   const rawIsEmpty = pk.module.cwrap('Voxels_bIsEmpty', 'boolean', ['bigint', 'bigint']);
@@ -383,8 +389,10 @@ fine.dispose();
 }
 
 // ── M12 — HelixHeatX @ 1.0mm, single vs multi (real-world subject, blueprint R11) ──
-// The whole flagship Task headless: ~10^5 beams, boolean assembly, the full
-// finishing family, meshing and STL bytes — previews excluded (a delta in the
+// The whole flagship Task headless: 1,197,460 lattice beams over 37 lattices
+// (counted in SK-0.2; the long-standing "~10^5" figure was an order of magnitude
+// low), boolean assembly, the full finishing family, meshing and STL bytes —
+// previews excluded (a delta in the
 // published table's favour). The author phase is the pure-JS lattice-loop
 // share (Finding 8's promotion trigger); each kernel stage is timed separately.
 // The full 1.0→0.5mm voxel sweep lives in bench/heatx-sweep.mjs (its own
@@ -525,7 +533,11 @@ if (UPDATE) {
   lines.push(
     "(~130 ns/sample at 0.25 mm including voxel work) is consistent with R20's 3–9% JS-SDF callback overhead;",
   );
-  lines.push('M9 shows the facade adds no measurable cost over raw cwraps at 10k calls (within run-to-run noise).');
+  lines.push(
+    "M9's raw10k is a deliberately retained emscripten ccall (SK-0.2) and the facade now runs on direct exports; the rows " +
+      'sit within a few percent because bIsEmpty on a real sphere field is ~1.6 µs of C++ against a ~65 ns boundary delta — ' +
+      'the isolated per-call cost is measured by `bench/abi-call-cost.mjs`, not here.',
+  );
   lines.push('');
   // The hand-written appendix (per-change program log) survives regeneration.
   const target = join(HERE, 'bench/BENCHMARKS.md');

@@ -1,0 +1,187 @@
+{
+  "spike": "SK-0.2",
+  "fingerprint": {
+    "cpu": "Apple M2 Pro",
+    "cores": 12,
+    "ramGiB": 32,
+    "os": "darwin 25.5.0",
+    "node": "v26.5.0",
+    "wasmSha256": "70304cfe70a0dc93adf7a4f8c294845cc63af163b8483ecf57697cfcf1794744",
+    "wasmBytes": 5835133,
+    "date": "2026-07-26T01:22:36.520Z",
+    "startLoad": 4.7900390625,
+    "runs": 9,
+    "iters": 200000
+  },
+  "endLoad": 4.7900390625,
+  "results": {
+    "Lattice_AddBeam": {
+      "ccall": {
+        "nsPerCall": 154.35,
+        "minWindowMs": 30.87,
+        "maxWindowMs": 31.86,
+        "windowsMs": [
+          37.241,
+          31.081,
+          30.87,
+          30.913,
+          30.913,
+          31.317,
+          31.8,
+          31.186,
+          31.86
+        ]
+      },
+      "direct": {
+        "nsPerCall": 56.4,
+        "minWindowMs": 11.281,
+        "maxWindowMs": 11.534,
+        "windowsMs": [
+          11.454,
+          11.546,
+          11.534,
+          11.281,
+          11.452,
+          11.508,
+          11.414,
+          11.49,
+          11.438
+        ]
+      },
+      "bound": {
+        "nsPerCall": 56.39,
+        "minWindowMs": 11.278,
+        "maxWindowMs": 11.79,
+        "windowsMs": [
+          11.39,
+          11.487,
+          11.603,
+          11.278,
+          11.487,
+          11.433,
+          11.412,
+          11.727,
+          11.79
+        ]
+      }
+    },
+    "Lattice_bIsValid": {
+      "ccall": {
+        "nsPerCall": 90.18,
+        "minWindowMs": 18.037,
+        "maxWindowMs": 18.386,
+        "windowsMs": [
+          19.78,
+          17.817,
+          18.103,
+          18.038,
+          18.267,
+          18.124,
+          18.386,
+          18.147,
+          18.037
+        ]
+      },
+      "direct": {
+        "nsPerCall": 24.99,
+        "minWindowMs": 4.998,
+        "maxWindowMs": 5.275,
+        "windowsMs": [
+          5.037,
+          5.238,
+          5.14,
+          5.275,
+          5.145,
+          5.066,
+          5.201,
+          4.998,
+          4.998
+        ]
+      },
+      "bound": {
+        "nsPerCall": 23.37,
+        "minWindowMs": 4.674,
+        "maxWindowMs": 5.021,
+        "windowsMs": [
+          5.135,
+          4.848,
+          4.893,
+          4.875,
+          4.915,
+          4.895,
+          4.885,
+          5.021,
+          4.674
+        ]
+      }
+    },
+    "Voxels_bIsEmpty": {
+      "ccall": {
+        "nsPerCall": 99.37,
+        "minWindowMs": 19.875,
+        "maxWindowMs": 21.48,
+        "windowsMs": [
+          20.964,
+          19.8,
+          21.48,
+          20.359,
+          20.037,
+          19.875,
+          20.121,
+          19.908,
+          19.944
+        ]
+      },
+      "direct": {
+        "nsPerCall": 34.69,
+        "minWindowMs": 6.938,
+        "maxWindowMs": 7.226,
+        "windowsMs": [
+          7.121,
+          7.075,
+          7.19,
+          7.086,
+          7.226,
+          6.938,
+          7.029,
+          7.018,
+          6.977
+        ]
+      },
+      "bound": {
+        "nsPerCall": 33.07,
+        "minWindowMs": 6.614,
+        "maxWindowMs": 6.732,
+        "windowsMs": [
+          6.845,
+          6.503,
+          6.732,
+          6.632,
+          6.715,
+          6.657,
+          6.614,
+          6.725,
+          6.68
+        ]
+      }
+    },
+    "lattice.addBeam (facade)": {
+      "bound": {
+        "nsPerCall": 131.63,
+        "minWindowMs": 26.326,
+        "maxWindowMs": 29.925,
+        "windowsMs": [
+          31.648,
+          29.613,
+          28.206,
+          29.925,
+          28.208,
+          26.692,
+          26.746,
+          26.326,
+          26.673
+        ]
+      }
+    }
+  }
+}

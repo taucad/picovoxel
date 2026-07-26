@@ -1,7 +1,7 @@
 // Session internals shared by every wrapper module. Not exported from the package.
 //
 // The context owns the wasm module, the Library handle, the scratch buffer, the
-// disposal registry, and the raw cwrap table. Wrapper files (voxels/mesh/…) receive
+// disposal registry, and the raw export table. Wrapper files (voxels/mesh/…) receive
 // it and never touch the module directly.
 
 import { DISPOSE } from './dispose.ts';

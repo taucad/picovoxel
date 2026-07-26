@@ -337,6 +337,12 @@ different byte streams across three multi runs. Kept as `MALLOC=` in
 warmup-sleep → `PThread.runningWorkers` poll; `global_control(thread_stack_size)` for 64 KB
 worker stacks.)
 
+### emscripten (emscripten-core/emscripten)
+
+| # | Item | Evidence | Status |
+| --- | --- | --- | --- |
+| U15 | `cwrap`'s fast-path predicate omits `'bigint'` (`src/lib/libccall.js:148`): `numericArgs` accepts only `'number'`/`'boolean'`, so **one i64 argument demotes the binding to `ccall`** — string-keyed `getCFunc` re-resolution, a per-call converter loop and stack save/restore — even though a BigInt needs no marshalling at all under `-sWASM_BIGINT`, which is **default-on** (`src/settings.js:1475`). Two-token fix: add `\|\| type === 'bigint'`. Same block, second defect: `numericRet` is only `returnType !== 'string'`, so a boolean-returning export with numeric args takes the fast path and returns a raw **i32**, while the identical `ccall` returns `Boolean(ret)` (`:59`) — cwrap and ccall disagree on the same signature. Third: the fast path is `#if !ASSERTIONS`, so debug builds marshal every call | measured here (SK-0.2, emsdk 5.0.1): **143 of 147** PicoGK exports take a handle and were therefore all on the slow path; `Lattice_AddBeam` 154.3 ns via cwrap→ccall vs **56.4 ns** direct, `Voxels_bIsEmpty` 99.4 → 34.7 ns — a 2.7–2.9× per-call tax on a binding that needed no conversion. `bench/results/webgpu-v2/SK-0.2.md` | identified |
+
 ### emdawnwebgpu (google/dawn, `src/emdawnwebgpu`)
 
 | # | Item | Evidence | Status |
