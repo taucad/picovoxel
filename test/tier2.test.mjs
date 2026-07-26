@@ -290,6 +290,66 @@ test('C6 — lattice: beams and spheres render to voxels', () => {
   });
 });
 
+// SK-0.3 bulk lattice authoring (src/pico-bulk.cpp): the flat 8-float-per-beam
+// wire format must reconstruct EXACTLY what the per-element exports build — same
+// field order, same stride, same round-cap flags, same order of arrival.
+test('C6 — bulk lattice authoring reconstructs the per-element lattice exactly', () => {
+  withLib(0.5, (lib) => {
+    const N = 40;
+    const beam = (i) => [
+      Math.cos(i) * 10, Math.sin(i) * 10, i * 0.2 - 4, 0.5 + (i % 4) * 0.1,        // x0 y0 z0 r0
+      Math.cos(i + 1) * 10, Math.sin(i + 1) * 10, i * 0.2 - 3.8, 0.5 + (i % 3) * 0.1, // x1 y1 z1 r1
+    ];
+    const cap = (i) => (i % 3 === 0 ? 0 : 1);
+    const sphere = (i) => [Math.cos(i) * 15, Math.sin(i) * 15, i * 0.1 - 2, 0.7];
+
+    const perElement = fns.Lattice_hCreate(lib);
+    for (let i = 0; i < N; i++) {
+      const b = beam(i);
+      vec(scratch, b[0], b[1], b[2]); vec(scratch + VEC3, b[4], b[5], b[6]);
+      fns.Lattice_AddBeam(lib, perElement, scratch, scratch + VEC3, b[3], b[7], cap(i) !== 0);
+    }
+    for (let i = 0; i < N; i++) {
+      const s = sphere(i);
+      vec(scratch, s[0], s[1], s[2]);
+      fns.Lattice_AddSphere(lib, perElement, scratch, s[3]);
+    }
+
+    const bulk = fns.Lattice_hCreate(lib);
+    const buffer = _malloc(N * 8 * 4 + N * 4);
+    try {
+      const beamFloats = [];
+      for (let i = 0; i < N; i++) beamFloats.push(...beam(i));
+      module.HEAPF32.set(beamFloats, buffer >> 2);
+      module.HEAPU32.set(Array.from({ length: N }, (_, i) => cap(i)), (buffer >> 2) + N * 8);
+      assert.equal(fns.Lattice_AddBeams(lib, bulk, buffer, buffer + N * 8 * 4, N), N);
+
+      const sphereFloats = [];
+      for (let i = 0; i < N; i++) sphereFloats.push(...sphere(i));
+      module.HEAPF32.set(sphereFloats, buffer >> 2);
+      assert.equal(fns.Lattice_AddSpheres(lib, bulk, buffer, N), N);
+
+      // Guard rails: a null pointer or a non-positive count is a no-op, never a trap.
+      assert.equal(fns.Lattice_AddBeams(lib, bulk, 0, buffer, N), 0);
+      assert.equal(fns.Lattice_AddBeams(lib, bulk, buffer, buffer, 0), 0);
+      assert.equal(fns.Lattice_AddSpheres(lib, bulk, 0, N), 0);
+    } finally {
+      _free(buffer);
+    }
+
+    assert.equal(fns.Lattice_nMemUsage(lib, bulk), fns.Lattice_nMemUsage(lib, perElement), 'same element counts');
+
+    const a = fns.Voxels_hCreate(lib);
+    const b = fns.Voxels_hCreate(lib);
+    fns.Voxels_RenderLattice(lib, a, perElement);
+    fns.Voxels_RenderLattice(lib, b, bulk);
+    assert.equal(fns.Voxels_fCalculateVolume(lib, b), fns.Voxels_fCalculateVolume(lib, a), 'bulk lattice differs');
+
+    for (const v of [a, b]) fns.Voxels_Destroy(lib, v);
+    for (const l of [perElement, bulk]) fns.Lattice_Destroy(lib, l);
+  });
+});
+
 // ── C7 — queries ───────────────────────────────────────────────────────────────
 test('C7 — queries: raycast/closest-point/inside/normal against an analytic sphere', () => {
   withLib(0.4, (lib) => {

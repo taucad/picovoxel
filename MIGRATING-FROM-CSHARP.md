@@ -85,6 +85,13 @@ Per-element `nAddVertex`/`vecVertexAt`/`oTriangleAt` live on `picovoxel/raw` onl
 | `PolyLine(lib, clr)` / `nAddVertex` / `Add` | `pk.createPolyLine({ color? })` / `addVertex(p)` / `addVertices(points)` |
 | `AddArrow` / `AddCross` | Dropped (viewer decoration) |
 
+`addBeam`/`addSphere` are **batched** (SK-0.3): elements accumulate in a flat typed array and
+cross the ABI once per lattice, at the first call that can observe them — `toVoxels()`,
+`memUsage`, or the `handle` escape hatch (which is how `voxels.withLattice` reaches it). The
+API is unchanged and so is the resulting geometry, element order included; only the *timing*
+of the native call moves. C# has no equivalent — `Lattice.AddBeam` is a P/Invoke per beam
+(upstreamable **U17**).
+
 ## ScalarField / VectorField / Metadata / VdbFile
 
 | C# | picovoxel |
@@ -304,6 +311,8 @@ Per-component queue of fixes/improvements we carry (or plan) locally that belong
 | U5 | Parallel `RenderLattice` TU (thread-local grids + node-steal merge) | serial today (`PicoGKVdbVoxels.h:343-358`); HeatX creation ≈30 s of 35.5 s | identified (W1.2 T4) |
 | U6 | Never-abort guard (try/catch → error flag on every `PICOGK_API`; uncatchable OpenVDB aborts become recoverable errors) | PicoPie Fix 1 pattern; our TU has zero try/catch | identified |
 | U7 | GPU compute lane (WGSL kernels + C-ABI TUs + Dawn scheduler) as optional capability | program P9 exit; offered with benchmarks | identified (gated on program GO) |
+| U17 | Bulk lattice authoring ABI — `Lattice_AddBeams(pfBeams, pnRoundCap, nCount)` / `Lattice_AddSpheres(pfSpheres, nCount)`, the sibling of U4 for the *other* chatty entry point. Wire format is 8 f32 per beam, `(x, y, z, radius)` per endpoint (two vec4 lanes, 32 B stride) so the same buffer feeds a GPU upload unrepacked; elements still route through `Lattice::AddBeam`, preserving the bbox update and the degenerate round-cap → sphere rule (`PicoGKLattice.h:213-218`) | our SK-0.3 implementation (`src/pico-bulk.cpp`) + measurement: HeatX **1,197,460 crossings → 37**, counter-verified; facade **50.1 → 39.2 ns/beam**; `author` stage **238.7 → 150.8 ms** (paired ABAB ×5, disjoint ranges); voxelization byte-identical (`bench/results/webgpu-v2/SK-0.3.md`). The C# binding has the same shape of problem — `Lattice.AddBeam` is a P/Invoke per beam | **spiked** |
+| U18 | `Lattice` stores `std::vector<LatticeBeam::Ptr>` — a `make_shared` (control block + ~64 B object) **per beam** and a pointer chase per beam in `RenderLattice`. `LatticeBeam` is a value type with no polymorphism and no shared ownership; `std::vector<LatticeBeam>` would be a 2-line change in `PicoGKLattice.h` plus `*roBeam` → `roBeam` in `PicoGKVdbVoxels.h:349,354`. Also unlocks contiguous upload (and pairs with U5's parallel `RenderLattice`) | SK-0.3 decomposition: with the ABI crossing amortised away, **20.9 ns of the 39.2 ns/beam is C++-side ingest** — i.e. the allocator, not the boundary. 1.2M beams per HeatX. Not implemented here: it edits the vendored tree R4 keeps pristine, and the renderer TU is a sibling spike's | identified |
 
 ### OpenVDB / NanoVDB (AcademySoftwareFoundation/openvdb)
 

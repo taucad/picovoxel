@@ -40,6 +40,22 @@ Ledger of every PicoGK runtime compute entry point and its **current workload ex
 > than ~100, so those rows are justified by the *work* they amortize (O(r³) shell scans, dense
 > accessor re-seeks), not by the boundary. Rule 3 stands unchanged for the same reason.
 >
+> **Lattice authoring batched 2026-07-26 (SK-0.3); one row graduates.** `Lattice_AddBeam` was
+> the last chatty hot entry point — 1,197,460 crossings across 37 lattices on HeatX. The facade
+> now stages beams/spheres into a flat `Float32Array` and crosses **once per lattice**
+> (`Lattice_AddBeams`/`Lattice_AddSpheres` in `src/pico-bulk.cpp`; counter-verified 37 for 37).
+> Per beam **50.1 → 39.2 ns** end to end through the public facade, i.e. the whole authoring
+> call is now cheaper than the bare ABI crossing it replaced; the HeatX `author` stage goes
+> **238.7 → 150.8 ms** (paired ABAB ×5, disjoint ranges; a load-flagged full-suite pass puts
+> `M12@single/author` at 153.4 ms against SK-0.1's 406.7, every single-thread row flat).
+> **The flat buffer is the GPU-upload
+> seam**: 8 f32 per beam = (x, y, z, radius) per endpoint, two vec4 lanes, 32 B stride, no
+> padding under std140/std430, so `beams.subarray(0, n * 8)` goes to `writeBuffer` unrepacked —
+> which is what S-A/S-C and SK-0.4's slab-binned tube-complex lane consume. What it does *not*
+> fix is upstream storage: `Lattice` still holds `std::vector<std::shared_ptr<LatticeBeam>>`,
+> one `make_shared` per beam, so 20.9 of the amortised 39.2 ns is C++-side ingest. Filed as
+> **U18**. Evidence: `bench/results/webgpu-v2/SK-0.3.md`.
+>
 > Two corrections fell out of the same measurement. **HeatX makes 1,197,460 `Lattice_AddBeam`
 > calls across 37 lattices**, not the "~10⁵" R11 has carried — an order of magnitude, counted
 > directly. R11's conclusion survives (authoring is still ~0.9% of wall), but any future
@@ -85,6 +101,7 @@ Ledger of every PicoGK runtime compute entry point and its **current workload ex
 | `ScalarField`/`VectorField` builders + `TraverseActive` | ST dense loops; callback ABI has no user-data pointer | bulk facilities missing at ABI | candidate: batch ABIs (P8); active-count export queued upstream |
 | VDB file save/load | ST | IO-bound | non-improvable (until profiling says otherwise) |
 | picovoxel bulk paths (R11: mesh vertices/triangles, STL bytes) | boundary bulk (one crossing) | already the bulk pattern | graduated 2026-07 (R11) |
+| Lattice authoring — `Lattice_AddBeam`/`AddSphere` | boundary bulk (**one crossing per lattice**, SK-0.3) + ST C++ ingest | staging is a flat f32 append in JS; the crossing amortizes to a `memcpy`. Ingest stays ST because upstream allocates a `shared_ptr` per beam | **graduated 2026-07-26 (SK-0.3)** — 1,197,460 → 37 crossings on HeatX, facade 50.1 → 39.2 ns/beam, `author` 238.7 → 150.8 ms. Remaining ceiling is upstream storage (**U18**); the flat buffer is the GPU-upload seam for S-A/S-C |
 
 ## Determined non-improvable / measured-dead (do not re-run without new architecture)
 

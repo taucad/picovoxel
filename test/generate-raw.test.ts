@@ -10,12 +10,13 @@ import abi from '../src/abi.json' with { type: 'json' };
 
 const source = generateRawSource(abi);
 
-test('manifest count: 140 core + 7 own-TU bindings, viewer surface excluded', () => {
+test('manifest count: 140 core + 9 own-TU bindings, viewer surface excluded', () => {
   assert.equal(abi.functions.filter((f: { viewer: boolean }) => !f.viewer).length, 140);
-  // 4 bulk-mesh + 3 tape entries (fresh fill + the two R9 compose variants).
-  assert.equal(BULK_FUNCTIONS.length, 7);
+  // 4 bulk-mesh + 3 tape entries (fresh fill + the two R9 compose variants)
+  // + 2 SK-0.3 bulk lattice entries.
+  assert.equal(BULK_FUNCTIONS.length, 9);
   const bound = source.match(/^ {2}'[A-Za-z0-9_]+',$/gm) ?? [];
-  assert.equal(bound.length, 147, 'the export list must carry every binding');
+  assert.equal(bound.length, 149, 'the export list must carry every binding');
   assert.ok(!/Viewer_|Gui_/.test(source), 'viewer exports must never be bound');
 });
 

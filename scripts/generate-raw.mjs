@@ -68,6 +68,20 @@ export const BULK_FUNCTIONS = [
     { name: 'pfConstants', type: 'double*', cwrap: 'number' },
     { name: 'nConstantCount', type: 'int32_t', cwrap: 'number' },
   ] },
+  // SK-0.3 bulk lattice authoring: one crossing per lattice instead of one per beam.
+  { name: 'Lattice_AddBeams', cwrapReturn: 'number', args: [
+    { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+    { name: 'hThis', type: 'PKLATTICE', cwrap: 'bigint' },
+    { name: 'pfBeams', type: 'float*', cwrap: 'number' },
+    { name: 'pnRoundCap', type: 'uint32_t*', cwrap: 'number' },
+    { name: 'nCount', type: 'int32_t', cwrap: 'number' },
+  ] },
+  { name: 'Lattice_AddSpheres', cwrapReturn: 'number', args: [
+    { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+    { name: 'hThis', type: 'PKLATTICE', cwrap: 'bigint' },
+    { name: 'pfSpheres', type: 'float*', cwrap: 'number' },
+    { name: 'nCount', type: 'int32_t', cwrap: 'number' },
+  ] },
   { name: 'Voxels_IntersectImplicitTape', cwrapReturn: null, args: [
     { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
     { name: 'hThis', type: 'PKVOXELS', cwrap: 'bigint' },

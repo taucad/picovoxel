@@ -317,3 +317,41 @@ band is comfortably inside the ceiling.
 surfaces as a raw `RangeError` from `HEAPF32.set` rather than the typed
 `PICO_OUT_OF_MEMORY` error — hardened in the facade as a follow-up
 commit.)
+
+### SK-0.3 — lattice authoring batched: one ABI crossing per lattice (2026-07-26)
+
+Graduation row for `WORKLOAD-EXECUTORS.md`'s *Lattice authoring* entry (rule 1). Full evidence:
+`bench/results/webgpu-v2/SK-0.3.md`; samples `bench/results/webgpu-v2/sk-0.3-lattice-batch.json`.
+
+`lattice.addBeam()`/`addSphere()` stage into a flat `Float32Array` (8 f32/beam,
+`(x, y, z, radius)` per endpoint — the GPU-upload layout) and cross once per lattice via
+`Lattice_AddBeams`/`Lattice_AddSpheres` (`src/pico-bulk.cpp`). Public API unchanged.
+
+| | before (per-element) | after (batched) | Δ |
+| --- | ---: | ---: | ---: |
+| HeatX `Lattice_AddBeam` crossings | **1,197,460** | **37** (one per lattice) | **32,364×** |
+| `lattice.addBeam()` end to end | 50.12 ns/beam¹ | **39.21 ns/beam** | **1.28×** |
+| HeatX `author` stage @3.0 mm | 238.72 ms | **150.83 ms** | **−36.8%** |
+
+¹ The `raw per-call (Lattice_AddBeam)` export measured in the same process — the floor the old
+facade sat *on top of* (SK-0.2 measured that facade at 131.6 ns). The batched facade is now
+below the bare crossing it replaced.
+
+Method: `bench/lattice-batch.mjs`. Per-beam rows are min-of-7 over 9×200,000-beam runs in one
+process. The `author` row is a **paired ABAB ×5** against the real subject, both variants in the
+same process (the "before" variant is a faithful re-creation of the replaced facade, proxied
+over `createLattice`); sample ranges are **disjoint** (batched max 154.79 < per-call min 236.06)
+and both variants produced an identical volume. Crossing counts are read from wrappers installed
+on the wasm exports before the raw table binds, so they are counted, not inferred. Machine: M2
+Pro, AC, `lowpowermode 0`, loadavg 2.8→7.6 (two sibling spikes sharing the box — which is why
+the claim rests on the paired in-process A/B and not on a macro suite run).
+
+A load-flagged full-suite pass (`bench/results/webgpu-v2/sk-0.3-macro-loaded.json`, kept out of
+`bench/results/` so the drift canary is not polluted by its contaminated 12-thread rows) puts
+`M12@single/author` at **153.382 ms** against SK-0.1's 406.692 — but that baseline is pre-SK-0.2,
+so the −62% is the two spikes together; against SK-0.2's quiet 298.069 ms, SK-0.3's share is
+−48.5%. Every single-thread row in that pass is within ±1%; every regressed row is a 12-thread
+`M12@multi` stage with a flat single-thread twin, i.e. load, not this change.
+
+Residual: 20.9 of the 39.2 ns/beam is C++-side ingest (`make_shared` per beam into upstream's
+`std::vector<LatticeBeam::Ptr>`). Filed as U18 in `MIGRATING-FROM-CSHARP.md`.

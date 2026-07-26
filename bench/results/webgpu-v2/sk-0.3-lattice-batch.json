@@ -1,0 +1,238 @@
+{
+  "spike": "SK-0.3",
+  "fingerprint": {
+    "cpu": "Apple M2 Pro",
+    "cores": 12,
+    "ramGiB": 32,
+    "os": "darwin 25.5.0",
+    "node": "v26.5.0",
+    "wasmSha256": "aba08e186486e805886e5d09d1730c97fb09982067e28fb33ed678213536205b",
+    "wasmBytes": 5835120,
+    "date": "2026-07-26T03:36:37.439Z",
+    "startLoad": 2.7568359375,
+    "runs": 9,
+    "iters": 200000,
+    "heatxReps": 5,
+    "heatxSizeMm": 3
+  },
+  "endLoad": 7.61279296875,
+  "results": {
+    "perBeam": {
+      "raw per-call (Lattice_AddBeam)": {
+        "nsPerBeam": 50.12,
+        "minWindowMs": 10.023,
+        "maxWindowMs": 10.365,
+        "windowsMs": [
+          14.43,
+          9.926,
+          10.169,
+          10.18,
+          10.295,
+          10.208,
+          10.365,
+          10.023,
+          10.085
+        ]
+      },
+      "bulk (Lattice_AddBeams), amortised": {
+        "nsPerBeam": 20.88,
+        "minWindowMs": 4.176,
+        "maxWindowMs": 4.363,
+        "windowsMs": [
+          5.083,
+          4.187,
+          4.176,
+          4.295,
+          4.349,
+          4.3,
+          4.325,
+          4.306,
+          4.363
+        ]
+      },
+      "facade (addBeam + flush)": {
+        "nsPerBeam": 39.21,
+        "minWindowMs": 7.843,
+        "maxWindowMs": 14.276,
+        "windowsMs": [
+          13.714,
+          10.352,
+          8.2,
+          14.276,
+          9.63,
+          7.896,
+          7.843,
+          8.339,
+          8.497
+        ]
+      }
+    },
+    "heatx": {
+      "batched": [
+        {
+          "authorMs": 154.07,
+          "constructMs": 17228.38,
+          "volume": 653902.5625,
+          "counts": {
+            "Lattice_AddBeam": 0,
+            "Lattice_AddBeams": 37,
+            "Lattice_AddSphere": 0,
+            "Lattice_AddSpheres": 0,
+            "Lattice_hCreate": 37
+          }
+        },
+        {
+          "authorMs": 149.24,
+          "constructMs": 16335.78,
+          "volume": 653902.5625,
+          "counts": {
+            "Lattice_AddBeam": 0,
+            "Lattice_AddBeams": 37,
+            "Lattice_AddSphere": 0,
+            "Lattice_AddSpheres": 0,
+            "Lattice_hCreate": 37
+          }
+        },
+        {
+          "authorMs": 150.83,
+          "constructMs": 16406.42,
+          "volume": 653902.5625,
+          "counts": {
+            "Lattice_AddBeam": 0,
+            "Lattice_AddBeams": 37,
+            "Lattice_AddSphere": 0,
+            "Lattice_AddSpheres": 0,
+            "Lattice_hCreate": 37
+          }
+        },
+        {
+          "authorMs": 154.79,
+          "constructMs": 16164.54,
+          "volume": 653902.5625,
+          "counts": {
+            "Lattice_AddBeam": 0,
+            "Lattice_AddBeams": 37,
+            "Lattice_AddSphere": 0,
+            "Lattice_AddSpheres": 0,
+            "Lattice_hCreate": 37
+          }
+        },
+        {
+          "authorMs": 146.89,
+          "constructMs": 16590.22,
+          "volume": 653902.5625,
+          "counts": {
+            "Lattice_AddBeam": 0,
+            "Lattice_AddBeams": 37,
+            "Lattice_AddSphere": 0,
+            "Lattice_AddSpheres": 0,
+            "Lattice_hCreate": 37
+          }
+        }
+      ],
+      "per-call": [
+        {
+          "authorMs": 236.19,
+          "constructMs": 16467.23,
+          "volume": 653902.5625,
+          "counts": {
+            "Lattice_AddBeam": 1197460,
+            "Lattice_AddBeams": 0,
+            "Lattice_AddSphere": 0,
+            "Lattice_AddSpheres": 0,
+            "Lattice_hCreate": 37
+          }
+        },
+        {
+          "authorMs": 257.78,
+          "constructMs": 17112.02,
+          "volume": 653902.5625,
+          "counts": {
+            "Lattice_AddBeam": 1197460,
+            "Lattice_AddBeams": 0,
+            "Lattice_AddSphere": 0,
+            "Lattice_AddSpheres": 0,
+            "Lattice_hCreate": 37
+          }
+        },
+        {
+          "authorMs": 238.72,
+          "constructMs": 16270.91,
+          "volume": 653902.5625,
+          "counts": {
+            "Lattice_AddBeam": 1197460,
+            "Lattice_AddBeams": 0,
+            "Lattice_AddSphere": 0,
+            "Lattice_AddSpheres": 0,
+            "Lattice_hCreate": 37
+          }
+        },
+        {
+          "authorMs": 236.06,
+          "constructMs": 16254.47,
+          "volume": 653902.5625,
+          "counts": {
+            "Lattice_AddBeam": 1197460,
+            "Lattice_AddBeams": 0,
+            "Lattice_AddSphere": 0,
+            "Lattice_AddSpheres": 0,
+            "Lattice_hCreate": 37
+          }
+        },
+        {
+          "authorMs": 251.9,
+          "constructMs": 16651.3,
+          "volume": 653902.5625,
+          "counts": {
+            "Lattice_AddBeam": 1197460,
+            "Lattice_AddBeams": 0,
+            "Lattice_AddSphere": 0,
+            "Lattice_AddSpheres": 0,
+            "Lattice_hCreate": 37
+          }
+        }
+      ]
+    },
+    "heatxConfirm": {
+      "authorMs": 149.22,
+      "constructMs": 61972.03,
+      "volume": 590922.9375,
+      "counts": {
+        "Lattice_AddBeam": 0,
+        "Lattice_AddBeams": 37,
+        "Lattice_AddSphere": 0,
+        "Lattice_AddSpheres": 0,
+        "Lattice_hCreate": 37
+      }
+    },
+    "heatxSummary": {
+      "batched": {
+        "authorMedianMs": 150.83,
+        "authorMs": [
+          154.07,
+          149.24,
+          150.83,
+          154.79,
+          146.89
+        ],
+        "volumes": [
+          653902.5625
+        ]
+      },
+      "per-call": {
+        "authorMedianMs": 238.72,
+        "authorMs": [
+          236.19,
+          257.78,
+          238.72,
+          236.06,
+          251.9
+        ],
+        "volumes": [
+          653902.5625
+        ]
+      }
+    },
+    "volumeIdentical": true
+  }
+}
