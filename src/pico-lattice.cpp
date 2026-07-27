@@ -170,7 +170,7 @@ PICOGK_API void Voxels_RenderLatticeTubes(  PKINSTANCE  hLib,
     }
 
     const std::vector<PicoGK::LatticeSphere::Ptr>& oSpheres = roLattice->oSpheres();
-    const std::vector<PicoGK::LatticeBeam::Ptr>&   oBeams   = roLattice->oBeams();
+    const std::vector<PicoGK::LatticeBeam>&        oBeams   = roLattice->oBeams(); // by value since patches/PicoGKRuntime/0003 (U18)
 
     std::vector<openvdb::Vec3s> oVertices;
     std::vector<openvdb::Vec2I> oSegments;
@@ -198,27 +198,27 @@ PICOGK_API void Voxels_RenderLatticeTubes(  PKINSTANCE  hLib,
         oSegments.push_back(openvdb::Vec2I(nAt, nAt));
     }
 
-    for (const PicoGK::LatticeBeam::Ptr& roBeam : oBeams)
+    for (const PicoGK::LatticeBeam& oBeam : oBeams)
     {
-        if (!roBeam->bRoundCap())
+        if (!oBeam.bRoundCap())
         {
-            oFlatCapped.AddBeam(    roBeam->vecStart(),
-                                    roBeam->vecEnd(),
-                                    roBeam->fRadStart(),
-                                    roBeam->fRadEnd(),
+            oFlatCapped.AddBeam(    oBeam.vecStart(),
+                                    oBeam.vecEnd(),
+                                    oBeam.fRadStart(),
+                                    oBeam.fRadEnd(),
                                     false);
             bHasFlatCapped = true;
             continue;
         }
 
-        const PicoGK::Vector3& vecStart = roBeam->vecStart();
-        const PicoGK::Vector3& vecEnd   = roBeam->vecEnd();
+        const PicoGK::Vector3& vecStart = oBeam.vecStart();
+        const PicoGK::Vector3& vecEnd   = oBeam.vecEnd();
         const openvdb::Index32 nAt = (openvdb::Index32) oVertices.size();
 
         oVertices.push_back(openvdb::Vec3s(vecStart.X, vecStart.Y, vecStart.Z));
         oVertices.push_back(openvdb::Vec3s(vecEnd.X,   vecEnd.Y,   vecEnd.Z));
-        oRadii.push_back(roBeam->fRadStart());
-        oRadii.push_back(roBeam->fRadEnd());
+        oRadii.push_back(oBeam.fRadStart());
+        oRadii.push_back(oBeam.fRadEnd());
         oSegments.push_back(openvdb::Vec2I(nAt, nAt + 1));
     }
 
