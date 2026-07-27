@@ -66,7 +66,7 @@
 //
 // The old lane stays reachable and unmodified as Voxels_RenderLattice on the
 // `picovoxel/raw` subpath (the A/B arm), and the facade routes back to it wholesale
-// under PICOVOXEL_SERIAL_LATTICE=1 (src/context.ts RENDER_LATTICE_EXPORT) — the
+// under createPico({ serialLattice: true }) (ctx.renderLatticeExport) — the
 // escape hatch, and the arm the pre-SK-0.4 byte pins certify.
 
 // Include order is load-bearing — see the note at the top of pico-bulk.cpp.

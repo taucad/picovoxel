@@ -12,10 +12,11 @@ import {
   checkedMalloc,
   expectHandle,
   VEC3_BYTES,
+  type PicoLane,
   type SessionContext,
 } from './context.ts';
 import { assertLive, guard, PicoError } from './errors.ts';
-import { tagFieldClass, wrapMetadata, type Metadata } from './metadata.ts';
+import { readLaneTag, tagFieldClass, tagLaneFast, wrapMetadata, type Metadata } from './metadata.ts';
 import type { Bounds, Vec3 } from './types.ts';
 import type { Voxels } from './voxels.ts';
 
@@ -31,6 +32,8 @@ interface FieldBase {
   readonly handle: bigint;
   readonly memUsage: number;
   readonly metadata: Metadata;
+  /** §14.1 value-class provenance, inherited from the source voxels chain. */
+  readonly lane: 'exact' | 'fast';
   /** Optional: GC reclaims un-disposed fields. Idempotent. */
   dispose(): void;
   [Symbol.dispose](): void;
@@ -74,9 +77,12 @@ function withCallback<T>(ctx: SessionContext, signature: string, fn: (...args: n
   }
 }
 
-export function wrapScalarField(ctx: SessionContext, handle: bigint): ScalarField {
+export function wrapScalarField(ctx: SessionContext, handle: bigint, laneIn?: PicoLane): ScalarField {
   let disposed = false;
   let metadataCache: Metadata | null = null;
+  // §14.1 provenance — same persisted-tag scheme as wrapVoxels.
+  const lane: PicoLane = laneIn ?? readLaneTag(ctx, ctx.raw.Metadata_hFromScalarField, handle) ?? 'exact';
+  if (lane === 'fast') tagLaneFast(ctx, ctx.raw.Metadata_hFromScalarField, handle);
   const live = () => {
     assertLive(disposed, 'ScalarField');
     return handle;
@@ -148,7 +154,10 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint): ScalarFiel
       return value === null ? null : value * ctx.voxelSize; // SG6
     },
     clone(): ScalarField {
-      return wrapScalarField(ctx, expectHandle('ScalarField_hCreateCopy', ctx.raw.ScalarField_hCreateCopy(ctx.lib, live())));
+      return wrapScalarField(ctx, expectHandle('ScalarField_hCreateCopy', ctx.raw.ScalarField_hCreateCopy(ctx.lib, live())), lane);
+    },
+    get lane() {
+      return lane;
     },
     get memUsage() {
       return Number(guard('ScalarField_nMemUsage', () => ctx.raw.ScalarField_nMemUsage(ctx.lib, live()))());
@@ -176,9 +185,12 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint): ScalarFiel
   return field as ScalarField; // adoptHandle added [Symbol.dispose] (D6)
 }
 
-export function wrapVectorField(ctx: SessionContext, handle: bigint): VectorField {
+export function wrapVectorField(ctx: SessionContext, handle: bigint, laneIn?: PicoLane): VectorField {
   let disposed = false;
   let metadataCache: Metadata | null = null;
+  // §14.1 provenance — same persisted-tag scheme as wrapVoxels.
+  const lane: PicoLane = laneIn ?? readLaneTag(ctx, ctx.raw.Metadata_hFromVectorField, handle) ?? 'exact';
+  if (lane === 'fast') tagLaneFast(ctx, ctx.raw.Metadata_hFromVectorField, handle);
   const live = () => {
     assertLive(disposed, 'VectorField');
     return handle;
@@ -211,7 +223,10 @@ export function wrapVectorField(ctx: SessionContext, handle: bigint): VectorFiel
       }, (pointer) => guard('VectorField_TraverseActive', () => ctx.raw.VectorField_TraverseActive(ctx.lib, handle, pointer))());
     },
     clone(): VectorField {
-      return wrapVectorField(ctx, expectHandle('VectorField_hCreateCopy', ctx.raw.VectorField_hCreateCopy(ctx.lib, live())));
+      return wrapVectorField(ctx, expectHandle('VectorField_hCreateCopy', ctx.raw.VectorField_hCreateCopy(ctx.lib, live())), lane);
+    },
+    get lane() {
+      return lane;
     },
     get memUsage() {
       return Number(guard('VectorField_nMemUsage', () => ctx.raw.VectorField_nMemUsage(ctx.lib, live()))());

@@ -12,16 +12,16 @@ import {
   assertSameSession,
   checkedMalloc,
   expectHandle,
-  RENDER_LATTICE_EXPORT,
   VEC3_BYTES,
   withSdfPointer,
   withSdfTape,
+  type PicoLane,
   type SessionContext,
 } from './context.ts';
 import { assertLive, guard, PicoError } from './errors.ts';
 import { wrapScalarField, type ScalarField } from './fields.ts';
 import type { Lattice } from './lattice.ts';
-import { tagFieldClass, wrapMetadata, type Metadata } from './metadata.ts';
+import { readLaneTag, tagFieldClass, tagLaneFast, wrapMetadata, type Metadata } from './metadata.ts';
 import { wrapMesh, type Mesh } from './mesh.ts';
 import type { SdfExpression } from './tape.ts';
 import type { Bounds, SdfFunction, Vec3 } from './types.ts';
@@ -179,6 +179,14 @@ export interface Voxels {
   toScalarField(): ScalarField;
   readonly metadata: Metadata;
   readonly memUsage: number;
+  /**
+   * §14.1 value-class provenance: least upper bound over this handle's
+   * ancestry ('fast' = at least one Class-2 op — e.g. `fastRenorm` — fed it).
+   * Persisted on the grid as `PicoVoxel.Lane` metadata, so it survives
+   * copies and `.vdb` interchange. Non-exact provenance refuses the STL/GLB
+   * export boundary unless acknowledged with `acceptLane`.
+   */
+  readonly lane: 'exact' | 'fast';
   /** Raw ABI handle — escape hatch (§10). */
   readonly handle: bigint;
   /** Optional: GC reclaims un-disposed voxels. Idempotent. */
@@ -186,16 +194,25 @@ export interface Voxels {
   [Symbol.dispose](): void;
 }
 
-export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
+export function wrapVoxels(ctx: SessionContext, handle: bigint, laneIn?: PicoLane): Voxels {
   let disposed = false;
   let metadataCache: Metadata | null = null;
+  // §14.1 provenance — explicit from the deriving op when given, else the
+  // persisted grid tag (so .vdb loads and native copies restore it), else the
+  // exact/L0 claim. A 'fast' handle writes the tag onto its grid immediately:
+  // provenance then rides copies and .vdb interchange with no serializer work.
+  const lane: PicoLane = laneIn ?? readLaneTag(ctx, ctx.raw.Metadata_hFromVoxels, handle) ?? 'exact';
+  if (lane === 'fast') tagLaneFast(ctx, ctx.raw.Metadata_hFromVoxels, handle);
   const live = () => {
     assertLive(disposed, 'Voxels');
     return handle;
   };
 
+  /** Least-upper-bound over value-class provenance: any 'fast' input taints. */
+  const lub = (...lanes: PicoLane[]): PicoLane => (lanes.includes('fast') ? 'fast' : 'exact');
+
   /** Copy-first derivation (SG11): clone, mutate the clone, wrap the clone. */
-  const derive = (name: string, mutate: (copy: bigint) => void): Voxels => {
+  const derive = (name: string, mutate: (copy: bigint) => void, resultLane: PicoLane = lane): Voxels => {
     const copy = expectHandle('Voxels_hCreateCopy', ctx.raw.Voxels_hCreateCopy(ctx.lib, live()));
     try {
       guard(name, mutate)(copy);
@@ -203,7 +220,19 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
       ctx.raw.Voxels_Destroy(ctx.lib, copy);
       throw error;
     }
-    return wrapVoxels(ctx, copy);
+    return wrapVoxels(ctx, copy, resultLane);
+  };
+
+  /** §14.1 tighten-only: a Class-2 per-op request inside 'exact' throws. */
+  const rejectLoosening = (fastRenorm: boolean | undefined, where: string): void => {
+    if (ctx.lane === 'exact' && fastRenorm === true) {
+      throw new PicoError(
+        'PICO_LANE_LOOSENED',
+        `${where}({ fastRenorm: true }) inside a lane: 'exact' session: one Class-2 op would destroy the ` +
+          "session's structural exactness claim. Tightening is allowed; loosening requires a 'fast' or " +
+          'lane-less session.',
+      );
+    }
   };
 
   /**
@@ -213,11 +242,15 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
    * floats, and the longest sequence in the family is 3.
    */
   const fastOffset = (distancesMM: number[]): Voxels =>
-    derive('Voxels_OffsetTuned', (copy) => {
-      const base = ctx.scratch >>> 2;
-      for (let i = 0; i < distancesMM.length; i++) ctx.module.HEAPF32[base + i] = distancesMM[i]!;
-      ctx.raw.Voxels_OffsetTuned(ctx.lib, copy, ctx.scratch, distancesMM.length, FAST_RENORM_SCHEME, FAST_RENORM_COUNT);
-    });
+    derive(
+      'Voxels_OffsetTuned',
+      (copy) => {
+        const base = ctx.scratch >>> 2;
+        for (let i = 0; i < distancesMM.length; i++) ctx.module.HEAPF32[base + i] = distancesMM[i]!;
+        ctx.raw.Voxels_OffsetTuned(ctx.lib, copy, ctx.scratch, distancesMM.length, FAST_RENORM_SCHEME, FAST_RENORM_COUNT);
+      },
+      'fast', // the one Class-2 producer today — provenance taints here
+    );
 
   const operandHandle = (other: Voxels, what: string): bigint => {
     assertSameSession(ctx, other, what);
@@ -271,18 +304,30 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
   };
 
   const voxels = {
-    clone: (): Voxels => wrapVoxels(ctx, expectHandle('Voxels_hCreateCopy', ctx.raw.Voxels_hCreateCopy(ctx.lib, live()))),
+    clone: (): Voxels => wrapVoxels(ctx, expectHandle('Voxels_hCreateCopy', ctx.raw.Voxels_hCreateCopy(ctx.lib, live())), lane),
 
     union: (...others: Voxels[]): Voxels =>
-      derive('Voxels_BoolAdd', (copy) => {
-        for (const other of others) ctx.raw.Voxels_BoolAdd(ctx.lib, copy, operandHandle(other, 'union operand'));
-      }),
+      derive(
+        'Voxels_BoolAdd',
+        (copy) => {
+          for (const other of others) ctx.raw.Voxels_BoolAdd(ctx.lib, copy, operandHandle(other, 'union operand'));
+        },
+        lub(lane, ...others.map((other) => other.lane)),
+      ),
     subtract: (...others: Voxels[]): Voxels =>
-      derive('Voxels_BoolSubtract', (copy) => {
-        for (const other of others) ctx.raw.Voxels_BoolSubtract(ctx.lib, copy, operandHandle(other, 'subtract operand'));
-      }),
+      derive(
+        'Voxels_BoolSubtract',
+        (copy) => {
+          for (const other of others) ctx.raw.Voxels_BoolSubtract(ctx.lib, copy, operandHandle(other, 'subtract operand'));
+        },
+        lub(lane, ...others.map((other) => other.lane)),
+      ),
     intersect: (other: Voxels): Voxels =>
-      derive('Voxels_BoolIntersect', (copy) => ctx.raw.Voxels_BoolIntersect(ctx.lib, copy, operandHandle(other, 'intersect operand'))),
+      derive(
+        'Voxels_BoolIntersect',
+        (copy) => ctx.raw.Voxels_BoolIntersect(ctx.lib, copy, operandHandle(other, 'intersect operand')),
+        lub(lane, other.lane),
+      ),
 
     equals(other: Voxels): boolean {
       return guard('Voxels_bIsEqual', () => ctx.raw.Voxels_bIsEqual(ctx.lib, live(), operandHandle(other, 'equals operand')))();
@@ -292,23 +337,27 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
     },
 
     offset(options: { distance: number; fastRenorm?: boolean }) {
+      rejectLoosening(options.fastRenorm, 'offset');
       const distance = requireFinite(options.distance, 'distance', 'offset({ distance })');
       if (options.fastRenorm ?? ctx.fastRenorm) return fastOffset([distance]);
       return derive('Voxels_Offset', (copy) => ctx.raw.Voxels_Offset(ctx.lib, copy, distance));
     },
     doubleOffset(options: { first: number; second: number; fastRenorm?: boolean }) {
+      rejectLoosening(options.fastRenorm, 'doubleOffset');
       const first = requireFinite(options.first, 'first', 'doubleOffset');
       const second = requireFinite(options.second, 'second', 'doubleOffset');
       if (options.fastRenorm ?? ctx.fastRenorm) return fastOffset([first, second]);
       return derive('Voxels_DoubleOffset', (copy) => ctx.raw.Voxels_DoubleOffset(ctx.lib, copy, first, second));
     },
     smoothen(options: { distance: number; fastRenorm?: boolean }) {
+      rejectLoosening(options.fastRenorm, 'smoothen');
       const distance = requireFinite(options.distance, 'distance', 'smoothen');
       // TripleOffset is grow d / shrink 2d / grow d on one filter (PicoGKVdbVoxels.h:310-330).
       if (options.fastRenorm ?? ctx.fastRenorm) return fastOffset([distance, -2 * distance, distance]);
       return derive('Voxels_TripleOffset', (copy) => ctx.raw.Voxels_TripleOffset(ctx.lib, copy, distance));
     },
     fillet(options: { rounding: number; finalSurfaceDistance?: number; fastRenorm?: boolean }) {
+      rejectLoosening(options.fastRenorm, 'fillet');
       // C# voxOverOffset composition (Voxels.cs:613-621): DoubleOffset(r, −r + final).
       const rounding = requireFinite(options.rounding, 'rounding', 'fillet');
       const final = requireFinite(options.finalSurfaceDistance ?? 0, 'finalSurfaceDistance', 'fillet');
@@ -316,6 +365,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
       return derive('Voxels_DoubleOffset', (copy) => ctx.raw.Voxels_DoubleOffset(ctx.lib, copy, rounding, -rounding + final));
     },
     shell(options: ShellOptions): Voxels {
+      rejectLoosening(options.fastRenorm, 'shell');
       const fastRenorm = options.fastRenorm;
       if (options.offset !== undefined) {
         // C# voxShell(float) (Voxels.cs:659-668): sign chooses which side keeps
@@ -372,12 +422,13 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
         assertSameSession(ctx, mesh, 'withMesh operand');
         return mesh.handle;
       })();
-      return derive('Voxels_RenderMesh', (copy) => ctx.raw.Voxels_RenderMesh(ctx.lib, copy, meshHandle));
+      return derive('Voxels_RenderMesh', (copy) => ctx.raw.Voxels_RenderMesh(ctx.lib, copy, meshHandle), lub(lane, mesh.lane));
     },
     withLattice(lattice: Lattice): Voxels {
       assertSameSession(ctx, lattice, 'withLattice operand');
       const latticeHandle = lattice.handle;
-      return derive(RENDER_LATTICE_EXPORT, (copy) => ctx.raw[RENDER_LATTICE_EXPORT](ctx.lib, copy, latticeHandle));
+      const renderLattice = ctx.renderLatticeExport;
+      return derive(renderLattice, (copy) => ctx.raw[renderLattice](ctx.lib, copy, latticeHandle));
     },
     withImplicit({ sdf, boundsMin, boundsMax }: { sdf: SdfFunction | SdfExpression; boundsMin: Vec3; boundsMax: Vec3 }): Voxels {
       if (typeof sdf === 'function') {
@@ -536,12 +587,17 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
     },
 
     toMesh(): Mesh {
-      return wrapMesh(ctx, expectHandle('Mesh_hCreateFromVoxels', guard('Mesh_hCreateFromVoxels', () => ctx.raw.Mesh_hCreateFromVoxels(ctx.lib, live()))()));
+      return wrapMesh(
+        ctx,
+        expectHandle('Mesh_hCreateFromVoxels', guard('Mesh_hCreateFromVoxels', () => ctx.raw.Mesh_hCreateFromVoxels(ctx.lib, live()))()),
+        lane,
+      );
     },
     toScalarField(): ScalarField {
       return wrapScalarField(
         ctx,
         expectHandle('ScalarField_hCreateFromVoxels', guard('ScalarField_hCreateFromVoxels', () => ctx.raw.ScalarField_hCreateFromVoxels(ctx.lib, live()))()),
+        lane,
       );
     },
     get metadata(): Metadata {
@@ -550,6 +606,9 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
     },
     get memUsage() {
       return Number(guard('Voxels_nMemUsage', () => ctx.raw.Voxels_nMemUsage(ctx.lib, live()))());
+    },
+    get lane() {
+      return lane;
     },
 
     get handle() {

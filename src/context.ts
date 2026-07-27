@@ -13,20 +13,25 @@ import type { SdfExpression } from './tape.ts';
 import type { PicoWasmModule, SdfFunction, Vec3 } from './types.ts';
 
 /**
- * SK-0.4 — which export renders a lattice into voxels. Default: the parallel
- * tube-complex lane (`src/pico-lattice.cpp`, deterministic by construction).
- * `PICOVOXEL_SERIAL_LATTICE=1` routes the facade down the serial C#-identical
- * `Voxels::RenderLattice` loop instead — the escape hatch, and the arm the
- * pre-SK-0.4 byte pins certify. Read once at module load; browsers have no
- * `process` and always get the default. Both exports share one signature.
+ * SK-0.4 / SKv2-0 V0.5-V0.6 — which export renders a lattice into voxels.
+ * Default: the parallel tube-complex lane (`src/pico-lattice.cpp`,
+ * deterministic by construction). `createPico({ serialLattice: true })`
+ * routes the facade down the serial C#-identical `Voxels::RenderLattice`
+ * loop instead — the escape hatch, and the arm the pre-SK-0.4 byte pins
+ * certify. This was `PICOVOXEL_SERIAL_LATTICE=1`, a module-load env read —
+ * deleted per §14.1: geometry-relevant selection must be a keyed,
+ * constructor-explicit init option (ambient state that changes geometry is a
+ * cache-key bug by definition), and a module-scoped read could not even
+ * differ between two sessions in one process. Both exports share one
+ * signature; the arm choice is per-session on `SessionContext`.
  */
-export function resolveRenderLatticeExport(
-  env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env,
-): 'Voxels_RenderLattice' | 'Voxels_RenderLatticeTubes' {
-  return env?.PICOVOXEL_SERIAL_LATTICE === '1' ? 'Voxels_RenderLattice' : 'Voxels_RenderLatticeTubes';
-}
+export type RenderLatticeExport = 'Voxels_RenderLattice' | 'Voxels_RenderLatticeTubes';
 
-export const RENDER_LATTICE_EXPORT = resolveRenderLatticeExport();
+/** Resolved session lane (§14.1). `'open'` = no lane requested: library
+ * defaults with per-op freedom in both directions — the pre-lane behavior. */
+export type ResolvedLane = 'exact' | 'fast' | 'open';
+/** Value-class provenance a handle can carry. */
+export type PicoLane = 'exact' | 'fast';
 
 export const VEC3_BYTES = 12;
 export const TRI_BYTES = 12;
@@ -46,6 +51,16 @@ export interface SessionContext {
    * false). The `'fast'` lane bundle (V0.5) is what sets this true.
    */
   fastRenorm: boolean;
+  /**
+   * SKv2-0 V0.5 — the resolved session lane. `'exact'` locks the byte-locked
+   * numerics policy (per-op loosening throws); `'fast'` defaults Class-2
+   * accelerations on (tighten-only per-op overrides allowed); `'open'` is the
+   * no-claim legacy behavior. `'auto'` never appears here — it resolves at
+   * construction and `session.lane` reports the resolution.
+   */
+  lane: ResolvedLane;
+  /** SKv2-0 V0.6 — the keyed lattice-arm selection (see RenderLatticeExport). */
+  renderLatticeExport: RenderLatticeExport;
   raw: PicoRaw;
   registry: HandleRegistry;
   /** D4 — session teardown wins races; wrappers consult this before freeing. */

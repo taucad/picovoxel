@@ -585,7 +585,24 @@ rescoped): delete the env read (`src/context.ts:29`, module-load-time — two
 sessions in one process cannot even differ) in favour of a keyed
 `createPico` option on the V0.5 lane surface; V0.5 exposes the **resolved**
 lane on the session for future keying; adapter identity stays an
-SK-3.6/B8a entry criterion. The lanes-by-flag caveat is the enduring rule:
+SK-3.6/B8a entry criterion.
+**EXECUTED 2026-07-27 (SKv2-0 V0.5)** — the lane surface is live:
+`createPico({ lane: 'exact' | 'fast' | 'auto' })` (omitted = `'open'`, the
+no-claim legacy behavior; `'auto'` resolves at construction and
+`session.lane` reports only resolved values); `'exact'` locks the
+byte-locked policy (session-level and per-op loosening throw
+`PICO_LANE_LOOSENED`), `'fast'` bundles `fastRenorm` on with tighten-only
+overrides — the V0.4 flip landed here, in the named bundle. Per-handle
+provenance (`.lane` on voxels/mesh/fields, LUB over ancestry) persists as
+`PicoVoxel.Lane` grid metadata (rides copies and `.vdb` bytes; the name is
+reserved at the public metadata surface, so provenance is not forgeable);
+the refusing L0 export boundary is live on `toStl`/`toGlb`/`vdb.toBytes`
+(`PICO_LANE_EXPORT` unless `acceptLane: 'fast'`; acknowledged STL exports
+stamp `LANE=fast` in the header and `meshFromStl` restores it). The
+`PICOVOXEL_SERIAL_LATTICE` env read is **deleted**; the serial arm is the
+keyed `createPico({ serialLattice })` option. Canonical-serialization
+routing for acknowledged exports arrives with §12.8/V0.18. Evidence:
+`bench/results/webgpu-v2/SKv2-0-V0.5.md`. The lanes-by-flag caveat is the enduring rule:
 artifact digests distinguish artifact-level lanes automatically, but two
 lanes sharing one artifact differing only in a runtime flag are
 distinguished only if the flag is an init option. Key composition:

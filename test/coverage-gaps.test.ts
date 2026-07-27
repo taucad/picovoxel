@@ -407,11 +407,6 @@ test('checkedMalloc: a failed wasm allocation throws the typed OOM error, not a 
   assert.equal(checkedMalloc(failing, 0, 'nothing'), 0);
 });
 
-test('serial-lattice escape hatch resolves per env, tubes by default', async () => {
-  const { resolveRenderLatticeExport, RENDER_LATTICE_EXPORT } = await import('../src/context.ts');
-  assert.equal(resolveRenderLatticeExport({ PICOVOXEL_SERIAL_LATTICE: '1' }), 'Voxels_RenderLattice');
-  assert.equal(resolveRenderLatticeExport({}), 'Voxels_RenderLatticeTubes');
-  assert.equal(resolveRenderLatticeExport(undefined), 'Voxels_RenderLatticeTubes');
-  // The suite never sets the flag, so the module-level default is the tube lane.
-  assert.equal(RENDER_LATTICE_EXPORT, 'Voxels_RenderLatticeTubes');
-});
+// The serial-lattice escape hatch is now a keyed `createPico({ serialLattice })`
+// init option (SKv2-0 V0.5/V0.6 — the env read was deleted per §14.1); its
+// behavioral differential lives in test/lanes.test.ts.

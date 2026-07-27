@@ -20,6 +20,8 @@ export type PicoErrorCode =
   | 'PICO_ALLOC_FAILED'
   | 'PICO_RESERVED_METADATA'
   | 'PICO_VDB_NO_COMPATIBLE_FIELD'
+  | 'PICO_LANE_LOOSENED'
+  | 'PICO_LANE_EXPORT'
   | 'PICO_NOT_IMPLEMENTED';
 
 export class PicoError extends Error {

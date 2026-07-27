@@ -20,7 +20,7 @@
 // consumer path is covered). No explicit flush() is exported; there is nothing a
 // caller could do with one that reading `handle` does not already do.
 
-import { adoptHandle, checkedMalloc, expectHandle, RENDER_LATTICE_EXPORT, type SessionContext } from './context.ts';
+import { adoptHandle, checkedMalloc, expectHandle, type SessionContext } from './context.ts';
 import { assertLive, guard, PicoError } from './errors.ts';
 import type { Vec3 } from './types.ts';
 import { wrapVoxels, type Voxels } from './voxels.ts';
@@ -176,8 +176,9 @@ export function wrapLattice(ctx: SessionContext, handle: bigint): Lattice {
     toVoxels(): Voxels {
       live();
       flush();
+      const renderLattice = ctx.renderLatticeExport;
       const target = expectHandle('Voxels_hCreate', ctx.raw.Voxels_hCreate(ctx.lib));
-      guard(RENDER_LATTICE_EXPORT, () => ctx.raw[RENDER_LATTICE_EXPORT](ctx.lib, target, handle))();
+      guard(renderLattice, () => ctx.raw[renderLattice](ctx.lib, target, handle))();
       return wrapVoxels(ctx, target);
     },
     get memUsage() {
