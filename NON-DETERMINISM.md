@@ -433,6 +433,16 @@ this regime.
    upstream-vs-substrate before any merge re-attempt; the recommended
    re-attempt vehicle is `csgUnionCopy` either way.
 
+   > **EXECUTED 2026-07-27 (SKv2-0 V0.7) — REPRODUCED; the defect is
+   > upstream.** `bench/u20-native-repro.cpp` on native arm64 + stock
+   > homebrew oneTBB 12.18 + openvdb 13.0.0, driving upstream's own
+   > documented `CsgUnionOp(tree, DeepCopy())` / `foreachTopDown` pattern:
+   > 12 threads → 4 distinct checksums AND active-voxel counts in 5 runs
+   > (dropped geometry, the wasm P0 class); 1 thread → bit-stable, correct;
+   > steal-on-copy control bit-stable throughout. Substrate interaction is
+   > eliminated; novel upstream report, filing operator-gated. Evidence:
+   > `bench/results/webgpu-v2/SKv2-0-V0.7.md`.
+
 ## 12. Recommended adjustments to SK-0 and the charter
 
 1. Land the G0 oracle tooling (canonical grid hash, multiset mesh hash,
@@ -513,6 +523,12 @@ this regime.
 9. W1 T1/T2 proceed as chartered (they were always fast-lane work); T3
    (relaxed-SIMD) stays last behind its kill bar.
 10. `csgUnionCopy` boolean successor spike, gated on §11.3.
+    **EXECUTED 2026-07-27 (SKv2-0 V0.7)** — landed (`src/pico-boolean.cpp`
+    + facade `composeCopy`): value-identical (C18 differential, corpus +
+    G0 pins unchanged), one materialization per pair, warm wall ~1.4×;
+    §11.3 settled UPSTREAM by the native repro. M1 rider: mimalloc-lane
+    worker-arena high-water on the copy-compose (+187 MiB one-shot at a
+    0.08 mm probe; serial lane zero). Evidence: `SKv2-0-V0.7.md`.
 
 ## 13. What must never be relaxed
 

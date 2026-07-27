@@ -257,6 +257,30 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, laneIn?: PicoLan
     return other.handle;
   };
 
+  /** V0.7 — pairwise chain over a csg*Copy export; intermediates die eagerly. */
+  const composeCopy = (
+    name: 'Voxels_hBoolAddCopy' | 'Voxels_hBoolSubtractCopy' | 'Voxels_hBoolIntersectCopy',
+    what: string,
+    others: Voxels[],
+  ): Voxels => {
+    let current = live();
+    let owned = false; // the receiver is never ours to destroy
+    try {
+      for (const other of others) {
+        const next = expectHandle(name, guard(name, () => ctx.raw[name](ctx.lib, current, operandHandle(other, what)))());
+        if (owned) ctx.raw.Voxels_Destroy(ctx.lib, current);
+        current = next;
+        owned = true;
+      }
+      // Zero operands: stay pure — hand back an independent copy, as before.
+      if (!owned) current = expectHandle('Voxels_hCreateCopy', ctx.raw.Voxels_hCreateCopy(ctx.lib, current));
+      return wrapVoxels(ctx, current, lub(lane, ...others.map((other) => other.lane)));
+    } catch (error) {
+      if (owned) ctx.raw.Voxels_Destroy(ctx.lib, current);
+      throw error;
+    }
+  };
+
   const requireFinite = (value: number, field: string, where: string): number => {
     if (!Number.isFinite(value)) {
       throw new PicoError('PICO_INVALID_ARGUMENT', `${where} needs a finite ${field} in millimetres, got ${value}.`);
@@ -306,28 +330,16 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, laneIn?: PicoLan
   const voxels = {
     clone: (): Voxels => wrapVoxels(ctx, expectHandle('Voxels_hCreateCopy', ctx.raw.Voxels_hCreateCopy(ctx.lib, live())), lane),
 
+    // SKv2-0 V0.7 — booleans ride the shared-nothing csg*Copy exports: const
+    // inputs, exactly ONE fresh grid per pair (the old shape paid a receiver
+    // copy in derive() plus upstream's operand deep copy). Variadic forms
+    // chain pairwise, destroying intermediates immediately; the mutating
+    // exports remain on the raw subpath.
     union: (...others: Voxels[]): Voxels =>
-      derive(
-        'Voxels_BoolAdd',
-        (copy) => {
-          for (const other of others) ctx.raw.Voxels_BoolAdd(ctx.lib, copy, operandHandle(other, 'union operand'));
-        },
-        lub(lane, ...others.map((other) => other.lane)),
-      ),
+      composeCopy('Voxels_hBoolAddCopy', 'union operand', others),
     subtract: (...others: Voxels[]): Voxels =>
-      derive(
-        'Voxels_BoolSubtract',
-        (copy) => {
-          for (const other of others) ctx.raw.Voxels_BoolSubtract(ctx.lib, copy, operandHandle(other, 'subtract operand'));
-        },
-        lub(lane, ...others.map((other) => other.lane)),
-      ),
-    intersect: (other: Voxels): Voxels =>
-      derive(
-        'Voxels_BoolIntersect',
-        (copy) => ctx.raw.Voxels_BoolIntersect(ctx.lib, copy, operandHandle(other, 'intersect operand')),
-        lub(lane, other.lane),
-      ),
+      composeCopy('Voxels_hBoolSubtractCopy', 'subtract operand', others),
+    intersect: (other: Voxels): Voxels => composeCopy('Voxels_hBoolIntersectCopy', 'intersect operand', [other]),
 
     equals(other: Voxels): boolean {
       return guard('Voxels_bIsEqual', () => ctx.raw.Voxels_bIsEqual(ctx.lib, live(), operandHandle(other, 'equals operand')))();
@@ -403,10 +415,15 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, laneIn?: PicoLan
       return result;
     },
     trim(bounds: Bounds): Voxels {
-      // C# voxTrim (Voxels.cs:458-474): cube mesh over the box, then intersect.
+      // C# voxTrim (Voxels.cs:458-474): cube mesh over the box, then intersect
+      // — on the V0.7 shared-nothing export like the rest of the boolean family.
       const cube = cubeVoxels(ctx, bounds);
       try {
-        return derive('Voxels_BoolIntersect', (copy) => ctx.raw.Voxels_BoolIntersect(ctx.lib, copy, cube));
+        const result = expectHandle(
+          'Voxels_hBoolIntersectCopy',
+          guard('Voxels_hBoolIntersectCopy', () => ctx.raw.Voxels_hBoolIntersectCopy(ctx.lib, live(), cube))(),
+        );
+        return wrapVoxels(ctx, result, lane);
       } finally {
         ctx.raw.Voxels_Destroy(ctx.lib, cube);
       }

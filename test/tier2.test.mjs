@@ -884,6 +884,44 @@ test('C17 — grid hash: stable, representation-blind, content-sensitive', () =>
   });
 });
 
+// ── C18 — shared-nothing csg*Copy booleans (SKv2-0 V0.7, src/pico-boolean.cpp) ──
+test('C18 — csg*Copy: value-identical to the mutating path, inputs untouched', () => {
+  withLib(0.4, (lib) => {
+    const hash = _malloc(48);
+    const digest = () => Array.from({ length: 4 }, (_, i) => module.HEAPU32[(hash >> 2) + i]).join('-');
+    const hashOf = (voxels) => {
+      fns.Voxels_GetGridHash(lib, voxels, hash, hash + 16, hash + 24, hash + 32);
+      return digest();
+    };
+    const a = sphereOf(lib, 8);
+    const b = sphereOf(lib, 6, [5, 0, 0]);
+    const aBefore = hashOf(a);
+    const bBefore = hashOf(b);
+
+    const pairs = [
+      ['Voxels_hBoolAddCopy', 'Voxels_BoolAdd'],
+      ['Voxels_hBoolSubtractCopy', 'Voxels_BoolSubtract'],
+      ['Voxels_hBoolIntersectCopy', 'Voxels_BoolIntersect'],
+    ];
+    for (const [copyName, mutateName] of pairs) {
+      const fresh = fns[copyName](lib, a, b);
+      const reference = fns.Voxels_hCreateCopy(lib, a);
+      fns[mutateName](lib, reference, b);
+      assert.equal(hashOf(fresh), hashOf(reference), `${copyName} must be value-identical to ${mutateName}`);
+      fns.Voxels_Destroy(lib, fresh);
+      fns.Voxels_Destroy(lib, reference);
+    }
+
+    // Shared-nothing means const inputs: neither operand may move.
+    assert.equal(hashOf(a), aBefore, 'input A must be untouched');
+    assert.equal(hashOf(b), bBefore, 'input B must be untouched');
+
+    fns.Voxels_Destroy(lib, a);
+    fns.Voxels_Destroy(lib, b);
+    _free(hash);
+  });
+});
+
 // ── C16 — negative tests (R16) ─────────────────────────────────────────────────
 test('C16 — invalid handles throw and the module survives every one', () => {
   const lib = fns.Library_hCreateInstance(0.5);

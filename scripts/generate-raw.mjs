@@ -104,6 +104,23 @@ export const BULK_FUNCTIONS = [
     { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
     { name: 'hThis', type: 'PKVOXELS', cwrap: 'bigint' },
   ] },
+  // The boolean TU (src/pico-boolean.cpp) — shared-nothing csg*Copy composition
+  // (SKv2-0 V0.7): const inputs, one fresh output grid, no receiver/operand copies.
+  { name: 'Voxels_hBoolAddCopy', cwrapReturn: 'bigint', args: [
+    { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+    { name: 'hA', type: 'PKVOXELS', cwrap: 'bigint' },
+    { name: 'hB', type: 'PKVOXELS', cwrap: 'bigint' },
+  ] },
+  { name: 'Voxels_hBoolSubtractCopy', cwrapReturn: 'bigint', args: [
+    { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+    { name: 'hA', type: 'PKVOXELS', cwrap: 'bigint' },
+    { name: 'hB', type: 'PKVOXELS', cwrap: 'bigint' },
+  ] },
+  { name: 'Voxels_hBoolIntersectCopy', cwrapReturn: 'bigint', args: [
+    { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+    { name: 'hA', type: 'PKVOXELS', cwrap: 'bigint' },
+    { name: 'hB', type: 'PKVOXELS', cwrap: 'bigint' },
+  ] },
   // The offset TU (src/pico-offset.cpp) — the offset family's renormalization knobs.
   { name: 'Voxels_OffsetTuned', cwrapReturn: null, args: [
     { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
