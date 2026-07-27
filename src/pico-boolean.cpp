@@ -64,6 +64,110 @@ openvdb::FloatGrid::Ptr roIntersection(const openvdb::FloatGrid& oA, const openv
 
 } // namespace
 
+namespace
+{
+
+/// SKv2-0 V0.8 (T11) — the inside-set of a level-set tree as a voxelized mask.
+///
+/// Upstream bIsEqual classifies every coordinate in the union active bbox by
+/// `getValue(xyz) <= 0` — a dense O(bbox³) serial accessor scan. The
+/// classification is a pure function of the STORED values: active voxels and
+/// tiles, plus inactive negative tiles and inactive negative leaf voxels (the
+/// interior encoding G0's §14.5 OFF-stream walks); everything else returns the
+/// positive background = outside. So two grids are bIsEqual-equal iff their
+/// inside-sets match — built here in O(stored nodes) and compared tile-aware
+/// by dual topologyDifference (an interior tile and the same interior as
+/// dense leaves are one set; nothing is ever densified).
+void BuildInsideMask(const openvdb::FloatTree& oTree, openvdb::MaskTree& oMask)
+{
+    // Leaf voxels (active AND inactive — G0's OFF-stream lesson): straight
+    // buffer scans, one touchLeaf per leaf. Per-voxel tree-level setValueOn
+    // would pay a root-to-leaf descent per voxel (measured: it capped the
+    // repair at ~2×); leaf-local bit sets are O(1).
+    using MaskLeaf = openvdb::MaskTree::LeafNodeType;
+    for (auto leafIt = oTree.cbeginLeaf(); leafIt; ++leafIt)
+    {
+        const auto& oLeaf = *leafIt;
+        MaskLeaf* poMaskLeaf = nullptr;
+        for (openvdb::Index n = 0; n < oLeaf.SIZE; n++)
+        {
+            // NaN never classifies inside (<= is false), matching upstream.
+            if (!(oLeaf.getValue(n) <= 0.0f))
+                continue;
+            if (!poMaskLeaf)
+                poMaskLeaf = oMask.touchLeaf(oLeaf.origin());
+            poMaskLeaf->setValueOn(n);
+        }
+    }
+    // Tiles (active and inactive, any internal level): depth-capped iterators
+    // never descend to leaf voxels, so this visits O(tiles) entries only.
+    auto onIt = oTree.cbeginValueOn();
+    onIt.setMaxDepth(openvdb::FloatTree::DEPTH - 2);
+    for (; onIt; ++onIt)
+    {
+        openvdb::CoordBBox oBBox;
+        if (!(onIt.getValue() <= 0.0f) || onIt.isVoxelValue())
+            continue;
+        onIt.getBoundingBox(oBBox);
+        if (!oBBox.empty())
+            oMask.sparseFill(oBBox, true, true);
+    }
+    auto offIt = oTree.cbeginValueOff();
+    offIt.setMaxDepth(openvdb::FloatTree::DEPTH - 2);
+    for (; offIt; ++offIt)
+    {
+        openvdb::CoordBBox oBBox;
+        if (!(offIt.getValue() <= 0.0f) || offIt.isVoxelValue())
+            continue;
+        offIt.getBoundingBox(oBBox);
+        if (!oBBox.empty())
+            oMask.sparseFill(oBBox, true, true);
+    }
+    // NO voxelizeActiveTiles: densifying interior tiles is O(interior volume)
+    // and hands back most of the O(bbox³) cost this repair removes. Equality
+    // is decided tile-aware by dual topologyDifference — O(stored nodes).
+}
+
+/// Set equality over active states, representation-aware (a tile and the same
+/// region as dense leaves compare equal): A≡B iff A∖B and B∖A are both empty.
+bool bSameActiveSet(const openvdb::MaskTree& oMaskA, openvdb::MaskTree& oMaskB)
+{
+    openvdb::MaskTree oDiff(oMaskA);
+    oDiff.topologyDifference(oMaskB);
+    if (oDiff.activeVoxelCount() != 0)
+        return false;
+    oMaskB.topologyDifference(oMaskA); // B is ours to consume
+    return oMaskB.activeVoxelCount() == 0;
+}
+
+} // namespace
+
+/// Sign-classification equality, upstream-verdict-identical, O(stored) instead
+/// of O(bbox³): the T11 repair. Falls back to the upstream scan for the
+/// degenerate non-positive-background case upstream's semantics make weird.
+PICOGK_API bool Voxels_bIsEqualFast(PKINSTANCE hLib, PKVOXELS hA, PKVOXELS hB)
+{
+    PicoGK::Library::Instance::Ptr roLib = PicoGK::Library::oLib().roGetInstance(hLib);
+    PicoGK::Voxels::Ptr roA = roLib->m_oVoxels.roGet(hA);
+    PicoGK::Voxels::Ptr roB = roLib->m_oVoxels.roGet(hB);
+
+    const openvdb::FloatGrid& oGridA = *roA->roVdbGrid();
+    const openvdb::FloatGrid& oGridB = *roB->roVdbGrid();
+
+    if (oGridA.transform() != oGridB.transform())
+        return false;
+
+    // A non-positive background would put unbounded space "inside"; only the
+    // dense scan reproduces upstream's bbox-clipped answer for that shape.
+    if (oGridA.background() <= 0.0f || oGridB.background() <= 0.0f)
+        return roA->bIsEqual(*roB);
+
+    openvdb::MaskTree oMaskA, oMaskB;
+    BuildInsideMask(oGridA.tree(), oMaskA);
+    BuildInsideMask(oGridB.tree(), oMaskB);
+    return bSameActiveSet(oMaskA, oMaskB);
+}
+
 /// A ∪ B into a fresh grid; both inputs untouched.
 PICOGK_API PKVOXELS Voxels_hBoolAddCopy(PKINSTANCE hLib, PKVOXELS hA, PKVOXELS hB)
 {

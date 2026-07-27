@@ -157,3 +157,4 @@ _Voxels_RenderLatticeTubes
 _Voxels_hBoolAddCopy
 _Voxels_hBoolSubtractCopy
 _Voxels_hBoolIntersectCopy
+_Voxels_bIsEqualFast

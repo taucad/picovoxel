@@ -121,6 +121,13 @@ export const BULK_FUNCTIONS = [
     { name: 'hA', type: 'PKVOXELS', cwrap: 'bigint' },
     { name: 'hB', type: 'PKVOXELS', cwrap: 'bigint' },
   ] },
+  // T11 (SKv2-0 V0.8): sign-classification equality in O(stored) — upstream-
+  // verdict-identical replacement for the dense O(bbox³) Voxels_bIsEqual scan.
+  { name: 'Voxels_bIsEqualFast', cwrapReturn: 'boolean', args: [
+    { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+    { name: 'hA', type: 'PKVOXELS', cwrap: 'bigint' },
+    { name: 'hB', type: 'PKVOXELS', cwrap: 'bigint' },
+  ] },
   // The offset TU (src/pico-offset.cpp) — the offset family's renormalization knobs.
   { name: 'Voxels_OffsetTuned', cwrapReturn: null, args: [
     { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },

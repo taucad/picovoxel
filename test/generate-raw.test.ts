@@ -10,16 +10,17 @@ import abi from '../src/abi.json' with { type: 'json' };
 
 const source = generateRawSource(abi);
 
-test('manifest count: 140 core + 17 own-TU bindings, viewer surface excluded', () => {
+test('manifest count: 140 core + 18 own-TU bindings, viewer surface excluded', () => {
   assert.equal(abi.functions.filter((f: { viewer: boolean }) => !f.viewer).length, 140);
   // 4 bulk-mesh + 3 tape entries (fresh fill + the two R9 compose variants)
   // + 2 SK-0.3 bulk lattice entries + SK-0.5's Voxels_GetProperties
   // + SK-0.8's Voxels_OffsetTuned + SK-0.4's Voxels_RenderLatticeTubes
   // + SKv2-0 V0.1's Voxels_GetGridHash and Voxels_DensifyInterior
-  // + SKv2-0 V0.7's three shared-nothing csg*Copy booleans.
-  assert.equal(BULK_FUNCTIONS.length, 17);
+  // + SKv2-0 V0.7's three shared-nothing csg*Copy booleans
+  // + SKv2-0 V0.8's Voxels_bIsEqualFast (T11).
+  assert.equal(BULK_FUNCTIONS.length, 18);
   const bound = source.match(/^ {2}'[A-Za-z0-9_]+',$/gm) ?? [];
-  assert.equal(bound.length, 157, 'the export list must carry every binding');
+  assert.equal(bound.length, 158, 'the export list must carry every binding');
   assert.ok(!/Viewer_|Gui_/.test(source), 'viewer exports must never be bound');
 });
 
@@ -36,7 +37,7 @@ test('boolean returns keep the i32 -> boolean coercion wasm cannot do', () => {
   // Arity-matched wrappers only — a rest/spread wrapper would allocate per call.
   assert.match(source, /Voxels_bIsEmpty: \(fn\) => \(a0, a1\) => !!fn\(a0, a1\),/);
   const wrappers = source.match(/^ {2}[A-Za-z0-9_]+: \(fn\) => /gm) ?? [];
-  assert.equal(wrappers.length, 20, 'every boolean-returning export needs the !! wrap, and nothing else does');
+  assert.equal(wrappers.length, 21, 'every boolean-returning export needs the !! wrap, and nothing else does');
   assert.ok(!/=> !!fn\(\.\.\./.test(source), 'boolean wrappers must not spread');
 });
 

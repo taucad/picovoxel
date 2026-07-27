@@ -342,7 +342,9 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, laneIn?: PicoLan
     intersect: (other: Voxels): Voxels => composeCopy('Voxels_hBoolIntersectCopy', 'intersect operand', [other]),
 
     equals(other: Voxels): boolean {
-      return guard('Voxels_bIsEqual', () => ctx.raw.Voxels_bIsEqual(ctx.lib, live(), operandHandle(other, 'equals operand')))();
+      // T11 (SKv2-0 V0.8): O(stored) sign-set comparison, upstream-verdict-
+      // identical; the dense O(bbox³) Voxels_bIsEqual stays on the raw subpath.
+      return guard('Voxels_bIsEqualFast', () => ctx.raw.Voxels_bIsEqualFast(ctx.lib, live(), operandHandle(other, 'equals operand')))();
     },
     get isEmpty() {
       return guard('Voxels_bIsEmpty', () => ctx.raw.Voxels_bIsEmpty(ctx.lib, live()))();

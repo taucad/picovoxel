@@ -916,6 +916,13 @@ test('C18 — csg*Copy: value-identical to the mutating path, inputs untouched',
     assert.equal(hashOf(a), aBefore, 'input A must be untouched');
     assert.equal(hashOf(b), bBefore, 'input B must be untouched');
 
+    // V0.8 (T11): the O(stored) equality agrees with the dense upstream scan.
+    assert.equal(fns.Voxels_bIsEqualFast(lib, a, b), fns.Voxels_bIsEqual(lib, a, b), 'a vs b');
+    const aCopy = fns.Voxels_hCreateCopy(lib, a);
+    assert.equal(fns.Voxels_bIsEqualFast(lib, a, aCopy), true, 'a vs copy(a)');
+    assert.equal(fns.Voxels_bIsEqual(lib, a, aCopy), true, 'upstream agrees');
+    fns.Voxels_Destroy(lib, aCopy);
+
     fns.Voxels_Destroy(lib, a);
     fns.Voxels_Destroy(lib, b);
     _free(hash);
