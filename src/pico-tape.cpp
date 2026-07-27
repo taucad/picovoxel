@@ -68,6 +68,8 @@
 
 #include <openvdb/tools/Composite.h>
 
+#include <unordered_set>
+
 #include <tbb/blocked_range2d.h>
 #include <tbb/enumerable_thread_specific.h>
 #include <tbb/parallel_for.h>
@@ -673,13 +675,19 @@ int32_t nShortenTape(   const uint32_t* pnInstructions,
 /// renders the tape into roGrid — which MUST be empty (that is what makes
 /// upstream's min(sdf, existing) collapse to min(sdf, background) and the
 /// node-steal merge sound) — over oBBox expanded by the narrow band.
+/// F17 (SKv2-0 V0.10): when poColumns is non-null, only leaf-aligned (x,y)
+/// block columns present in the set are evaluated — the caller marks the
+/// support of a mask grid, and skipped columns simply produce no fresh
+/// values (for intersection they could only produce background anyway).
+/// nullptr = the pre-V0.10 behavior, byte-for-byte.
 void ParallelTapeFillGrid(  const openvdb::FloatGrid::Ptr& roGrid,
                             const float                    fBackground,
                             const PicoGK::VoxelSize        oVoxelSize,
                             const PKBBox3&                 oBBox,
                             const uint32_t*                pnInstructions,
                             int32_t                        nInstructionCount,
-                            const double*                  pfConstants)
+                            const double*                  pfConstants,
+                            const std::unordered_set<uint64_t>* poColumns = nullptr)
 {
     // Not public on Voxels, but recoverable: the constructor sets the grid
     // background to fToMM(nNarrowBand) (PicoGKVdbVoxels.h:72).
@@ -732,6 +740,9 @@ void ParallelTapeFillGrid(  const openvdb::FloatGrid::Ptr& roGrid,
             for (int32_t nCX = oRange.rows().begin(); nCX != oRange.rows().end(); nCX++)
             for (int32_t nCY = oRange.cols().begin(); nCY != oRange.cols().end(); nCY++)
             {
+                if (poColumns != nullptr &&
+                    poColumns->count(((uint64_t)(uint32_t) nCX << 32) | (uint64_t)(uint32_t) nCY) == 0)
+                    continue; // F17: outside the mask's support — background either way
                 const int32_t nColX0 = std::max(nX0, nCX * 8), nColX1 = std::min(nX1, nCX * 8 + 7);
                 const int32_t nColY0 = std::max(nY0, nCY * 8), nColY1 = std::min(nY1, nCY * 8 + 7);
                 const bool bColFullX = (nColX0 == nCX * 8) && (nColX1 == nCX * 8 + 7);
@@ -1293,6 +1304,109 @@ PICOGK_API void Voxels_IntersectImplicitTape(   PKINSTANCE      hLib,
     // Upstream: swap grids, then BoolIntersect → csgIntersection(implicit,
     // original). Same operand order here; the implicit tree survives and is
     // reseated into the handle's grid.
+    openvdb::tools::csgIntersection(*roImplicit, *roGrid);
+    roGrid->setTree(roImplicit->baseTreePtr());
+}
+
+namespace
+{
+
+/// F17 support map: every leaf-aligned (x,y) block column where the mask grid
+/// stores anything — leaf nodes (their voxels span band and interior remnants)
+/// and tiles at any internal level (active, or inactive-negative interiors).
+/// O(stored nodes); tiles mark their whole footprint in block units.
+void BuildSupportColumns(const openvdb::FloatTree& oTree, std::unordered_set<uint64_t>& oColumns)
+{
+    const auto nKey = [](int32_t nCX, int32_t nCY) {
+        return ((uint64_t)(uint32_t) nCX << 32) | (uint64_t)(uint32_t) nCY;
+    };
+    const auto markBBox = [&](const openvdb::CoordBBox& oBBox) {
+        for (int32_t nCX = oBBox.min().x() >> 3; nCX <= oBBox.max().x() >> 3; nCX++)
+            for (int32_t nCY = oBBox.min().y() >> 3; nCY <= oBBox.max().y() >> 3; nCY++)
+                oColumns.insert(nKey(nCX, nCY));
+    };
+    for (auto leafIt = oTree.cbeginLeaf(); leafIt; ++leafIt)
+    {
+        const openvdb::Coord xyz = leafIt->origin();
+        oColumns.insert(nKey(xyz.x() >> 3, xyz.y() >> 3));
+    }
+    auto onIt = oTree.cbeginValueOn();
+    onIt.setMaxDepth(openvdb::FloatTree::DEPTH - 2);
+    for (; onIt; ++onIt)
+    {
+        openvdb::CoordBBox oBBox;
+        onIt.getBoundingBox(oBBox);
+        markBBox(oBBox);
+    }
+    auto offIt = oTree.cbeginValueOff();
+    offIt.setMaxDepth(openvdb::FloatTree::DEPTH - 2);
+    for (; offIt; ++offIt)
+    {
+        if (!(offIt.getValue() < 0.0f))
+            continue;
+        openvdb::CoordBBox oBBox;
+        offIt.getBoundingBox(oBBox);
+        if (!oBBox.empty())
+            markBBox(oBBox);
+    }
+}
+
+} // namespace
+
+/// SKv2-0 V0.10 — U1-corrected, F17 support-restricted IntersectImplicit
+/// (tape path). Two changes vs Voxels_IntersectImplicitTape, which stays as
+/// the bit-identity oracle for the vendored callback path:
+///   (U1) the fresh grid's narrow band is background/voxelSize voxels (3),
+///        not the float->int truncation of a millimetre quantity that
+///        upstream's `Voxels oVox(oVoxelSize(), fBackgroundMM())` performs —
+///        band 1 at 0.5 mm, band 0 below ~1/3 mm (broken level sets);
+///   (F17) the fresh render evaluates only block columns in the target's
+///        support: where the target stores nothing, max(+bg, sdf) is +bg and
+///        the intersection discards the column regardless — O(bbox^2) of SDF
+///        evaluation becomes O(support columns).
+PICOGK_API void Voxels_IntersectImplicitTapeFast(   PKINSTANCE      hLib,
+                                                    PKVOXELS        hThis,
+                                                    const uint32_t* pnInstructions,
+                                                    int32_t         nInstructionCount,
+                                                    const double*   pfConstants,
+                                                    int32_t         nConstantCount)
+{
+    ValidateTape(pnInstructions, nInstructionCount, nConstantCount);
+
+    PicoGK::Library::Instance::Ptr roLib = PicoGK::Library::oLib().roGetInstance(hLib);
+    PicoGK::Voxels::Ptr roVoxels = roLib->m_oVoxels.roGet(hThis);
+
+    openvdb::FloatGrid::Ptr roGrid = roVoxels->roVdbGrid();
+    if (roGrid->tree().empty())
+        return;
+
+    const float             fBackground = roVoxels->fBackgroundMM();
+    const PicoGK::VoxelSize oVoxelSize  = roVoxels->oVoxelSize();
+
+    const openvdb::CoordBBox oActive = roGrid->evalActiveVoxelBoundingBox();
+    PKBBox3 oBBoxMM;
+    oBBoxMM.vecMin.X = oVoxelSize.fToMM(oActive.min().x());
+    oBBoxMM.vecMin.Y = oVoxelSize.fToMM(oActive.min().y());
+    oBBoxMM.vecMin.Z = oVoxelSize.fToMM(oActive.min().z());
+    oBBoxMM.vecMax.X = oVoxelSize.fToMM(oActive.max().x());
+    oBBoxMM.vecMax.Y = oVoxelSize.fToMM(oActive.max().y());
+    oBBoxMM.vecMax.Z = oVoxelSize.fToMM(oActive.max().z());
+
+    // U1: the band in voxels, and the fresh background it round-trips to.
+    const int32_t nFreshBand       = (int32_t) std::lround(fBackground / (float) oVoxelSize);
+    const float   fFreshBackground = oVoxelSize.fToMM(nFreshBand);
+
+    std::unordered_set<uint64_t> oColumns;
+    BuildSupportColumns(roGrid->tree(), oColumns);
+
+    openvdb::FloatGrid::Ptr roImplicit = openvdb::FloatGrid::create(fFreshBackground);
+    roImplicit->setGridClass(openvdb::GRID_LEVEL_SET);
+    roImplicit->setTransform(openvdb::math::Transform::createLinearTransform(oVoxelSize));
+
+    ParallelTapeFillGrid(   roImplicit, fFreshBackground, oVoxelSize,
+                            oBBoxMM, pnInstructions, nInstructionCount, pfConstants,
+                            &oColumns);
+
     openvdb::tools::csgIntersection(*roImplicit, *roGrid);
     roGrid->setTree(roImplicit->baseTreePtr());
 }

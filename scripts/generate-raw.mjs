@@ -136,6 +136,21 @@ export const BULK_FUNCTIONS = [
     { name: 'fZStart', type: 'float', cwrap: 'number' },
     { name: 'fZEnd', type: 'float', cwrap: 'number' },
   ] },
+  // F17 + U1 (SKv2-0 V0.10): support-restricted IntersectImplicit with the
+  // voxel-unit narrow band; the truncated-band originals stay as oracles.
+  { name: 'Voxels_IntersectImplicitFast', cwrapReturn: null, args: [
+    { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+    { name: 'hThis', type: 'PKVOXELS', cwrap: 'bigint' },
+    { name: 'pfnSdf', type: 'PKPFnfSdf', cwrap: 'number' },
+  ] },
+  { name: 'Voxels_IntersectImplicitTapeFast', cwrapReturn: null, args: [
+    { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+    { name: 'hThis', type: 'PKVOXELS', cwrap: 'bigint' },
+    { name: 'pnInstructions', type: 'const uint32_t*', cwrap: 'number' },
+    { name: 'nInstructionCount', type: 'int32_t', cwrap: 'number' },
+    { name: 'pfConstants', type: 'const double*', cwrap: 'number' },
+    { name: 'nConstantCount', type: 'int32_t', cwrap: 'number' },
+  ] },
   // The offset TU (src/pico-offset.cpp) — the offset family's renormalization knobs.
   { name: 'Voxels_OffsetTuned', cwrapReturn: null, args: [
     { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },

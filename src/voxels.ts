@@ -477,16 +477,19 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, laneIn?: PicoLan
     },
     maskedByImplicit({ sdf }: { sdf: SdfFunction | SdfExpression }): Voxels {
       // C# voxIntersectImplicit (Voxels.cs:748-753) — the gyroid-sphere idiom.
+      // SKv2-0 V0.10 — both paths ride the U1-corrected, F17 support-
+      // restricted exports (fresh band = background/voxelSize voxels; the
+      // truncated-band originals stay raw-side as oracles). At 1.0 mm the
+      // corrected band coincides with upstream's truncation, so 1.0 mm pins
+      // hold; finer scales gain the correct narrow band (<1/3 mm was broken).
       if (typeof sdf === 'function') {
-        return derive('Voxels_IntersectImplicit', (copy) =>
-          withSdfPointer(ctx, sdf, (sdfPointer) => ctx.raw.Voxels_IntersectImplicit(ctx.lib, copy, sdfPointer)),
+        return derive('Voxels_IntersectImplicitFast', (copy) =>
+          withSdfPointer(ctx, sdf, (sdfPointer) => ctx.raw.Voxels_IntersectImplicitFast(ctx.lib, copy, sdfPointer)),
         );
       }
-      // R9 — fresh parallel render over the active bounds + csg-intersect,
-      // mirroring upstream IntersectImplicit (src/pico-tape.cpp).
-      return derive('Voxels_IntersectImplicitTape', (copy) =>
+      return derive('Voxels_IntersectImplicitTapeFast', (copy) =>
         withSdfTape(ctx, sdf, (instrPtr, instrCount, constPtr, constCount) =>
-          ctx.raw.Voxels_IntersectImplicitTape(ctx.lib, copy, instrPtr, instrCount, constPtr, constCount),
+          ctx.raw.Voxels_IntersectImplicitTapeFast(ctx.lib, copy, instrPtr, instrCount, constPtr, constCount),
         ),
       );
     },

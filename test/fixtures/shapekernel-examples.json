@@ -137,7 +137,7 @@
  ],
  "ex-implicit-gyroid-genus": [
   {
-   "volumeHex": "000000e0024fd73f",
+   "volumeHex": "0000002044e5d43f",
    "triangles": 152
   },
   {
@@ -147,7 +147,7 @@
  ],
  "ex-implicit-gyroid-sphere": [
   {
-   "volumeHex": "000000a0254aac40",
+   "volumeHex": "00000000782dac40",
    "triangles": 92964
   },
   {

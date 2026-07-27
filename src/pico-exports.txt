@@ -159,3 +159,5 @@ _Voxels_hBoolSubtractCopy
 _Voxels_hBoolIntersectCopy
 _Voxels_bIsEqualFast
 _Voxels_ProjectZSliceFast
+_Voxels_IntersectImplicitTapeFast
+_Voxels_IntersectImplicitFast

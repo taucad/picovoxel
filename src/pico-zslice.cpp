@@ -167,3 +167,96 @@ PICOGK_API void Voxels_ProjectZSliceFast(PKINSTANCE hLib, PKVOXELS hThis, float 
 
     openvdb::tools::pruneLevelSet(oGrid.tree());
 }
+
+
+/// SKv2-0 V0.10 — U1-corrected, F17 support-restricted IntersectImplicit
+/// (JS-callback path; the vendored `Voxels::IntersectImplicit` stays raw-side
+/// as the oracle). Upstream builds its fresh grid as
+/// `Voxels oVox(oVoxelSize(), fBackgroundMM())`, passing MILLIMETRES into the
+/// ctor's `int nNarrowBand` — truncated to band 1 at 0.5 mm and band 0 below
+/// ~1/3 mm (U1, PicoPie Fix 2). Corrected here to background/voxelSize (3).
+/// F17: the dense sample loop runs only over leaf-aligned block columns where
+/// the target stores content — everywhere else the subsequent intersection
+/// yields background regardless of the SDF.
+PICOGK_API void Voxels_IntersectImplicitFast(PKINSTANCE hLib, PKVOXELS hThis, PKPFnfSdf pfn)
+{
+    PicoGK::Library::Instance::Ptr roLib = PicoGK::Library::oLib().roGetInstance(hLib);
+    PicoGK::Voxels::Ptr roVoxels = roLib->m_oVoxels.roGet(hThis);
+    openvdb::FloatGrid::Ptr roGrid = roVoxels->roVdbGrid();
+    if (roGrid->tree().empty())
+        return;
+
+    const float fVoxel = (float)roGrid->voxelSize()[0];
+    const float fBackgroundMM = (float)roGrid->background();
+    const int32_t nBand = (int32_t)std::lround(fBackgroundMM / fVoxel); // U1 fix
+    const float fFreshBackground = (float)nBand * fVoxel;               // fToMM(nBand)
+
+    const CoordBBox oActive = roGrid->evalActiveVoxelBoundingBox();
+
+    // Block-column support map (leaf-aligned x,y), tiles marked wholesale.
+    std::unordered_set<uint64_t> oColumns;
+    {
+        const auto nKey = [](int32_t nCX, int32_t nCY) {
+            return ((uint64_t)(uint32_t)nCX << 32) | (uint64_t)(uint32_t)nCY;
+        };
+        const auto markBBox = [&](const CoordBBox& oBBox) {
+            for (int32_t nCX = oBBox.min().x() >> 3; nCX <= oBBox.max().x() >> 3; nCX++)
+                for (int32_t nCY = oBBox.min().y() >> 3; nCY <= oBBox.max().y() >> 3; nCY++)
+                    oColumns.insert(nKey(nCX, nCY));
+        };
+        const openvdb::FloatTree& oTree = roGrid->tree();
+        for (auto leafIt = oTree.cbeginLeaf(); leafIt; ++leafIt)
+            oColumns.insert(nKey(leafIt->origin().x() >> 3, leafIt->origin().y() >> 3));
+        auto onIt = oTree.cbeginValueOn();
+        onIt.setMaxDepth(openvdb::FloatTree::DEPTH - 2);
+        for (; onIt; ++onIt)
+        {
+            CoordBBox oBBox;
+            onIt.getBoundingBox(oBBox);
+            markBBox(oBBox);
+        }
+        auto offIt = oTree.cbeginValueOff();
+        offIt.setMaxDepth(openvdb::FloatTree::DEPTH - 2);
+        for (; offIt; ++offIt)
+        {
+            if (!(offIt.getValue() < 0.0f))
+                continue;
+            CoordBBox oBBox;
+            offIt.getBoundingBox(oBBox);
+            if (!oBBox.empty())
+                markBBox(oBBox);
+        }
+    }
+
+    openvdb::FloatGrid::Ptr roImplicit = openvdb::FloatGrid::create(fFreshBackground);
+    roImplicit->setGridClass(openvdb::GRID_LEVEL_SET);
+    roImplicit->setTransform(openvdb::math::Transform::createLinearTransform(fVoxel));
+    auto oAccess = roImplicit->getAccessor();
+
+    // Upstream RenderImplicit's dense loop over bbox±band, restricted to the
+    // support columns; sample positions and per-voxel float ops verbatim
+    // (vecToMM = i·voxelSize; min(sdf, background); SetSdValue clamp/off).
+    const int32_t nX0 = oActive.min().x() - nBand, nX1 = oActive.max().x() + nBand;
+    const int32_t nY0 = oActive.min().y() - nBand, nY1 = oActive.max().y() + nBand;
+    const int32_t nZ0 = oActive.min().z() - nBand, nZ1 = oActive.max().z() + nBand;
+    for (int32_t nCX = nX0 >> 3; nCX <= nX1 >> 3; nCX++)
+    for (int32_t nCY = nY0 >> 3; nCY <= nY1 >> 3; nCY++)
+    {
+        if (oColumns.count(((uint64_t)(uint32_t)nCX << 32) | (uint64_t)(uint32_t)nCY) == 0)
+            continue;
+        const int32_t nBX0 = std::max(nX0, nCX * 8), nBX1 = std::min(nX1, nCX * 8 + 7);
+        const int32_t nBY0 = std::max(nY0, nCY * 8), nBY1 = std::min(nY1, nCY * 8 + 7);
+        for (int32_t x = nBX0; x <= nBX1; x++)
+        for (int32_t y = nBY0; y <= nBY1; y++)
+        for (int32_t z = nZ0; z <= nZ1; z++)
+        {
+            const PKVector3 vecSample((float)x * fVoxel, (float)y * fVoxel, (float)z * fVoxel);
+            const float fSdf = (*pfn)(&vecSample);
+            const float fValue = std::min(fSdf, oAccess.getValue(Coord(x, y, z)));
+            SetSd(oAccess, Coord(x, y, z), fFreshBackground, fValue);
+        }
+    }
+
+    openvdb::tools::csgIntersection(*roImplicit, *roGrid);
+    roGrid->setTree(roImplicit->baseTreePtr());
+}

@@ -969,6 +969,57 @@ test('C19 — ProjectZSliceFast: upstream-identical at 1.0 mm, corrected seal el
   });
 });
 
+// ── C20 — F17+U1 IntersectImplicit pair (SKv2-0 V0.10) ─────────────────────────
+test('C20 — IntersectImplicit{,Tape}Fast: cross-path exact, content-sensitive', () => {
+  withLib(1.0, (lib) => {
+    const hash = _malloc(48);
+    const digest = () => Array.from({ length: 4 }, (_, i) => module.HEAPU32[(hash >> 2) + i]).join('-');
+    const hashOf = (voxels) => {
+      fns.Voxels_GetGridHash(lib, voxels, hash, hash + 16, hash + 24, hash + 32);
+      return digest();
+    };
+    const sphere = sphereOf(lib, 8);
+
+    // Plane tape: z + 0.3 (const at index 0). Ops: CONST=0? use the compiled
+    // form from the TS compiler via a fixed literal tape is brittle — instead
+    // exercise the callback export against the tape export through the facade
+    // in test/intersect-implicit.test.ts; here R14 needs the raw exports
+    // touched with meaningful assertions.
+    const pointer = module.addFunction((vecPtr) => module.HEAPF32[(vecPtr + 8) >> 2] + 0.3, 'fi');
+    const viaCallback = fns.Voxels_hCreateCopy(lib, sphere);
+    fns.Voxels_IntersectImplicitFast(lib, viaCallback, pointer);
+    module.removeFunction(pointer);
+    const callbackHash = hashOf(viaCallback);
+    assert.notEqual(callbackHash, hashOf(sphere), 'the cut must change the field');
+
+    // Tape: [CONST 0.3][Z][ADD 1,0] — mirror src/tape.ts opcode layout via
+    // the generated raw table is overkill here; drive the tape export with
+    // the facade-compiled plane from the zslice test instead: keep this to
+    // the callback export plus a second callback invocation determinism check.
+    const again = fns.Voxels_hCreateCopy(lib, sphere);
+    const pointer2 = module.addFunction((vecPtr) => module.HEAPF32[(vecPtr + 8) >> 2] + 0.3, 'fi');
+    fns.Voxels_IntersectImplicitFast(lib, again, pointer2);
+    module.removeFunction(pointer2);
+    assert.equal(hashOf(again), callbackHash, 'deterministic across invocations');
+
+    // Tape leg: z + 0.3 as raw tape words — [CONST c0][Z][ADD r1,r0], packed
+    // ab = (a << 16) | b as EvalTapeIndices decodes. Must match the callback
+    // leg exactly (the V0.10 pair shares fill semantics end to end).
+    const instr = _malloc(6 * 4);
+    module.HEAPU32.set([0, 0, 3, 0, 4, (1 << 16) | 0], instr >> 2);
+    const consts = _malloc(8);
+    module.HEAPF64[consts >> 3] = 0.3;
+    const viaTape = fns.Voxels_hCreateCopy(lib, sphere);
+    fns.Voxels_IntersectImplicitTapeFast(lib, viaTape, instr, 3, consts, 1);
+    assert.equal(hashOf(viaTape), callbackHash, 'tape leg must equal the callback leg exactly');
+    _free(instr);
+    _free(consts);
+
+    for (const h of [viaCallback, again, viaTape, sphere]) fns.Voxels_Destroy(lib, h);
+    _free(hash);
+  });
+});
+
 // ── C16 — negative tests (R16) ─────────────────────────────────────────────────
 test('C16 — invalid handles throw and the module survives every one', () => {
   const lib = fns.Library_hCreateInstance(0.5);
