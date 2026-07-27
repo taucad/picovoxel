@@ -251,3 +251,46 @@ test('fastRenorm engages, and stays inside the SK-0.8 accuracy gates', () => {
     fast.dispose();
   }
 });
+
+// ── SKv2-0 V0.4 — the session-level fastRenorm default ──
+//
+// §14.1 precedence: explicit per-op > session default > library default (false).
+// Cross-session comparisons ride the G0 grid hash — canonical content identity
+// is comparable across sessions where handle equality is not.
+test('session fastRenorm default engages the whole family, and per-op values win both ways', async () => {
+  const fastPk = await createPico({ voxelSize: 0.4, fastRenorm: true });
+  try {
+    const body = (p: Pico) =>
+      p
+        .createVoxels({ shape: 'sphere', radius: 8 })
+        .union(p.createVoxels({ shape: 'beam', start: [-2, -2, -2], end: [12, 2, 2], radius: 2 }));
+    const base = body(pk);
+    const fastBase = body(fastPk);
+    const cases: [string, (v: Voxels, o: { fastRenorm?: boolean }) => Voxels][] = [
+      ['offset', (v, o) => v.offset({ distance: 2, ...o })],
+      ['doubleOffset', (v, o) => v.doubleOffset({ first: 2, second: -2, ...o })],
+      ['smoothen', (v, o) => v.smoothen({ distance: 1, ...o })],
+      ['fillet', (v, o) => v.fillet({ rounding: 2, ...o })],
+      ['shell', (v, o) => v.shell({ inner: -1, outer: 1, ...o })],
+    ];
+    for (const [label, run] of cases) {
+      // The session default reproduces the per-op opt-in exactly…
+      const viaSession = run(fastBase, {});
+      const viaExplicit = run(base, { fastRenorm: true });
+      assert.equal(viaSession.gridHash().hash, viaExplicit.gridHash().hash, `${label}: session default ≠ per-op opt-in`);
+      // …an explicit true inside the fast session is honoured (and redundant)…
+      const viaBoth = run(fastBase, { fastRenorm: true });
+      assert.equal(viaBoth.gridHash().hash, viaSession.gridHash().hash, `${label}: explicit true inside the fast session drifted`);
+      // …and an explicit false restores the byte-locked upstream path exactly.
+      const viaOptOut = run(fastBase, { fastRenorm: false });
+      const viaDefault = run(base, {});
+      assert.equal(viaOptOut.gridHash().hash, viaDefault.gridHash().hash, `${label}: per-op false did not restore the L0 path`);
+      assert.notEqual(viaSession.gridHash().hash, viaDefault.gridHash().hash, `${label}: the session default was a no-op`);
+      for (const v of [viaSession, viaExplicit, viaBoth, viaOptOut, viaDefault]) v.dispose();
+    }
+    base.dispose();
+    fastBase.dispose();
+  } finally {
+    fastPk.dispose();
+  }
+});

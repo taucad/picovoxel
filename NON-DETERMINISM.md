@@ -486,6 +486,20 @@ this regime.
    `bench/results/webgpu-v2/SKv2-0-V0.3.md`.
 4. Flip `fastRenorm` (FIRST_BIAS×3) default-on in the fast lane; file the
    SECOND_BIAS accuracy finding upstream (U-row candidate).
+
+   **EXECUTED 2026-07-27 (SKv2-0 V0.4) — mechanism landed; the flip binds in
+   the V0.5 lane bundle.** Session-level `createPico({ fastRenorm })` with
+   the §14.1 precedence rule (explicit per-op > session default > library
+   default false) landed, gated by a G0-hash precedence matrix and fast-lane
+   (MT/mimalloc) single≡multi identity + the hard `checkLevelSet` boolean;
+   the library default stays byte-locked. Per §14's own landing order (lane
+   surfacing **before** value-changing default flips), default-on is bound
+   to the named `'fast'` bundle in V0.5 rather than flipped ambiently on the
+   multi entry — pre-lane-API that would silently change every multi
+   consumer's geometry with no lane/provenance surface, the exact ambient
+   hazard §14.1 forbids. U22 filing text ready:
+   `upstream/pr-offset-renorm-default.md`. Evidence:
+   `bench/results/webgpu-v2/SKv2-0-V0.4.md`.
 5. Execute the SK-0.4 pin regeneration as chartered (already operator-
    approved) — under this regime it is the *last* pin ceremony of its kind:
    future same-geometry lane changes gate on G0, not on pin bytes.

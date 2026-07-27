@@ -63,6 +63,7 @@ order they were developed and dry-run in.
 | `issue-b3-addbeam-overloads.md` | leap71/PicoGK | B3 |
 | `issue-b4-voxshell-discarded-results.md` | leap71/PicoGK | B4 |
 | `pr-bulk-mesh-transfer.md` | leap71/PicoGKRuntime (+ the C# half in leap71/PicoGK) | U4 — the C ABI half is now `picogkruntime-bulk-mesh-abi.patch`; this text carries the rationale and the C#-side change, which targets the other repo |
+| `pr-offset-renorm-default.md` | leap71/PicoGKRuntime | U22 (ask 2) — the ready-to-post body for `picogkruntime-offset-renorm-scheme.patch`; ask 1 (settings parameter) deliberately offered as a follow-up, not diffed |
 
 ## What a PR should ship with
 

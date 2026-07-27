@@ -82,6 +82,13 @@ export interface CreatePicoOptions {
   wasm?: object;
   /** Native-memory warning threshold in bytes (default 1 GiB); 0 disables. */
   memoryWarningBytes?: number;
+  /**
+   * Session-wide default for the offset family's `fastRenorm` (SK-0.8
+   * first-order renormalization — 3.5–3.9× on offsets, output bounded and
+   * gated, see `offset()`). Default false = the byte-locked upstream path.
+   * Precedence: an explicit per-op `fastRenorm` always wins over this.
+   */
+  fastRenorm?: boolean;
   /** @internal test seam — fake disposal registry. */
   registry?: HandleRegistry;
   /** @internal test seam — clock for the warning throttle. */
@@ -136,7 +143,7 @@ export interface Pico {
  * which bind their variant's glue here.
  */
 export async function createPicoSession(glue: PicoGlueFactory, options: CreatePicoOptions = {}): Promise<Pico> {
-  const { voxelSize = 0.5, wasm, memoryWarningBytes = 2 ** 30, registry, now } = options;
+  const { voxelSize = 0.5, wasm, memoryWarningBytes = 2 ** 30, fastRenorm = false, registry, now } = options;
 
   if (!(voxelSize > 0) || !Number.isFinite(voxelSize)) {
     throw new PicoError(
@@ -166,6 +173,7 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
     module,
     lib,
     voxelSize,
+    fastRenorm,
     raw,
     registry: registry ?? createHandleRegistry(),
     dead: { value: false },

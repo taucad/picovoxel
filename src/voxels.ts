@@ -67,8 +67,11 @@ export interface ShellOptions {
  * scheme moves; `Voxels_OffsetTuned` on the raw subpath still reaches both knobs for
  * anyone who wants to re-sweep.
  *
- * This is an OPT-IN. The default path is the untuned upstream call, bit-for-bit, and
- * the byte-locked fixtures plus test/voxels-offsets.test.ts pin that.
+ * The LIBRARY default path is the untuned upstream call, bit-for-bit, and the
+ * byte-locked fixtures plus test/voxels-offsets.test.ts pin that. Since SKv2-0
+ * V0.4 a session may default the family on (`createPico({ fastRenorm: true })`;
+ * the V0.5 `'fast'` lane bundle is what sets it) — precedence is explicit
+ * per-op > session default > library default false.
  */
 const FAST_RENORM_SCHEME = 0; // openvdb::math::FIRST_BIAS (FiniteDifference.h:166)
 const FAST_RENORM_COUNT = -1; // < 0 == leave upstream's normCount (LEVEL_SET_HALF_WIDTH = 3)
@@ -94,7 +97,9 @@ export interface Voxels {
    * HJ-WENO — 3.5–3.9x on the offset family, since renormalization is 94–97% of the
    * offset wall. It CHANGES THE OUTPUT (measured at ≤2.2% volume, ≤0.36 mm peak
    * narrow-band displacement, level set still clean; gate values and the full sweep in
-   * bench/results/webgpu-v2/SK-0.8.md), so it is never the default.
+   * bench/results/webgpu-v2/SK-0.8.md), so it is never the library default —
+   * a session may default it on (see `CreatePicoOptions.fastRenorm`), and an
+   * explicit per-op value always wins.
    */
   offset(options: { distance: number; fastRenorm?: boolean }): Voxels;
   /** Two offsets in sequence (closing/opening when signs differ). */
@@ -288,26 +293,26 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint): Voxels {
 
     offset(options: { distance: number; fastRenorm?: boolean }) {
       const distance = requireFinite(options.distance, 'distance', 'offset({ distance })');
-      if (options.fastRenorm) return fastOffset([distance]);
+      if (options.fastRenorm ?? ctx.fastRenorm) return fastOffset([distance]);
       return derive('Voxels_Offset', (copy) => ctx.raw.Voxels_Offset(ctx.lib, copy, distance));
     },
     doubleOffset(options: { first: number; second: number; fastRenorm?: boolean }) {
       const first = requireFinite(options.first, 'first', 'doubleOffset');
       const second = requireFinite(options.second, 'second', 'doubleOffset');
-      if (options.fastRenorm) return fastOffset([first, second]);
+      if (options.fastRenorm ?? ctx.fastRenorm) return fastOffset([first, second]);
       return derive('Voxels_DoubleOffset', (copy) => ctx.raw.Voxels_DoubleOffset(ctx.lib, copy, first, second));
     },
     smoothen(options: { distance: number; fastRenorm?: boolean }) {
       const distance = requireFinite(options.distance, 'distance', 'smoothen');
       // TripleOffset is grow d / shrink 2d / grow d on one filter (PicoGKVdbVoxels.h:310-330).
-      if (options.fastRenorm) return fastOffset([distance, -2 * distance, distance]);
+      if (options.fastRenorm ?? ctx.fastRenorm) return fastOffset([distance, -2 * distance, distance]);
       return derive('Voxels_TripleOffset', (copy) => ctx.raw.Voxels_TripleOffset(ctx.lib, copy, distance));
     },
     fillet(options: { rounding: number; finalSurfaceDistance?: number; fastRenorm?: boolean }) {
       // C# voxOverOffset composition (Voxels.cs:613-621): DoubleOffset(r, −r + final).
       const rounding = requireFinite(options.rounding, 'rounding', 'fillet');
       const final = requireFinite(options.finalSurfaceDistance ?? 0, 'finalSurfaceDistance', 'fillet');
-      if (options.fastRenorm) return fastOffset([rounding, -rounding + final]);
+      if (options.fastRenorm ?? ctx.fastRenorm) return fastOffset([rounding, -rounding + final]);
       return derive('Voxels_DoubleOffset', (copy) => ctx.raw.Voxels_DoubleOffset(ctx.lib, copy, rounding, -rounding + final));
     },
     shell(options: ShellOptions): Voxels {

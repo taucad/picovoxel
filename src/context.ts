@@ -40,6 +40,12 @@ export interface SessionContext {
   module: PicoWasmModule;
   lib: bigint;
   voxelSize: number;
+  /**
+   * SKv2-0 V0.4 — session default for the offset family's `fastRenorm`
+   * (§14.1 precedence: explicit per-op > session default > library default
+   * false). The `'fast'` lane bundle (V0.5) is what sets this true.
+   */
+  fastRenorm: boolean;
   raw: PicoRaw;
   registry: HandleRegistry;
   /** D4 — session teardown wins races; wrappers consult this before freeing. */
