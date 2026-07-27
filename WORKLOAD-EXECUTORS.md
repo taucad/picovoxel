@@ -25,6 +25,15 @@ Ledger of every PicoGK runtime compute entry point and its **current workload ex
 > lattice tube-lane regression in §5.3 is filed. Details:
 > `bench/results/webgpu-v2/SK-0-EXIT.md`.
 >
+> **Fast-lane default FLIPPED 2026-07-27 (SKv2-0 V0.3).** `scripts/build-pico-module.sh` now
+> defaults the MT artifact (`pico-multi`) to `-sMALLOC=mimalloc`; the serial artifact — the L0
+> oracle lane and the shipped single-thread default — stays dlmalloc, and `MALLOC=…` still
+> overrides either for A/B. On the flipped artifact: suite 474/474 (the G0 per-commit pins,
+> generated on dlmalloc, held unchanged), and the release sweep is 16/16 G0-identical with 4/4
+> cross-lane single≡multi at 1.0/0.7/0.5 mm HeatX + 0.25 mm gyroid — every grid/multiset hash
+> equal to the dlmalloc-era values. Re-baseline vs `sk-0-exit-baseline-dlmalloc.json` recorded
+> in `bench/results/webgpu-v2/SKv2-0-V0.3.md`.
+>
 > **Baselines re-based 2026-07-26 (SK-0.1) and remain dlmalloc-denominated.** *(Superseded as
 > the denominator by the SK-0 EXIT baseline above; retained for history.)* Every later
 > spike (SK-1…SK-3) must compare against `bench/results/webgpu-v2/sk-0.1-baseline-dlmalloc.json`

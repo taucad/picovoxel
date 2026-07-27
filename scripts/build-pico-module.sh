@@ -33,7 +33,12 @@ EH_FLAGS="${EH_FLAGS:--fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=1}"
 # Allocator (SK-0.1): link-time only — the dep archives call malloc/free and bind
 # at link, so A/B needs no dep rebuild. emscripten's default is dlmalloc, whose
 # global free-list mutex serializes the 12-thread creation paths.
-MALLOC="${MALLOC:-dlmalloc}"
+# Lane-scoped defaults (SKv2-0 V0.3, per the SK-0-EXIT decision table): the MT
+# fast lane (pico-multi) defaults to mimalloc — HeatX multi construct 2.164×
+# [CI 2.141–2.178], byte-identical to dlmalloc across all 64 exit-baseline
+# comparisons. The single-thread artifact is the L0 oracle lane and stays
+# dlmalloc (mimalloc is 0.84–0.99× on 45 of 73 ST phases anyway). MALLOC=…
+# still overrides either default for A/B runs.
 # THREADS=1 — pthread variant: links the -mt prefix (shared-memory ABI, built by
 # THREADS=1 build-deps-wasm.sh) into pico-multi.mjs/.wasm. The pool is
 # pre-spawned at nproc: TBB workers park in it, and a pre-spawned pool is the
@@ -44,6 +49,7 @@ MALLOC="${MALLOC:-dlmalloc}"
 RUNTIME_METHODS=ccall,cwrap,UTF8ToString,stringToUTF8,lengthBytesUTF8,addFunction,removeFunction,FS,HEAPF32,HEAPF64,HEAP32,HEAPU32
 if [ "${THREADS:-0}" = "1" ]; then
   MT="-mt"; VARIANT="pico-multi"
+  MALLOC="${MALLOC:-mimalloc}"
   WASM_FLAGS="$WASM_FLAGS -pthread"
   THREAD_LINK_FLAGS=(-sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency)
   # PThread exposes pool state: the multi entry's thread warmup is observable
@@ -51,6 +57,7 @@ if [ "${THREADS:-0}" = "1" ]; then
   RUNTIME_METHODS="$RUNTIME_METHODS,PThread"
 else
   MT=""; VARIANT="pico"
+  MALLOC="${MALLOC:-dlmalloc}"
   THREAD_LINK_FLAGS=()
 fi
 PREFIX="${PREFIX:-$OUT/wasm-prefix$MT}"

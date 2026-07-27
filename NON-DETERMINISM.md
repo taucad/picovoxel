@@ -475,6 +475,15 @@ this regime.
    > (SK-0.1: failed on both), so R12's boundary is finer than 0.4 mm and
    > unlocated. **No default was flipped by that spike**; the flip itself remains
    > an operator decision. Evidence: `bench/results/webgpu-v2/SK-0-EXIT.md`.
+
+   **EXECUTED 2026-07-27 (SKv2-0 V0.3) — the flip landed.** The MT artifact
+   (`pico-multi`) now links mimalloc by default in
+   `scripts/build-pico-module.sh`; the serial artifact stays dlmalloc as the
+   L0 oracle lane. Suite 474/474 on the flipped artifact with the dlmalloc-era
+   G0 pins unchanged; release sweep 16/16 G0-identical, 4/4 cross-lane
+   single≡multi (1.0/0.7/0.5 mm HeatX + 0.25 mm gyroid), every hash equal to
+   the V0.1 dlmalloc-era sweep. Evidence:
+   `bench/results/webgpu-v2/SKv2-0-V0.3.md`.
 4. Flip `fastRenorm` (FIRST_BIAS×3) default-on in the fast lane; file the
    SECOND_BIAS accuracy finding upstream (U-row candidate).
 5. Execute the SK-0.4 pin regeneration as chartered (already operator-

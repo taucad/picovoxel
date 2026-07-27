@@ -2,6 +2,10 @@
 // names as the base entry, bound to pico-multi.mjs: switching variants is a
 // one-specifier change, and neither glue ever appears in the other's graph.
 //
+// Allocator: this artifact links mimalloc (SKv2-0 V0.3, per the SK-0-EXIT
+// decision table — construct 2.164×, byte-identical to dlmalloc). The serial
+// entry stays dlmalloc: it is the L0 oracle lane and byte-locked.
+//
 // Runtime requirements beyond the serial build: SharedArrayBuffer — in browsers
 // that means cross-origin isolation (COOP/COEP headers). Node needs nothing extra.
 //
