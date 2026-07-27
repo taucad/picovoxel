@@ -1020,6 +1020,32 @@ test('C20 — IntersectImplicit{,Tape}Fast: cross-path exact, content-sensitive'
   });
 });
 
+// ── C21 — P8 batched queries (SKv2-0 V0.11) ────────────────────────────────────
+test('C21 — RayCastBatch/ClosestPointBatch: counts and content sane', () => {
+  withLib(0.5, (lib) => {
+    const sphere = sphereOf(lib, 8);
+    const n = 2;
+    const origins = _malloc(n * 12), dirs = _malloc(n * 12), hits = _malloc(n * 12), mask = _malloc(n);
+    // Ray 0: from +x inward (hit). Ray 1: from +x outward (miss).
+    module.HEAPF32.set([14, 0, 0, 14, 0, 0], origins >> 2);
+    module.HEAPF32.set([-1, 0, 0, 1, 0, 0], dirs >> 2);
+    const hitCount = fns.Voxels_RayCastBatch(lib, sphere, origins, dirs, n, hits, mask);
+    assert.equal(hitCount, 1, 'one hit, one miss');
+    const surfaceX = module.HEAPF32[hits >> 2];
+    assert.ok(Math.abs(surfaceX - 8) <= 1.0, `hit lands on the +x surface (got ${surfaceX})`);
+
+    const queries = _malloc(12), out = _malloc(12), found = _malloc(4);
+    module.HEAPF32.set([12, 0, 0], queries >> 2);
+    const foundCount = fns.Voxels_ClosestPointBatch(lib, sphere, queries, 1, out, found);
+    assert.equal(foundCount, 1);
+    const cx = module.HEAPF32[out >> 2];
+    assert.ok(Math.abs(cx - 8) <= 0.5, `closest point on the +x surface (got ${cx})`);
+
+    for (const p of [origins, dirs, hits, mask, queries, out, found]) _free(p);
+    fns.Voxels_Destroy(lib, sphere);
+  });
+});
+
 // ── C16 — negative tests (R16) ─────────────────────────────────────────────────
 test('C16 — invalid handles throw and the module survives every one', () => {
   const lib = fns.Library_hCreateInstance(0.5);

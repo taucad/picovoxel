@@ -167,6 +167,19 @@ export interface Voxels {
   closestPointOnSurface(position: Vec3): Vec3 | null;
   /** Ray-surface intersection, or null on a miss. */
   raycastToSurface(position: Vec3, direction: Vec3): Vec3 | null;
+  /**
+   * SKv2-0 V0.11 (P8) — N rays over ONE cached intersector and one ABI
+   * crossing. Per-ray results are EXACTLY the serial `raycastToSurface`
+   * semantics (incl. upstream's integer-voxel hit truncation). `hits` is
+   * xyz-triples; entries where `hit[i] === 0` are undefined.
+   */
+  raycastBatch(options: { origins: ArrayLike<number>; directions: ArrayLike<number> }): { hits: Float32Array; hit: Uint8Array };
+  /**
+   * SKv2-0 V0.11 (P8) — N closest-surface-point queries over one index
+   * build (openvdb ClosestSurfacePoint): sub-voxel results, C2 by nature.
+   * The SDF is its own oracle: |φ(query)| is the true distance.
+   */
+  closestPointsOnSurface(options: { points: ArrayLike<number> }): { points: Float32Array; found: Uint8Array };
   /** Field extent in discrete voxel units. */
   dimensions(): { origin: Vec3; size: Vec3 };
   /** Number of Z slices. */
@@ -563,6 +576,49 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, laneIn?: PicoLan
         ctx.raw.Voxels_bRayCastToSurface(ctx.lib, live(), ctx.scratch, ctx.scratch + VEC3_BYTES, ctx.scratch + 2 * VEC3_BYTES),
       )();
       return hit ? ctx.readVec3(ctx.scratch + 2 * VEC3_BYTES) : null;
+    },
+    raycastBatch({ origins, directions }: { origins: ArrayLike<number>; directions: ArrayLike<number> }): { hits: Float32Array; hit: Uint8Array } {
+      live();
+      const count = origins.length / 3;
+      if (!Number.isInteger(count) || directions.length !== origins.length) {
+        throw new PicoError('PICO_INVALID_ARGUMENT', `raycastBatch needs matching xyz-triple arrays; got ${origins.length}/${directions.length} floats.`);
+      }
+      const bytes = count * VEC3_BYTES;
+      const pointer = checkedMalloc(ctx.module, 2 * bytes + bytes + count, 'a raycast batch buffer');
+      try {
+        ctx.module.HEAPF32.set(origins as ArrayLike<number> & number[], pointer >>> 2);
+        ctx.module.HEAPF32.set(directions as ArrayLike<number> & number[], (pointer + bytes) >>> 2);
+        guard('Voxels_RayCastBatch', () =>
+          ctx.raw.Voxels_RayCastBatch(ctx.lib, handle, pointer, pointer + bytes, count, pointer + 2 * bytes, pointer + 3 * bytes),
+        )();
+        const hits = new Float32Array(ctx.module.HEAPF32.subarray((pointer + 2 * bytes) >>> 2, ((pointer + 2 * bytes) >>> 2) + count * 3));
+        const hit = new Uint8Array(count);
+        for (let i = 0; i < count; i++) hit[i] = ctx.module.HEAPU32[(pointer + 3 * bytes + (i & ~3)) >>> 2]! >>> ((i & 3) * 8) & 0xff;
+        return { hits, hit };
+      } finally {
+        ctx.module._free(pointer);
+      }
+    },
+    closestPointsOnSurface({ points }: { points: ArrayLike<number> }): { points: Float32Array; found: Uint8Array } {
+      live();
+      const count = points.length / 3;
+      if (!Number.isInteger(count)) {
+        throw new PicoError('PICO_INVALID_ARGUMENT', `closestPointsOnSurface needs xyz triples; got ${points.length} floats.`);
+      }
+      const bytes = count * VEC3_BYTES;
+      const pointer = checkedMalloc(ctx.module, 2 * bytes + count, 'a closest-point batch buffer');
+      try {
+        ctx.module.HEAPF32.set(points as ArrayLike<number> & number[], pointer >>> 2);
+        guard('Voxels_ClosestPointBatch', () =>
+          ctx.raw.Voxels_ClosestPointBatch(ctx.lib, handle, pointer, count, pointer + bytes, pointer + 2 * bytes),
+        )();
+        const out = new Float32Array(ctx.module.HEAPF32.subarray((pointer + bytes) >>> 2, ((pointer + bytes) >>> 2) + count * 3));
+        const found = new Uint8Array(count);
+        for (let i = 0; i < count; i++) found[i] = ctx.module.HEAPU32[(pointer + 2 * bytes + (i & ~3)) >>> 2]! >>> ((i & 3) * 8) & 0xff;
+        return { points: out, found };
+      } finally {
+        ctx.module._free(pointer);
+      }
     },
 
     dimensions: () => dims(),

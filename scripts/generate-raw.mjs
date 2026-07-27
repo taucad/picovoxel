@@ -151,6 +151,25 @@ export const BULK_FUNCTIONS = [
     { name: 'pfConstants', type: 'const double*', cwrap: 'number' },
     { name: 'nConstantCount', type: 'int32_t', cwrap: 'number' },
   ] },
+  // P8 (SKv2-0 V0.11): batched queries — one intersector / one index build
+  // per batch instead of per ABI call.
+  { name: 'Voxels_RayCastBatch', cwrapReturn: 'number', args: [
+    { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+    { name: 'hThis', type: 'PKVOXELS', cwrap: 'bigint' },
+    { name: 'pvecOrigins', type: 'const PKVector3*', cwrap: 'number' },
+    { name: 'pvecDirections', type: 'const PKVector3*', cwrap: 'number' },
+    { name: 'nCount', type: 'int32_t', cwrap: 'number' },
+    { name: 'pvecHits', type: 'PKVector3*', cwrap: 'number' },
+    { name: 'pbHit', type: 'uint8_t*', cwrap: 'number' },
+  ] },
+  { name: 'Voxels_ClosestPointBatch', cwrapReturn: 'number', args: [
+    { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+    { name: 'hThis', type: 'PKVOXELS', cwrap: 'bigint' },
+    { name: 'pvecQueries', type: 'const PKVector3*', cwrap: 'number' },
+    { name: 'nCount', type: 'int32_t', cwrap: 'number' },
+    { name: 'pvecPoints', type: 'PKVector3*', cwrap: 'number' },
+    { name: 'pbFound', type: 'uint8_t*', cwrap: 'number' },
+  ] },
   // The offset TU (src/pico-offset.cpp) — the offset family's renormalization knobs.
   { name: 'Voxels_OffsetTuned', cwrapReturn: null, args: [
     { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
