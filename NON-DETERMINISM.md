@@ -544,11 +544,28 @@ key (`kernel-worker.ts:4589-4623, 5113-5118` → used verbatim by all three
 caches at `geometry-cache.middleware.ts:319/379/433`) already captures wasm
 artifact digests (so per-artifact lanes key correctly for free), model-source
 per-op flags, and kernel init options. It does NOT capture: **ambient env
-state** — `PICOVOXEL_SERIAL_LATTICE=1` changes geometry today, invisibly to
-the key (a live instance, not hypothetical) — or **adapter identity** for
-future GPU lanes. Rule: *all lane-relevant state must be lifted into
-artifact identity or kernel init options; ambient state that changes
-geometry is a cache-key bug by definition.* Key composition:
+state** — `PICOVOXEL_SERIAL_LATTICE=1` changes geometry invisibly to any
+such key — or **adapter identity** for future GPU lanes. Rule: *all
+lane-relevant state must be lifted into artifact identity or kernel init
+options; ambient state that changes geometry is a cache-key bug by
+definition.*
+**CORRECTED + RESCOPED 2026-07-27 (operator review)**: picovoxel is not a
+Tau kernel today (zero references in the Tau runtime), so the env var is a
+live ambient *input* in picovoxel, not a live Tau cache bug — "changes
+geometry today, invisibly to the key" overstated. And the Tau side needs
+**no amendment even at integration time**: `computeBaseDependencies`
+(steps 5–6) already keys every kernel init option per key/value and every
+implementation-asset sha256, and all three geometry caches consume
+`dependencyHash` verbatim — lanes key correctly for free *provided they
+are constructor-explicit*. What survives of this item (SKv2-0 V0.6,
+rescoped): delete the env read (`src/context.ts:29`, module-load-time — two
+sessions in one process cannot even differ) in favour of a keyed
+`createPico` option on the V0.5 lane surface; V0.5 exposes the **resolved**
+lane on the session for future keying; adapter identity stays an
+SK-3.6/B8a entry criterion. The lanes-by-flag caveat is the enduring rule:
+artifact digests distinguish artifact-level lanes automatically, but two
+lanes sharing one artifact differing only in a runtime flag are
+distinguished only if the flag is an init option. Key composition:
 `H(inputs ∥ kernelId ∥ kernelVersion ∥ artifactSha256s ∥ laneId ∥
 lane-relevant flags ∥ [L1/L2: adapter family + driver/Dawn bucket])`, with
 `'auto'` resolved before hashing (an unresolved `'auto'` is exactly the
