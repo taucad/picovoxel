@@ -128,6 +128,14 @@ export const BULK_FUNCTIONS = [
     { name: 'hA', type: 'PKVOXELS', cwrap: 'bigint' },
     { name: 'hB', type: 'PKVOXELS', cwrap: 'bigint' },
   ] },
+  // T5×F15 + U2 (SKv2-0 V0.9): column-culled ProjectZSlice with the
+  // voxel-unit seal count; the dense mutating export stays as the oracle.
+  { name: 'Voxels_ProjectZSliceFast', cwrapReturn: null, args: [
+    { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+    { name: 'hThis', type: 'PKVOXELS', cwrap: 'bigint' },
+    { name: 'fZStart', type: 'float', cwrap: 'number' },
+    { name: 'fZEnd', type: 'float', cwrap: 'number' },
+  ] },
   // The offset TU (src/pico-offset.cpp) — the offset family's renormalization knobs.
   { name: 'Voxels_OffsetTuned', cwrapReturn: null, args: [
     { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },

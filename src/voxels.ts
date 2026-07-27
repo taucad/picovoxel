@@ -431,9 +431,15 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, laneIn?: PicoLan
       }
     },
     projectZSlice(options: { startZ: number; endZ: number }) {
+      // SKv2-0 V0.9 — the T5×F15 column-culled export with the U2 voxel-unit
+      // seal count; upstream's dense mutating export stays on the raw subpath
+      // as the differential oracle. At 1.0 mm the seal counts coincide, so
+      // 1.0 mm pins are byte-identical; other scales seal CORRECTLY now (the
+      // pre-fix geometry was wrong — pins regenerated per the SK-0.4
+      // protocol with this cause named).
       const startZ = requireFinite(options.startZ, 'startZ', 'projectZSlice');
       const endZ = requireFinite(options.endZ, 'endZ', 'projectZSlice');
-      return derive('Voxels_ProjectZSlice', (copy) => ctx.raw.Voxels_ProjectZSlice(ctx.lib, copy, startZ, endZ));
+      return derive('Voxels_ProjectZSliceFast', (copy) => ctx.raw.Voxels_ProjectZSliceFast(ctx.lib, copy, startZ, endZ));
     },
 
     withMesh(mesh: Mesh): Voxels {

@@ -1,0 +1,169 @@
+// SKv2-0 V0.9 — ProjectZSlice repair (T5×F15) + the U2 seal-count fix.
+//
+// Upstream ProjectZSliceDn/Up (PicoGKVdbVoxels.h:549-633) sweeps EVERY (x,y)
+// column of the active bbox with per-voxel accessor reads — O(bbox area ×
+// slab height) regardless of occupancy — then seals the end cap over
+// `(int)(0.5f + background())` layers. That count treats a MILLIMETRE
+// quantity as a layer count (U2, PicoPie Fix 3): at 1.0 mm voxels it lands
+// on the correct 3 by coincidence; at 0.5 mm it seals 2 of 3 layers; below
+// ~0.167 mm it seals zero and caps come out open. The correct count is the
+// narrow band in voxels: background()/voxelSize (= the
+// PICOGK_VOXEL_DEFAULTNARROWBAND the grid was built with).
+//
+// This TU keeps upstream's per-column value logic verbatim (min-propagation
+// down/up the slab, average-seal at the end cap, SetSdValue clamp+off
+// semantics, terminal pruneLevelSet) and changes exactly two things:
+//   (1) F15 culling — only columns whose slab z-range intersects stored
+//       content are visited. Untouched columns differ from upstream only by
+//       writes SetSdValue makes at background value, which the terminal
+//       prune removes — value-identical after prune (upstream prunes too).
+//   (2) The seal layer count is measured in voxels, not millimetres (U2).
+//       At 1.0 mm the two agree, so 1.0 mm pins hold byte-for-byte.
+//
+// The mutating upstream export stays on the raw subpath as the oracle for
+// the differential suite (which asserts identity at 1.0 mm and the CORRECTED
+// seal at other scales).
+
+#include "PicoGKTypes.h"
+#include "PicoGK.h"
+#include "PicoGKLibraryMgr.h"
+
+#include <openvdb/openvdb.h>
+#include <openvdb/tools/Prune.h>
+
+#include <algorithm>
+#include <cmath>
+#include <unordered_set>
+
+namespace
+{
+
+using openvdb::Coord;
+using openvdb::CoordBBox;
+
+inline void SetSd(openvdb::FloatGrid::Accessor& oAccess, const Coord& xyz, float fBackground, float fValue)
+{
+    // Verbatim upstream SetSdValue (PicoGKVdbVoxels.h:1024-1035).
+    oAccess.setValue(xyz, std::clamp(fValue, -fBackground, fBackground));
+    if (std::abs(fValue) >= fBackground)
+        oAccess.setValueOff(xyz);
+}
+
+/// Columns whose [zMin, zMax] slab intersects stored content (active voxels,
+/// active tiles, or negative inactive tiles — anything a read could see that
+/// is not plain background). O(stored nodes), never O(bbox).
+void MarkColumns(const openvdb::FloatTree& oTree, int32_t iZMin, int32_t iZMax,
+                 std::unordered_set<uint64_t>& oColumns)
+{
+    const auto nKey = [](int32_t x, int32_t y) {
+        return ((uint64_t)(uint32_t)x << 32) | (uint64_t)(uint32_t)y;
+    };
+    const auto mark = [&](const CoordBBox& oBBox) {
+        if (oBBox.min().z() > iZMax || oBBox.max().z() < iZMin)
+            return;
+        for (int32_t x = oBBox.min().x(); x <= oBBox.max().x(); x++)
+            for (int32_t y = oBBox.min().y(); y <= oBBox.max().y(); y++)
+                oColumns.insert(nKey(x, y));
+    };
+    for (auto leafIt = oTree.cbeginLeaf(); leafIt; ++leafIt)
+    {
+        CoordBBox oBBox = leafIt->getNodeBoundingBox();
+        if (oBBox.min().z() > iZMax || oBBox.max().z() < iZMin)
+            continue;
+        // Per-voxel precision inside the leaf: stored = active OR negative.
+        const auto& oLeaf = *leafIt;
+        for (openvdb::Index n = 0; n < oLeaf.SIZE; n++)
+        {
+            if (!oLeaf.isValueOn(n) && !(oLeaf.getValue(n) < 0.0f))
+                continue;
+            const Coord xyz = oLeaf.offsetToGlobalCoord(n);
+            if (xyz.z() >= iZMin && xyz.z() <= iZMax)
+                oColumns.insert(nKey(xyz.x(), xyz.y()));
+        }
+    }
+    auto onIt = oTree.cbeginValueOn();
+    onIt.setMaxDepth(openvdb::FloatTree::DEPTH - 2);
+    for (; onIt; ++onIt)
+    {
+        CoordBBox oBBox;
+        onIt.getBoundingBox(oBBox);
+        mark(oBBox);
+    }
+    auto offIt = oTree.cbeginValueOff();
+    offIt.setMaxDepth(openvdb::FloatTree::DEPTH - 2);
+    for (; offIt; ++offIt)
+    {
+        if (!(offIt.getValue() < 0.0f))
+            continue;
+        CoordBBox oBBox;
+        offIt.getBoundingBox(oBBox);
+        mark(oBBox);
+    }
+}
+
+} // namespace
+
+/// Upstream ProjectZSlice with F15 column culling and the U2-corrected seal.
+PICOGK_API void Voxels_ProjectZSliceFast(PKINSTANCE hLib, PKVOXELS hThis, float fZStart, float fZEnd)
+{
+    PicoGK::Library::Instance::Ptr roLib = PicoGK::Library::oLib().roGetInstance(hLib);
+    PicoGK::Voxels::Ptr roVoxels = roLib->m_oVoxels.roGet(hThis);
+    openvdb::FloatGrid& oGrid = *roVoxels->roVdbGrid();
+
+    const bool bDown = fZStart > fZEnd;
+    const float fVoxel = (float)oGrid.voxelSize()[0];
+    // grid.background() IS world-mm for a PicoGK level set (constructed as
+    // fToMM(narrowBand)); upstream's fBackgroundMM() returns it unchanged.
+    const float fBackgroundMM = (float)oGrid.background();
+    // U2: the seal depth is the narrow band in VOXELS. Upstream's
+    // (int)(0.5f + background()) reads the mm quantity as a layer count —
+    // correct only when voxelSize == 1 mm. Same formula, units fixed:
+    const int nSealLayers = (int)(0.5f + fBackgroundMM / fVoxel);
+
+    const auto iToVoxels = [&](float fMM) { return (int32_t)std::lround(fMM / fVoxel); };
+    const int32_t iZStart = iToVoxels(fZStart);
+    const int32_t iZEnd = iToVoxels(fZEnd);
+
+    // Slab the columns must intersect: the sweep reads [min(iZStart,iZEnd)-1,
+    // max(...)+1] and the seal reads a further nSealLayers+1 past iZEnd.
+    const int32_t iLo = bDown ? iZEnd - nSealLayers - 1 : std::min(iZStart, iZEnd) - 1;
+    const int32_t iHi = bDown ? std::max(iZStart, iZEnd) + 1 : iZEnd + nSealLayers + 1;
+
+    std::unordered_set<uint64_t> oColumns;
+    MarkColumns(oGrid.tree(), iLo, iHi, oColumns);
+
+    auto oAccess = oGrid.getAccessor();
+    for (const uint64_t nKey : oColumns)
+    {
+        const int32_t x = (int32_t)(uint32_t)(nKey >> 32);
+        const int32_t y = (int32_t)(uint32_t)nKey;
+        if (bDown)
+        {
+            for (int32_t z = iZStart; z > iZEnd; z--)
+            {
+                const float fValue = std::min(oAccess.getValue(Coord(x, y, z - 1)), oAccess.getValue(Coord(x, y, z)));
+                SetSd(oAccess, Coord(x, y, z - 1), fBackgroundMM, fValue);
+            }
+            for (int32_t z = iZEnd; z > iZEnd - nSealLayers; z--)
+            {
+                const float fValue = (oAccess.getValue(Coord(x, y, z)) + oAccess.getValue(Coord(x, y, z - 1))) / 2.0f;
+                SetSd(oAccess, Coord(x, y, z), fBackgroundMM, fValue);
+            }
+        }
+        else
+        {
+            for (int32_t z = iZStart; z < iZEnd; z++)
+            {
+                const float fValue = std::min(oAccess.getValue(Coord(x, y, z + 1)), oAccess.getValue(Coord(x, y, z)));
+                SetSd(oAccess, Coord(x, y, z + 1), fBackgroundMM, fValue);
+            }
+            for (int32_t z = iZEnd; z < iZEnd + nSealLayers; z++)
+            {
+                const float fValue = (oAccess.getValue(Coord(x, y, z)) + oAccess.getValue(Coord(x, y, z + 1))) / 2.0f;
+                SetSd(oAccess, Coord(x, y, z), fBackgroundMM, fValue);
+            }
+        }
+    }
+
+    openvdb::tools::pruneLevelSet(oGrid.tree());
+}

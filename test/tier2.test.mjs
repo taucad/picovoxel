@@ -929,6 +929,46 @@ test('C18 — csg*Copy: value-identical to the mutating path, inputs untouched',
   });
 });
 
+// ── C19 — column-culled ProjectZSlice + U2 seal fix (SKv2-0 V0.9) ──────────────
+test('C19 — ProjectZSliceFast: upstream-identical at 1.0 mm, corrected seal elsewhere', () => {
+  withLib(1.0, (lib) => {
+    const hash = _malloc(48);
+    const digest = () => Array.from({ length: 4 }, (_, i) => module.HEAPU32[(hash >> 2) + i]).join('-');
+    const hashOf = (voxels) => {
+      fns.Voxels_GetGridHash(lib, voxels, hash, hash + 16, hash + 24, hash + 32);
+      return digest();
+    };
+    const sphere = sphereOf(lib, 8);
+    const fast = fns.Voxels_hCreateCopy(lib, sphere);
+    fns.Voxels_ProjectZSliceFast(lib, fast, 6, -6);
+    const reference = fns.Voxels_hCreateCopy(lib, sphere);
+    fns.Voxels_ProjectZSlice(lib, reference, 6, -6);
+    // At 1.0 mm voxels upstream's mm-as-layer-count seal coincides with the
+    // corrected voxel-unit count, so the two exports are value-identical.
+    assert.equal(hashOf(fast), hashOf(reference), '1.0 mm must coincide');
+    for (const h of [fast, reference, sphere]) fns.Voxels_Destroy(lib, h);
+    _free(hash);
+  });
+  withLib(0.4, (lib) => {
+    const hash = _malloc(48);
+    const digest = () => Array.from({ length: 4 }, (_, i) => module.HEAPU32[(hash >> 2) + i]).join('-');
+    const hashOf = (voxels) => {
+      fns.Voxels_GetGridHash(lib, voxels, hash, hash + 16, hash + 24, hash + 32);
+      return digest();
+    };
+    const sphere = sphereOf(lib, 8);
+    const fast = fns.Voxels_hCreateCopy(lib, sphere);
+    fns.Voxels_ProjectZSliceFast(lib, fast, 6, -6);
+    const reference = fns.Voxels_hCreateCopy(lib, sphere);
+    fns.Voxels_ProjectZSlice(lib, reference, 6, -6);
+    // At 0.4 mm upstream seals round(3·0.4)=1 layer instead of the full
+    // 3-voxel band — the U2 defect; the corrected export legitimately differs.
+    assert.notEqual(hashOf(fast), hashOf(reference), '0.4 mm must show the U2 correction');
+    for (const h of [fast, reference, sphere]) fns.Voxels_Destroy(lib, h);
+    _free(hash);
+  });
+});
+
 // ── C16 — negative tests (R16) ─────────────────────────────────────────────────
 test('C16 — invalid handles throw and the module survives every one', () => {
   const lib = fns.Library_hCreateInstance(0.5);
