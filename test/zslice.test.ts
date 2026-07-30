@@ -78,6 +78,59 @@ test('1.0 mm: fixed export ≡ upstream export bit-for-bit (formulas coincide)',
   }
 }, 120_000);
 
+// D-pre.4 — the DIRECT oracle: sweep semantics are a per-column running min
+// toward startZ (upstream's min-propagation), asserted value-by-value on an
+// analytic fixture in both directions. The seal region (z at and beyond iEnd)
+// and the never-written startZ layer are excluded; everything between must
+// equal min(orig[z..startZ]) exactly (float-exact — the sweep only copies).
+test('direct per-column min oracle on an analytic sphere, both directions', async () => {
+  const pk = await createPico({ voxelSize: 0.5 });
+  try {
+    const sphere = pk.createVoxels({ shape: 'sphere', radius: 4 });
+    type Grid = { origin: number[]; size: number[]; width: number; slices: Float32Array[]; background: number };
+    const readAll = (v: ReturnType<Pico['createVoxels']>): Grid => {
+      const d = v.dimensions();
+      const first = v.getSlice({ index: 0 });
+      const slices: Float32Array[] = [first.data];
+      for (let i = 1; i < d.size[2]!; i++) slices.push(v.getSlice({ index: i }).data);
+      return { origin: [...d.origin], size: [...d.size], width: first.width, slices, background: first.background };
+    };
+    const value = (g: Grid, wx: number, wy: number, wz: number): number => {
+      const ix = wx - g.origin[0]!;
+      const iy = wy - g.origin[1]!;
+      const iz = wz - g.origin[2]!;
+      if (ix < 0 || iy < 0 || iz < 0 || ix >= g.size[0]! || iy >= g.size[1]! || iz >= g.size[2]!) return g.background;
+      return g.slices[iz]![iy * g.width + ix]!;
+    };
+    for (const [startZ, endZ] of [[3, -3], [-3, 3]] as const) {
+      const projected = sphere.projectZSlice({ startZ, endZ });
+      const iStart = Math.round(startZ / pk.voxelSize);
+      const iEnd = Math.round(endZ / pk.voxelSize);
+      const step = iStart > iEnd ? -1 : 1;
+      const orig = readAll(sphere);
+      const proj = readAll(projected);
+      let mismatches = 0;
+      let first = '';
+      for (let wx = orig.origin[0]!; wx < orig.origin[0]! + orig.size[0]!; wx++) {
+        for (let wy = orig.origin[1]!; wy < orig.origin[1]! + orig.size[1]!; wy++) {
+          let run = value(orig, wx, wy, iStart);
+          for (let wz = iStart + step; wz !== iEnd; wz += step) {
+            run = Math.min(run, value(orig, wx, wy, wz));
+            const got = value(proj, wx, wy, wz);
+            if (got !== run && mismatches++ === 0) {
+              first = `(${wx},${wy},${wz}) ${startZ}→${endZ}: got ${got}, expected running min ${run}`;
+            }
+          }
+        }
+      }
+      assert.equal(mismatches, 0, `per-column min oracle: ${mismatches} mismatches, first at ${first}`);
+      projected.dispose();
+    }
+  } finally {
+    pk.dispose();
+  }
+}, 120_000);
+
 test('column-culled export is single≡multi at 0.5 mm', async () => {
   const single = await createPico({ voxelSize: 0.5 });
   const multi = await createMulti({ voxelSize: 0.5 });

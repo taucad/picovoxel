@@ -12,13 +12,16 @@
 //
 // This TU keeps upstream's per-column value logic verbatim (min-propagation
 // down/up the slab, average-seal at the end cap, SetSdValue clamp+off
-// semantics, terminal pruneLevelSet) and changes exactly two things:
+// semantics, terminal pruneLevelSet) and changes exactly three things:
 //   (1) F15 culling — only columns whose slab z-range intersects stored
 //       content are visited. Untouched columns differ from upstream only by
 //       writes SetSdValue makes at background value, which the terminal
 //       prune removes — value-identical after prune (upstream prunes too).
 //   (2) The seal layer count is measured in voxels, not millimetres (U2).
 //       At 1.0 mm the two agree, so 1.0 mm pins hold byte-for-byte.
+//   (3) D-pre.4 — columns run in parallel over 8×8 leaf-aligned blocks after
+//       a serial touchLeaf pre-pass (see the block comment at the loop);
+//       Class 0 vs the serial path by construction.
 //
 // The mutating upstream export stays on the raw subpath as the oracle for
 // the differential suite (which asserts identity at 1.0 mm and the CORRECTED
@@ -31,9 +34,14 @@
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/Prune.h>
 
+#include <tbb/blocked_range.h>
+#include <tbb/parallel_for.h>
+
 #include <algorithm>
 #include <cmath>
+#include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 namespace
 {
@@ -135,11 +143,8 @@ PICOGK_API void Voxels_ProjectZSliceFast(PKINSTANCE hLib, PKVOXELS hThis, float 
     std::unordered_set<uint64_t> oColumns;
     MarkColumns(oGrid.tree(), iLo, iHi, oColumns);
 
-    auto oAccess = oGrid.getAccessor();
-    for (const uint64_t nKey : oColumns)
-    {
-        const int32_t x = (int32_t)(uint32_t)(nKey >> 32);
-        const int32_t y = (int32_t)(uint32_t)nKey;
+    // Per-column value logic, verbatim from V0.9 (= upstream's, culled).
+    const auto SweepColumn = [&](openvdb::FloatGrid::Accessor& oAccess, int32_t x, int32_t y) {
         if (bDown)
         {
             for (int32_t z = iZStart; z > iZEnd; z--)
@@ -166,6 +171,57 @@ PICOGK_API void Voxels_ProjectZSliceFast(PKINSTANCE hLib, PKVOXELS hThis, float 
                 SetSd(oAccess, Coord(x, y, z), fBackgroundMM, fValue);
             }
         }
+    };
+
+    // D-pre.4 — leaf-block parallelism. The write set per column is the
+    // contiguous range [iWLo, iWHi] (exactly what the loops above write), so
+    // the serial touchLeaf pre-pass creates exactly the leaf set the serial
+    // accessor would have created (voxelizing the same tiles). A leaf's (x,y)
+    // footprint IS its 8×8 block's footprint, so every leaf a column writes
+    // belongs to that column's block: tasks share no leaf, reads are
+    // same-column only (reads outside the write range hit leaves/tiles no
+    // task writes), and writes per voxel happen exactly once per phase,
+    // column-sequential — the result is independent of scheduling and thread
+    // count (Class 0 vs serial). The terminal prune restores tile topology.
+    const bool bHasSweep = bDown ? (iZStart > iZEnd) : (iZStart < iZEnd);
+    const bool bHasSeal = nSealLayers > 0;
+    if (bHasSweep || bHasSeal)
+    {
+        int32_t iWLo, iWHi;
+        if (bDown)
+        {
+            iWLo = bHasSeal ? iZEnd - nSealLayers + 1 : iZEnd;
+            iWHi = bHasSweep ? iZStart - 1 : iZEnd;
+        }
+        else
+        {
+            iWLo = bHasSweep ? iZStart + 1 : iZEnd;
+            iWHi = bHasSeal ? iZEnd + nSealLayers - 1 : iZEnd;
+        }
+
+        std::unordered_map<uint64_t, std::vector<uint64_t>> oBlocks;
+        for (const uint64_t nKey : oColumns)
+        {
+            const int32_t x = (int32_t)(uint32_t)(nKey >> 32);
+            const int32_t y = (int32_t)(uint32_t)nKey;
+            oBlocks[((uint64_t)(uint32_t)(x >> 3) << 32) | (uint64_t)(uint32_t)(y >> 3)].push_back(nKey);
+
+            for (int32_t z = iWLo & ~7; z <= iWHi; z += 8)
+                oGrid.tree().touchLeaf(Coord(x, y, z));
+        }
+
+        std::vector<const std::vector<uint64_t>*> oBlockList;
+        oBlockList.reserve(oBlocks.size());
+        for (const auto& oEntry : oBlocks)
+            oBlockList.push_back(&oEntry.second);
+
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, oBlockList.size()),
+            [&](const tbb::blocked_range<size_t>& oRange) {
+                auto oAccess = oGrid.getAccessor();
+                for (size_t n = oRange.begin(); n != oRange.end(); n++)
+                    for (const uint64_t nKey : *oBlockList[n])
+                        SweepColumn(oAccess, (int32_t)(uint32_t)(nKey >> 32), (int32_t)(uint32_t)nKey);
+            });
     }
 
     openvdb::tools::pruneLevelSet(oGrid.tree());
