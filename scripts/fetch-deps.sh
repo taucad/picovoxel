@@ -62,7 +62,9 @@ extract() {
   local stamp="$dest/.fetch-deps-stamp"
   local want="$(basename "$tarball")"
   if [ -n "$patchdir" ]; then
-    want="$want $(cat "$patchdir"/*.patch | shasum -a 256 | cut -d' ' -f1)"
+    # Hash filenames alongside content, in glob (= application) order, so a
+    # rename or reorder re-extracts even when the concatenated bytes match.
+    want="$want $(for p in "$patchdir"/*.patch; do basename "$p"; cat "$p"; done | shasum -a 256 | cut -d' ' -f1)"
   fi
   if [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$want" ]; then
     return 0
