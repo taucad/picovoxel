@@ -48,25 +48,28 @@ PICOGK_API int32_t Voxels_RayCastBatch( PKINSTANCE       hLib,
     PicoGK::Library::Instance::Ptr roLib = PicoGK::Library::oLib().roGetInstance(hLib);
     PicoGK::Voxels::Ptr roVoxels = roLib->m_oVoxels.roGet(hThis);
     const openvdb::FloatGrid& oGrid = *roVoxels->roVdbGrid();
-    const float fVoxel = (float)oGrid.voxelSize()[0];
+    const PicoGK::VoxelSize oVoxelSize = roVoxels->oVoxelSize();
 
     openvdb::tools::LevelSetRayIntersector<openvdb::FloatGrid> oIntersector(oGrid);
 
     int32_t nHits = 0;
     for (int32_t i = 0; i < nCount; i++)
     {
-        // Upstream float ops verbatim: fToVoxels = mm / voxelSize per axis.
+        // Upstream's own public fToVoxels per axis — identical by construction.
         openvdb::math::Ray<openvdb::Real> oRay(
-            openvdb::Vec3f(pvecOrigins[i].X / fVoxel, pvecOrigins[i].Y / fVoxel, pvecOrigins[i].Z / fVoxel),
+            openvdb::Vec3f(oVoxelSize.fToVoxels(pvecOrigins[i].X),
+                           oVoxelSize.fToVoxels(pvecOrigins[i].Y),
+                           oVoxelSize.fToVoxels(pvecOrigins[i].Z)),
             openvdb::Vec3f(pvecDirections[i].X, pvecDirections[i].Y, pvecDirections[i].Z));
 
         openvdb::math::Vec3<openvdb::Real> xyz;
         if (oIntersector.intersectsIS(oRay, xyz))
         {
-            // Upstream truncation preserved: vecToMM(Coord(x, y, z)).
-            pvecHits[i] = PKVector3((float)(int32_t)xyz.x() * fVoxel,
-                                    (float)(int32_t)xyz.y() * fVoxel,
-                                    (float)(int32_t)xyz.z() * fVoxel);
+            // Upstream truncation preserved: vecToMM(Coord(x, y, z)) — the
+            // Coord construction truncates the fractional index-space hit.
+            pvecHits[i] = oVoxelSize.vecToMM(PicoGK::Coord((int32_t)xyz.x(),
+                                                           (int32_t)xyz.y(),
+                                                           (int32_t)xyz.z()));
             pbHit[i] = 1;
             nHits++;
         }

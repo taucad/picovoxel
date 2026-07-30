@@ -592,8 +592,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, laneIn?: PicoLan
           ctx.raw.Voxels_RayCastBatch(ctx.lib, handle, pointer, pointer + bytes, count, pointer + 2 * bytes, pointer + 3 * bytes),
         )();
         const hits = new Float32Array(ctx.module.HEAPF32.subarray((pointer + 2 * bytes) >>> 2, ((pointer + 2 * bytes) >>> 2) + count * 3));
-        const hit = new Uint8Array(count);
-        for (let i = 0; i < count; i++) hit[i] = ctx.module.HEAPU32[(pointer + 3 * bytes + (i & ~3)) >>> 2]! >>> ((i & 3) * 8) & 0xff;
+        const hit = new Uint8Array(ctx.module.HEAPU8.subarray((pointer + 3 * bytes) >>> 0, ((pointer + 3 * bytes) >>> 0) + count));
         return { hits, hit };
       } finally {
         ctx.module._free(pointer);
@@ -613,8 +612,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, laneIn?: PicoLan
           ctx.raw.Voxels_ClosestPointBatch(ctx.lib, handle, pointer, count, pointer + bytes, pointer + 2 * bytes),
         )();
         const out = new Float32Array(ctx.module.HEAPF32.subarray((pointer + bytes) >>> 2, ((pointer + bytes) >>> 2) + count * 3));
-        const found = new Uint8Array(count);
-        for (let i = 0; i < count; i++) found[i] = ctx.module.HEAPU32[(pointer + 2 * bytes + (i & ~3)) >>> 2]! >>> ((i & 3) * 8) & 0xff;
+        const found = new Uint8Array(ctx.module.HEAPU8.subarray((pointer + 2 * bytes) >>> 0, ((pointer + 2 * bytes) >>> 0) + count));
         return { points: out, found };
       } finally {
         ctx.module._free(pointer);

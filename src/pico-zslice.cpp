@@ -111,18 +111,21 @@ PICOGK_API void Voxels_ProjectZSliceFast(PKINSTANCE hLib, PKVOXELS hThis, float 
     openvdb::FloatGrid& oGrid = *roVoxels->roVdbGrid();
 
     const bool bDown = fZStart > fZEnd;
-    const float fVoxel = (float)oGrid.voxelSize()[0];
-    // grid.background() IS world-mm for a PicoGK level set (constructed as
-    // fToMM(narrowBand)); upstream's fBackgroundMM() returns it unchanged.
-    const float fBackgroundMM = (float)oGrid.background();
+    // Upstream's own PUBLIC inlines everywhere a unit conversion happens —
+    // exactness by construction, not by re-verification (only the protected
+    // SetSdValue must be duplicated; see SetSd above, covered by the 1.0 mm
+    // byte-coincidence test).
+    const PicoGK::VoxelSize oVoxelSize = roVoxels->oVoxelSize();
+    const float fBackgroundMM = roVoxels->fBackgroundMM();
     // U2: the seal depth is the narrow band in VOXELS. Upstream's
     // (int)(0.5f + background()) reads the mm quantity as a layer count —
-    // correct only when voxelSize == 1 mm. Same formula, units fixed:
-    const int nSealLayers = (int)(0.5f + fBackgroundMM / fVoxel);
+    // correct only when voxelSize == 1 mm (and harmlessly over-sealing
+    // above it: beyond-band layers average to background and prune). Same
+    // formula, units fixed via upstream's fToVoxels:
+    const int nSealLayers = (int)(0.5f + oVoxelSize.fToVoxels(fBackgroundMM));
 
-    const auto iToVoxels = [&](float fMM) { return (int32_t)std::lround(fMM / fVoxel); };
-    const int32_t iZStart = iToVoxels(fZStart);
-    const int32_t iZEnd = iToVoxels(fZEnd);
+    const int32_t iZStart = oVoxelSize.iToVoxels(fZStart);
+    const int32_t iZEnd = oVoxelSize.iToVoxels(fZEnd);
 
     // Slab the columns must intersect: the sweep reads [min(iZStart,iZEnd)-1,
     // max(...)+1] and the seal reads a further nSealLayers+1 past iZEnd.
@@ -186,10 +189,10 @@ PICOGK_API void Voxels_IntersectImplicitFast(PKINSTANCE hLib, PKVOXELS hThis, PK
     if (roGrid->tree().empty())
         return;
 
-    const float fVoxel = (float)roGrid->voxelSize()[0];
-    const float fBackgroundMM = (float)roGrid->background();
-    const int32_t nBand = (int32_t)std::lround(fBackgroundMM / fVoxel); // U1 fix
-    const float fFreshBackground = (float)nBand * fVoxel;               // fToMM(nBand)
+    const PicoGK::VoxelSize oVoxelSize = roVoxels->oVoxelSize();
+    const float fBackgroundMM = roVoxels->fBackgroundMM();
+    const int32_t nBand = (int32_t)std::lround(oVoxelSize.fToVoxels(fBackgroundMM)); // U1 fix
+    const float fFreshBackground = oVoxelSize.fToMM(nBand);
 
     const CoordBBox oActive = roGrid->evalActiveVoxelBoundingBox();
 
@@ -230,7 +233,7 @@ PICOGK_API void Voxels_IntersectImplicitFast(PKINSTANCE hLib, PKVOXELS hThis, PK
 
     openvdb::FloatGrid::Ptr roImplicit = openvdb::FloatGrid::create(fFreshBackground);
     roImplicit->setGridClass(openvdb::GRID_LEVEL_SET);
-    roImplicit->setTransform(openvdb::math::Transform::createLinearTransform(fVoxel));
+    roImplicit->setTransform(openvdb::math::Transform::createLinearTransform(oVoxelSize));
     auto oAccess = roImplicit->getAccessor();
 
     // Upstream RenderImplicit's dense loop over bbox±band, restricted to the
@@ -250,7 +253,7 @@ PICOGK_API void Voxels_IntersectImplicitFast(PKINSTANCE hLib, PKVOXELS hThis, PK
         for (int32_t y = nBY0; y <= nBY1; y++)
         for (int32_t z = nZ0; z <= nZ1; z++)
         {
-            const PKVector3 vecSample((float)x * fVoxel, (float)y * fVoxel, (float)z * fVoxel);
+            const PKVector3 vecSample = oVoxelSize.vecToMM(PicoGK::Coord(x, y, z));
             const float fSdf = (*pfn)(&vecSample);
             const float fValue = std::min(fSdf, oAccess.getValue(Coord(x, y, z)));
             SetSd(oAccess, Coord(x, y, z), fFreshBackground, fValue);

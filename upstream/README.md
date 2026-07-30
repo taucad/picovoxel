@@ -39,6 +39,8 @@ plus the command in each row.
 | `picogkruntime-bulk-mesh-abi.patch` | U4 | leap71/PicoGKRuntime @ `0f26321c` (pristine tarball) | `patching file 'API/PicoGK.h'` / `'Source/PicoGKLibrary.cpp'` — **OK**, 0 fuzz; also applies onto the `patches/PicoGKRuntime/` -applied tree |
 | `picogkruntime-bulk-lattice-abi.patch` | U17 | leap71/PicoGKRuntime @ `0f26321c` | same two files — **OK**, 0 fuzz, and **OK** applied after the mesh patch |
 | `picogkruntime-offset-renorm-scheme.patch` | U22 (ask 2) | leap71/PicoGKRuntime @ `0f26321c` | `patching file 'Source/PicoGKVdbVoxels.h'` — **OK**, 0 fuzz; also **OK** onto the `patches/PicoGKRuntime/` -applied tree |
+| `picogkruntime-intersect-implicit-band.patch` | U1 | leap71/PicoGKRuntime @ `0f26321c` | `patching file 'Source/PicoGKVdbVoxels.h'` — **OK**, 0 fuzz; also **OK** onto the `patches/PicoGKRuntime/` -applied tree |
+| `picogkruntime-zslice-seal-units.patch` | U2 | leap71/PicoGKRuntime @ `0f26321c` | `patching file 'Source/PicoGKVdbVoxels.h'` — **OK**, 0 fuzz; also **OK** onto the `patches/PicoGKRuntime/` -applied tree |
 
 ### Applied to the vendored build (`patches/` — upstreamable as-is)
 

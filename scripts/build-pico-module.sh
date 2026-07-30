@@ -46,7 +46,7 @@ EH_FLAGS="${EH_FLAGS:--fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=1}"
 # (spawn-on-demand needs the event loop, which a blocked main thread never
 # reaches). emcc 5.x emits no separate worker file — the glue self-spawns via
 # import.meta.url, so the sibling-pair asset shape is unchanged.
-RUNTIME_METHODS=ccall,cwrap,UTF8ToString,stringToUTF8,lengthBytesUTF8,addFunction,removeFunction,FS,HEAPF32,HEAPF64,HEAP32,HEAPU32
+RUNTIME_METHODS=ccall,cwrap,UTF8ToString,stringToUTF8,lengthBytesUTF8,addFunction,removeFunction,FS,HEAPF32,HEAPF64,HEAP32,HEAPU32,HEAPU8
 if [ "${THREADS:-0}" = "1" ]; then
   MT="-mt"; VARIANT="pico-multi"
   MALLOC="${MALLOC:-mimalloc}"

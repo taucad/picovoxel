@@ -57,6 +57,7 @@ export interface PicoWasmModule {
   HEAPF64: Float64Array;
   HEAP32: Int32Array;
   HEAPU32: Uint32Array;
+  HEAPU8: Uint8Array;
   FS: {
     writeFile(path: string, data: Uint8Array): void;
     readFile(path: string): Uint8Array;
