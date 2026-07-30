@@ -73,7 +73,7 @@ extract() {
   echo "fetch-deps: extracted $(basename "$tarball") -> ${dest#"$HERE"/}"
   if [ -n "$patchdir" ]; then
     for p in "$patchdir"/*.patch; do
-      patch -p1 -d "$dest" < "$p"
+      patch -p1 --fuzz=0 -d "$dest" < "$p"  # fuzz 0: approximate context matches are conflicts, not applications
       echo "fetch-deps: applied ${p#"$HERE"/}"
     done
   fi

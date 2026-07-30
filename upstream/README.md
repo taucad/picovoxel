@@ -45,15 +45,17 @@ plus the command in each row.
 | Patch | Row | Target tree | Dry-run |
 | --- | --- | --- | --- |
 | `patches/PicoGKRuntime/0001-parallel-disjoint-mesh-flatten.patch` | U19 | PicoGKRuntime @ `0f26321c` | `'Source/PicoGKMesh.h'` / `'Source/PicoGKVdbVoxels.h'` — **OK** |
-| `patches/PicoGKRuntime/0001-post-fill-prune.patch` | U21 | PicoGKRuntime @ `0f26321c`, after the flatten patch | `'Source/PicoGKVdbVoxels.h'` — **OK** |
-| `patches/PicoGKRuntime/0002-lattice-parameter-accessors.patch` | U5 (U18-adjacent) | PicoGKRuntime @ `0f26321c` | `'Source/PicoGKLattice.h'` — **OK** |
-| `patches/PicoGKRuntime/0003-lattice-beam-value-storage.patch` | U18 (ingest half) | PicoGKRuntime @ `0f26321c`, after 0001/0002 | `'Source/PicoGKLattice.h'` / `'Source/PicoGKVdbVoxels.h'` — **OK** (verified by full fetch-deps replay, byte-identical tree) |
+| `patches/PicoGKRuntime/0002-post-fill-prune.patch` | U21 | PicoGKRuntime @ `0f26321c`, after the flatten patch | `'Source/PicoGKVdbVoxels.h'` — **OK** |
+| `patches/PicoGKRuntime/0003-lattice-parameter-accessors.patch` | U5 (U18-adjacent) | PicoGKRuntime @ `0f26321c` | `'Source/PicoGKLattice.h'` — **OK** |
+| `patches/PicoGKRuntime/0004-lattice-beam-value-storage.patch` | U18 (ingest half) | PicoGKRuntime @ `0f26321c`, after 0001/0002 | `'Source/PicoGKLattice.h'` / `'Source/PicoGKVdbVoxels.h'` — **OK** (verified by full fetch-deps replay, byte-identical tree) |
 | `patches/openvdb/0001-flat-quad-output.patch` | U19 / U10 | AcademySoftwareFoundation/openvdb @ `7c03e1f0` | `'openvdb/openvdb/tools/VolumeToMesh.h'` — **OK** |
 | `patches/oneTBB/0001-wasm-substrate-edges.patch` | U13 (hunk 1) / U14 (hunk 2) / U15 (hunk 3) | uxlfoundation/oneTBB @ `06ce6212` | `'include/oneapi/tbb/detail/_machine.h'` / `'src/tbb/governor.cpp'` / `'cmake/compilers/Clang.cmake'` — **OK** |
 
-Patch order matters for PicoGKRuntime: `fetch-deps.sh` globs `patches/<dep>/*.patch`,
-so the flatten patch lands before the prune patch (alphabetical), which is the
-order they were developed and dry-run in.
+Patch order is the numeric prefix: `fetch-deps.sh` globs `patches/<dep>/*.patch`
+alphabetically, and since 2026-07-27 every series is uniquely numbered
+(0001…000N) so the ordering is explicit rather than a name tiebreak. Patches
+apply with `--fuzz=0`: an approximate context match is a hard conflict, never
+a silent application.
 
 ### Issue and PR texts
 

@@ -113,7 +113,7 @@ Ledger of every PicoGK runtime compute entry point and its **current workload ex
 > changes executor.** What survives from SK-0.5: the three dense-accessor fills
 > (`RenderImplicit`, `RenderLattice`, `ProjectZSlice*`) now end in `pruneLevelSet` like every
 > csg path already did, shedding 68.1% / 5.5% / 36.1% of tree (`U21`,
-> `patches/PicoGKRuntime/0001-post-fill-prune.patch`), and `properties()` moved into its own
+> `patches/PicoGKRuntime/0002-post-fill-prune.patch`), and `properties()` moved into its own
 > TU and gained `area` from `tools::levelSetArea`.
 >
 > **What was reverted: `U20`, merge-based CSG.** Replacing the eager whole-operand deep copy

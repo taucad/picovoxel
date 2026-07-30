@@ -61,7 +61,7 @@
 // vendored tree needs no behavioural change. The one thing it lacked was READ access to a
 // beam's defining parameters — LatticeBeam exposed only fSdValue(), which forces exactly
 // the per-sample shape we are replacing — and that is the whole of
-// patches/PicoGKRuntime/0002-lattice-parameter-accessors.patch: seven inline getters,
+// patches/PicoGKRuntime/0003-lattice-parameter-accessors.patch: seven inline getters,
 // pure insertion, upstreamable verbatim.
 //
 // The old lane stays reachable and unmodified as Voxels_RenderLattice on the
