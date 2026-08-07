@@ -17,6 +17,7 @@ const types = {
   '.mjs': 'text/javascript',
   '.wasm': 'application/wasm',
   '.css': 'text/css',
+  '.svg': 'image/svg+xml',
   '.json': 'application/json',
   '.map': 'application/json',
 };
