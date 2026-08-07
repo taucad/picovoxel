@@ -1,3 +1,5 @@
+<img src="assets/logo.svg" alt="" width="88" height="88" />
+
 # picovoxel
 
 [PicoGK](https://github.com/leap71/PicoGK) — the voxel/implicit computational-geometry kernel on OpenVDB — compiled to WebAssembly, with an idiomatic TypeScript API. Runs in the browser and in node from a single 5.8 MB wasm module.
