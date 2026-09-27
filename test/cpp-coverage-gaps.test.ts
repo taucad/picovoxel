@@ -454,9 +454,10 @@ test('compose: a column proven solid fills clipped and whole blocks with the den
   // skips the tape: whole leaves become tiles, bbox-clipped blocks are written directly.
   // The oracle is the per-voxel definition itself: over the box grown by the 3-voxel band
   // (voxels -13..13 on each axis) the result is solid, elsewhere it is the base field.
-  // (Not the callback: with no surface in a leaf, upstream's terminal pruneLevelSet
-  // collapses a clipped interior leaf by the sign of its first voxel, which the tape
-  // path does not replicate. That divergence is reported, not locked in here.)
+  // (Not the callback: the post-fill prune picovoxel's own patch adds to the callback
+  // render, patches/PicoGKRuntime/0002-post-fill-prune.patch, collapses an inactive leaf
+  // holding both signs by the sign of its first voxel. Upstream PicoGK does not prune
+  // there, and the tape path matches upstream's per-voxel result, which this test locks in.)
   // pow(v, 2) rather than v * v: its interval knows a square is non-negative, so a column
   // whose z range straddles 0 still classifies (v * v's corners go negative there).
   const solid: SdfExpression = ['-', ['sqrt', ['+', ['pow', 'x', 2], ['pow', 'y', 2], ['pow', 'z', 2]]], 50];
@@ -483,7 +484,7 @@ test('compose: a column proven solid fills clipped and whole blocks with the den
 
 // ── Foreign level sets: active tiles, background and band edge cases ──
 
-/** A second session at 1.0 mm, where the column-culled projection is bitwise upstream's. */
+/** A second session at the given voxel size (1.0 mm: where the column-culled projection matches the vendored export). */
 async function withSession<T>(
   voxelSize: number,
   body: (session: Pico, sessionRaw: PicoRaw) => T,
@@ -564,7 +565,7 @@ test('equality: a different voxel size is unequal, and a non-positive background
   });
 });
 
-test('column-culled projectZSlice sees active tiles and equals upstream bitwise at 1.0 mm', async () => {
+test('column-culled projectZSlice sees active tiles and equals the vendored export at 1.0 mm', async () => {
   await withSession(1, (session, sessionRaw) => {
     const tiles = session.voxelsFromVdb(foreignLevelSet({ voxelSize: 1, background: 3, nodes: tiled }));
     // The slab spans the two low tiles; the tile at z 64..71 lies above it.
@@ -572,6 +573,7 @@ test('column-culled projectZSlice sees active tiles and equals upstream bitwise 
     const reference = tiles.clone();
     sessionRaw.Voxels_ProjectZSlice(session.handle, reference.handle, 30, 0);
     assert.equal(fast.gridHash().hash, reference.gridHash().hash);
+    assert.equal(fast.equals(reference), true);
     assert.equal(fast.isInside([19, 19, 2]), true, 'the inside tile projected down to endZ');
   });
 });
@@ -602,6 +604,7 @@ test('tube lattices on a band that is not a whole number of voxels fall back to 
     sessionRaw.Voxels_RenderLattice(session.handle, serial.handle, lattice.handle);
     assert.equal(tubes.isEmpty, false);
     assert.equal(tubes.gridHash().hash, serial.gridHash().hash);
+    assert.equal(tubes.equals(serial), true);
   });
 });
 
