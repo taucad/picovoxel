@@ -15,6 +15,14 @@ const byText = (left, right) => left.localeCompare(right);
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
 const SHA = 'a'.repeat(40);
+const manifestAt = (version) => ({
+  name: 'picovoxel',
+  version,
+  files: ['dist', 'README.md'],
+  exports: { '.': './dist/index.js' },
+  peerDependencies: { three: '>=0.160' },
+  devDependencies: { nx: '23.1.1' },
+});
 const stable = {
   event: 'push',
   ref: 'refs/heads/main',
@@ -23,7 +31,14 @@ const stable = {
   subject: 'chore(release): picovoxel v0.1.0',
   changedFiles: ['.nx/version-plans/picovoxel-first-release.md', 'CHANGELOG.md', 'package.json'],
   changelog: '# Changelog\n\n## 0.1.0 (2026-09-28)\n',
+  deletedFiles: ['.nx/version-plans/picovoxel-first-release.md'],
+  baseManifest: manifestAt('0.0.0'),
+  manifest: manifestAt('0.1.0'),
+  headRef: 'release/next',
+  headRepository: 'taucad/picovoxel',
+  repository: 'taucad/picovoxel',
 };
+const releasePullRequest = { ...stable, event: 'pull_request', ref: 'refs/pull/14/merge' };
 
 describe('CI release policy', () => {
   it('publishes one release commit pushed to main', () => {
@@ -84,13 +99,6 @@ describe('CI release policy', () => {
     );
   });
 
-  it('accepts a release commit that also updates the lockfile', () => {
-    assert.equal(
-      deriveRelease({ ...stable, changedFiles: [...stable.changedFiles, 'pnpm-lock.yaml'] }).npmPublish,
-      true,
-    );
-  });
-
   it('rejects a release commit that leaves a release file unchanged', () => {
     assert.throws(
       () => deriveRelease({ ...stable, changedFiles: ['.nx/version-plans/first.md', 'package.json'] }),
@@ -109,8 +117,8 @@ describe('CI release policy', () => {
     );
   });
 
-  it('rejects a release commit that carries source or wasm changes', () => {
-    for (const file of ['src/index.ts', 'src/pico.wasm', '.github/workflows/ci.yml']) {
+  it('rejects a release commit that carries source, wasm or lockfile changes', () => {
+    for (const file of ['src/index.ts', 'src/pico.wasm', '.github/workflows/ci.yml', 'pnpm-lock.yaml']) {
       assert.throws(
         () => deriveRelease({ ...stable, changedFiles: [...stable.changedFiles, file] }),
         new RegExp(`unexpected files: ${file.replaceAll('.', '\\.')}`, 'u'),
@@ -194,6 +202,85 @@ describe('CI release policy', () => {
   });
 });
 
+describe('release commit contents', () => {
+  it('accepts a manifest whose only change is the version, moved forward', () => {
+    assert.equal(deriveRelease(stable).npmPublish, true);
+    assert.equal(deriveRelease(releasePullRequest).kind, 'release-pull-request');
+  });
+
+  it('rejects any other manifest change, in a push or a pull request', () => {
+    const changes = {
+      dependencies: { ...manifestAt('0.1.0'), dependencies: { leftpad: '1.0.0' } },
+      exports: { ...manifestAt('0.1.0'), exports: { '.': './dist/other.js' } },
+      peerDependencies: { ...manifestAt('0.1.0'), peerDependencies: { three: '*' } },
+      devDependencies: { ...manifestAt('0.1.0'), devDependencies: { nx: '23.1.2' } },
+      bin: { ...manifestAt('0.1.0'), bin: { picovoxel: './dist/cli.js' } },
+    };
+    for (const [field, manifest] of Object.entries(changes)) {
+      for (const evidence of [stable, releasePullRequest]) {
+        assert.throws(
+          () => deriveRelease({ ...evidence, manifest }),
+          new RegExp(`may change only the package.json version; it changes ${field}$`, 'u'),
+        );
+      }
+    }
+  });
+
+  it('rejects a manifest version that disagrees with the release or does not move forward', () => {
+    assert.throws(
+      () => deriveRelease({ ...stable, manifest: manifestAt('0.2.0') }),
+      /version 0\.2\.0 does not match 0\.1\.0/u,
+    );
+    for (const previous of ['0.1.0', '0.2.0', '1.0.0']) {
+      assert.throws(
+        () => deriveRelease({ ...stable, baseManifest: manifestAt(previous) }),
+        new RegExp(`0\\.1\\.0 must be newer than ${previous.replaceAll('.', '\\.')}`, 'u'),
+      );
+    }
+    assert.equal(deriveRelease({ ...stable, baseManifest: manifestAt('0.0.9') }).kind, 'release');
+  });
+
+  it('refuses to validate a release without both manifests', () => {
+    for (const missing of [{ baseManifest: undefined }, { manifest: undefined }]) {
+      assert.throws(() => deriveRelease({ ...stable, ...missing }), /needs package\.json before and after/u);
+    }
+  });
+
+  it('accepts only deleted Version Plans', () => {
+    assert.throws(
+      () => deriveRelease({ ...stable, deletedFiles: [] }),
+      /may only delete Version Plans; it keeps \.nx\/version-plans\/picovoxel-first-release\.md/u,
+    );
+    assert.throws(
+      () =>
+        deriveRelease({
+          ...stable,
+          changedFiles: [...stable.changedFiles, '.nx/version-plans/added.md'],
+        }),
+      /it keeps \.nx\/version-plans\/added\.md/u,
+    );
+  });
+
+  it('accepts a release pull request only from release/next in this repository', () => {
+    assert.throws(
+      () => deriveRelease({ ...releasePullRequest, headRef: 'topic' }),
+      /must come from release\/next in taucad\/picovoxel, not taucad\/picovoxel:topic/u,
+    );
+    assert.throws(
+      () => deriveRelease({ ...releasePullRequest, headRepository: 'attacker/picovoxel' }),
+      /not attacker\/picovoxel:release\/next/u,
+    );
+    assert.throws(
+      () => deriveRelease({ ...releasePullRequest, repository: '', headRepository: '' }),
+      /must come from release\/next/u,
+    );
+    assert.equal(
+      deriveRelease({ ...releasePullRequest, headRef: 'topic', subject: 'fix(mesh): ordinary change' }).kind,
+      'pull-request',
+    );
+  });
+});
+
 describe('release pull request staging', () => {
   const workflow = read('.github/workflows/release-pr.yml');
 
@@ -235,11 +322,11 @@ describe('release pull request staging', () => {
   });
 
   it('commits with the exact subject the release policy publishes', () => {
-    const subject = /git commit --quiet -m "(chore\(release\): picovoxel v)\$version"/u.exec(workflow);
+    const subject = /commit --quiet -m "(chore\(release\): picovoxel v)\$version"/u.exec(workflow);
     assert(subject, 'release-pr.yml must commit the exact release subject');
     const derived = deriveRelease({ ...stable, subject: `${subject[1]}0.1.0` });
     assert.equal(derived.kind, 'release');
-    assert(workflow.includes("TITLE: 'chore(release): picovoxel v${{ steps.generate.outputs.version }}'"));
+    assert(workflow.includes("TITLE: 'chore(release): picovoxel v${{ steps.commit.outputs.version }}'"));
   });
 });
 

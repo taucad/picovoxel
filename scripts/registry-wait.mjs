@@ -40,6 +40,10 @@ export const waitForRegistry = async ({
   timeoutMs = DEFAULT_TIMEOUT_MS,
   view = npmView,
 }) => {
+  for (const [name, value] of Object.entries({ intervalMs, maxIntervalMs, timeoutMs })) {
+    if (!Number.isFinite(value) || value <= 0)
+      throw new Error(`${name} must be a positive number, not ${value}`);
+  }
   const { packages } = manifest;
   if (!Array.isArray(packages) || packages.length === 0) {
     throw new Error('the candidate manifest lists no packages');

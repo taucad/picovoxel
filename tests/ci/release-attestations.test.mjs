@@ -164,6 +164,14 @@ describe('release attestation verification', () => {
         },
         'picovoxel has the wrong workflow invocation',
       ],
+      [
+        (payload) => {
+          // The repository URL is matched literally: its dots are not wildcards.
+          payload.predicate.runDetails.metadata.invocationId =
+            'https://githubXcom/taucad/picovoxel/actions/runs/123/attempts/1';
+        },
+        'picovoxel has the wrong workflow invocation',
+      ],
     ];
     for (const [mutate, message] of forgeries) {
       assert.throws(() => verifyReleaseAttestations(forged(mutate)), { message, name: 'Error' }, message);

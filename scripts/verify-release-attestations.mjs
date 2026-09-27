@@ -11,6 +11,8 @@ const WORKFLOW = '.github/workflows/ci.yml';
 const REF = 'refs/heads/main';
 
 const byText = (left, right) => left.localeCompare(right);
+const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+
 const assert = (condition, message) => {
   if (!condition) throw new Error(message);
 };
@@ -61,7 +63,7 @@ const verifyPackage = ({ audit, candidate, commit, runId }) => {
   // and a partial re-run of `registry-verify` carries a later attempt number than
   // the one that minted the provenance, so bind to the run, not the attempt.
   assert(
-    new RegExp(`^${REPOSITORY}/actions/runs/${runId}/attempts/[1-9]\\d*$`, 'u').test(
+    new RegExp(`^${escapeRegExp(REPOSITORY)}/actions/runs/${runId}/attempts/[1-9]\\d*$`, 'u').test(
       statement.predicate?.runDetails?.metadata?.invocationId ?? '',
     ),
     `${candidate.name} has the wrong workflow invocation`,

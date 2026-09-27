@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   chmodSync,
   cpSync,
@@ -120,26 +121,33 @@ const runBlocks = (workflow) => {
   return blocks;
 };
 
-const stepScript = (workflow, name) => {
-  const matches = runBlocks(workflow).filter((block) => block.name === name);
-  assert.equal(matches.length, 1, `exactly one step named "${name}" must run a script`);
-  return matches[0].script;
+/**
+ * The steps of one job, each as its own YAML text with its name, id, `if` and
+ * run script. Steps are the list items two spaces inside `steps:`, so a line
+ * scan separates them without a YAML parser.
+ */
+const stepsOf = (body) => {
+  const lines = body.split('\n');
+  const start = lines.findIndex((line) => /^ {4}steps:\s*$/u.test(line));
+  assert.notEqual(start, -1, 'the job must declare steps');
+  const steps = [];
+  for (const line of lines.slice(start + 1)) {
+    if (line.trim() !== '' && indentation(line) < 6) break;
+    if (/^ {6}- /u.test(line)) steps.push([line]);
+    else steps.at(-1)?.push(line);
+  }
+  return steps.map((lines) => {
+    const text = lines.join('\n');
+    const field = (key) => new RegExp(`^ {6}(?:- | {2})${key}: (.+)$`, 'mu').exec(text)?.[1];
+    return { text, name: field('name'), id: field('id'), if: field('if'), run: runBlocks(text)[0]?.script };
+  });
 };
 
-/** The id: run block of a step identified by `id:` rather than a name. */
-const idScript = (body, id) => {
-  const lines = body.split('\n');
-  const start = lines.findIndex((line) => new RegExp(`^\\s*- id: ${id}\\s*$`, 'u').test(line));
-  assert.notEqual(start, -1, `step ${id} must exist`);
-  const stepIndent = indentation(lines[start]);
-  const end = lines.findIndex(
-    (line, index) => index > start && line.trim() !== '' && indentation(line) <= stepIndent,
-  );
-  const step = lines
-    .slice(start, end === -1 ? undefined : end)
-    .join('\n')
-    .replace(/^(\s*)- id: \S+/u, '$1- name: __id__');
-  return stepScript(step, '__id__');
+/** The one step of a job with this name or id. */
+const step = (body, key) => {
+  const matches = stepsOf(body).filter(({ name, id }) => name === key || id === key);
+  assert.equal(matches.length, 1, `exactly one step must be named "${key}"`);
+  return matches[0];
 };
 
 /** Parse a GITHUB_OUTPUT file, including `key<<DELIMITER` multi-line values. */
@@ -321,16 +329,27 @@ describe('CI workflow policy', () => {
       assert.equal(occurrences(ci, 'persist-credentials: false'), occurrences(ci, 'uses: actions/checkout@'));
       assert.equal(occurrences(ci, 'contents: write'), 1);
       assert(job('registry-verify').includes('contents: write'));
-      assert(!/^\s+environment:/mu.test(ci), 'no ci.yml job may declare an environment');
     });
 
-    it('cancels stale pull request runs and serializes main', () => {
-      assert(
-        ci.includes(
-          "group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'publish-main' }}",
-        ),
+    it('runs publish, alone, in the main-only npm-publish environment', () => {
+      const environments = [...ciJobs].filter(([, body]) => /^ {4}environment:/mu.test(body));
+      assert.deepEqual(
+        environments.map(([name]) => name),
+        ['publish'],
       );
-      assert(ci.includes("cancel-in-progress: ${{ github.event_name == 'pull_request' }}"));
+      assert.match(job('publish'), /^ {4}environment: npm-publish$/mu);
+    });
+
+    it('never lets a newer run cancel a queued main or manual run, and serializes publication', () => {
+      assert.match(
+        ci,
+        /^concurrency:\n {2}group: \$\{\{ github\.event_name == 'pull_request' && format\('pr-\{0\}', github\.event\.pull_request\.number\) \|\| format\('run-\{0\}', github\.run_id\) \}\}\n {2}cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}$/mu,
+      );
+      assert.match(
+        job('publish'),
+        /^ {4}concurrency:\n {6}group: npm-publish\n {6}cancel-in-progress: false$/mu,
+      );
+      assert.equal(occurrences(ci, 'concurrency:'), 2);
     });
 
     it('runs only dependency-free scripts in the jobs that install nothing', () => {
@@ -351,7 +370,9 @@ describe('CI workflow policy', () => {
         'registry-verify': ['scripts/registry-wait.mjs', 'scripts/verify-release-attestations.mjs'],
         wasm: ['scripts/parse-abi.mjs', 'scripts/wasm-manifest.mjs'],
       });
-      for (const [name, scripts] of dependencyFree) {
+      // release-pr.yml's propose job runs the release policy with the bot
+      // credentials present and nothing installed.
+      for (const [name, scripts] of [...dependencyFree, ['propose', ['scripts/ci-release.mjs']]]) {
         for (const script of scripts) {
           assert.deepEqual(
             packagesReachedBy(script),
@@ -399,8 +420,8 @@ describe('CI workflow policy', () => {
         'publish',
         'registry-verify',
       ]) {
-        for (const step of buildSteps) {
-          assert(!job(name).includes(step), `${name} must not run ${step}`);
+        for (const buildStep of buildSteps) {
+          assert(!job(name).includes(buildStep), `${name} must not run ${buildStep}`);
         }
       }
     });
@@ -424,6 +445,12 @@ describe('CI workflow policy', () => {
         '--package-version',
         '--subject',
         '--changed-files-file',
+        '--deleted-files-file',
+        '--base-package-json-file',
+        '--package-json-file',
+        '--head-ref',
+        '--head-repository',
+        '--repository',
       ]) {
         assert(body.includes(`${flag} `), `ci-release.mjs must receive ${flag}`);
       }
@@ -431,21 +458,21 @@ describe('CI workflow policy', () => {
       assert(body.includes('npm-publish: ${{ steps.release.outputs.npm_publish }}'));
     });
 
-    it('requires a Version Plan outside release runs', () => {
-      const body = job('quality');
-      assert(body.includes('fetch-depth: 0'));
-      assert(
-        body.includes(
-          "if: needs.preflight.outputs.kind != 'release-pull-request' && needs.preflight.outputs.kind != 'release'",
-        ),
+    it('requires a Version Plan outside release runs, through the shipped-surface filter', () => {
+      const planStep = step(job('quality'), 'Require a Version Plan for release-affecting changes');
+      assert(job('quality').includes('fetch-depth: 0'));
+      assert.equal(
+        planStep.if,
+        "needs.preflight.outputs.kind != 'release-pull-request' && needs.preflight.outputs.kind != 'release'",
       );
-      assert(body.includes('pnpm nx release plan:check --base="origin/$BASE_REF" --head=HEAD'));
-      assert(body.includes('pnpm nx release plan:check --base="$BEFORE_SHA" --head=HEAD'));
+      assert(planStep.run.includes('node scripts/plan-check.mjs --base="origin/$BASE_REF" --head=HEAD'));
+      assert(planStep.run.includes('node scripts/plan-check.mjs --base="$BEFORE_SHA" --head=HEAD'));
+      assert(!ci.includes('nx release plan:check'), 'the plan check runs only through plan-check.mjs');
       assert(needsOf('quality').includes('preflight'));
     });
 
     describe('the preflight script', () => {
-      const script = idScript(job('preflight'), 'release');
+      const script = step(job('preflight'), 'release').run;
       const repository = (() => {
         const directory = newRepository();
         mkdirSync(join(directory, 'scripts'));
@@ -469,17 +496,32 @@ describe('CI workflow policy', () => {
           '# Changelog\n\n## 0.1.0 (2026-09-28)\n\n- First release.\n',
         );
         const release = commitAll(directory, 'chore(release): picovoxel v0.1.0 (#14)');
-        return { base, directory, ordinary, release };
+        git(directory, 'checkout', '--quiet', '-b', 'widened', base);
+        rmSync(join(directory, '.nx/version-plans/first.md'));
+        writeFileSync(
+          join(directory, 'package.json'),
+          '{ "name": "picovoxel", "version": "0.1.0", "dependencies": { "leftpad": "1.0.0" } }\n',
+        );
+        writeFileSync(
+          join(directory, 'CHANGELOG.md'),
+          '# Changelog\n\n## 0.1.0 (2026-09-28)\n\n- First release.\n',
+        );
+        const widened = commitAll(directory, 'chore(release): picovoxel v0.1.0');
+        return { base, directory, ordinary, release, widened };
       })();
 
-      const derive = ({ event, ref, sha }) => {
+      const derive = ({ event, ref, sha, headRef = 'release/next', headRepository = 'taucad/picovoxel' }) => {
         git(repository.directory, 'checkout', '--quiet', '--detach', sha);
+        const pullRequest = event === 'pull_request';
         return runStep(script, {
           cwd: repository.directory,
           env: {
-            BASE_REF: event === 'pull_request' ? 'main' : '',
+            BASE_REF: pullRequest ? 'main' : '',
             EVENT_NAME: event,
+            HEAD_REF: pullRequest ? headRef : '',
+            HEAD_REPOSITORY: pullRequest ? headRepository : '',
             REF_NAME: ref,
+            REPOSITORY: 'taucad/picovoxel',
             SOURCE_SHA: sha,
           },
         });
@@ -510,6 +552,7 @@ describe('CI workflow policy', () => {
           event: 'pull_request',
           ref: 'refs/pull/13/merge',
           sha: repository.ordinary,
+          headRef: 'topic',
         });
         assert.deepEqual(ordinary.output, { kind: 'pull-request', npm_publish: 'false', version: '0.0.0' });
         const release = derive({ event: 'pull_request', ref: 'refs/pull/14/merge', sha: repository.release });
@@ -518,6 +561,27 @@ describe('CI workflow policy', () => {
           npm_publish: 'false',
           version: '0.1.0',
         });
+      });
+
+      it('fails a release pull request from any branch but release/next, or from a fork', () => {
+        for (const origin of [{ headRef: 'topic' }, { headRepository: 'attacker/picovoxel' }]) {
+          const { status, stderr } = derive({
+            event: 'pull_request',
+            ref: 'refs/pull/15/merge',
+            sha: repository.release,
+            ...origin,
+          });
+          assert.equal(status, 1);
+          assert.match(stderr, /a release pull request must come from release\/next/u);
+        }
+      });
+
+      it('fails a release commit whose manifest changes more than the version', () => {
+        for (const event of ['push', 'pull_request']) {
+          const { status, stderr } = derive({ event, ref: 'refs/heads/main', sha: repository.widened });
+          assert.equal(status, 1);
+          assert.match(stderr, /may change only the package\.json version; it changes dependencies/u);
+        }
       });
 
       it('does not publish a manual run of the release commit', () => {
@@ -544,11 +608,11 @@ describe('CI workflow policy', () => {
   describe('publication', () => {
     it('publishes only from a main push that preflight derived as a release', () => {
       const body = job('publish');
-      assert(
-        body.includes(
-          "if: needs.preflight.outputs.npm-publish == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'",
-        ),
+      assert.match(
+        body,
+        /^ {4}if: needs\.preflight\.outputs\.npm-publish == 'true' && github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'$/mu,
       );
+      assert(!body.includes('always()'), 'every job publish needs must have succeeded');
       for (const dependency of [
         'preflight',
         'candidate',
@@ -563,27 +627,115 @@ describe('CI workflow policy', () => {
       }
     });
 
-    it('publishes the tested candidate tarball, verified, without a checkout or a build', () => {
-      const body = job('publish');
-      assert(!body.includes('actions/checkout'), 'publish runs nothing from the repository');
+    it('downloads the candidate without a checkout or a build', () => {
+      const steps = stepsOf(job('publish'));
+      assert.deepEqual(
+        steps.map(({ name, text }) => name ?? /uses: ([\w/-]+)@/u.exec(text)?.[1]),
+        ['actions/download-artifact', 'actions/setup-node', 'Publish the exact candidate with provenance'],
+      );
       assert.equal(
         occurrences(ci, 'uses: actions/download-artifact@'),
         1,
         'only publish, which has no checkout, bypasses the verified download',
       );
-      assert(body.includes('uses: actions/download-artifact@'));
-      assert(body.includes('name: npm-candidate'));
-      const check = body.indexOf('openssl dgst -sha512 -binary "./candidate/$filename"');
-      const view = body.indexOf('npm view "$name@$version" dist.integrity');
-      const publish = body.indexOf('npm publish "./candidate/$filename" --access public --provenance');
-      assert(check !== -1 && view !== -1 && publish !== -1);
-      assert(check < view && view < publish, 'verify the bytes, then the registry, then publish');
+      assert(steps[0].text.includes('name: npm-candidate'));
+      assert(steps[1].text.includes('registry-url: https://registry.npmjs.org'));
       assert.equal(occurrences(ci, 'npm publish'), 1);
-      assert(
-        body.includes('if [[ "$version" != "$VERSION" ]]'),
-        'the candidate must be the release commit version',
-      );
-      assert(body.includes('registry-url: https://registry.npmjs.org'));
+    });
+
+    describe('the publish script', () => {
+      const script = step(job('publish'), 'Publish the exact candidate with provenance').run;
+      const tarball = Buffer.from('picovoxel 0.1.0 candidate bytes');
+      const integrity = `sha512-${createHash('sha512').update(tarball).digest('base64')}`;
+
+      /**
+       * Run the step against a candidate directory and a fake npm. `view` is
+       * what `npm view … dist.integrity` does: print an integrity, print
+       * nothing, or fail with an npm error code.
+       */
+      const publish = ({ bytes = tarball, packages, version = '0.1.0', view }) => {
+        const directory = temporaryDirectory();
+        mkdirSync(join(directory, 'candidate'));
+        writeFileSync(join(directory, 'candidate/picovoxel-0.1.0.tgz'), bytes);
+        writeFileSync(
+          join(directory, 'candidate/manifest.json'),
+          JSON.stringify({
+            packages: packages ?? [
+              { name: 'picovoxel', version: '0.1.0', filename: 'picovoxel-0.1.0.tgz', integrity },
+            ],
+            version: '0.1.0',
+          }),
+        );
+        const bin = temporaryDirectory();
+        const calls = join(bin, 'calls');
+        writeFileSync(calls, '');
+        writeFileSync(
+          join(bin, 'npm'),
+          [
+            '#!/usr/bin/env bash',
+            `echo "$*" >> '${calls}'`,
+            'if [[ "$1" == view ]]; then',
+            '  case "$FAKE_VIEW" in',
+            '    code:*) echo "npm error code ${FAKE_VIEW#code:}" >&2; exit 1 ;;',
+            '    *) printf "%s" "$FAKE_VIEW" ;;',
+            '  esac',
+            'fi',
+            '',
+          ].join('\n'),
+        );
+        chmodSync(join(bin, 'npm'), 0o755);
+        const result = runStep(script, {
+          cwd: directory,
+          env: { FAKE_VIEW: view ?? 'code:E404', VERSION: version },
+          path: [bin],
+        });
+        return { ...result, calls: readFileSync(calls, 'utf8').split('\n').filter(Boolean) };
+      };
+
+      it('publishes a version the registry does not have, exactly once, with provenance', () => {
+        const { calls, status, stderr } = publish({});
+        assert.equal(status, 0, stderr);
+        assert.deepEqual(calls, [
+          'view picovoxel@0.1.0 dist.integrity',
+          'publish ./candidate/picovoxel-0.1.0.tgz --access public --provenance',
+        ]);
+      });
+
+      it('skips a version the registry already serves with the same bytes', () => {
+        const { calls, status } = publish({ view: integrity });
+        assert.equal(status, 0);
+        assert.deepEqual(calls, ['view picovoxel@0.1.0 dist.integrity']);
+      });
+
+      it('fails, without publishing, on other registry bytes, a missing integrity or a registry error', () => {
+        for (const view of ['sha512-other', '', 'code:ECONNREFUSED', 'code:E500']) {
+          const { calls, status, stderr } = publish({ view });
+          assert.equal(status, 1, `npm view "${view}" must fail the job`);
+          assert(!calls.some((call) => call.startsWith('publish')), `npm view "${view}" must not publish`);
+          assert.match(stderr, /::error::/u);
+        }
+      });
+
+      it('fails before any registry call on bytes that are not the tested tarball', () => {
+        const { calls, status, stderr } = publish({ bytes: Buffer.from('tampered') });
+        assert.equal(status, 1);
+        assert.match(stderr, /is not the tested tarball/u);
+        assert.deepEqual(calls, []);
+      });
+
+      it('fails before any registry call on a candidate that is not the release version', () => {
+        const { calls, status, stderr } = publish({ version: '0.2.0' });
+        assert.equal(status, 1);
+        assert.match(stderr, /candidate picovoxel is 0\.1\.0, but the release commit is 0\.2\.0/u);
+        assert.deepEqual(calls, []);
+      });
+
+      it('fails on an empty candidate manifest', () => {
+        const { calls, status, stderr } = publish({ packages: [] });
+        assert.equal(status, 1);
+        assert.match(stderr, /the candidate manifest lists no packages/u);
+        assert.deepEqual(calls, []);
+      });
     });
 
     it('verifies the registry artifact and its provenance before recording the release', () => {
@@ -594,25 +746,117 @@ describe('CI workflow policy', () => {
         ),
       );
       assert(needsOf('registry-verify').includes('publish'));
-      const steps = [
-        'node scripts/registry-wait.mjs --manifest candidate/manifest.json --interval-seconds 30 --timeout-minutes 30',
-        'npm install --force --ignore-scripts "${package_specs[@]}"',
+      assert.deepEqual(
+        stepsOf(body)
+          .map(({ name }) => name)
+          .filter(Boolean),
+        [
+          'Wait for the registry to serve the candidate with its attestation',
+          'Verify registry bytes and provenance',
+          'Record the verified release',
+        ],
+      );
+      assert.equal(
+        step(body, 'Wait for the registry to serve the candidate with its attestation')
+          .text.trim()
+          .split('\n')
+          .at(-1)
+          .trim(),
+        'run: node scripts/registry-wait.mjs --manifest candidate/manifest.json --interval-seconds 30 --timeout-minutes 30',
+      );
+      const verify = step(body, 'Verify registry bytes and provenance').run;
+      const order = [
+        'npm install --ignore-scripts "${package_specs[@]}"',
         'npm audit signatures --json --include-attestations > /tmp/npm-audit-signatures.json',
         'node scripts/verify-release-attestations.mjs',
         "'${{ github.sha }}'",
         "'${{ github.run_id }}'",
-        'gh release create "$tag" --target \'${{ github.sha }}\' --generate-notes',
       ];
       let last = -1;
-      for (const step of steps) {
-        const index = body.indexOf(step);
-        assert(index > last, `registry-verify must run, in order: ${step}`);
+      for (const command of order) {
+        const index = verify.indexOf(command);
+        assert(index > last, `registry-verify must run, in order: ${command}`);
         last = index;
       }
-      assert.equal(occurrences(ci, 'gh release create'), 1);
+      assert(!body.includes('--force'), 'the consumer install must not override npm conflict checks');
+      assert.equal(occurrences(ci, '|| gh release create'), 1);
       // npm's --include-attestations needs a current npm; Node 26 bundles one.
       assert(body.includes('node-version: ${{ env.NODE_LATEST }}'));
       assert.match(ci, /^ {2}NODE_LATEST: '26'$/mu);
+    });
+
+    describe('recording the release', () => {
+      const record = step(job('registry-verify'), 'Record the verified release');
+
+      /** A checkout whose origin holds `tags`, and a fake gh that knows `releases`. */
+      const run = ({ tags = {}, annotated = false, releases = [], origin }) => {
+        const remote = newRepository();
+        const released = commitAll(remote, 'chore(release): picovoxel v0.1.0');
+        const other = commitAll(remote, 'fix: later');
+        for (const [tag, target] of Object.entries(tags)) {
+          const sha = target === 'release' ? released : other;
+          if (annotated) git(remote, 'tag', '-a', '-m', tag, tag, sha);
+          else git(remote, 'tag', tag, sha);
+        }
+        const checkout = newRepository();
+        git(checkout, 'remote', 'add', 'origin', origin ?? remote);
+        const bin = temporaryDirectory();
+        const calls = join(bin, 'calls');
+        writeFileSync(calls, '');
+        writeFileSync(
+          join(bin, 'gh'),
+          [
+            '#!/usr/bin/env bash',
+            `echo "$*" >> '${calls}'`,
+            `if [[ "$1 $2" == "release view" ]]; then [[ " ${releases.join(' ')} " == *" $3 "* ]]; exit; fi`,
+            '',
+          ].join('\n'),
+        );
+        chmodSync(join(bin, 'gh'), 0o755);
+        const result = runStep(record.run, {
+          cwd: checkout,
+          env: { SHA: released, VERSION: '0.1.0' },
+          path: [bin],
+        });
+        return { ...result, released, calls: readFileSync(calls, 'utf8').split('\n').filter(Boolean) };
+      };
+
+      it('creates the release and its tag at the release commit', () => {
+        const { calls, released, status, stderr } = run({});
+        assert.equal(status, 0, stderr);
+        assert.deepEqual(calls, [
+          'release view v0.1.0',
+          `release create v0.1.0 --target ${released} --generate-notes`,
+        ]);
+      });
+
+      it('accepts an existing tag, lightweight or annotated, only at the release commit', () => {
+        for (const annotated of [false, true]) {
+          const { calls, released, status, stderr } = run({ tags: { 'v0.1.0': 'release' }, annotated });
+          assert.equal(status, 0, stderr);
+          assert.deepEqual(calls, [
+            'release view v0.1.0',
+            `release create v0.1.0 --target ${released} --generate-notes`,
+          ]);
+          const later = run({ tags: { 'v0.1.0': 'other' }, annotated });
+          assert.equal(later.status, 1);
+          assert.match(later.stderr, /tag v0\.1\.0 points at [0-9a-f]{40}, not the release commit/u);
+          assert.deepEqual(later.calls, []);
+        }
+      });
+
+      it('leaves an existing release alone', () => {
+        const { calls, status } = run({ tags: { 'v0.1.0': 'release' }, releases: ['v0.1.0'] });
+        assert.equal(status, 0);
+        assert.deepEqual(calls, ['release view v0.1.0']);
+      });
+
+      it('fails when the tags cannot be listed', () => {
+        const { calls, status, stderr } = run({ origin: join(temporaryDirectory(), 'missing') });
+        assert.equal(status, 1);
+        assert.match(stderr, /could not list tag v0\.1\.0/u);
+        assert.deepEqual(calls, []);
+      });
     });
 
     it('binds verification to this repository and ci.yml on main', () => {
@@ -669,7 +913,7 @@ describe('CI workflow policy', () => {
     });
 
     it('fails a pull request run on which publish did not skip', () => {
-      const script = stepScript(ci, 'Assert required job results');
+      const script = step(body, 'Assert required job results').run;
       const results = Object.fromEntries(needsOf('ci-gate').map((name) => [name, { result: 'success' }]));
       const gate = (overrides, env) =>
         runStep(script, {
@@ -700,7 +944,9 @@ describe('CI workflow policy', () => {
 });
 
 describe('release pull request workflow', () => {
-  const prepare = job('prepare', jobsOf(releasePr));
+  const releaseJobs = jobsOf(releasePr);
+  const generate = job('generate', releaseJobs);
+  const propose = job('propose', releaseJobs);
 
   it('runs after a successful CI push run on this repository main, or by hand', () => {
     assert.match(
@@ -712,23 +958,53 @@ describe('release pull request workflow', () => {
       "github.event_name == 'workflow_dispatch' ||",
       "github.event.workflow_run.conclusion == 'success' &&",
       "github.event.workflow_run.event == 'push' &&",
+      "github.event.workflow_run.path == '.github/workflows/ci.yml' &&",
       'github.event.workflow_run.head_repository.full_name == github.repository',
     ]) {
-      assert(prepare.includes(condition), `the prepare job must require ${condition}`);
+      assert(generate.includes(condition), `the generate job must require ${condition}`);
     }
+    assert.deepEqual([...releaseJobs.keys()], ['generate', 'propose']);
+    assert.match(propose, /^ {4}needs: generate\n {4}if: needs\.generate\.outputs\.current == 'true'$/mu);
   });
 
-  it('holds only the permissions its steps need, with the bot credentials in the release-pr environment', () => {
-    assert.match(releasePr, /^permissions:\n {2}actions: read\n\n/mu);
-    assert.match(prepare, /environment:\n {6}name: release-pr\n {6}deployment: false/u);
-    assert(prepare.includes('app-id: ${{ secrets.RELEASE_BOT_APP_ID }}'));
-    assert(prepare.includes('private-key: ${{ secrets.RELEASE_BOT_APP_PRIVATE_KEY }}'));
-    assert(prepare.includes('permission-contents: write'));
-    assert(prepare.includes('permission-pull-requests: write'));
-    assert.equal(occurrences(releasePr, 'secrets.'), 2);
-    assert(prepare.includes('git config user.name "tau-release-bot[bot]"'));
-    assert(!releasePr.includes('npm publish'));
+  it('keeps the bot credentials out of the job that runs dependency code', () => {
+    assert.match(releasePr, /^permissions:\n {2}actions: read\n {2}contents: read\n\n/mu);
     assert.match(releasePr, /^concurrency:\n {2}group: release-pr\n {2}cancel-in-progress: false$/mu);
+    // generate installs and runs the release gate: no environment, no secret,
+    // no bot token.
+    for (const credential of [
+      'environment:',
+      'secrets.',
+      'steps.bot',
+      'create-github-app-token',
+      'git push',
+    ]) {
+      assert(!generate.includes(credential), `generate must not hold ${credential}`);
+    }
+    assert(generate.includes('uses: ./.github/actions/setup'));
+    // propose holds the credentials and installs and runs no dependency code.
+    assert.match(propose, /environment:\n {6}name: release-pr\n {6}deployment: false/u);
+    for (const code of ['./.github/actions/setup', 'pnpm', 'npm ', 'npx']) {
+      assert(!propose.includes(code), `propose must not run ${code}`);
+    }
+    const mint = step(propose, 'Mint tau-release-bot token').text;
+    assert(mint.includes('client-id: ${{ secrets.RELEASE_BOT_APP_ID }}'));
+    assert(!mint.includes('app-id:'), 'app-id is deprecated in create-github-app-token v3');
+    assert(mint.includes('private-key: ${{ secrets.RELEASE_BOT_APP_PRIVATE_KEY }}'));
+    assert.equal(occurrences(releasePr, 'secrets.'), 2);
+    // Only the pushing and gh steps receive the token, and no checkout stores it.
+    assert.equal(occurrences(releasePr, 'uses: actions/checkout@'), 2);
+    assert.equal(occurrences(releasePr, 'persist-credentials: false'), 2);
+    assert(!releasePr.includes('token: ${{ steps.bot.outputs.token }}'), 'no action receives the bot token');
+    const holders = stepsOf(propose)
+      .filter(({ text }) => text.includes('steps.bot.outputs.token'))
+      .map(({ name }) => name);
+    assert.deepEqual(holders, [
+      'Close the release pull request',
+      'Push release/next',
+      'Upsert the release pull request',
+    ]);
+    assert(!releasePr.includes('npm publish'));
   });
 
   it('passes every expression into scripts through the environment', () => {
@@ -738,8 +1014,8 @@ describe('release pull request workflow', () => {
   });
 
   it('regenerates from the tested commit with the wasm artifacts of that CI run', () => {
-    assert(prepare.includes('ref: ${{ steps.source.outputs.sha }}'));
-    const download = prepare.slice(prepare.indexOf('- name: Download the tested wasm artifacts'));
+    assert(step(generate, 'Checkout').text.includes('ref: ${{ steps.source.outputs.sha }}'));
+    const download = step(generate, 'Download the tested wasm artifacts').text;
     assert(download.includes('uses: ./.github/actions/download-verified-artifact'));
     assert(download.includes('pattern: wasm-*'));
     assert(download.includes('run-id: ${{ steps.source.outputs.run_id }}'));
@@ -747,14 +1023,14 @@ describe('release pull request workflow', () => {
     for (const file of ['src/pico.mjs', 'src/pico.wasm', 'src/pico-multi.mjs', 'src/pico-multi.wasm']) {
       assert(download.includes(file), `the download must require ${file}`);
     }
-    assert(prepare.includes('pnpm release:prepare -- --from-plans'));
-    for (const step of ['emcc', 'build-wasm', 'fetch-deps', 'npm pack']) {
-      assert(!prepare.includes(step), `release-pr.yml must not run ${step}`);
+    for (const buildStep of ['emcc', 'build-wasm', 'fetch-deps', 'npm pack']) {
+      assert(!releasePr.includes(buildStep), `release-pr.yml must not run ${buildStep}`);
     }
+    assert(step(propose, 'Checkout').text.includes('ref: ${{ needs.generate.outputs.sha }}'));
   });
 
   describe('resolving the CI run', () => {
-    const script = stepScript(releasePr, 'Resolve the CI run');
+    const script = step(generate, 'Resolve the CI run').run;
     const fakeGh = (tsv) => {
       const directory = temporaryDirectory();
       writeFileSync(join(directory, 'gh'), `#!/usr/bin/env bash\nprintf '%s\\n' '${tsv}'\n`);
@@ -805,31 +1081,275 @@ describe('release pull request workflow', () => {
   });
 
   it('skips a CI run that main has moved past', () => {
-    const script = stepScript(releasePr, 'Require the tip of main');
+    const tip = step(generate, 'Require the tip of main');
     const directory = newRepository();
     const older = commitAll(directory, 'feat: one');
-    const tip = commitAll(directory, 'feat: two');
-    git(directory, 'update-ref', 'refs/remotes/origin/main', tip);
-    assert.deepEqual(runStep(script, { cwd: directory, env: { SOURCE_SHA: tip } }).output, {
+    const latest = commitAll(directory, 'feat: two');
+    git(directory, 'update-ref', 'refs/remotes/origin/main', latest);
+    assert.deepEqual(runStep(tip.run, { cwd: directory, env: { SOURCE_SHA: latest } }).output, {
       current: 'true',
     });
-    assert.deepEqual(runStep(script, { cwd: directory, env: { SOURCE_SHA: older } }).output, {
+    assert.deepEqual(runStep(tip.run, { cwd: directory, env: { SOURCE_SHA: older } }).output, {
       current: 'false',
     });
-    assert(
-      prepare.includes(
-        "- name: Check pending Version Plans\n        id: plans\n        if: steps.tip.outputs.current == 'true'",
-      ),
-    );
+    assert.equal(step(generate, 'Check pending Version Plans').if, "steps.tip.outputs.current == 'true'");
   });
 
+  /**
+   * A scratch repository shaped like this one at the tested commit: a pending
+   * plan, the seed changelog, the release policy script, and a fake pnpm whose
+   * `release:prepare` makes the edits nx makes.
+   */
+  const scratchRelease = () => {
+    const directory = newRepository();
+    mkdirSync(join(directory, 'scripts'));
+    cpSync(join(root, 'scripts/ci-release.mjs'), join(directory, 'scripts/ci-release.mjs'));
+    mkdirSync(join(directory, '.nx/version-plans'), { recursive: true });
+    writeFileSync(
+      join(directory, '.nx/version-plans/first.md'),
+      '---\npicovoxel: minor\n---\n\nFirst release.\n',
+    );
+    writeFileSync(
+      join(directory, 'package.json'),
+      `${JSON.stringify({ name: 'picovoxel', version: '0.0.0' }, null, 2)}\n`,
+    );
+    writeFileSync(join(directory, 'CHANGELOG.md'), '# Changelog\n');
+    writeFileSync(join(directory, 'README.md'), '# picovoxel\n');
+    const source = commitAll(directory, 'feat(api): add the API');
+    const bin = temporaryDirectory();
+    writeFileSync(
+      join(bin, 'pnpm'),
+      [
+        '#!/usr/bin/env bash',
+        '[[ "$*" == "release:prepare -- --from-plans" ]] || { echo "unexpected pnpm $*" >&2; exit 1; }',
+        `node -e "const f='package.json',m=JSON.parse(require('fs').readFileSync(f));m.version='0.1.0';require('fs').writeFileSync(f,JSON.stringify(m,null,2)+'\\\\n')"`,
+        "printf '# Changelog\\n\\n## 0.1.0 (2026-09-28)\\n\\n- First release.\\n' > CHANGELOG.md",
+        'rm .nx/version-plans/first.md',
+        'if [[ "$FAKE_EXTRA" == stage ]]; then echo changed >> README.md; git add README.md; fi',
+        '',
+      ].join('\n'),
+    );
+    chmodSync(join(bin, 'pnpm'), 0o755);
+    return { bin, directory, source };
+  };
+
   describe('generating the release commit', () => {
-    const generate = stepScript(releasePr, 'Generate the release commit');
+    const script = step(generate, 'Generate the release commit').run;
+
+    it('commits only the release files, as the bot, and bundles the one commit', () => {
+      const { bin, directory, source } = scratchRelease();
+      const { status, stderr } = runStep(script, {
+        cwd: directory,
+        env: { SOURCE_SHA: source },
+        path: [bin],
+      });
+      assert.equal(status, 0, stderr);
+      assert.equal(git(directory, 'rev-parse', 'HEAD^'), source);
+      assert.equal(git(directory, 'log', '-1', '--format=%s'), 'chore(release): picovoxel v0.1.0');
+      assert.equal(
+        git(directory, 'log', '-1', '--format=%an <%ae>'),
+        'tau-release-bot[bot] <tau-release-bot[bot]@users.noreply.github.com>',
+      );
+      assert.deepEqual(git(directory, 'diff', '--name-status', source, 'HEAD').split('\n'), [
+        'D\t.nx/version-plans/first.md',
+        'M\tCHANGELOG.md',
+        'M\tpackage.json',
+      ]);
+      const heads = git(directory, 'bundle', 'list-heads', 'release-commit/release.bundle');
+      assert.equal(heads, `${git(directory, 'rev-parse', 'HEAD')} refs/heads/release-bundle`);
+      assert.match(git(directory, 'bundle', 'verify', 'release-commit/release.bundle'), /requires this ref/u);
+    });
+
+    it('refuses a release commit that would carry any other staged file', () => {
+      const { bin, directory, source } = scratchRelease();
+      const { status, stderr } = runStep(script, {
+        cwd: directory,
+        env: { FAKE_EXTRA: 'stage', SOURCE_SHA: source },
+        path: [bin],
+      });
+      assert.equal(status, 1);
+      assert.match(stderr, /release generation changed unexpected files: README\.md/u);
+      assert.equal(git(directory, 'rev-parse', 'HEAD'), source, 'nothing may be committed');
+    });
+  });
+
+  describe('proposing the release commit', () => {
+    const validate = step(propose, 'Validate the release commit').run;
+
+    /** A propose checkout at the tested commit, holding the bundle `edit` produced. */
+    const proposal = (edit) => {
+      const { bin, directory, source } = scratchRelease();
+      const generated = runStep(step(generate, 'Generate the release commit').run, {
+        cwd: directory,
+        env: { SOURCE_SHA: source },
+        path: [bin],
+      });
+      assert.equal(generated.status, 0, generated.stderr);
+      edit?.(directory, source);
+      git(directory, 'update-ref', 'refs/heads/release-bundle', 'HEAD');
+      git(
+        directory,
+        'bundle',
+        'create',
+        'release-commit/release.bundle',
+        `${source}..refs/heads/release-bundle`,
+      );
+      git(directory, 'checkout', '--quiet', '--detach', source);
+      return runStep(validate, {
+        cwd: directory,
+        env: { GITHUB_WORKSPACE: directory, REPOSITORY: 'taucad/picovoxel', SOURCE_SHA: source },
+      });
+    };
+    const amend = (directory, change) => {
+      change();
+      git(directory, 'add', 'package.json', 'README.md');
+      git(
+        directory,
+        '-c',
+        'user.name=tau-release-bot[bot]',
+        '-c',
+        'user.email=tau-release-bot[bot]@users.noreply.github.com',
+        'commit',
+        '--quiet',
+        '--amend',
+        '--no-edit',
+      );
+    };
+
+    it('accepts the generated commit and names its version', () => {
+      const { output, status, stderr } = proposal();
+      assert.equal(status, 0, stderr);
+      assert.match(output.sha, /^[0-9a-f]{40}$/u);
+      assert.equal(output.version, '0.1.0');
+    });
+
+    it('refuses a bundle the release policy would reject', () => {
+      const widened = proposal((directory) =>
+        amend(directory, () => {
+          const manifest = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8'));
+          writeFileSync(
+            join(directory, 'package.json'),
+            JSON.stringify({ ...manifest, dependencies: { leftpad: '1.0.0' } }),
+          );
+        }),
+      );
+      assert.equal(widened.status, 1);
+      assert.match(widened.stderr, /may change only the package\.json version/u);
+      const extra = proposal((directory) =>
+        amend(directory, () => writeFileSync(join(directory, 'README.md'), 'x\n')),
+      );
+      assert.equal(extra.status, 1);
+      assert.match(extra.stderr, /unexpected files: README\.md/u);
+    });
+
+    it('refuses another author, another subject, or more than one commit', () => {
+      const author = proposal((directory) =>
+        git(directory, 'commit', '--quiet', '--amend', '--no-edit', '--reset-author'),
+      );
+      assert.equal(author.status, 1);
+      assert.match(author.stderr, /authored by Test <test@example\.invalid>/u);
+      const subject = proposal((directory) =>
+        git(
+          directory,
+          '-c',
+          'user.name=tau-release-bot[bot]',
+          '-c',
+          'user.email=tau-release-bot[bot]@users.noreply.github.com',
+          'commit',
+          '--quiet',
+          '--amend',
+          '-m',
+          'chore(release): picovoxel v0.2.0',
+        ),
+      );
+      assert.equal(subject.status, 1);
+      assert.match(subject.stderr, /subject is 'chore\(release\): picovoxel v0\.2\.0'/u);
+      const two = proposal((directory) => {
+        git(directory, 'reset', '--quiet', '--soft', 'HEAD~1');
+        git(directory, 'commit', '--quiet', '-m', 'first half');
+        git(
+          directory,
+          '-c',
+          'user.name=tau-release-bot[bot]',
+          '-c',
+          'user.email=tau-release-bot[bot]@users.noreply.github.com',
+          'commit',
+          '--quiet',
+          '--allow-empty',
+          '-m',
+          'chore(release): picovoxel v0.1.0',
+        );
+      });
+      assert.equal(two.status, 1);
+      assert.match(two.stderr, /is not one commit on/u);
+    });
+
+    /** Run one pushing step with a fake git that records its arguments. */
+    const pushWith = (name, env) => {
+      const bin = temporaryDirectory();
+      const calls = join(bin, 'calls');
+      writeFileSync(calls, '');
+      writeFileSync(
+        join(bin, 'git'),
+        `#!/usr/bin/env bash\nprintf '%s\\n' "$@" >> '${calls}'\necho --- >> '${calls}'\n`,
+      );
+      writeFileSync(join(bin, 'gh'), '#!/usr/bin/env bash\n');
+      chmodSync(join(bin, 'git'), 0o755);
+      chmodSync(join(bin, 'gh'), 0o755);
+      const result = runStep(step(propose, name).run, {
+        cwd: temporaryDirectory(),
+        env: { BOT_TOKEN: 'token-value', REPOSITORY: 'taucad/picovoxel', ...env },
+        path: [bin],
+      });
+      const header = `http.https://github.com/.extraheader=AUTHORIZATION: basic ${Buffer.from('x-access-token:token-value').toString('base64')}`;
+      return { ...result, calls: readFileSync(calls, 'utf8').split('---\n').filter(Boolean), header };
+    };
+
+    it('pushes only the validated commit to release/next, passing the token to that command alone', () => {
+      const commit = 'd'.repeat(40);
+      const { calls, header, status, stderr } = pushWith('Push release/next', { COMMIT: commit });
+      assert.equal(status, 0, stderr);
+      assert.deepEqual(calls, [
+        [
+          '-c',
+          header,
+          'push',
+          '--force',
+          'https://github.com/taucad/picovoxel.git',
+          `${commit}:refs/heads/release/next`,
+          '',
+        ].join('\n'),
+      ]);
+      assert.equal(
+        step(propose, 'Push release/next').text.includes('COMMIT: ${{ steps.commit.outputs.sha }}'),
+        true,
+      );
+    });
+
+    it('deletes only release/next when no plan is pending and no pull request is open', () => {
+      const { calls, header, status, stderr } = pushWith('Close the release pull request', {});
+      assert.equal(status, 0, stderr);
+      assert.deepEqual(calls, [
+        [
+          '-c',
+          header,
+          'push',
+          'https://github.com/taucad/picovoxel.git',
+          '--delete',
+          'release/next',
+          '',
+        ].join('\n'),
+      ]);
+    });
+  });
+
+  describe('describing the release', () => {
+    const describeStep = step(propose, 'Describe the release').run;
     /** The `{ … } >> "$GITHUB_OUTPUT"` group that contains `marker`. */
     const outputGroup = (marker) => {
-      const lines = generate.split('\n');
+      const lines = describeStep.split('\n');
       const at = lines.findIndex((line) => line.includes(marker));
-      assert.notEqual(at, -1, `the generate step must contain ${marker}`);
+      assert.notEqual(at, -1, `the describe step must contain ${marker}`);
       let start = at;
       while (lines[start].trim() !== '{') start -= 1;
       const end = lines.findIndex((line, index) => index > at && line.trim() === '} >> "$GITHUB_OUTPUT"');
@@ -865,7 +1385,7 @@ describe('release pull request workflow', () => {
       git(directory, 'tag', 'v0.1.0');
       commitAll(directory, 'fix: after the release');
       const source = commitAll(directory, 'feat: the tip');
-      const env = { SOURCE_SHA: source, version: '0.1.1', previous_version: '0.1.0' };
+      const env = { SOURCE_SHA: source, previous_version: '0.1.0' };
       const tagged = runStep(log, { cwd: directory, env });
       assert.equal(tagged.status, 0, tagged.stderr);
       assert.deepEqual(
@@ -879,7 +1399,7 @@ describe('release pull request workflow', () => {
         3,
         'without a tag the log is the recent history',
       );
-      assert.equal(first.output.version, '0.1.1');
+      assert.equal(first.output.previous_version, '0.0.0');
     });
   });
 });

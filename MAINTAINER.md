@@ -3,7 +3,11 @@
 ## Pull requests
 
 Require `ci-gate`, a Version Plan for shipped changes, and reviewable admission
-edits for byte or timing regressions. Zero approvals is the solo-maintainer
+edits for byte or timing regressions. A change needs a plan when it touches the
+package's `files` set, the sources `dist/` is built from, or a shipped
+`package.json` field such as `dependencies` or `peerDependencies`;
+devDependency-only, lockfile-only, CI-only and tooling changes, and docs outside
+the tarball, need none (`scripts/plan-check.mjs`). Zero approvals is the solo-maintainer
 ruleset; revisit it when a second maintainer joins. Squash-merge with the pull
 request title as the commit subject.
 
@@ -21,14 +25,21 @@ entire release act. Do not push to `release/next` or enable auto-merge on it.
 
 The bot regenerates at the commit the CI run tested, with that run's wasm
 artifacts, and skips a run that `main` has already moved past. Preparation runs
-the release gate (format, lint, typecheck, pkgcheck) once; the release pull
-request's own CI run is the full pipeline. When a bot run fails, for example
+the release gate (format, lint, typecheck, pkgcheck) once, in a job that never
+holds the bot credentials; a second job checks the generated commit against the
+release policy before it pushes. The release pull request's own CI run is the
+full pipeline. When a bot run fails, for example
 before the `release-pr` environment holds its credentials, run `release-pr.yml`
 by hand with the id of the green CI run at the tip of `main`.
 
 GitHub Actions owns npm OIDC publication, provenance, registry verification,
 tags, and GitHub Releases. Do not publish from a workstation. The published
 wasm pair is the one the release run built and tested.
+
+After merging the release pull request, open the CI run of the release commit
+on `main` and confirm that `publish` and `registry-verify` succeeded and that
+the GitHub release exists. If that run failed or was cancelled, re-run it: it
+derives the release again, and publication and verification are idempotent.
 
 Before the first release, all of these must hold:
 
@@ -41,8 +52,9 @@ Before the first release, all of these must hold:
 
 Manual fallback when the bot is broken: on a fresh branch off `main`, run
 `pnpm release:prepare -- <version> --dry-run` and then the real run, commit
-only generated release files as `chore(release): picovoxel v<version>`, and
-open the pull request yourself.
+only generated release files as `chore(release): picovoxel v<version>`, push
+the commit to `release/next` (the release policy accepts release pull requests
+from that branch only), and open the pull request yourself.
 
 ## Registry administration
 
@@ -50,10 +62,16 @@ This repository publishes one package, `picovoxel`. The Tau plugin
 `@taucad/picovoxel` is published from the Tau repository, not from here.
 
 `picovoxel` has one npm Trusted Publisher: repository `taucad/picovoxel`,
-workflow filename `ci.yml`, publish allowed, no environment. npm matches the
-filename exactly; a provenance-signed publish that fails with `E404` means the
-binding names another workflow. Audit it with `npm trust list picovoxel --json`
+workflow filename `ci.yml`, publish allowed, and no environment until the step
+below adds `npm-publish`. npm matches the filename exactly; a provenance-signed
+publish that fails with `E404` means the binding names another workflow. Audit it with `npm trust list picovoxel --json`
 (npm 11.15.0 or newer, with account 2FA) and never replace a correct binding.
+
+The `publish` job runs in the `npm-publish` environment, which admits only
+`main`. npm does not check the branch, so until the binding also names that
+environment, a workflow edited on a same-repository branch could publish.
+Adding environment `npm-publish` to the Trusted Publisher is an operator step
+on npmjs.com; the workflow publishes the same way before and after it.
 Publishing access on npmjs.com requires two-factor authentication and disallows
 tokens; that is a site setting, and OIDC publication works under it.
 

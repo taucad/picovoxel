@@ -99,6 +99,22 @@ describe('bounded registry visibility wait', () => {
     assert.deepEqual(sleeps, [1_000, 2_000, 4_000, 4_000, 4_000, 4_000, 1_000]);
   });
 
+  it('refuses an interval, ceiling or timeout that is not a positive number', async () => {
+    const { options, sleeps } = harness(() => null);
+    for (const [key, value] of [
+      ['intervalMs', Number.NaN],
+      ['maxIntervalMs', 0],
+      ['timeoutMs', -1],
+      ['timeoutMs', Number.POSITIVE_INFINITY],
+    ]) {
+      await assert.rejects(
+        waitForRegistry({ ...options, [key]: value }),
+        new RegExp(`${key} must be a positive number`, 'u'),
+      );
+    }
+    assert.deepEqual(sleeps, []);
+  });
+
   it('refuses a manifest without packages', async () => {
     const { options } = harness(() => null);
 
