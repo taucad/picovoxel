@@ -1,0 +1,1687 @@
+[14:16:25] === native HeatX sweep [patched]: 6 sizes x 5 passes = 30 runs
+[14:16:25]     dylib: /private/tmp/claude-501/-Users-rifont-git-tau/4aafe0c3-c700-4b06-bd2e-2b65ef3bf233/scratchpad/PicoGKRuntime-patched/Dist/picogk.26.2.0.dylib
+[14:16:25]     out:  /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl
+[14:16:25]     host: Apple M2 Pro / 12 cores / 32 GiB
+[14:16:25]     power:  lowpowermode         0
+[14:16:25]     dotnet 9.0.117 · PicoGK 389d4d9 Update Extensions.cs · runtime PicoGK-v2.2.0
+[14:16:27] pass 1/5  voxel 1.0mm  (host 6.3% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:16:27 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:16:27 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 1.0 --run 1 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.1+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 1 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     20s   19.6+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     20s    0.0+ Finished Task successfully.
+     20s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     20s    0.0+ 
+     20s    0.0+ ----------------------------------------
+     20s    0.0+ 
+     20s    0.0+ Closing log file.
+     20s    0.0+ Current time (UTC): 2026-08-09 02:16:46 (UTC)
+     20s    0.0+ Current local time: 2026-08-09 14:16:46 (+12:00)
+     20s    0.0+ Done.
+voxel=1mm run=1 task=19.6s process=19.9s stl=93721484
+[14:16:47]   ok in 20s 
+[14:16:58] pass 1/5  voxel 0.9mm  (host 6.3% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:16:58 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:16:58 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.9 --run 1 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.9 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     23s   22.9+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     23s    0.0+ Finished Task successfully.
+     23s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     23s    0.0+ 
+     23s    0.0+ ----------------------------------------
+     23s    0.0+ 
+     23s    0.0+ Closing log file.
+     23s    0.0+ Current time (UTC): 2026-08-09 02:17:21 (UTC)
+     23s    0.0+ Current local time: 2026-08-09 14:17:21 (+12:00)
+     23s    0.0+ Done.
+voxel=0.9mm run=1 task=22.9s process=23.1s stl=122184884
+[14:17:21]   ok in 23s 
+[14:17:33] pass 1/5  voxel 0.8mm  (host 12.8% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:17:33 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:17:33 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.8 --run 1 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.8 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     27s   27.2+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     27s    0.0+ Finished Task successfully.
+     27s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     27s    0.0+ 
+     27s    0.0+ ----------------------------------------
+     27s    0.0+ 
+     27s    0.0+ Closing log file.
+     27s    0.0+ Current time (UTC): 2026-08-09 02:18:00 (UTC)
+     27s    0.0+ Current local time: 2026-08-09 14:18:00 (+12:00)
+     27s    0.0+ Done.
+voxel=0.8mm run=1 task=27.2s process=27.4s stl=165332484
+[14:18:00]   ok in 27s 
+[14:18:12] pass 1/5  voxel 0.7mm  (host 10.9% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:18:12 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:18:12 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.7 --run 1 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.7 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     34s   33.4+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     34s    0.0+ Finished Task successfully.
+     34s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     34s    0.0+ 
+     34s    0.0+ ----------------------------------------
+     34s    0.0+ 
+     34s    0.0+ Closing log file.
+     34s    0.0+ Current time (UTC): 2026-08-09 02:18:46 (UTC)
+     34s    0.0+ Current local time: 2026-08-09 14:18:46 (+12:00)
+     34s    0.0+ Done.
+voxel=0.7mm run=1 task=33.4s process=33.6s stl=227361084
+[14:18:46]   ok in 34s 
+[14:18:57] pass 1/5  voxel 0.6mm  (host 6.1% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:18:57 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:18:57 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.6 --run 1 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.6 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     45s   44.8+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     45s    0.0+ Finished Task successfully.
+     45s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     45s    0.1+ 
+     45s    0.1+ ----------------------------------------
+     45s    0.1+ 
+     45s    0.0+ Closing log file.
+     45s    0.0+ Current time (UTC): 2026-08-09 02:19:42 (UTC)
+     45s    0.0+ Current local time: 2026-08-09 14:19:42 (+12:00)
+     45s    0.0+ Done.
+voxel=0.6mm run=1 task=44.8s process=45.1s stl=328300684
+[14:19:42]   ok in 45s 
+[14:19:54] pass 1/5  voxel 0.5mm  (host 5.3% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:19:54 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:19:54 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          45MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.5 --run 1 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.5 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     64s   63.7+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     64s    0.0+ Finished Task successfully.
+     64s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     64s    0.1+ 
+     64s    0.1+ ----------------------------------------
+     64s    0.1+ 
+     64s    0.0+ Closing log file.
+     64s    0.0+ Current time (UTC): 2026-08-09 02:20:58 (UTC)
+     64s    0.0+ Current local time: 2026-08-09 14:20:58 (+12:00)
+     64s    0.0+ Done.
+voxel=0.5mm run=1 task=63.7s process=64.0s stl=502871684
+[14:20:58]   ok in 64s 
+[14:21:09] pass 2/5  voxel 1.0mm  (host 5.8% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:21:10 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:21:10 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 1.0 --run 2 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 1 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     20s   19.5+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     20s    0.0+ Finished Task successfully.
+     20s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     20s    0.0+ 
+     20s    0.0+ ----------------------------------------
+     20s    0.0+ 
+     20s    0.0+ Closing log file.
+     20s    0.0+ Current time (UTC): 2026-08-09 02:21:29 (UTC)
+     20s    0.0+ Current local time: 2026-08-09 14:21:29 (+12:00)
+     20s    0.0+ Done.
+voxel=1mm run=2 task=19.5s process=19.7s stl=93721484
+[14:21:29]   ok in 20s 
+[14:21:41] pass 2/5  voxel 0.9mm  (host 23.2% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:21:41 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:21:41 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.9 --run 2 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.9 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     23s   22.6+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     23s    0.0+ Finished Task successfully.
+     23s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     23s    0.0+ 
+     23s    0.0+ ----------------------------------------
+     23s    0.0+ 
+     23s    0.0+ Closing log file.
+     23s    0.0+ Current time (UTC): 2026-08-09 02:22:04 (UTC)
+     23s    0.0+ Current local time: 2026-08-09 14:22:04 (+12:00)
+     23s    0.0+ Done.
+voxel=0.9mm run=2 task=22.6s process=22.8s stl=122184884
+[14:22:04]   ok in 23s 
+[14:22:15] pass 2/5  voxel 0.8mm  (host 7.4% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:22:15 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:22:15 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          45MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.8 --run 2 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.8 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     27s   26.7+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     27s    0.0+ Finished Task successfully.
+     27s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     27s    0.0+ 
+     27s    0.0+ ----------------------------------------
+     27s    0.0+ 
+     27s    0.0+ Closing log file.
+     27s    0.0+ Current time (UTC): 2026-08-09 02:22:42 (UTC)
+     27s    0.0+ Current local time: 2026-08-09 14:22:42 (+12:00)
+     27s    0.0+ Done.
+voxel=0.8mm run=2 task=26.7s process=27.0s stl=165332484
+[14:22:42]   ok in 27s 
+[14:22:54] pass 2/5  voxel 0.7mm  (host 10.5% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:22:54 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:22:54 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.7 --run 2 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.7 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     34s   33.4+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     34s    0.0+ Finished Task successfully.
+     34s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     34s    0.0+ 
+     34s    0.0+ ----------------------------------------
+     34s    0.0+ 
+     34s    0.0+ Closing log file.
+     34s    0.0+ Current time (UTC): 2026-08-09 02:23:28 (UTC)
+     34s    0.0+ Current local time: 2026-08-09 14:23:28 (+12:00)
+     34s    0.0+ Done.
+voxel=0.7mm run=2 task=33.5s process=33.7s stl=227361084
+[14:23:28]   ok in 34s 
+[14:23:39] pass 2/5  voxel 0.6mm  (host 13.2% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:23:39 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:23:39 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.6 --run 2 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.6 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     45s   44.4+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     45s    0.0+ Finished Task successfully.
+     45s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     45s    0.1+ 
+     45s    0.1+ ----------------------------------------
+     45s    0.1+ 
+     45s    0.0+ Closing log file.
+     45s    0.0+ Current time (UTC): 2026-08-09 02:24:24 (UTC)
+     45s    0.0+ Current local time: 2026-08-09 14:24:24 (+12:00)
+     45s    0.0+ Done.
+voxel=0.6mm run=2 task=44.4s process=44.7s stl=328300684
+[14:24:24]   ok in 45s 
+[14:24:35] pass 2/5  voxel 0.5mm  (host 5.4% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:24:36 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:24:36 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.5 --run 2 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.5 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     65s   64.6+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     65s    0.0+ Finished Task successfully.
+     65s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     65s    0.1+ 
+     65s    0.1+ ----------------------------------------
+     65s    0.1+ 
+     65s    0.0+ Closing log file.
+     65s    0.0+ Current time (UTC): 2026-08-09 02:25:40 (UTC)
+     65s    0.0+ Current local time: 2026-08-09 14:25:40 (+12:00)
+     65s    0.0+ Done.
+voxel=0.5mm run=2 task=64.6s process=64.8s stl=502871684
+[14:25:40]   ok in 65s 
+[14:25:52] pass 3/5  voxel 1.0mm  (host 7.3% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:25:52 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:25:52 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 1.0 --run 3 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 1 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     20s   19.5+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     20s    0.0+ Finished Task successfully.
+     20s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     20s    0.0+ 
+     20s    0.0+ ----------------------------------------
+     20s    0.0+ 
+     20s    0.0+ Closing log file.
+     20s    0.0+ Current time (UTC): 2026-08-09 02:26:12 (UTC)
+     20s    0.0+ Current local time: 2026-08-09 14:26:12 (+12:00)
+     20s    0.0+ Done.
+voxel=1mm run=3 task=19.5s process=19.7s stl=93721484
+[14:26:12]   ok in 20s 
+[14:26:23] pass 3/5  voxel 0.9mm  (host 12.4% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:26:23 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:26:23 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          45MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.9 --run 3 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.9 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     23s   22.7+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     23s    0.0+ Finished Task successfully.
+     23s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     23s    0.0+ 
+     23s    0.0+ ----------------------------------------
+     23s    0.0+ 
+     23s    0.0+ Closing log file.
+     23s    0.0+ Current time (UTC): 2026-08-09 02:26:46 (UTC)
+     23s    0.0+ Current local time: 2026-08-09 14:26:46 (+12:00)
+     23s    0.0+ Done.
+voxel=0.9mm run=3 task=22.7s process=22.9s stl=122184884
+[14:26:46]   ok in 23s 
+[14:26:58] pass 3/5  voxel 0.8mm  (host 7.0% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:26:58 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:26:58 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.8 --run 3 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.8 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     27s   26.7+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     27s    0.0+ Finished Task successfully.
+     27s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     27s    0.0+ 
+     27s    0.0+ ----------------------------------------
+     27s    0.0+ 
+     27s    0.0+ Closing log file.
+     27s    0.0+ Current time (UTC): 2026-08-09 02:27:25 (UTC)
+     27s    0.0+ Current local time: 2026-08-09 14:27:25 (+12:00)
+     27s    0.0+ Done.
+voxel=0.8mm run=3 task=26.7s process=26.9s stl=165332484
+[14:27:25]   ok in 27s 
+[14:27:36] pass 3/5  voxel 0.7mm  (host 6.3% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:27:37 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:27:37 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.7 --run 3 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.7 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     34s   33.4+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     34s    0.0+ Finished Task successfully.
+     34s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     34s    0.0+ 
+     34s    0.0+ ----------------------------------------
+     34s    0.0+ 
+     34s    0.0+ Closing log file.
+     34s    0.0+ Current time (UTC): 2026-08-09 02:28:10 (UTC)
+     34s    0.0+ Current local time: 2026-08-09 14:28:10 (+12:00)
+     34s    0.0+ Done.
+voxel=0.7mm run=3 task=33.4s process=33.6s stl=227361084
+[14:28:10]   ok in 34s 
+[14:28:22] pass 3/5  voxel 0.6mm  (host 5.1% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:28:22 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:28:22 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.6 --run 3 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.6 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     44s   44.3+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     44s    0.0+ Finished Task successfully.
+     44s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     44s    0.1+ 
+     44s    0.1+ ----------------------------------------
+     44s    0.1+ 
+     44s    0.0+ Closing log file.
+     44s    0.0+ Current time (UTC): 2026-08-09 02:29:06 (UTC)
+     44s    0.0+ Current local time: 2026-08-09 14:29:06 (+12:00)
+     44s    0.0+ Done.
+voxel=0.6mm run=3 task=44.3s process=44.5s stl=328300684
+[14:29:06]   ok in 44s 
+[14:29:18] pass 3/5  voxel 0.5mm  (host 4.5% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:29:18 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:29:18 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.5 --run 3 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.5 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     64s   63.9+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     64s    0.0+ Finished Task successfully.
+     64s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     64s    0.1+ 
+     64s    0.1+ ----------------------------------------
+     64s    0.1+ 
+     64s    0.0+ Closing log file.
+     64s    0.0+ Current time (UTC): 2026-08-09 02:30:22 (UTC)
+     64s    0.0+ Current local time: 2026-08-09 14:30:22 (+12:00)
+     64s    0.0+ Done.
+voxel=0.5mm run=3 task=63.9s process=64.2s stl=502871684
+[14:30:22]   ok in 64s 
+[14:30:34] pass 4/5  voxel 1.0mm  (host 6.2% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:30:34 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:30:34 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 1.0 --run 4 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 1 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     20s   19.3+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     20s    0.0+ Finished Task successfully.
+     20s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     20s    0.0+ 
+     20s    0.0+ ----------------------------------------
+     20s    0.0+ 
+     20s    0.0+ Closing log file.
+     20s    0.0+ Current time (UTC): 2026-08-09 02:30:53 (UTC)
+     20s    0.0+ Current local time: 2026-08-09 14:30:53 (+12:00)
+     20s    0.0+ Done.
+voxel=1mm run=4 task=19.3s process=19.5s stl=93721484
+[14:30:53]   ok in 19s 
+[14:31:05] pass 4/5  voxel 0.9mm  (host 5.4% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:31:05 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:31:05 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.9 --run 4 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.9 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     23s   22.6+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     23s    0.0+ Finished Task successfully.
+     23s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     23s    0.0+ 
+     23s    0.0+ ----------------------------------------
+     23s    0.0+ 
+     23s    0.0+ Closing log file.
+     23s    0.0+ Current time (UTC): 2026-08-09 02:31:28 (UTC)
+     23s    0.0+ Current local time: 2026-08-09 14:31:28 (+12:00)
+     23s    0.0+ Done.
+voxel=0.9mm run=4 task=22.6s process=22.8s stl=122184884
+[14:31:28]   ok in 23s 
+[14:31:39] pass 4/5  voxel 0.8mm  (host 7.6% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:31:39 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:31:39 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.8 --run 4 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.8 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     27s   26.7+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     27s    0.0+ Finished Task successfully.
+     27s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     27s    0.0+ 
+     27s    0.0+ ----------------------------------------
+     27s    0.0+ 
+     27s    0.0+ Closing log file.
+     27s    0.0+ Current time (UTC): 2026-08-09 02:32:06 (UTC)
+     27s    0.0+ Current local time: 2026-08-09 14:32:06 (+12:00)
+     27s    0.0+ Done.
+voxel=0.8mm run=4 task=26.7s process=26.9s stl=165332484
+[14:32:06]   ok in 27s 
+[14:32:18] pass 4/5  voxel 0.7mm  (host 8.6% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:32:18 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:32:18 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.7 --run 4 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.7 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     33s   33.2+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     33s    0.0+ Finished Task successfully.
+     33s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     33s    0.0+ 
+     33s    0.0+ ----------------------------------------
+     33s    0.0+ 
+     33s    0.0+ Closing log file.
+     33s    0.0+ Current time (UTC): 2026-08-09 02:32:51 (UTC)
+     33s    0.0+ Current local time: 2026-08-09 14:32:51 (+12:00)
+     33s    0.0+ Done.
+voxel=0.7mm run=4 task=33.2s process=33.5s stl=227361084
+[14:32:51]   ok in 33s 
+[14:33:03] pass 4/5  voxel 0.6mm  (host 19.8% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:33:03 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:33:03 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.6 --run 4 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.6 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     44s   43.9+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     44s    0.0+ Finished Task successfully.
+     44s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     44s    0.0+ 
+     44s    0.0+ ----------------------------------------
+     44s    0.0+ 
+     44s    0.0+ Closing log file.
+     44s    0.0+ Current time (UTC): 2026-08-09 02:33:47 (UTC)
+     44s    0.0+ Current local time: 2026-08-09 14:33:47 (+12:00)
+     44s    0.0+ Done.
+voxel=0.6mm run=4 task=43.9s process=44.2s stl=328300684
+[14:33:47]   ok in 44s 
+[14:33:59] pass 4/5  voxel 0.5mm  (host 4.9% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:33:59 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:33:59 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.5 --run 4 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.5 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     64s   64.0+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     64s    0.0+ Finished Task successfully.
+     64s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     64s    0.1+ 
+     64s    0.1+ ----------------------------------------
+     64s    0.1+ 
+     64s    0.0+ Closing log file.
+     64s    0.0+ Current time (UTC): 2026-08-09 02:35:03 (UTC)
+     64s    0.0+ Current local time: 2026-08-09 14:35:03 (+12:00)
+     64s    0.0+ Done.
+voxel=0.5mm run=4 task=64.0s process=64.2s stl=502871684
+[14:35:03]   ok in 64s 
+[14:35:15] pass 5/5  voxel 1.0mm  (host 4.9% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:35:15 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:35:15 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 1.0 --run 5 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 1 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     20s   19.4+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     20s    0.0+ Finished Task successfully.
+     20s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     20s    0.0+ 
+     20s    0.0+ ----------------------------------------
+     20s    0.0+ 
+     20s    0.0+ Closing log file.
+     20s    0.0+ Current time (UTC): 2026-08-09 02:35:34 (UTC)
+     20s    0.0+ Current local time: 2026-08-09 14:35:34 (+12:00)
+     20s    0.0+ Done.
+voxel=1mm run=5 task=19.4s process=19.6s stl=93721484
+[14:35:34]   ok in 19s 
+[14:35:46] pass 5/5  voxel 0.9mm  (host 5.2% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:35:46 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:35:46 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.9 --run 5 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.9 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     23s   22.6+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     23s    0.0+ Finished Task successfully.
+     23s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     23s    0.0+ 
+     23s    0.0+ ----------------------------------------
+     23s    0.0+ 
+     23s    0.0+ Closing log file.
+     23s    0.0+ Current time (UTC): 2026-08-09 02:36:09 (UTC)
+     23s    0.0+ Current local time: 2026-08-09 14:36:09 (+12:00)
+     23s    0.0+ Done.
+voxel=0.9mm run=5 task=22.6s process=22.8s stl=122184884
+[14:36:09]   ok in 23s 
+[14:36:20] pass 5/5  voxel 0.8mm  (host 8.8% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:36:20 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:36:20 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.8 --run 5 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.8 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     27s   26.7+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     27s    0.0+ Finished Task successfully.
+     27s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     27s    0.0+ 
+     27s    0.0+ ----------------------------------------
+     27s    0.0+ 
+     27s    0.0+ Closing log file.
+     27s    0.0+ Current time (UTC): 2026-08-09 02:36:47 (UTC)
+     27s    0.0+ Current local time: 2026-08-09 14:36:47 (+12:00)
+     27s    0.0+ Done.
+voxel=0.8mm run=5 task=26.7s process=26.9s stl=165332484
+[14:36:47]   ok in 27s 
+[14:36:59] pass 5/5  voxel 0.7mm  (host 4.7% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:36:59 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:36:59 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.7 --run 5 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.7 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     33s   33.2+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     33s    0.0+ Finished Task successfully.
+     33s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     33s    0.0+ 
+     33s    0.0+ ----------------------------------------
+     33s    0.0+ 
+     33s    0.0+ Closing log file.
+     33s    0.0+ Current time (UTC): 2026-08-09 02:37:32 (UTC)
+     33s    0.0+ Current local time: 2026-08-09 14:37:32 (+12:00)
+     33s    0.0+ Done.
+voxel=0.7mm run=5 task=33.2s process=33.4s stl=227361084
+[14:37:32]   ok in 33s 
+[14:37:44] pass 5/5  voxel 0.6mm  (host 4.1% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:37:44 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:37:44 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.6 --run 5 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.6 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     45s   45.0+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     45s    0.0+ Finished Task successfully.
+     45s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     45s    0.1+ 
+     45s    0.1+ ----------------------------------------
+     45s    0.1+ 
+     45s    0.0+ Closing log file.
+     45s    0.0+ Current time (UTC): 2026-08-09 02:38:29 (UTC)
+     45s    0.0+ Current local time: 2026-08-09 14:38:29 (+12:00)
+     45s    0.0+ Done.
+voxel=0.6mm run=5 task=45.0s process=45.2s stl=328300684
+[14:38:29]   ok in 45s 
+[14:38:41] pass 5/5  voxel 0.5mm  (host 14.1% busy)
+      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ Current time (UTC): 2026-08-09 02:38:41 (UTC)
+      0s    0.0+ Current local time: 2026-08-09 14:38:41 (+12:00)
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ System Info:
+      0s    0.0+ 
+      0s    0.0+ Machine Name:         root
+      0s    0.0+ Operating System      Darwin 25.5.0 Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:24 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T6020
+      0s    0.0+ Version:              Unix 26.5.2
+      0s    0.0+ OS Architecture:      Arm64
+      0s    0.0+ Proc Architecture:    Arm64
+      0s    0.0+ 64 Bit OS:            Yes
+      0s    0.0+ 64 Bit Process:       Yes
+      0s    0.0+ Processor Count:      12
+      0s    0.0+ Working Set:          44MB
+      0s    0.0+ C# Framework:         .NET 9.0.16
+      0s    0.0+ C# CLR Version:       9.0.16
+      0s    0.0+ PicoGK Path:          picogk.26.2
+      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.5 --run 5 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ 
+      0s    0.0+ ----------------------------------------
+      0s    0.0+ 
+      0s    0.0+ PicoGK:    PicoGK Core Library
+      0s    0.0+            26.2.0
+      0s    0.0+            2026-07-17 19:25:13 picogk
+      0s    0.0+ 
+      0s    0.0+ VoxelSize: 0.5 (mm)
+      0s    0.0+ Happy Computational Engineering!
+      0s    0.0+ 
+      0s    0.0+ 
+      0s    0.1+ OpenGL: 4.1 Metal - 90.5 / Apple M2 Pro / Apple
+      0s    0.0+ Loading lights embedded environment
+      0s    0.0+ Starting tasks.
+      0s    0.0+ 
+      0s    0.0+ Starting Task.
+      0s    0.0+ Loading Lights
+     63s   63.3+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     63s    0.0+ Finished Task successfully.
+     63s    0.0+ Viewer Window Closed
+Disposing Library
+Done Disposing Library
+     64s    0.1+ 
+     64s    0.1+ ----------------------------------------
+     64s    0.1+ 
+     64s    0.0+ Closing log file.
+     64s    0.0+ Current time (UTC): 2026-08-09 02:39:44 (UTC)
+     64s    0.0+ Current local time: 2026-08-09 14:39:44 (+12:00)
+     64s    0.0+ Done.
+voxel=0.5mm run=5 task=63.3s process=63.5s stl=502871684
+[14:39:44]   ok in 63s 
+[14:39:55] === sweep complete: 30 records in /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-patched-2026-08-09.jsonl
