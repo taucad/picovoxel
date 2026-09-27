@@ -271,7 +271,9 @@ async function instantiate(
   glue: PicoGlueFactory,
   { wasm, wasmModule }: CreatePicoRuntimeOptions,
 ): Promise<PicoWasmModule> {
-  const overrides: Record<string, unknown> = typeof wasm === 'object' && wasm !== null ? { ...wasm } : {};
+  const overrides: Record<string, unknown> =
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime guard for untyped JavaScript callers
+    typeof wasm === 'object' && wasm !== null ? { ...wasm } : {};
   let failed: Promise<never> | undefined;
   if (wasmModule !== undefined) {
     if (overrides['instantiateWasm'] !== undefined) {
@@ -344,13 +346,13 @@ interface RuntimeParts {
 /** A runtime plus its internal session opener; the opener can hand the session the runtime's teardown. */
 interface StartedRuntime {
   runtime: PicoRuntime;
-  openSession(options: ResolvedSessionOptions, disposeRuntime?: () => void): Pico;
+  openSession: (options: ResolvedSessionOptions, disposeRuntime?: () => void) => Pico;
 }
 
 /**
  * Instantiates once, runs `warm` (the multi entry's pool warm-up), and returns the
  * runtime. A failed warm-up tears the runtime down before rethrowing, so nothing
- * leaves a pool running (SK-0.4 §10).
+ * leaves a pool running.
  */
 async function startRuntime(
   glue: PicoGlueFactory,
@@ -377,7 +379,7 @@ async function startRuntime(
     // reference to this module, and at process teardown V8 can free the wasm backing
     // store while a worker is still executing in it — SIGILL, timing-dependent
     // (observed as vitest fork crashes; crash reports show an em-pthread faulting
-    // under a main-thread BackingStore free. SK-0.4.md §10). The pool belongs to the
+    // under a main-thread BackingStore free). The pool belongs to the
     // runtime, so it dies here and never with a single session.
     module.PThread?.terminateAllThreads();
   };
@@ -388,6 +390,7 @@ async function startRuntime(
   };
 
   const runtime = {
+    // eslint-disable-next-line @typescript-eslint/require-await -- async so argument errors reject instead of throwing synchronously
     async createPico(sessionOptions: CreatePicoSessionOptions = {}): Promise<Pico> {
       if ('wasm' in sessionOptions || 'wasmModule' in sessionOptions) {
         throw new PicoError(
@@ -457,7 +460,9 @@ export async function createPicoSession(
   const resolved = resolveSessionOptions(options);
   const { runtime, openSession } = await startRuntime(glue, options, warm);
   try {
-    return openSession(resolved, runtime.dispose);
+    return openSession(resolved, () => {
+      runtime.dispose();
+    });
   } catch (error) {
     runtime.dispose();
     throw error;
@@ -935,7 +940,7 @@ function openPicoSession(
       ctx.registry.unregister(session); // D2
       release();
       // A session from the entry's createPico owns its runtime: they go together,
-      // pool included (SK-0.4 §10). A session opened on a shared runtime leaves the
+      // pool included. A session opened on a shared runtime leaves the
       // pool running for its siblings — runtime.dispose() joins it.
       disposeRuntime?.();
     },
@@ -947,11 +952,11 @@ function openPicoSession(
 // ── The multi entry's pool warm-up (glue-free, so it lives beside the runtime) ──
 
 /**
- * PV-W1 — the warm-up op is sized in VOXELS, not millimetres, so its work (CFL
- * steps ∝ offset/voxelSize, band voxels ∝ (radius/voxelSize)²) is the same at every
- * voxel size. It used to be a 2 mm sphere offset by 0.5 mm at the session's voxel
- * size: 4 and 1 voxels at the 0.5 mm default, but ≈1 M band voxels and 50 CFL steps
- * at 0.02 mm, all before the pool engaged. These are those default-size numbers.
+ * The warm-up op is sized in VOXELS, not millimetres, so its work (CFL steps ∝
+ * offset/voxelSize, band voxels ∝ (radius/voxelSize)²) is the same at every voxel
+ * size. A fixed 2 mm sphere offset by 0.5 mm would be 4 and 1 voxels at the 0.5 mm
+ * default but ≈1 M band voxels and 50 CFL steps at 0.02 mm, all before the pool
+ * engaged; these constants are the default-size numbers.
  */
 export const WARM_RADIUS_VOXELS = 4;
 export const WARM_OFFSET_VOXELS = 1;

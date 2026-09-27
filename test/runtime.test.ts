@@ -58,6 +58,7 @@ test('surface: createPicoRuntime on both entries; a runtime is { createPico, dis
   assert.equal(typeof multiEntry.createPicoRuntime, 'function');
   const runtime = await serialEntry.createPicoRuntime();
   assert.deepEqual(Object.keys(runtime).sort(), ['createPico', 'dispose']);
+  // eslint-disable-next-line @typescript-eslint/unbound-method -- identity comparison only; the method is never called detached
   assert.equal((runtime as unknown as Record<symbol, unknown>)[Symbol.dispose], runtime.dispose);
   runtime.dispose();
 });
@@ -172,17 +173,14 @@ test('late GC frees against a destroyed instance are swallowed', async () => {
   const runtime = await serialEntry.createPicoRuntime();
   const pk = await runtime.createPico({ registry: fake });
   const sphere = pk.createVoxels({ shape: 'sphere', radius: 3 });
-  const held = fake.entries.get(sphere as object)!.held;
+  const held = fake.entries.get(sphere)!.held;
   runtime.dispose();
-  assert.doesNotThrow(
-    () => fake.collect(sphere as object),
-    'a wrapper free after runtime teardown is harmless',
-  );
+  assert.doesNotThrow(() => fake.collect(sphere), 'a wrapper free after runtime teardown is harmless');
   assert.doesNotThrow(
     () => freeHeld({ ...held, free: () => raiseInvalidHandle() }),
     'and freeHeld swallows a throwing free',
   );
-  assert.doesNotThrow(() => fake.collect(pk as object), "the session's own GC free is a no-op once released");
+  assert.doesNotThrow(() => fake.collect(pk), "the session's own GC free is a no-op once released");
 });
 
 test('real GC: a dropped session on a live runtime is reclaimed through the runtime registry', async () => {
@@ -271,7 +269,7 @@ function leb(value: number): number[] {
  */
 function moduleExporting(names: readonly string[], unlinkable: boolean): Promise<WebAssembly.Module> {
   const section = (id: number, body: number[]) => [id, ...leb(body.length), ...body];
-  const text = (value: string) => [...leb(value.length), ...[...value].map((c) => c.charCodeAt(0))];
+  const text = (value: string) => [...leb(value.length), ...Array.from(value, (c) => c.charCodeAt(0))];
   const bytes = [
     0,
     97,
@@ -322,9 +320,9 @@ test('compile once: a module from another build or variant fails the export pre-
   // Pre-flight means the glue never ran: no pthread pool was ever started.
   let calls = 0;
   const glue = Object.assign(
-    async () => {
+    () => {
       calls += 1;
-      throw new Error('unreachable');
+      return Promise.reject(new Error('unreachable'));
     },
     { wasmExports: ['F'] },
   );
@@ -348,7 +346,7 @@ test('multi: a module that fails to instantiate leaves no pthread pool behind', 
   let moduleArg: { PThread?: NonNullable<PicoWasmModule['PThread']> } | undefined;
   const glue = Object.assign(
     async (overrides?: object) => {
-      moduleArg = overrides as typeof moduleArg;
+      moduleArg = overrides;
       return (createMultiGlue as PicoGlueFactory)(overrides);
     },
     { wasmExports: MULTI_EXPORTS },
@@ -420,9 +418,9 @@ test('a failed warm-up disposes the runtime before rethrowing', async () => {
   const failure = new Error('warm-up failed');
   await assert.rejects(
     () =>
-      openPicoRuntime(serialGlue, {}, async (runtime) => {
+      openPicoRuntime(serialGlue, {}, (runtime) => {
         warmed = runtime;
-        throw failure;
+        return Promise.reject(failure);
       }),
     (error) => error === failure,
   );
@@ -470,7 +468,7 @@ test('PV-W1: the warm-up op does the same voxel work at every voxel size', async
     assert.deepEqual(
       new Set(counts).size,
       1,
-      `constant active-voxel count across voxel sizes, got ${counts}`,
+      `constant active-voxel count across voxel sizes, got ${counts.join(', ')}`,
     );
     assert.deepEqual([WARM_RADIUS_VOXELS, WARM_OFFSET_VOXELS], [4, 1], 'the historical default-size warm-up');
   } finally {
@@ -554,13 +552,13 @@ test('multi runtime from a compiled module: the module reaches every pthread', a
 test('warmPool yields until the pool fills, and stops at the deadline when it never does', async () => {
   const fakeRuntime = (pool: { runningWorkers: unknown[] }) =>
     ({
-      createPico: async () =>
-        ({
+      createPico: () =>
+        Promise.resolve({
           voxelSize: 1,
           module: { PThread: pool },
           createVoxels: () => ({ offset: () => ({ dispose() {} }), dispose() {} }),
           dispose() {},
-        }) as unknown as Pico,
+        } as unknown as Pico),
     }) as unknown as PicoRuntime;
 
   const wanted = navigator.hardwareConcurrency - 1;
