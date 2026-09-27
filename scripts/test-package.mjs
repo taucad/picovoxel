@@ -60,7 +60,7 @@ const JS_LIKE = /^(?:[cm]?[jt]sx?|javascript|typescript|ecmascript|es\d*|node)$/
 /**
  * The JavaScript and TypeScript fences of one Markdown file, with their `##`
  * heading. Backtick and tilde fences of any length and indentation are read;
- * the info string's first word is the language.
+ * the info string's leading letters are the language.
  */
 function fences({ name, text }) {
   const found = [];
@@ -75,10 +75,13 @@ function fences({ name, text }) {
       } else fence.code += `${line.slice(Math.min(fence.indent, line.length - line.trimStart().length))}\n`;
       continue;
     }
-    const open = /^( *)(`{3,}|~{3,})\s*([^\s`]*)/u.exec(line);
+    // A backtick run followed by another backtick on the line is inline code,
+    // not a fence (CommonMark); the language is the info string's leading
+    // letters, so `js{1,3}`, `js,title=x` and `{.js}` all read as js.
+    const open = /^( *)(`{3,}(?!.*`)|~{3,})(.*)$/u.exec(line);
     if (open) {
       const [, indent, marker, info] = open;
-      const language = info.toLowerCase();
+      const language = (/^\s*\{?\.?([a-z]+)/iu.exec(info)?.[1] ?? '').toLowerCase();
       if (!Object.hasOwn(CHECKED, language) && JS_LIKE.test(language))
         throw new Error(
           `${name}:${index + 1}: fence language '${info}' is JavaScript-like but not typechecked`,
