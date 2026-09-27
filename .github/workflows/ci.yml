@@ -124,6 +124,7 @@ jobs:
   quality:
     needs: [preflight, wasm]
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -150,6 +151,7 @@ jobs:
   docs-prose:
     needs: [preflight, wasm]
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -168,6 +170,7 @@ jobs:
   candidate:
     needs: [preflight, quality, docs-prose, wasm]
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     outputs:
       filename: ${{ steps.pack.outputs.filename }}
       integrity: ${{ steps.pack.outputs.integrity }}
@@ -358,6 +361,7 @@ jobs:
   coverage:
     needs: [test-unit, test-subjects]
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -387,6 +391,7 @@ jobs:
       matrix:
         node: ['22.14.0', '26']
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -413,6 +418,7 @@ jobs:
       matrix:
         browser: [chromium, firefox, webkit]
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -446,6 +452,7 @@ jobs:
   security:
     needs: preflight
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -461,6 +468,7 @@ jobs:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     needs: [candidate, test-unit, test-subjects, coverage, coverage-cpp, consumer, browser, security]
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     outputs:
       sha: ${{ steps.publish.outputs.sha }}
     permissions:
@@ -497,6 +505,7 @@ jobs:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     needs: preview
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
