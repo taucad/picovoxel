@@ -1,7 +1,7 @@
 // ABI completeness: the four places an export is named must agree, so adding
 // one anywhere fails here until every other place follows.
 //   - the pinned, patched upstream header (vendor/PicoGKRuntime/API/PicoGK.h,
-//     fetched by scripts/fetch-deps.sh; CI ships it with the serial wasm);
+//     fetched by scripts/fetch-deps.sh; CI ships it with each wasm artifact);
 //   - src/abi.json, the manifest scripts/parse-abi.mjs derives from that header;
 //   - the `PICOGK_API` definitions in this repo's own translation units
 //     (src/pico-*.cpp) and BULK_FUNCTIONS, their hand-written binding table;
@@ -26,23 +26,35 @@ interface AbiFunction {
   args: { type: string; name: string; cwrap: string | null }[];
 }
 
-/** Every `PICOGK_API` this repo defines, with the translation unit it lives in. */
-const ownExports = readdirSync(join(ROOT, 'src'))
+const ownFiles = readdirSync(join(ROOT, 'src'))
   .filter((file) => /^pico-[a-z-]+\.cpp$/u.test(file))
-  .sort()
-  .flatMap((file) =>
-    (parseOwnExports(readFileSync(join(ROOT, 'src', file), 'utf8')) as AbiFunction[]).map((fn) => ({
-      ...fn,
-      file,
-    })),
-  );
+  .sort();
+
+/** Every `PICOGK_API` this repo defines, with the translation unit it lives in. */
+const ownExports = ownFiles.flatMap((file) =>
+  (parseOwnExports(readFileSync(join(ROOT, 'src', file), 'utf8')) as AbiFunction[]).map((fn) => ({
+    ...fn,
+    file,
+  })),
+);
+
+test('parse-abi reads every PICOGK_API line of each own translation unit, whatever its declaration style', () => {
+  for (const file of ownFiles) {
+    const source = readFileSync(join(ROOT, 'src', file), 'utf8');
+    assert.equal(
+      parseOwnExports(source).length,
+      source.match(/^PICOGK_API\b/gmu)?.length ?? 0,
+      `src/${file}: a PICOGK_API line did not parse; widen parseOwnExports (scripts/parse-abi.mjs)`,
+    );
+  }
+});
 
 const coreNames = (abi.functions as AbiFunction[]).filter((fn) => !fn.viewer).map((fn) => fn.name);
 
 test('src/abi.json is parse-abi over the pinned header, byte for byte in content', async () => {
   assert.ok(
     existsSync(HEADER),
-    `${HEADER} is missing: run scripts/fetch-deps.sh (CI ships it with wasm-serial)`,
+    `${HEADER} is missing: run scripts/fetch-deps.sh (CI ships it with each wasm artifact)`,
   );
   assert.deepEqual(
     await parseAbi(HEADER),

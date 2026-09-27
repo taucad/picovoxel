@@ -110,10 +110,11 @@ export async function parseAbi(headerPath = DEFAULT_HEADER) {
  * The `PICOGK_API` definitions of one of this repo's own translation units
  * (src/pico-*.cpp), in the manifest's function shape. Definitions, not
  * declarations: each runs from `PICOGK_API` to the `)` closing its parameters.
+ * The return type may carry qualifiers and pointers (`const char*`, `unsigned int`).
  */
 export function parseOwnExports(source) {
   const definitions = source.matchAll(
-    /^PICOGK_API\s+([A-Za-z0-9_]+(?:\s*\*)?)\s+([A-Za-z0-9_]+)\s*\(([^)]*)\)/gmu,
+    /^PICOGK_API\s+((?:(?:const|unsigned|signed)\s+)*[A-Za-z0-9_]+(?:\s*\*)*(?:\s+const\b)?)\s*\b([A-Za-z0-9_]+)\s*\(([^)]*)\)/gmu,
   );
   return [...definitions].map(([, returnType, name, argText]) => ({
     name,
