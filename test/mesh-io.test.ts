@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict';
 import { afterAll, beforeAll, test } from 'vitest';
-import { createPico, PicoError, type Pico } from '../src/index.ts';
+import { createPico, meshToStlBytes, PicoError, type Pico } from '../src/index.ts';
 
 let pk: Pico;
 beforeAll(async () => {
@@ -93,6 +93,28 @@ test('scale/offset options apply in upstream order', () => {
 
   const imported = pk.meshFromStl(mesh.toStl(), { scale: 2, offset: [1, 0, 0] }); // v * scale + offset
   assert.deepEqual(imported.bounds().max, [21, 20, 20]);
+});
+
+test('meshToStlBytes (public entry) serialises raw arrays byte-identically to mesh.toStl()', () => {
+  const vertices = new Float32Array(TETRA.vertices);
+  const triangles = new Uint32Array(TETRA.triangles);
+  const mesh = pk.createMesh(TETRA);
+  assert.deepEqual(meshToStlBytes(vertices, triangles), mesh.toStl(), 'default mm');
+  assert.deepEqual(
+    meshToStlBytes(vertices, triangles, { unit: 'cm', scale: 2, offset: [1, 0, 0] }),
+    mesh.toStl({ unit: 'cm', scale: 2, offset: [1, 0, 0] }),
+    'options follow the wrapper',
+  );
+
+  const fast = meshToStlBytes(vertices, triangles, {}, 'fast');
+  assert.match(headerText(fast), /^PicoGK UNITS=mm LANE=fast {2}/, 'lane stamp only when asked');
+  assert.deepEqual(fast.subarray(80), mesh.toStl().subarray(80), 'the stamp changes the header only');
+  assert.equal(pk.meshFromStl(fast).lane, 'fast');
+
+  assert.throws(
+    () => meshToStlBytes(vertices, triangles, { unit: 'auto' }),
+    (error: unknown) => error instanceof PicoError && error.code === 'PICO_INVALID_ARGUMENT',
+  );
 });
 
 test('ASCII STL is detected and rejected with remediation', () => {

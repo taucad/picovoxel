@@ -4,6 +4,7 @@
     "createPico",
     "emptyBounds",
     "isEmptyBounds",
+    "meshToStlBytes",
     "surfaceNormalFieldExtractor",
     "vectorFieldMerge"
   ],
