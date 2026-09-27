@@ -37,7 +37,7 @@ test('B2 — mmToVoxel binds the REAL export and inverts voxelToMm', async () =>
     [0, 0, 0],
     [-40, 5, -1],
   ] as const) {
-    assert.deepEqual(pk.mmToVoxel(pk.voxelToMm(v)), v, `round trip ${v}`);
+    assert.deepEqual(pk.mmToVoxel(pk.voxelToMm(v)), v, `round trip ${v.join(',')}`);
   }
   pk.dispose();
 });

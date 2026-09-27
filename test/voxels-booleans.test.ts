@@ -121,12 +121,12 @@ test('SG10 — cross-session operands throw PICO_SESSION_MISMATCH', async () => 
 
 // SK-0.5's operand-copy guard lived here and is GONE with the change it guarded.
 // U-SK05-a (merge-based CSG, which removed the eager whole-operand deep copy) was
-// reverted for nondeterministic fine-cell geometry loss on the multi build — see
-// bench/results/webgpu-v2/SK-0-P0-finecell.md. Booleans deep-copy the operand again,
-// so an assertion that they don't is simply false. The measurement shape it used
-// (heap high-water on a contained-operand union, clone arm as the control) is
-// written up in SK-0.5.md §1 and is what a re-attempt should re-run — but not as a
-// committed test until the race question in the P0 doc is answered.
+// reverted for nondeterministic fine-cell geometry loss on the multi build (see the
+// fine-cell gate in test/examples-helixheatx.test.ts). Booleans deep-copy the operand
+// again, so an assertion that they don't is false. The measurement shape it used
+// (heap high-water on a contained-operand union, clone arm as the control) is what a
+// re-attempt should re-run — but not as a committed test until the fine-cell race
+// is explained.
 
 // SK-0.5 — the dense per-voxel fills prune before they hand the grid on.
 //

@@ -376,7 +376,7 @@ test('RandomDeformationField: trilinear noise, clamped to bounds, deterministic 
 
 // ----------------------------------------------------------- TPMS presets
 
-/** tape ≡ callback with the R6 exactness discipline over a fresh implicit fill. */
+/** Asserts tape ≡ callback bit-exactly (volume and STL bytes) over a fresh implicit fill. */
 function expectTapeMatchesCallback(implicit: Implicit): void {
   const bounds = { boundsMin: [-5, -5, -5] as const, boundsMax: [5, 5, 5] as const };
   const fromTape = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: implicit.expression });

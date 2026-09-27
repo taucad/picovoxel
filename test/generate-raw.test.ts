@@ -4,7 +4,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'vitest';
-// eslint-disable-next-line import/no-relative-packages — dev script under test
 import { BULK_FUNCTIONS, generateRawSource } from '../scripts/generate-raw.mjs';
 import abi from '../src/abi.json' with { type: 'json' };
 

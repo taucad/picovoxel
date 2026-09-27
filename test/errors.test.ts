@@ -27,6 +27,7 @@ test('guard: WebAssembly.Exception -> PICO_INVALID_HANDLE (with cause + args)', 
   const guarded = guard(
     'Voxels_fCalculateVolume',
     () => {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- the guard must map a raw WebAssembly.Exception
       throw boom;
     },
     () => 'handle=42',

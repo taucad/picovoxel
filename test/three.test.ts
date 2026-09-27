@@ -81,7 +81,7 @@ afterAll(() => pk.dispose());
 
 test('gear -> BufferGeometry: counts and bounding volume match', () => {
   const geometry = toBufferGeometry(gear);
-  assert.equal(geometry.getAttribute('position')!.count, gear.vertexCount, 'position count = vertex count');
+  assert.equal(geometry.getAttribute('position').count, gear.vertexCount, 'position count = vertex count');
   assert.equal(geometry.getIndex()!.count, gear.triangleCount * 3, 'index count = 3 × triangle count');
   assert.ok(geometry.getAttribute('normal'), 'normals computed by default');
 

@@ -65,6 +65,7 @@ test('bulk exports clamp to the caller buffer and report what they wrote', () =>
   const mesh = pk.meshFromVoxels(lib, sphere);
   const nv = pk.vertexCount(lib, mesh);
 
+  // oxlint-disable-next-line typescript/unbound-method -- Emscripten module functions do not use this
   const { _malloc, _free } = pk.module;
   const small = _malloc(10 * 12);
   try {
@@ -75,7 +76,7 @@ test('bulk exports clamp to the caller buffer and report what they wrote', () =>
       ['bigint', 'bigint', 'number', 'number'],
       [lib, mesh, small, 10],
     );
-    assert.equal(wrote, 10, `expected clamp to 10, wrote ${wrote}`);
+    assert.equal(wrote, 10, `expected clamp to 10, wrote ${String(wrote)}`);
 
     // Zero/negative counts and a null buffer must be refused, not crash the module.
     assert.equal(
@@ -174,6 +175,7 @@ test('R8 — 100k-vertex bulk import is byte-identical to per-element (FNV-1a)',
 test('R8 — bulk import refuses null/empty input without touching the mesh', () => {
   const lib = pk.createInstance(1.0);
   const mesh = pk.meshCreate(lib);
+  // oxlint-disable-next-line typescript/unbound-method -- Emscripten module functions do not use this
   const { ccall } = pk.module;
   const call = (name, buf, count) =>
     ccall(name, 'number', ['bigint', 'bigint', 'number', 'number'], [lib, mesh, buf, count]);

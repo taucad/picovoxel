@@ -66,6 +66,7 @@ const COUNTERS = [
 /** Loads the wasm module and returns the generated bindings plus test conveniences. */
 export async function loadRawHarness(options: object = {}): Promise<RawHarness> {
   const { module, raw } = await loadPicoRaw(options);
+  // eslint-disable-next-line @typescript-eslint/unbound-method -- Emscripten module functions do not use this
   const { _malloc, _free, UTF8ToString } = module;
 
   // Scratch buffers for pointer-taking calls. One allocation per shape, reused.
@@ -197,8 +198,6 @@ export async function loadRawHarness(options: object = {}): Promise<RawHarness> 
 
     /** All eight PicoGK allocation counters. Zero after cleanup, or a handle leaked. */
     allocated: (lib) =>
-      Object.fromEntries(
-        COUNTERS.map((c) => [c, Number((raw[`Library_n${c}Allocated`] as (l: bigint) => bigint)(lib))]),
-      ),
+      Object.fromEntries(COUNTERS.map((c) => [c, Number(raw[`Library_n${c}Allocated`](lib))])),
   };
 }

@@ -327,7 +327,7 @@ function foreignVdb(value?: string | number): Uint8Array {
 function withHeader(stl: Uint8Array, header: string | number[], pad = 0x20): Uint8Array {
   const out = stl.slice();
   out.fill(pad, 0, 80);
-  const codes = typeof header === 'string' ? [...header].map((c) => c.charCodeAt(0)) : header;
+  const codes = typeof header === 'string' ? Array.from(header, (c) => c.charCodeAt(0)) : header;
   out.set(codes, 0);
   return out;
 }
@@ -556,7 +556,8 @@ test('item 2: fast slice stacks stamp a CLI v2.0 header remark and an SVG <metad
 
   // SVG: the stamp is one <metadata> line; exact renders the historical document.
   const exactSlice = exactStack.slices[Math.floor(exactStack.slices.length / 2)]!;
-  const { lane: _drop, ...bare } = exactSlice;
+  const bare: Partial<Slice> = { ...exactSlice };
+  delete bare.lane;
   assert.equal(sliceToSvg(exactSlice), sliceToSvg(bare as Slice), 'exact SVG bytes unchanged');
   assert.ok(!sliceToSvg(exactSlice).includes('<metadata>'));
   const fastSvg = sliceToSvg({ ...exactSlice, lane: 'fast' });
@@ -727,7 +728,7 @@ test('defects 2+3: anchored case-exact STL lane token, byte-wise UNITS=, set gra
   assert.equal(read('PicoGK UNITS=mm LANE=FAST').lane, 'fast', 'a malformed value is fast-like, never exact');
   assert.equal(
     read(
-      [...'LANE=fast'].map((c) => c.charCodeAt(0)),
+      Array.from('LANE=fast', (c) => c.charCodeAt(0)),
       0,
     ).lane,
     'fast',
@@ -736,12 +737,10 @@ test('defects 2+3: anchored case-exact STL lane token, byte-wise UNITS=, set gra
 
   // ß (0xDF) upper-cases to 'SS': the old string parse slid the UNITS= index one byte.
   const cm = read(
-    [...'PicoGK ']
-      .map((c) => c.charCodeAt(0))
-      .concat(
-        [0xdf],
-        [...' UNITS=cm'].map((c) => c.charCodeAt(0)),
-      ),
+    Array.from('PicoGK ', (c) => c.charCodeAt(0)).concat(
+      [0xdf],
+      Array.from(' UNITS=cm', (c) => c.charCodeAt(0)),
+    ),
   );
   assert.deepEqual(cm.bounds().max, [100, 100, 100], 'cm honoured past a high byte');
   assert.deepEqual(

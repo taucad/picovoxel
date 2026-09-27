@@ -9,7 +9,7 @@ describe('createHeapStager', () => {
       buffer,
       toResizableBuffer: vi.fn(() => buffer),
     };
-    const writeBuffer = vi.fn();
+    const writeBuffer = vi.fn<(destination: GPUBuffer, offset: number, data: Uint8Array) => void>();
     const stager = createHeapStager(memory);
 
     new Uint8Array(buffer).set([4, 5, 6], 8);
@@ -29,11 +29,8 @@ describe('createHeapStager', () => {
     };
     const captured: number[][] = [];
     const queue = {
-      writeBuffer: (
-        _destination: GPUBuffer,
-        _destinationOffset: number,
-        source: ArrayBufferView<ArrayBufferLike>,
-      ) => captured.push([...new Uint8Array(source.buffer, source.byteOffset, source.byteLength)]),
+      writeBuffer: (_destination: GPUBuffer, _destinationOffset: number, source: ArrayBufferView) =>
+        captured.push([...new Uint8Array(source.buffer, source.byteOffset, source.byteLength)]),
     } as unknown as GPUQueue;
     const stager = createHeapStager(memory);
 

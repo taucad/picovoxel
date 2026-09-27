@@ -16,7 +16,7 @@ describe('TimestampProfiler', () => {
     const mapped = {
       destroy: vi.fn(),
       getMappedRange: vi.fn(() => timestampBytes(1_000n, 5_001_000n)),
-      mapAsync: vi.fn(async () => undefined),
+      mapAsync: vi.fn(() => Promise.resolve()),
       unmap: vi.fn(),
     };
     const querySet = { destroy: vi.fn() };
@@ -25,11 +25,10 @@ describe('TimestampProfiler', () => {
       createQuerySet: vi.fn(() => querySet),
     } as unknown as GPUDevice;
     const pass = {};
-    const encoder = {
-      beginComputePass: vi.fn(() => pass),
-      copyBufferToBuffer: vi.fn(),
-      resolveQuerySet: vi.fn(),
-    } as unknown as GPUCommandEncoder;
+    const beginComputePass = vi.fn(() => pass);
+    const copyBufferToBuffer = vi.fn();
+    const resolveQuerySet = vi.fn();
+    const encoder = { beginComputePass, copyBufferToBuffer, resolveQuerySet } as unknown as GPUCommandEncoder;
     const profiler = new TimestampProfiler(device, true);
 
     expect(profiler.beginPass(encoder, 'kernel')).toBe(pass);
@@ -39,7 +38,7 @@ describe('TimestampProfiler', () => {
       source: 'timestamp-query',
     });
 
-    expect(encoder.beginComputePass).toHaveBeenCalledWith({
+    expect(beginComputePass).toHaveBeenCalledWith({
       label: 'kernel',
       timestampWrites: {
         beginningOfPassWriteIndex: 0,
@@ -47,21 +46,21 @@ describe('TimestampProfiler', () => {
         querySet,
       },
     });
-    expect(encoder.resolveQuerySet).toHaveBeenCalledWith(querySet, 0, 2, resolved, 0);
-    expect(encoder.copyBufferToBuffer).toHaveBeenCalledWith(resolved, 0, mapped, 0, 16);
+    expect(resolveQuerySet).toHaveBeenCalledWith(querySet, 0, 2, resolved, 0);
+    expect(copyBufferToBuffer).toHaveBeenCalledWith(resolved, 0, mapped, 0, 16);
     expect(mapped.mapAsync).toHaveBeenCalledWith(1, 0, 16);
     expect(mapped.unmap).toHaveBeenCalledTimes(1);
   });
 
   it('degrades explicitly to submit-fenced wall time when unsupported', async () => {
+    const createQuerySet = vi.fn();
     const device = {
       createBuffer: vi.fn(),
-      createQuerySet: vi.fn(),
+      createQuerySet,
     } as unknown as GPUDevice;
     const pass = {};
-    const encoder = {
-      beginComputePass: vi.fn(() => pass),
-    } as unknown as GPUCommandEncoder;
+    const beginComputePass = vi.fn(() => pass);
+    const encoder = { beginComputePass } as unknown as GPUCommandEncoder;
     const profiler = new TimestampProfiler(device, false);
 
     expect(profiler.beginPass(encoder, 'kernel')).toBe(pass);
@@ -69,7 +68,7 @@ describe('TimestampProfiler', () => {
       gpuMs: null,
       source: 'submit-fenced-wall',
     });
-    expect(encoder.beginComputePass).toHaveBeenCalledWith({ label: 'kernel' });
-    expect(device.createQuerySet).not.toHaveBeenCalled();
+    expect(beginComputePass).toHaveBeenCalledWith({ label: 'kernel' });
+    expect(createQuerySet).not.toHaveBeenCalled();
   });
 });

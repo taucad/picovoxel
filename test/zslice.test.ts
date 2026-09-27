@@ -17,8 +17,8 @@ const sealLayers = (pk: Pico, voxels: ReturnType<Pico['createVoxels']>, endZ: nu
   const dims = voxels.dimensions();
   const iEnd = Math.round(endZ / pk.voxelSize);
   let layers = 0;
-  for (let z = iEnd - 1; z >= dims.origin[2]!; z--) {
-    const slice = voxels.getSlice({ index: z - dims.origin[2]! });
+  for (let z = iEnd - 1; z >= dims.origin[2]; z--) {
+    const slice = voxels.getSlice({ index: z - dims.origin[2] });
     let active = false;
     for (const v of slice.data)
       if (Math.abs(v) < slice.background) {
@@ -115,7 +115,7 @@ test('direct per-column min oracle on an analytic sphere, both directions', asyn
       const d = v.dimensions();
       const first = v.getSlice({ index: 0 });
       const slices: Float32Array[] = [first.data];
-      for (let i = 1; i < d.size[2]!; i++) slices.push(v.getSlice({ index: i }).data);
+      for (let i = 1; i < d.size[2]; i++) slices.push(v.getSlice({ index: i }).data);
       return {
         origin: [...d.origin],
         size: [...d.size],

@@ -22,6 +22,7 @@ test('createMesh (bulk) ≙ per-element raw adds — FNV-identical', () => {
   const viaBulk = pk.createMesh(TETRA);
 
   // Per-element oracle straight through the raw ABI.
+  // eslint-disable-next-line @typescript-eslint/unbound-method -- Emscripten module functions do not use this
   const { cwrap, _malloc, _free, HEAPF32, HEAP32 } = pk.module;
   const h = 'bigint';
   const meshCreate = cwrap('Mesh_hCreate', h, [h]) as (l: bigint) => bigint;

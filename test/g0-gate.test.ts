@@ -1,4 +1,4 @@
-// SKv2-0 V0.1/V0.2 — the per-commit G0 gate (NON-DETERMINISM.md §14.3):
+// SKv2-0 V0.1/V0.2 — the per-commit G0 gate:
 // N=2 run-to-run identity + a pinned reference, HeatX on the multi lane at
 // {1.0, 0.7} mm. The two halves are complementary and neither is droppable:
 // identity catches races (p-per-run faults compound across commits — a 1-in-6
@@ -24,6 +24,9 @@ const updatePins = process.env.UPDATE_PINS === '1';
 /** The environment-free slice of a record — what the reference pins. */
 const tuple = (record: Record<string, unknown>) => Object.fromEntries(G0_FIELDS.map((f) => [f, record[f]]));
 
+/** A G0 record with its value provenance typed for the pin guard. */
+type G0Run = Omit<Awaited<ReturnType<typeof g0Record>>, 'provenance'> & { provenance: string | undefined };
+
 for (const size of [1.0, 0.7]) {
   const key = `heatx@${size}mm`;
   // 105 s for both scales on the M2 Pro reference machine (within the ≤5 min
@@ -32,7 +35,7 @@ for (const size of [1.0, 0.7]) {
     `G0 per-commit gate — HeatX @ ${size} mm multi: N=2 identity + reference`,
     { timeout: 1_800_000 },
     async () => {
-      const runs = [
+      const runs: G0Run[] = [
         await g0Record({ fixture: 'heatx', build: 'multi', size }),
         await g0Record({ fixture: 'heatx', build: 'multi', size }),
       ];
@@ -44,11 +47,14 @@ for (const size of [1.0, 0.7]) {
 
       assertPinSource(runs[0]!.provenance, key); // LANES item 3 — only exact sources pin
       if (updatePins) {
-        const pins = existsSync(fixturePath) ? JSON.parse(readFileSync(fixturePath, 'utf8')) : {};
+        const pins = (existsSync(fixturePath) ? JSON.parse(readFileSync(fixturePath, 'utf8')) : {}) as Record<
+          string,
+          unknown
+        >;
         pins[key] = tuple(runs[0]!);
         writeFileSync(fixturePath, `${JSON.stringify(pins, null, 1)}\n`);
       } else {
-        const pins = JSON.parse(readFileSync(fixturePath, 'utf8'));
+        const pins = JSON.parse(readFileSync(fixturePath, 'utf8')) as Record<string, unknown>;
         assert.deepEqual(
           tuple(runs[0]!),
           pins[key],

@@ -240,11 +240,11 @@ test('overhang factories: all five conventions agree on 45º', () => {
 
 test('overhang factories reject NaN, negative, and above-range inputs', () => {
   const cases: Array<[name: string, factory: (f: number) => unknown, above: number]> = [
-    ['fromNormalized', overhang.fromNormalized, 1.01],
-    ['fromPercent', overhang.fromPercent, 100.5],
-    ['fromRad', overhang.fromRad, Math.PI / 2 + 0.01],
-    ['fromDeg', overhang.fromDeg, 90.5],
-    ['fromDegFromHorizontal', overhang.fromDegFromHorizontal, 91],
+    ['fromNormalized', (f) => overhang.fromNormalized(f), 1.01],
+    ['fromPercent', (f) => overhang.fromPercent(f), 100.5],
+    ['fromRad', (f) => overhang.fromRad(f), Math.PI / 2 + 0.01],
+    ['fromDeg', (f) => overhang.fromDeg(f), 90.5],
+    ['fromDegFromHorizontal', (f) => overhang.fromDegFromHorizontal(f), 91],
   ];
   for (const [name, factory, above] of cases) {
     assert.throws(() => factory(Number.NaN), invalidArg, `${name}(NaN)`);

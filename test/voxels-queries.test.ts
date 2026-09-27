@@ -25,7 +25,10 @@ test('isInside / surfaceNormal / closestPointOnSurface / raycastToSurface vs ana
   assert.ok(Math.abs(hit[0] + 10) < 0.5, `hit x=${hit[0]}, expected ≈ −10`);
 
   const normal = body.surfaceNormal(hit);
-  assert.ok(Math.abs(Math.abs(normal[0]) - 1) < 0.1, `normal at (−10,0,0) should be ±x, got ${normal}`);
+  assert.ok(
+    Math.abs(Math.abs(normal[0]) - 1) < 0.1,
+    `normal at (−10,0,0) should be ±x, got ${normal.join(',')}`,
+  );
 
   const closest = body.closestPointOnSurface([30, 0, 0]);
   assert.ok(closest, 'closest point must exist on a non-empty field');
@@ -52,10 +55,10 @@ test('dimensions / sliceCount / sliceOrigin describe the voxel grid', () => {
   const bottom = body.sliceOrigin(0);
   const top = body.sliceOrigin(body.sliceCount - 1);
   assert.ok(
-    Math.abs(bottom[2]! - -top[2]!) < 1.5,
+    Math.abs(bottom[2] - -top[2]) < 1.5,
     `slice origins should straddle the sphere symmetrically: ${bottom[2]} vs ${top[2]}`,
   );
-  assert.ok(bottom[2]! < -9 && bottom[2]! > -12, `bottom slice z=${bottom[2]}`);
+  assert.ok(bottom[2] < -9 && bottom[2] > -12, `bottom slice z=${bottom[2]}`);
 });
 
 test('SG8 — slice modes: sdf raw floats, bw ∈ {0,1}, antialiased ∈ [0,1]', () => {
@@ -137,7 +140,7 @@ test('getSlice range/type validation', () => {
   const body = sphere(5);
   for (const bad of [{ index: -1 }, { index: 10_000 }, { index: 1.5 }]) {
     try {
-      body.getSlice(bad as never);
+      body.getSlice(bad);
       assert.fail(`getSlice(${JSON.stringify(bad)}) did not throw`);
     } catch (error) {
       assert.equal((error as { code: string }).code, 'PICO_INVALID_ARGUMENT');

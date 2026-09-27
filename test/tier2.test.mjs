@@ -385,7 +385,7 @@ test('C6 — lattice: beams and spheres render to voxels', () => {
 
 // SK-0.4 tube-complex lattice lane (src/pico-lattice.cpp) — the lane the facade now
 // takes by default; Voxels_RenderLattice above stays bound as the serial arm. Geometry
-// equivalence is certified per fixture in bench/results/webgpu-v2/SK-0.4.md; here it is
+// equivalence is certified per fixture in bench/results/webgpu-v2/sk-0.4-equivalence.json; here it is
 // an ABI-level differential plus the closed form, over one lattice that hits every beam
 // case at once: capsule, tapered capsule, sphere, and a FLAT-capped beam, which has no
 // tube-complex expression and falls back to the serial lane inside the export. A lane
@@ -666,7 +666,7 @@ test('C9 — manual mesh construction, element access, bulk readback', () => {
       assert.equal(fns.Mesh_GetVertices(lib, mesh, bulk, 4), 4);
       assert.deepEqual(readVec(bulk + VEC3), [10, 0, 0], 'bulk vertex 1');
       assert.equal(fns.Mesh_GetTriangles(lib, mesh, bulk, 4), 4);
-      assert.equal(i32(bulk + 3), 0 || i32(bulk), i32(bulk), 'bulk triangles readable');
+      assert.equal(i32(bulk + 3), i32(bulk), 'bulk triangles readable');
 
       // R8 bulk imports: append two vertices + one triangle in bulk, then read the
       // appended range back per-element — indices must be contiguous from the return.
@@ -863,7 +863,7 @@ test('C13 — metadata: string/float/vector round trips (name-keyed, despite the
       }
     }
     for (const expected of ['author', 'density', 'origin']) {
-      assert.ok(names.includes(expected), `"${expected}" missing from ${names}`);
+      assert.ok(names.includes(expected), `"${expected}" missing from ${names.join(',')}`);
     }
 
     str(scratch, 'author');
@@ -1234,18 +1234,18 @@ test('C16 — invalid handles throw and the module survives every one', () => {
     } catch (e) {
       thrown = e;
     }
-    assert.notEqual(thrown, null, `${name} accepted a bogus handle without throwing`);
+    assert.notEqual(thrown, null, `${String(name)} accepted a bogus handle without throwing`);
     // Must be the C++ throw itself (WebAssembly.Exception under -fwasm-exceptions) —
     // a JS TypeError here means the binding is broken, which once let an invented
     // function "pass". (The old JS-EH build surfaced this as a bare Number.)
     assert.ok(
       thrown instanceof WebAssembly.Exception,
-      `${name} threw ${thrown?.constructor?.name ?? typeof thrown} — harness bug, not an ABI rejection`,
+      `${String(name)} threw ${thrown?.constructor?.name ?? typeof thrown} — harness bug, not an ABI rejection`,
     );
 
     // The requirement is not that it throws — it is that the module still works.
     const sphere = sphereOf(lib, 3);
-    assert.ok(fns.Voxels_fCalculateVolume(lib, sphere) > 0, `module dead after ${name} threw`);
+    assert.ok(fns.Voxels_fCalculateVolume(lib, sphere) > 0, `module dead after ${String(name)} threw`);
     fns.Voxels_Destroy(lib, sphere);
   }
 
@@ -1276,7 +1276,7 @@ test('Library — info strings, conversions, voxel size', () => {
 after(() => {
   // The multi artifact (PICOVOXEL_R14_ARTIFACT=multi) keeps pthread workers alive.
   module.PThread?.terminateAllThreads();
-  const { covered, total, missing, byFamily } = pk.report();
+  const { covered, total, byFamily } = pk.report();
   const pct = ((covered / total) * 100).toFixed(1);
   console.log(`\n  Tier-2 ABI coverage: ${covered}/${total} (${pct}%)`);
   for (const [family, names] of Object.entries(byFamily)) {

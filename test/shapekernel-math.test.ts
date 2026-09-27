@@ -207,7 +207,7 @@ test('ControlPointSpline: closed splines wrap the control points continuously', 
   // stays inside the polygon's bounds and the curve is continuous. (Upstream's
   // closed parametrization does NOT return to its start point at t=1.)
   for (const pt of points) {
-    assert.ok(Math.abs(pt[0]) <= 1 + 1e-9 && Math.abs(pt[1]) <= 1 + 1e-9, `inside bounds: ${pt}`);
+    assert.ok(Math.abs(pt[0]) <= 1 + 1e-9 && Math.abs(pt[1]) <= 1 + 1e-9, `inside bounds: ${pt.join(',')}`);
   }
   for (let i = 1; i < points.length; i += 1) {
     assert.ok(vec3.length(vec3.sub(points[i]!, points[i - 1]!)) < 0.5, `continuous at ${i}`);
@@ -429,8 +429,8 @@ test('Frames.withTargetX: tangential Z, X pulled to the target', () => {
     1,
   );
   const f = frames.frameAt(0.5);
-  assert.ok(vec3.dot(f.lz, [0, 0, 1]) > 0.99, `lz ${f.lz} tangential`);
-  assert.ok(Math.abs(vec3.dot(f.lx, [1, 0, 0])) > 0.999, `lx ${f.lx} on target`);
+  assert.ok(vec3.dot(f.lz, [0, 0, 1]) > 0.99, `lz ${f.lz.join(',')} tangential`);
+  assert.ok(Math.abs(vec3.dot(f.lx, [1, 0, 0])) > 0.999, `lx ${f.lx.join(',')} on target`);
 });
 
 test('Frames.ofType: z / cylindrical / spherical targets', () => {
@@ -456,7 +456,7 @@ test('Frames.ofType: z / cylindrical / spherical targets', () => {
     1,
   );
   const cf = cylFrames.frameAt(0.5);
-  assert.ok(Math.abs(vec3.dot(cf.lx, [1, 0, 0])) > 0.999, `cyl lx ${cf.lx}`);
+  assert.ok(Math.abs(vec3.dot(cf.lx, [1, 0, 0])) > 0.999, `cyl lx ${cf.lx.join(',')}`);
 
   // alignWithTargetX can only choose IN-PLANE (⊥ lz) directions: for a
   // vertical spine the spherical target [0.7, 0, 0.7] projects to ±X.
@@ -469,7 +469,7 @@ test('Frames.ofType: z / cylindrical / spherical targets', () => {
     1,
   );
   const sf = sphFrames.frameAt(0.1);
-  assert.ok(Math.abs(vec3.dot(sf.lx, [1, 0, 0])) > 0.999, `sph lx ${sf.lx}`);
+  assert.ok(Math.abs(vec3.dot(sf.lx, [1, 0, 0])) > 0.999, `sph lx ${sf.lx.join(',')}`);
 });
 
 test('Frames minRotation: parallel transport does not corkscrew along a helix', () => {

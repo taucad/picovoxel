@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { guard, PicoError } from '../src/errors.ts';
 import { createGearOutline, triangulate } from '../examples/pico/gear.ts';
-import { createPico, type Pico } from '../src/index.ts';
+import { createPico } from '../src/index.ts';
 import {
   contoursFromSdf,
   detectWinding,
@@ -444,7 +444,7 @@ test('withSdfPointer rejects a non-function before touching the module (internal
   // defends direct/raw misuse. It throws before any ctx use, so a stub is fine.
   const { withSdfPointer } = await import('../src/context.ts');
   assert.throws(
-    () => withSdfPointer(undefined as never, 42 as never, () => 0),
+    () => withSdfPointer(undefined as never, 42, () => 0),
     (error: unknown) => error instanceof PicoError && /must be a function/.test((error as Error).message),
   );
 });

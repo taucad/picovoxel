@@ -60,6 +60,7 @@ test('smoothen ≙ raw Voxels_TripleOffset differential (bit-exact)', () => {
   const smoothed = base.smoothen({ distance: 1 });
 
   // Raw path: copy the same source, run the export directly.
+  // eslint-disable-next-line @typescript-eslint/unbound-method -- Emscripten module functions do not use this
   const { cwrap } = pk.module;
   const hCreateCopy = cwrap('Voxels_hCreateCopy', 'bigint', ['bigint', 'bigint']) as (
     l: bigint,
@@ -165,8 +166,9 @@ test('projectZSlice: the start slice is stamped through to endZ', () => {
 // whole-model case; this covers each entry point directly), and the OPT-IN must
 // actually engage. A knob that silently no-ops would pass every accuracy gate.
 
-/** The raw offset surface, straight off the module — same escape hatch the R12 differential above uses. */
+/** The raw offset surface, straight off the module — same escape hatch the smoothen differential above uses. */
 const rawOffsets = () => {
+  // eslint-disable-next-line @typescript-eslint/unbound-method -- Emscripten module functions do not use this
   const { cwrap } = pk.module;
   return {
     copy: cwrap('Voxels_hCreateCopy', 'bigint', ['bigint', 'bigint']) as (l: bigint, v: bigint) => bigint,
@@ -271,7 +273,7 @@ test('Voxels_OffsetTuned with default settings IS the untuned export (bit-exact)
 });
 
 test('fastRenorm engages, and stays inside the SK-0.8 accuracy gates', () => {
-  // Gates (bench/results/webgpu-v2/SK-0.8.md): volume and area within 3% of the L0
+  // Gates (A/B data: bench/results/webgpu-v2/sk-0.8-ab.json): volume and area within 3% of the L0
   // output — the tolerance the analytic offset test at the top of this file already
   // uses — bounds within one voxel, and the non-negotiable one: openvdb's own
   // tools::checkLevelSet must still report a CLEAN field. That last gate is what

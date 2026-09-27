@@ -4,14 +4,14 @@ import { ComputePipelineCache } from '../spikes/webgpu/pipeline-cache.ts';
 
 const createDevice = (messages: readonly Record<string, unknown>[] = []) => {
   const shaderModule = {
-    getCompilationInfo: vi.fn(async () => ({ messages })),
+    getCompilationInfo: vi.fn(() => Promise.resolve({ messages })),
   };
   const createShaderModule = vi.fn(() => shaderModule);
-  const createComputePipelineAsync = vi.fn(async (descriptor: GPUComputePipelineDescriptor) => ({
-    descriptor,
-  }));
+  const createComputePipelineAsync = vi.fn((descriptor: GPUComputePipelineDescriptor) =>
+    Promise.resolve({ descriptor }),
+  );
   const pushErrorScope = vi.fn();
-  const popErrorScope = vi.fn<() => Promise<GPUError | null>>(async () => null);
+  const popErrorScope = vi.fn<() => Promise<GPUError | null>>(() => Promise.resolve(null));
   return {
     createComputePipelineAsync,
     createShaderModule,
@@ -78,7 +78,7 @@ describe('ComputePipelineCache', () => {
     const fixture = createDevice();
     fixture.popErrorScope.mockResolvedValueOnce({
       message: 'workgroup size exceeds requested limit',
-    } as GPUValidationError);
+    });
     const cache = new ComputePipelineCache(fixture.device, {
       empty: '@compute fn main() {}',
     });

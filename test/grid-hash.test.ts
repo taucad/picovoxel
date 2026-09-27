@@ -1,5 +1,5 @@
-// SKv2-0 V0.1 — the G0 canonical grid hash self-tests (NON-DETERMINISM.md
-// §14.5). The load-bearing claims, each pinned here:
+// SKv2-0 V0.1 — the G0 canonical grid hash self-tests. The load-bearing
+// claims, each pinned here:
 //   * representation-insensitivity — tile vs dense-leaf encodings of ONE field
 //     hash equal (the `bIsEqual` lesson made structural), proven two ways:
 //     the in-place densifier, and the interval-pruned tape vs dense-fill

@@ -61,7 +61,11 @@ async function main(): Promise<void> {
   check('Symbol.dispose defined post-import', typeof Symbol.dispose === 'symbol');
   try {
     // Parsed lazily so engines without explicit-resource-management still load the gate.
-    new Function('const o = { [Symbol.dispose]() { globalThis.__usingRan = true; } }; { using x = o; }')();
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval -- feature detection needs a runtime parse
+    const usingProbe = new Function(
+      'const o = { [Symbol.dispose]() { globalThis.__usingRan = true; } }; { using x = o; }',
+    ) as () => void;
+    usingProbe();
     check(
       '`using` runs against the shimmed symbol',
       (globalThis as { __usingRan?: boolean }).__usingRan === true,
@@ -77,7 +81,7 @@ async function main(): Promise<void> {
   // ── Session ──
   const pk = await createPico({ voxelSize: 0.5 });
   check('wasm instantiated in the browser', true, pk.version);
-  check('string marshalling', /^PicoGK Core Library/.test(pk.name), pk.name);
+  check('string marshalling', pk.name.startsWith('PicoGK Core Library'), pk.name);
 
   // ── Pure-wasm determinism: EXACT vs the node record ──
   const sphere = pk.createVoxels({ shape: 'sphere', radius: 10 });
@@ -247,7 +251,7 @@ async function main(): Promise<void> {
 main()
   .catch((error: unknown) => {
     check(
-      `unexpected failure: ${(error as { code?: string }).code ?? ''} ${(error as Error).message ?? error}`,
+      `unexpected failure: ${(error as { code?: string }).code ?? ''} ${String((error as { message?: unknown }).message ?? error)}`,
       false,
     );
     console.error(error);

@@ -36,7 +36,7 @@ test('D1 — held values carry only primitives + the free cwrap, never the wrapp
   const pk = await createPico({ registry: fake });
   const sphere = pk.createVoxels({ shape: 'sphere', radius: 5 });
 
-  const entry = fake.entries.get(sphere as object);
+  const entry = fake.entries.get(sphere);
   assert.ok(entry, 'the wrapper itself must be the unregister token (D2 prerequisite)');
   assert.deepEqual(Object.keys(entry.held).sort(), ['free', 'handle', 'lib']);
   assert.equal(entry.held.lib, pk.handle);
@@ -57,15 +57,11 @@ test('D2 — explicit dispose unregisters first; the GC path can never double-fr
   const pk = await createPico({ registry: fake });
   const sphere = pk.createVoxels({ shape: 'sphere', radius: 5 });
 
-  assert.ok(fake.entries.has(sphere as object));
+  assert.ok(fake.entries.has(sphere));
   sphere.dispose();
-  assert.ok(!fake.entries.has(sphere as object), 'dispose() must unregister its token');
+  assert.ok(!fake.entries.has(sphere), 'dispose() must unregister its token');
   assert.equal(pk.allocated.voxels, 0, 'the handle must actually be freed');
-  assert.throws(
-    () => fake.collect(sphere as object),
-    /not registered/,
-    'a late GC callback has nothing to fire',
-  );
+  assert.throws(() => fake.collect(sphere), /not registered/, 'a late GC callback has nothing to fire');
   pk.dispose();
 });
 
@@ -75,7 +71,7 @@ test('GC-callback path (driven by hand) frees the native handle', async () => {
   const sphere = pk.createVoxels({ shape: 'sphere', radius: 5 });
   assert.equal(pk.allocated.voxels, 1);
 
-  fake.collect(sphere as object); // what a real collection would do
+  fake.collect(sphere); // what a real collection would do
   assert.equal(pk.allocated.voxels, 0, 'collect must free through the held cwrap');
   pk.dispose();
 });

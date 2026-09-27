@@ -66,7 +66,7 @@ test('R12 — mesh exposes typed arrays as caller-owned copies', async () => {
 // calls; either way the counters below prove both wrappers were freed.
 const scopeWithUsing = (() => {
   try {
-    // eslint-disable-next-line no-new-func -- feature detection needs a runtime parse
+    // oxlint-disable-next-line typescript/no-implied-eval -- feature detection needs a runtime parse
     return new Function(
       'pico',
       `{
@@ -152,8 +152,7 @@ test('R10 — invalid input throws typed, actionable errors', async () => {
 
 test('R10 — a bogus raw handle becomes PICO_INVALID_HANDLE, not an opaque throw', async () => {
   const pico = await createPico();
-  const { cwrap } = pico.module;
-  const triangleCount = cwrap('Mesh_nTriangleCount', 'bigint', ['bigint', 'bigint']);
+  const triangleCount = pico.module.cwrap('Mesh_nTriangleCount', 'bigint', ['bigint', 'bigint']);
 
   // Raw (unguarded) path: the C++ throw crosses as an opaque WebAssembly.Exception
   // with no usable message (bare Number under the old JS-EH build). This is the
