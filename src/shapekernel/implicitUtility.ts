@@ -1,11 +1,11 @@
 // Derived from LEAP71_ShapeKernel — ShapeKernel/Utilities/ImplicitUtility.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picovoxel (blueprint R6); see NOTICE.
+// Ported to TypeScript for picovoxel; see NOTICE.
 //
 // Each implicit is available in BOTH forms: `sdf` — the JS callback (upstream's
 // serial per-voxel path), and `expression` — the serialized SdfExpression the
-// slab-parallel tape path evaluates in-module on every thread (R9). The two are
+// slab-parallel tape path evaluates in-module on every thread. The two are
 // value-identical: same f64 operations, one f32 truncation at the grid write.
 // The SuperEllipsoid ADDS its centre (upstream quirk, ported verbatim).
 

@@ -1,4 +1,4 @@
-// Numerics foundation (real-world-subjects blueprint R1).
+// Numerics foundation.
 // The System.Numerics `Quaternion` analog, scoped to the surface the kernel
 // and its consumers actually use: axis-angle construction, rotating vectors,
 // rotation-matrix extraction and slerp (Frame3d rotations + interpolation,

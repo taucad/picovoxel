@@ -27,7 +27,7 @@ import type { Voxels } from './voxels.ts';
  */
 type RenderLatticeExport = 'Voxels_RenderLattice' | 'Voxels_RenderLatticeTubes';
 
-/** Resolved session lane (§14.1). `'open'` = no lane requested: library
+/** Resolved session lane (see docs/lanes.md). `'open'` = no lane requested: library
  * defaults with per-op freedom in both directions — the pre-lane behavior. */
 export type ResolvedLane = 'exact' | 'fast' | 'open';
 /** Value-class provenance a handle can carry. */
@@ -55,24 +55,24 @@ export interface SessionContext {
   lib: bigint;
   voxelSize: number;
   /**
-   * SKv2-0 V0.4 — session default for the offset family's `fastRenorm`
-   * (§14.1 precedence: explicit per-op > session default > library default
-   * false). The `'fast'` lane bundle (V0.5) is what sets this true.
+   * Session default for the offset family's `fastRenorm` (precedence:
+   * explicit per-op > session default > library default false). The `'fast'`
+   * lane is what sets this true.
    */
   fastRenorm: boolean;
   /**
-   * SKv2-0 V0.5 — the resolved session lane. `'exact'` locks the byte-locked
-   * numerics policy (per-op loosening throws); `'fast'` defaults Class-2
+   * The resolved session lane. `'exact'` locks the byte-locked numerics
+   * policy (per-op loosening throws); `'fast'` defaults the value-changing
    * accelerations on (tighten-only per-op overrides allowed); `'open'` is the
    * no-claim legacy behavior. `'auto'` never appears here — it resolves at
    * construction and `session.lane` reports the resolution.
    */
   lane: ResolvedLane;
-  /** SKv2-0 V0.6 — the keyed lattice-arm selection (see RenderLatticeExport). */
+  /** The keyed lattice-arm selection (see RenderLatticeExport). */
   renderLatticeExport: RenderLatticeExport;
   raw: SessionRaw;
   registry: HandleRegistry;
-  /** D4 — session teardown wins races; wrappers consult this before freeing. */
+  /** Session teardown wins races; wrappers consult this before freeing. */
   dead: { value: boolean };
   /** BBOX_BYTES of scratch for pointer-taking calls. One per session, reused. */
   scratch: number;
@@ -94,12 +94,12 @@ export interface Disposable {
   dispose: () => void;
 }
 
-/** Which session a wrapper belongs to — the SG10 cross-instance guard's memory. */
+/** Which session a wrapper belongs to — the cross-instance guard's memory. */
 const WRAPPER_SESSION = new WeakMap<object, SessionContext>();
 
 /**
- * D5/D6 — the single registration point. Every wrapper factory calls this exactly
- * once: registers the handle for GC-driven free (token = the wrapper itself, D2),
+ * The single registration point. Every wrapper factory calls this exactly
+ * once: registers the handle for GC-driven free (token = the wrapper itself),
  * wires `[Symbol.dispose]` to the public dispose, and records session ownership.
  */
 export function adoptHandle(ctx: SessionContext, wrapper: Disposable, handle: bigint, free: FreeFn): void {
@@ -108,7 +108,7 @@ export function adoptHandle(ctx: SessionContext, wrapper: Disposable, handle: bi
   WRAPPER_SESSION.set(wrapper, ctx);
 }
 
-/** SG10 — operands from another Library instance corrupt nothing; they throw. */
+/** Operands from another Library instance corrupt nothing; they throw. */
 export function assertSameSession(ctx: SessionContext, other: object, what: string): void {
   if (WRAPPER_SESSION.get(other) !== ctx) {
     throw new PicoError(
@@ -129,7 +129,7 @@ export function assertSameSession(ctx: SessionContext, other: object, what: stri
  * HeatX mesh stages 120 MB at ~2.5 GiB). Index every heap view with `>>>`, never
  * `>>`: a signed shift turns such a pointer into a negative index, and
  * `subarray` *clamps* negatives instead of throwing, so the read silently
- * returns a window 1–2 GiB away (SK-0.10).
+ * returns a window 1–2 GiB away.
  */
 export function checkedMalloc(module: PicoWasmModule, bytes: number, what: string): number {
   const pointer = module._malloc(bytes);
@@ -172,7 +172,7 @@ export function readCString(ctx: SessionContext, pointer: number): string {
   return ctx.module.UTF8ToString(pointer);
 }
 
-/** SG14 — every allocating call is checked; a null handle means allocation failed. */
+/** Every allocating call is checked; a null handle means allocation failed. */
 export function expectHandle(operation: string, handle: bigint): bigint {
   if (!handle) {
     throw new PicoError(

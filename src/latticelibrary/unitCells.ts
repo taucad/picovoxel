@@ -1,11 +1,11 @@
 // Derived from LEAP71_LatticeLibrary — LatticeLibrary/UnitCells/CuboidCell.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picovoxel (blueprint R13); see NOTICE.
+// Ported to TypeScript for picovoxel; see NOTICE.
 //
 // The C# `IUnitCell.PreviewUnitCell` (viewer wireframes) is not on this
 // headless surface — same rule as the shapekernel port's dropped
-// Visualizations layer (R16).
+// Visualizations layer.
 
 import type { Bounds, Vec3 } from '../types.ts';
 

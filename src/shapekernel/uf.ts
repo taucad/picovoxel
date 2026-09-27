@@ -2,12 +2,12 @@
 // SuperShapes, PolygonalShapes}.cs (the three partials of the C# `Uf` class)
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picovoxel (blueprint R4); see NOTICE.
+// Ported to TypeScript for picovoxel; see NOTICE.
 //
 // Transitions, randomness, fibonacci distributions, supershapes and polygon
 // radii. C# `Random` becomes an explicit `RandomSource` — `createRandom(seed)`
 // is the reproducible form (mulberry32; the seeded corpus is self-referential,
-// not C#-sequence-matching — blueprint risk #4); omitting it uses a shared
+// not C#-sequence-matching); omitting it uses a shared
 // non-reproducible default, as upstream. `Uf.Wait` (thread sleep) and the
 // obsolete `fLimitValue` are not reproduced.
 

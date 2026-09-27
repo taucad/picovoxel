@@ -142,7 +142,7 @@ const withMesh = (h, body) => {
   }
 };
 
-/** Narrow-band SDF difference in mm — the SK-0.8 definition, band membership and all. */
+/** Narrow-band SDF difference in mm — the fastRenorm accuracy definition, band membership and all. */
 const sdfDelta = (a, b) => {
   const da = readDims(a);
   const db = readDims(b);
@@ -309,7 +309,7 @@ const SYNTHETIC = {
  * everything else passes straight through, so the beam set, coordinates and cap flags are
  * exactly what the example produces. The private-method calls are deliberate: `private` in
  * TypeScript is a compile-time marker, and the stage methods are the fixture boundary the
- * SK-0.1 stage decomposition already names.
+ * benchmark stage decomposition already names.
  */
 async function extractedFixtures() {
   const captured = [];
@@ -473,7 +473,7 @@ async function determinism() {
 /**
  * The 10^5-beam jungle gym the charter's memory question names: 33^3 nodes on a 3 mm
  * pitch, one strut to each +axis neighbour -> 3*33*33*32 = 104,544 round-capped beams,
- * authored through the bulk wire format (8 floats/beam, SK-0.3). Deterministic by
+ * authored through the bulk wire format (8 floats/beam). Deterministic by
  * construction — no RNG anywhere.
  */
 function beams1e5() {

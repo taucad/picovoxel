@@ -1,4 +1,4 @@
-// Numerics foundation (real-world-subjects blueprint R1).
+// Numerics foundation.
 // Ports PicoGK Numerics/Angles.cs. `Rad` is a branded number: compile-time
 // discipline against the degree/radian bug class at zero runtime cost. Because
 // a Rad IS a number, `Math.sin(r)`, comparisons and arithmetic work natively —

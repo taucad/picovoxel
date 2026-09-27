@@ -1,4 +1,4 @@
-// TP3 — SdfExpression → tape compiler.
+// SdfExpression → tape compiler.
 //
 // A JS SDF callback is pinned to the main thread (addFunction entries exist only
 // in the registering thread's wasm table), which forces upstream's serial fill.

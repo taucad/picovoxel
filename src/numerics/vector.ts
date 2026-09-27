@@ -1,4 +1,4 @@
-// Numerics foundation (real-world-subjects blueprint R1).
+// Numerics foundation.
 // The System.Numerics analog JS lacks: Vector2/Vector3 algebra over the repo's
 // allocation-light readonly tuples, plus PicoGK's VectorExt helpers
 // (Extensions.cs) and the vector halves of Comparison.cs. Frame-dependent

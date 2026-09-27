@@ -1,9 +1,9 @@
 // Derived from LEAP71_ShapeKernel — ShapeKernel/Frames/LocalFrame.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picovoxel (blueprint R4); see NOTICE.
+// Ported to TypeScript for picovoxel; see NOTICE.
 //
-// Per Finding 9 of the real-world-subjects blueprint there is ONE frame type:
+// There is ONE frame type:
 // a LocalFrame IS the numerics `Frame`. This module ports only the
 // construction helpers — the C# LocalFrame⇄Frame3d implicit-conversion bridge
 // is unnecessary and not reproduced. Semantic note kept from upstream:

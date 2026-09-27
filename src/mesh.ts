@@ -1,9 +1,9 @@
-// Mesh wrapper. Bulk-first: vertices/triangles cross the ABI in two calls each way
-// (R11/R8), and every read out of wasm memory is copied — ALLOW_MEMORY_GROWTH
+// Mesh wrapper. Bulk-first: vertices/triangles cross the ABI in two calls each way,
+// and every read out of wasm memory is copied — ALLOW_MEMORY_GROWTH
 // detaches heap views, so a returned subarray could silently empty later.
 // Geometry transforms (transform/mirror/merged) run in TS over the bulk arrays and
-// write back through the bulk imports, preserving indexing — and fixing upstream B1
-// (mshCreateTransformed scales each triangle corner by a DIFFERENT axis component).
+// write back through the bulk imports, preserving indexing — and fixing an upstream
+// bug (mshCreateTransformed scales each triangle corner by a DIFFERENT axis component).
 
 import {
   adoptHandle,
@@ -31,11 +31,12 @@ export interface Mesh {
   readonly triangles: Uint32Array;
   readonly vertexCount: number;
   readonly triangleCount: number;
-  /** Bounding box; the SG15 sentinel (±FLT_MAX) for an empty mesh, never NaN. */
+  /** Bounding box; the empty-bounds sentinel (±FLT_MAX) for an empty mesh, never NaN. */
   bounds(): Bounds;
   /**
    * Pure transformed copy. `scale` is component-wise (`Vec3`) or uniform (number),
-   * applied before `offset` — every vertex gets the same scale (fixes upstream B1).
+   * applied before `offset` — every vertex gets the same scale (upstream scales
+   * each triangle corner by a different axis).
    * `matrix` follows System.Numerics row-vector convention (translation in 12–14).
    */
   transform(options: TransformOptions): Mesh;
@@ -45,10 +46,10 @@ export interface Mesh {
   merged(other: Mesh): Mesh;
   /** Voxelizes the (closed) mesh. */
   toVoxels(): Voxels;
-  /** SG13 — offset in ALL directions from a not-necessarily-closed mesh. */
+  /** Offset in ALL directions from a not-necessarily-closed mesh. */
   shellVoxels(options: { radius: number }): Voxels;
   /**
-   * SG7 — binary STL bytes with the UNITS= header convention.
+   * Binary STL bytes with the UNITS= header convention.
    *
    * Export is keyed by the session's lane claim (see docs/lanes.md). Exact
    * provenance always exports with the standard header. Non-exact provenance
@@ -69,9 +70,9 @@ export interface Mesh {
    * `{ acceptLane: 'fast' }`, and the acknowledged bytes record nothing.
    */
   toGlb(options?: { acceptLane?: 'fast' }): Uint8Array;
-  /** §14.1 value-class provenance, inherited from the producing voxels/mesh chain. */
+  /** Value provenance, inherited from the producing voxels/mesh chain. */
   readonly lane: 'exact' | 'fast';
-  /** Raw ABI handle — escape hatch (§10). */
+  /** Raw ABI handle — escape hatch. */
   readonly handle: bigint;
   /** Optional: GC reclaims un-disposed meshes. Idempotent. */
   dispose(): void;
@@ -210,7 +211,7 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: LaneSet = EX
       }
       const { scale, offset = [0, 0, 0] } = options;
       const [sx, sy, sz] = typeof scale === 'number' ? [scale, scale, scale] : scale;
-      // B1 fix: component-wise scale applied to EVERY vertex — upstream multiplied
+      // Upstream bug: component-wise scale applied to EVERY vertex — upstream multiplied
       // corner A by scale.X, B by scale.Y, C by scale.Z (Mesh.cs:86-88).
       return deriveVertices((x, y, z, out, at) => {
         out[at] = x * sx + offset[0];
@@ -296,14 +297,14 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: LaneSet = EX
       return handle;
     },
     dispose() {
-      if (disposed) return; // idempotent: double dispose must not double-free (D3)
+      if (disposed) return; // idempotent: double dispose must not double-free
       disposed = true;
       cached = null;
-      ctx.registry.unregister(mesh); // D2: never both GC-free and explicit-free
-      if (!ctx.dead.value) ctx.raw.Mesh_Destroy(ctx.lib, handle); // D4
+      ctx.registry.unregister(mesh); // never both GC-free and explicit free
+      if (!ctx.dead.value) ctx.raw.Mesh_Destroy(ctx.lib, handle); // teardown already freed it
     },
   };
   recordProvenance(mesh, lane);
   adoptHandle(ctx, mesh, handle, ctx.raw.Mesh_Destroy);
-  return mesh as Mesh; // adoptHandle added [Symbol.dispose] (D6)
+  return mesh as Mesh; // adoptHandle added [Symbol.dispose]
 }

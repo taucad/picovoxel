@@ -2,7 +2,7 @@
 // ControlPointSpline, CylindricalControlSpline}.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picovoxel (blueprint R4); see NOTICE.
+// Ported to TypeScript for picovoxel; see NOTICE.
 //
 // The BSpline basis recursion is ported verbatim (Cox-de-Boor with upstream's
 // epsilon guards). One deliberate deviation: C# ControlPointSpline MUTATES the

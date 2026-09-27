@@ -1,10 +1,10 @@
-// picovoxel/numerics — the CEM numerics foundation (real-world-subjects
-// blueprint R1, decision D1). Two documented strata plus the canonical frame:
+// picovoxel/numerics — the CEM numerics foundation. Two documented strata plus
+// the canonical frame:
 //   1. System.Numerics analog: vec2/vec3/quat/mat4 over allocation-light
 //      readonly tuples (JS has no BCL vector layer — this is it).
 //   2. PicoGK.Numerics port: Rad branded angles, Overhang, polar/cylindrical/
 //      spherical coordinates, tolerances + fuzzy comparison.
-//   3. frame — Frame3d semantics, the one rigid-frame type (Finding 9).
+//   3. frame — Frame3d semantics, the one rigid-frame type.
 // Every C# API is graded ported-or-N/A in MIGRATING-FROM-CSHARP.md. Pure math,
 // no wasm dependency: usable standalone and by picovoxel/shapekernel.
 

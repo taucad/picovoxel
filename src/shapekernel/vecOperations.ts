@@ -1,7 +1,7 @@
 // Derived from LEAP71_ShapeKernel — ShapeKernel/Utilities/VecOperations.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picovoxel (blueprint R4); see NOTICE.
+// Ported to TypeScript for picovoxel; see NOTICE.
 //
 // Cylindrical/spherical point helpers and rotation utilities the whole
 // ShapeKernel layer leans on. Angles are plain radians numbers here, as

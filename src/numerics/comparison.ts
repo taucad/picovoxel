@@ -1,4 +1,4 @@
-// Numerics foundation (real-world-subjects blueprint R1).
+// Numerics foundation.
 // Ports PicoGK Numerics/Comparison.cs: the tolerance constants and fuzzy scalar
 // comparisons that epsilon-discipline the rest of the geometry layer. Vector
 // variants live on `vec2`/`vec3` (vector.ts). Semantics are ported, not

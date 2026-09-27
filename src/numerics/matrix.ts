@@ -1,4 +1,4 @@
-// Numerics foundation (real-world-subjects blueprint R1).
+// Numerics foundation.
 // Completes the algebra for the `Mat4` type that already exists at the ABI
 // (types.ts / mesh.transform): System.Numerics `Matrix4x4` in row-vector
 // convention — basis vectors in rows, translation in elements 12–14, points

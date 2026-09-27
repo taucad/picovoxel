@@ -1,4 +1,4 @@
-// Field metadata table (SG3/SG4). The table rides inside the field's grid and is
+// Field metadata table. The table rides inside the field's grid and is
 // what survives .vdb interchange with desktop PicoGK; the handle here is only an
 // accessor view onto it.
 
@@ -25,11 +25,11 @@ export interface Metadata {
   typeOf(name: string): MetadataType;
   /** Typed read; `undefined` when the name does not exist. */
   get(name: string): MetadataValue | undefined;
-  /** SG3 — reserved names (`PicoGK.*`, `class`, `name`, `file_*`) throw. */
+  /** Reserved names (`PicoGK.*`, `PicoVoxel.*`, `class`, `name`, `file_*`) throw. */
   set(name: string, value: MetadataValue): void;
-  /** SG3 guard applies here too. */
+  /** The reserved-name guard applies here too. */
   remove(name: string): void;
-  /** Raw ABI handle — escape hatch (§10). */
+  /** Raw ABI handle — escape hatch. */
   readonly handle: bigint;
   /** Optional: GC reclaims un-disposed accessors. Idempotent. */
   dispose(): void;
@@ -37,7 +37,7 @@ export interface Metadata {
 }
 
 /**
- * SG3 — upstream's GuardInternalFields (FieldMetadata.cs:349-364): Pico.* is
+ * The reserved-name guard, as upstream's GuardInternalFields (FieldMetadata.cs:349-364): Pico.* is
  * internal, class/name/file_* corrupt OpenVDB's own bookkeeping.
  */
 function assertWritableMetadataName(name: string): void {
@@ -62,8 +62,8 @@ function assertWritableMetadataName(name: string): void {
 const TYPE_NAMES: Record<number, MetadataType> = { 0: 'string', 1: 'float', 2: 'vector' };
 
 /**
- * SG4 — every field-creating path tags `PicoGK.Class` so .vdb files interchange
- * with desktop PicoGK. Bypasses the SG3 guard exactly as C#'s internal _SetValue
+ * Every field-creating path tags `PicoGK.Class` so .vdb files interchange
+ * with desktop PicoGK. Bypasses the reserved-name guard exactly as C#'s internal _SetValue
  * does. The accessor handle is transient — the tag lives on the grid.
  */
 export function tagFieldClass(
@@ -83,11 +83,11 @@ export function tagFieldClass(
 }
 
 /**
- * SKv2-0 V0.5 — lane provenance (§14.1). The tag rides the field's grid like
+ * Lane provenance (see docs/lanes.md). The tag rides the field's grid like
  * `PicoGK.Class` does, so it survives copies, `.vdb` interchange and container
- * round-trips with no serializer changes. Absence of the tag IS the exact/L0
+ * round-trips with no serializer changes. Absence of the tag IS the exact
  * claim, which keeps every byte-locked exact fixture untouched. Bypasses the
- * SG3-style guard exactly as `tagFieldClass` does (users cannot write
+ * reserved-name guard exactly as `tagFieldClass` does (users cannot write
  * `PicoVoxel.*` — provenance must not be forgeable through the public surface).
  *
  * The value is a lane SET in the persisted grammar of `./lanes.ts`: loads
@@ -180,7 +180,7 @@ function readLaneTag(
 
 /**
  * The ingest lock. Importing fast-provenance content into a
- * `lane: 'exact'` session throws: the session claims no Class-2 op fed
+ * `lane: 'exact'` session throws: the session claims no value-changing acceleration fed
  * anything in it, and a fast import falsifies that. No override exists (an
  * escape hatch would create exactly the handle the claim rules out).
  */
@@ -189,7 +189,8 @@ export function rejectLaneIngest(ctx: SessionContext, set: LaneSet, where: strin
     throw new PicoError(
       'PICO_LANE_LOOSENED',
       `${where}: this asset carries non-exact provenance (${LANE_METADATA_NAME}=${set.join(',')}), and importing it ` +
-        "into a lane: 'exact' session would falsify the session's claim that no Class-2 op fed anything in it. " +
+        "into a lane: 'exact' session would falsify the session's claim that no value-changing acceleration fed " +
+        'anything in it. ' +
         "Load it in an 'open' session (omit lane) or a lane: 'fast' session instead.",
     );
   }
@@ -315,12 +316,12 @@ export function wrapMetadata(ctx: SessionContext, handle: bigint): Metadata {
       return handle;
     },
     dispose() {
-      if (disposed) return; // D3
+      if (disposed) return; // idempotent
       disposed = true;
-      ctx.registry.unregister(metadata); // D2
-      if (!ctx.dead.value) ctx.raw.Metadata_Destroy(ctx.lib, handle); // D4
+      ctx.registry.unregister(metadata); // never both GC-free and explicit free
+      if (!ctx.dead.value) ctx.raw.Metadata_Destroy(ctx.lib, handle); // teardown already freed it
     },
   };
   adoptHandle(ctx, metadata, handle, ctx.raw.Metadata_Destroy);
-  return metadata as Metadata; // adoptHandle added [Symbol.dispose] (D6)
+  return metadata as Metadata; // adoptHandle added [Symbol.dispose]
 }

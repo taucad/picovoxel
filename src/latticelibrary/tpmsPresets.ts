@@ -4,15 +4,15 @@
 // ImplicitRandomizedSchwarzPrimitive,ImplicitModular}.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picovoxel (blueprint R13); see NOTICE.
+// Ported to TypeScript for picovoxel; see NOTICE.
 //
 // The five closed-form presets implement the shapekernel `Implicit` shape:
 // `sdf` (upstream's serial callback path) AND `expression` (the slab-parallel
-// tape, R9), value-identical op for op. The other three are `sdf`-only —
+// tape), value-identical op for op. The other three are `sdf`-only —
 // their math cannot cross the tape op set (src/tape.ts has no atan2 for the
 // radial unwrap, no data-grid gather for the deformation field, and
 // ImplicitModular composes arbitrary user callbacks); consumers route them
-// through the callback path, the same boundary R9 drew for withImplicit.
+// through the callback path, the same boundary withImplicit draws.
 // The 9th preset the examples use, ImplicitGyroid, lives in
 // src/shapekernel/implicitUtility.ts.
 

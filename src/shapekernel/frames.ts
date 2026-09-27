@@ -1,15 +1,14 @@
 // Derived from LEAP71_ShapeKernel — ShapeKernel/Frames/Frames.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picovoxel (blueprint R4); see NOTICE.
+// Ported to TypeScript for picovoxel; see NOTICE.
 //
 // A chain of local frames along a spine — ShapeKernel's transport machinery.
 // MIN_ROTATION carries the previous sample's local X forward as the next
 // alignment target (parallel transport), which keeps a swept cross-section
 // from corkscrewing as the spine bends. `alignWithTargetX` is upstream's
 // brute-force 0.01°-step search over the half-turn, ported verbatim —
-// authoring math, Finding 8 rules it stays in JS unless phase splits prove it
-// hot. The C# constructor overloads become static factories.
+// authoring math, so it stays in JS unless profiling proves it hot. The C# constructor overloads become static factories.
 
 import { type Frame, frame } from '../numerics/frame.ts';
 import { vec3 } from '../numerics/vector.ts';

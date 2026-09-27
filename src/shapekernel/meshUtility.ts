@@ -1,11 +1,11 @@
 // Derived from LEAP71_ShapeKernel — ShapeKernel/Utilities/MeshUtility.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picovoxel (blueprint R5); see NOTICE.
+// Ported to TypeScript for picovoxel; see NOTICE.
 //
 // Per-vertex mesh transforms in the upstream style: triangles are exploded
 // (three fresh vertices each, no dedup), exactly what C# nAddTriangle-based
-// rebuilds produce. Vertices cross the ABI in bulk both ways (Finding 8).
+// rebuilds produce. Vertices cross the ABI in bulk both ways.
 // C# `Append` is not reproduced — the facade's pure `mesh.merged(other)`
 // covers it.
 

@@ -1,11 +1,11 @@
-// GC-driven native-handle reclamation (disposal-facade doc, normative design).
+// GC-driven native-handle reclamation.
 //
 // One FinalizationRegistry per loaded module; sessions register every wrapper with
-// it. The held value carries only primitives plus the raw free export (invariant D1 —
-// referencing the wrapper would keep it alive forever), and explicit dispose()
-// unregisters before freeing (D2) so the two paths can never double-free.
+// it. The held value carries only primitives plus the raw free export (referencing
+// the wrapper would keep it alive forever), and explicit dispose() unregisters
+// before freeing, so the two paths can never double-free.
 
-/** What the registry holds per wrapper — primitives + the raw free export only (D1). */
+/** What the registry holds per wrapper — primitives + the raw free export only, never the wrapper. */
 export interface Held {
   lib: bigint;
   handle: bigint;
@@ -24,7 +24,7 @@ export interface HandleRegistry {
 /**
  * Frees one held handle. Must never throw: engines may stop delivering callbacks
  * after a throwing cleanup, and a late callback for an already-destroyed session
- * legitimately throws through the ABI (D4 — teardown wins races; swallow it).
+ * legitimately throws through the ABI (session teardown wins races; swallow it).
  */
 export function freeHeld(held: Held): void {
   try {

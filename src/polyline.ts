@@ -1,5 +1,4 @@
-// PolyLine wrapper. Small vertex counts by nature, so per-element reads are fine
-// (surface spec). AddArrow/AddCross are viewer decoration — deliberately dropped.
+// PolyLine wrapper. Small vertex counts by nature, so per-element reads are fine. AddArrow/AddCross are viewer decoration — deliberately dropped.
 
 import { adoptHandle, VEC3_BYTES, type SessionContext } from './context.ts';
 import { assertLive, guard } from './errors.ts';
@@ -17,7 +16,7 @@ export interface PolyLine {
   readonly color: readonly [number, number, number, number];
   bounds(): { min: Vec3; max: Vec3 };
   readonly memUsage: number;
-  /** Raw ABI handle — escape hatch (§10). */
+  /** Raw ABI handle — escape hatch. */
   readonly handle: bigint;
   /** Optional: GC reclaims un-disposed polylines. Idempotent. */
   dispose(): void;
@@ -70,14 +69,14 @@ export function wrapPolyLine(ctx: SessionContext, handle: bigint): PolyLine {
       return handle;
     },
     dispose() {
-      if (disposed) return; // D3
+      if (disposed) return; // idempotent
       disposed = true;
-      ctx.registry.unregister(polyLine); // D2
-      if (!ctx.dead.value) ctx.raw.PolyLine_Destroy(ctx.lib, handle); // D4
+      ctx.registry.unregister(polyLine); // never both GC-free and explicit free
+      if (!ctx.dead.value) ctx.raw.PolyLine_Destroy(ctx.lib, handle); // teardown already freed it
     },
   };
   adoptHandle(ctx, polyLine, handle, ctx.raw.PolyLine_Destroy);
-  return polyLine as PolyLine; // adoptHandle added [Symbol.dispose] (D6)
+  return polyLine as PolyLine; // adoptHandle added [Symbol.dispose]
 }
 
 /** Writes an RGBA color (alpha defaults 1) into scratch as PKColorFloat. */

@@ -1,4 +1,4 @@
-// OpenVDB container files (SG5). All IO is bytes-in/bytes-out over MEMFS temp
+// OpenVDB container files. All IO is bytes-in/bytes-out over MEMFS temp
 // files — no real filesystem paths cross the API. Field order inside a .vdb is NOT
 // stable (upstream VoxelsIo.cs:48-52 documents this), which is why "first
 // compatible field wins" is the documented loading semantic.
@@ -33,18 +33,18 @@ export interface VdbFile {
   /**
    * Serialises the container to .vdb bytes. Provenance always rides each
    * field's `PicoVoxel.Lane` metadata inside the bytes (the stamp is built in).
-   * §14.1 export boundary, the same session-claim rule as `Mesh.toStl`
+   * The export boundary follows the same session-claim rule as `Mesh.toStl`
    * (see docs/lanes.md): fields `add()`-ed in this session whose provenance is
-   * Class-2 `fast` export freely in a `lane: 'fast'` (or `'auto'`) session;
-   * in a session that declared no lane, or when any member lies outside
-   * Class 2, `toBytes` refuses with `PICO_LANE_EXPORT` unless acknowledged
+   * `fast` export freely in a `lane: 'fast'` (or `'auto'`) session; in a
+   * session that declared no lane, or when any member other than `fast` is
+   * present, `toBytes` refuses with `PICO_LANE_EXPORT` unless acknowledged
    * with `{ acceptLane: 'fast' }`. Fields that came in with
    * opened bytes pass through untouched — their tags byte-for-byte, untagged
    * ones untagged: the boundary gates locally-added provenance and never
    * asserts authorship of foreign content.
    */
   toBytes(options?: { acceptLane?: 'fast' }): Uint8Array;
-  /** Raw ABI handle — escape hatch (§10). */
+  /** Raw ABI handle — escape hatch. */
   readonly handle: bigint;
   /** Optional: GC reclaims un-disposed files. Idempotent. */
   dispose(): void;
@@ -70,7 +70,7 @@ export function withVdbBytes<T>(ctx: SessionContext, bytes: Uint8Array, body: (p
 
 export function wrapVdbFile(ctx: SessionContext, handle: bigint): VdbFile {
   let disposed = false;
-  // §14.1 — LUB over fields add()-ed to this container. Fields loaded from
+  // Least upper bound over fields add()-ed to this container. Fields loaded from
   // foreign bytes keep their in-band PicoVoxel.Lane tags either way; this
   // tracker is what arms the toBytes() refusal for locally-added fields.
   let addedSet: LaneSet = EXACT_LANE_SET;
@@ -194,21 +194,21 @@ export function wrapVdbFile(ctx: SessionContext, handle: bigint): VdbFile {
       return handle;
     },
     dispose() {
-      if (disposed) return; // D3
+      if (disposed) return; // idempotent
       disposed = true;
-      ctx.registry.unregister(vdb); // D2
-      if (!ctx.dead.value) ctx.raw.VdbFile_Destroy(ctx.lib, handle); // D4
+      ctx.registry.unregister(vdb); // never both GC-free and explicit free
+      if (!ctx.dead.value) ctx.raw.VdbFile_Destroy(ctx.lib, handle); // teardown already freed it
     },
   };
   adoptHandle(ctx, vdb, handle, ctx.raw.VdbFile_Destroy);
-  return vdb as VdbFile; // adoptHandle added [Symbol.dispose] (D6)
+  return vdb as VdbFile; // adoptHandle added [Symbol.dispose]
 }
 
 /**
  * The C# SaveToFile contract (OpenVdbFile.cs:165-181): before serialising, every
  * field gets PicoGK.Library / PicoGK.Version / PicoGK.VoxelSize stamped into its
- * metadata (SI units — voxel size in METRES). This is what makes the SG5 voxel-size
- * handshake work when the bytes reach desktop PicoGK or come back to us.
+ * metadata (SI units — voxel size in METRES). This is what makes the voxel-size
+ * handshake (`vdbVoxelSize`) work when the bytes reach desktop PicoGK or come back to us.
  */
 function stampPicoMetadata(ctx: SessionContext, vdbHandle: bigint): void {
   const { raw, lib, module } = ctx;

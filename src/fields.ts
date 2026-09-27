@@ -1,8 +1,8 @@
 // ScalarField / VectorField wrappers.
 //
 // Values live at activated positions only: `get` returns null where nothing was set
-// (the C# bool/out dual). Traverse callbacks receive scalars, never vector objects —
-// the narrow band of a real field is 10^4–10^6 visits (R20's allocation rule).
+// (the C# bool/out dual). Traverse callbacks receive scalars, never vector objects:
+// the narrow band of a real field is 10^4–10^6 visits, so a visit allocates nothing.
 // The ABI has no VectorField_GetVoxelDimensions/GetSlice, so dimensions/getSlice/
 // bounds/signedDistanceAt exist on ScalarField only.
 
@@ -34,11 +34,11 @@ export interface ScalarFieldSlice {
 }
 
 interface FieldBase {
-  /** Raw ABI handle — escape hatch (§10). */
+  /** Raw ABI handle — escape hatch. */
   readonly handle: bigint;
   readonly memUsage: number;
   readonly metadata: Metadata;
-  /** §14.1 value-class provenance, inherited from the source voxels chain. */
+  /** Value provenance, inherited from the source voxels chain. */
   readonly lane: 'exact' | 'fast';
   /** Optional: GC reclaims un-disposed fields. Idempotent. */
   dispose(): void;
@@ -59,7 +59,7 @@ export interface ScalarField extends FieldBase {
   getSlice(options: { index: number }): ScalarFieldSlice;
   /** Bounding box of active voxels in mm (dims × voxel size, as C# does). */
   bounds(): Bounds;
-  /** SG6 — stored values are voxel-unit signed distance: result = value × voxelSize. */
+  /** Stored values are voxel-unit signed distance: result = value × voxelSize. */
   signedDistanceAt(position: Vec3): number | null;
   clone(): ScalarField;
 }
@@ -91,7 +91,7 @@ function withCallback<T>(
 export function wrapScalarField(ctx: SessionContext, handle: bigint, provenance?: LaneSet): ScalarField {
   let disposed = false;
   let metadataCache: Metadata | null = null;
-  // §14.1 provenance — same persisted-set scheme as wrapVoxels (omit = a .vdb load).
+  // Provenance — same persisted-set scheme as wrapVoxels (omit = a .vdb load).
   const lane = settleProvenance(
     ctx,
     ctx.raw.Metadata_hFromScalarField,
@@ -184,7 +184,7 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint, provenance?
     },
     signedDistanceAt(position: Vec3): number | null {
       const value = field.get(position);
-      return value === null ? null : value * ctx.voxelSize; // SG6
+      return value === null ? null : value * ctx.voxelSize; // voxel units to mm
     },
     clone(): ScalarField {
       return wrapScalarField(
@@ -210,23 +210,23 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint, provenance?
       return handle;
     },
     dispose() {
-      if (disposed) return; // D3
+      if (disposed) return; // idempotent
       disposed = true;
       metadataCache?.dispose();
-      ctx.registry.unregister(field); // D2
-      if (!ctx.dead.value) ctx.raw.ScalarField_Destroy(ctx.lib, handle); // D4
+      ctx.registry.unregister(field); // never both GC-free and explicit free
+      if (!ctx.dead.value) ctx.raw.ScalarField_Destroy(ctx.lib, handle); // teardown already freed it
     },
   };
-  tagFieldClass(ctx, ctx.raw.Metadata_hFromScalarField, handle, 'ScalarField'); // SG4
+  tagFieldClass(ctx, ctx.raw.Metadata_hFromScalarField, handle, 'ScalarField');
   recordProvenance(field, lane);
   adoptHandle(ctx, field, handle, ctx.raw.ScalarField_Destroy);
-  return field as ScalarField; // adoptHandle added [Symbol.dispose] (D6)
+  return field as ScalarField; // adoptHandle added [Symbol.dispose]
 }
 
 export function wrapVectorField(ctx: SessionContext, handle: bigint, provenance?: LaneSet): VectorField {
   let disposed = false;
   let metadataCache: Metadata | null = null;
-  // §14.1 provenance — same persisted-set scheme as wrapVoxels (omit = a .vdb load).
+  // Provenance — same persisted-set scheme as wrapVoxels (omit = a .vdb load).
   const lane = settleProvenance(
     ctx,
     ctx.raw.Metadata_hFromVectorField,
@@ -302,20 +302,20 @@ export function wrapVectorField(ctx: SessionContext, handle: bigint, provenance?
       return handle;
     },
     dispose() {
-      if (disposed) return; // D3
+      if (disposed) return; // idempotent
       disposed = true;
       metadataCache?.dispose();
-      ctx.registry.unregister(field); // D2
-      if (!ctx.dead.value) ctx.raw.VectorField_Destroy(ctx.lib, handle); // D4
+      ctx.registry.unregister(field); // never both GC-free and explicit free
+      if (!ctx.dead.value) ctx.raw.VectorField_Destroy(ctx.lib, handle); // teardown already freed it
     },
   };
-  tagFieldClass(ctx, ctx.raw.Metadata_hFromVectorField, handle, 'VectorField'); // SG4
+  tagFieldClass(ctx, ctx.raw.Metadata_hFromVectorField, handle, 'VectorField');
   recordProvenance(field, lane);
   adoptHandle(ctx, field, handle, ctx.raw.VectorField_Destroy);
-  return field as VectorField; // adoptHandle added [Symbol.dispose] (D6)
+  return field as VectorField; // adoptHandle added [Symbol.dispose]
 }
 
-/** SG10 guard used by session factories taking a `from` voxels. */
+/** Same-session guard used by session factories taking a `from` voxels. */
 export function assertVoxelsOperand(ctx: SessionContext, voxels: Voxels, what: string): bigint {
   assertSameSession(ctx, voxels, what);
   return voxels.handle;

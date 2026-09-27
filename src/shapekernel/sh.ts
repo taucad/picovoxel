@@ -2,14 +2,14 @@
 // ShExportFunctions}.cs + Utilities/GridOperations.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picovoxel (blueprint R6); see NOTICE.
+// Ported to TypeScript for picovoxel; see NOTICE.
 //
 // The session-first `Sh` facade SUBSET: lattice builders and byte-producing
 // export helpers. Deliberately not reproduced (graded in
 // MIGRATING-FROM-CSHARP.md): the C#-[Obsolete] voxel/boolean/query
 // pass-throughs (the facade methods exist on Voxels), the path-based export
 // plumbing (bytes in, bytes out), TGA/PNG/CSV exports, and every `Preview*`
-// function (viewer-bound — R16).
+// function (viewer-bound, and this surface is headless).
 
 import type { Lattice } from '../lattice.ts';
 import type { Mesh } from '../mesh.ts';

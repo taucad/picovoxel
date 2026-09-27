@@ -1,12 +1,12 @@
-// createPicoSession — the session factory behind both entries (library-api-policy):
-//   §1 factories over classes; §3 flat options; §4 one options object per method;
-//   §9 lazy init (wasm instantiates on the awaited factory call); §10 escape hatches.
+// createPicoSession — the session factory behind both entries: factories over
+// classes, flat options, one options object per method, lazy init (wasm
+// instantiates on the awaited factory call) and raw escape hatches.
 //
 // Deliberately glue-free: the Emscripten glue arrives as a factory argument, so the
 // serial and pthread variants stay out of each other's module graphs. index.ts binds
 // pico.mjs, multi.ts binds pico-multi.mjs; everything downstream is shared.
 //
-// Two lifetimes (TAU-L1, D31 of the production close-out): a RUNTIME is one
+// Two lifetimes: a RUNTIME is one
 // instantiated wasm module (and, on the multi glue, its pthread pool); a SESSION is
 // one PicoGK Library instance on it. The C++ core isolates instances completely —
 // each owns its handle managers and voxel size (PicoGKLibraryMgr.h:57-125) and the
@@ -129,7 +129,7 @@ export interface CreatePicoSessionOptions {
    * - `'exact'`: the byte-locked numerics policy, locked. Loosening (e.g.
    *   `fastRenorm: true`) throws `PICO_LANE_LOOSENED`, as does importing a
    *   `.vdb`/STL asset with non-exact provenance (no override).
-   * - `'fast'`: Class-2 accelerations (`fastRenorm`) default on; tightening is
+   * - `'fast'`: value-changing accelerations (`fastRenorm`) default on; tightening is
    *   allowed. It also consents to export: STL and `.vdb` stamp the lane and
    *   never refuse (GLB, lacking a provenance slot, refuses).
    * - `'auto'`: resolves at construction to the strongest available lane
@@ -139,9 +139,9 @@ export interface CreatePicoSessionOptions {
    */
   lane?: 'exact' | 'fast' | 'auto';
   /**
-   * Session-wide default for the offset family's `fastRenorm` (SK-0.8
-   * first-order renormalization — 3.5–3.9× on offsets, output bounded and
-   * gated, see `offset()`). Default false = the byte-locked upstream path
+   * Session-wide default for the offset family's `fastRenorm` (first-order
+   * renormalization — 3.5–3.9× on offsets, output bounded and gated, see
+   * `offset()`). Default false = the byte-locked upstream path
    * (`lane: 'fast'` flips this default to true). Precedence: an explicit
    * per-op `fastRenorm` always wins over this.
    */
@@ -156,8 +156,8 @@ export interface CreatePicoSessionOptions {
    * bucketing, the deterministic split tree) is negligible at 10^5 beams and
    * dominant at ~14 — the 14-beam HeatX print web takes 2.9 ms serial and
    * 7.3 ms on the tube lane. The catch: the serial arm mis-renders beams whose
-   * end spheres nest (upstream defect U23, -90.7% volume), which the tube lane
-   * renders correctly.
+   * end spheres nest (an upstream defect that loses 90.7% of the volume), which
+   * the tube lane renders correctly.
    */
   serialLattice?: boolean;
   /** @internal test seam — fake disposal registry. */
@@ -186,14 +186,14 @@ export interface PicoRuntime {
 
 export interface Pico {
   readonly voxelSize: number;
-  /** SKv2-0 V0.5 — the RESOLVED session lane (never `'auto'`; see `CreatePicoOptions.lane`). */
+  /** The RESOLVED session lane (never `'auto'`; see `CreatePicoOptions.lane`). */
   readonly lane: 'exact' | 'fast' | 'open';
   readonly name: string;
   readonly version: string;
   readonly buildInfo: string;
   /** Convert voxel-index coordinates to world millimetres. */
   voxelToMm(voxel: Vec3): Vec3;
-  /** Convert world millimetres to integer voxel indices (fixes upstream B2). */
+  /** Convert world millimetres to integer voxel indices (upstream `MmToVoxels` converts the wrong way). */
   mmToVoxel(mm: Vec3): Vec3;
   createVoxels(options: CreateVoxelsOptions): Voxels;
   /** Builds a mesh from vertex/triangle data via the bulk imports (two crossings). */
@@ -207,21 +207,21 @@ export interface Pico {
   /** Opens .vdb bytes as a container for field-level access. */
   openVdb(bytes: Uint8Array): VdbFile;
   /**
-   * SG5 handshake — the voxel size recorded in .vdb bytes (mm), 0 when the file
+   * The voxel-size handshake — the voxel size recorded in .vdb bytes (mm), 0 when the file
    * carries no PicoGK metadata. Create a session with this size before loading.
    */
   vdbVoxelSize(bytes: Uint8Array): number;
-  /** SG5 — first GRID_LEVEL_SET field wins; rich error otherwise. */
+  /** The first GRID_LEVEL_SET field wins; a descriptive error otherwise. */
   voxelsFromVdb(bytes: Uint8Array): Voxels;
-  /** SG7 — binary STL bytes to a mesh (UNITS= header honoured on 'auto'). */
+  /** Binary STL bytes to a mesh (UNITS= header honoured on 'auto'). */
   meshFromStl(bytes: Uint8Array, options?: FromStlOptions): Mesh;
   /** PicoGK-side memory usage in bytes, per object type. */
   readonly memory: MemoryUsage;
   /** PicoGK's own per-type allocation counters — the leak oracle. */
   readonly allocated: AllocatedCounts;
-  /** §10 escape hatch: the raw Emscripten module. */
+  /** Escape hatch: the raw Emscripten module. */
   readonly module: PicoWasmModule;
-  /** §10 escape hatch: the raw Library handle. */
+  /** Escape hatch: the raw Library handle. */
   readonly handle: bigint;
   /** Deterministic teardown: frees every object this session owns. Idempotent. */
   dispose(): void;
@@ -243,7 +243,7 @@ interface ResolvedSessionOptions {
 function resolveSessionOptions(options: CreatePicoSessionOptions): ResolvedSessionOptions {
   const { voxelSize = 0.5, memoryWarningBytes = 2 ** 30, serialLattice = false, registry, now } = options;
 
-  // §14.1 lane resolution — 'auto' resolves NOW (the resolved value is what
+  // Lane resolution — 'auto' resolves NOW (the resolved value is what
   // sessions report and what cache keys must see); 'exact' rejects loosening
   // at construction; 'fast' flips the fastRenorm default on.
   const lane: ResolvedLane = options.lane === 'auto' ? 'fast' : (options.lane ?? 'open');
@@ -251,7 +251,7 @@ function resolveSessionOptions(options: CreatePicoSessionOptions): ResolvedSessi
     throw new PicoError(
       'PICO_LANE_LOOSENED',
       "createPico({ lane: 'exact', fastRenorm: true }) is contradictory: 'exact' claims the byte-locked " +
-        "numerics policy and fastRenorm is a Class-2 acceleration. Use lane: 'fast' (or omit the lane) instead.",
+        "numerics policy and fastRenorm is a value-changing acceleration. Use lane: 'fast' (or omit the lane) instead.",
     );
   }
   const fastRenorm = options.fastRenorm ?? lane === 'fast';
@@ -339,7 +339,7 @@ interface RuntimeParts {
   raw: PicoRaw;
   /** One FinalizationRegistry per loaded module (registry.ts), shared by its sessions. */
   registry: HandleRegistry;
-  /** Release closures of the open sessions — never the session wrappers (D1). */
+  /** Release closures of the open sessions — never the session wrappers, which they must not retain. */
   open: Set<() => void>;
 }
 
@@ -474,7 +474,7 @@ export async function createPicoSession(
  * Library instance (which frees every object the instance holds) — and nothing else.
  * Idempotent through the dead flag, so session dispose, runtime dispose and a late
  * GC callback can race in any order. It doubles as the session's GC free, so it must
- * not reach the session wrapper (D1) — not even through a shared closure scope: V8
+ * not reach the session wrapper — not even through a shared closure scope: V8
  * gives every closure in a function one context, and the session's own methods
  * capture `session`. Hence a factory of its own, closing over primitives, the dead
  * flag and the runtime parts only.
@@ -487,7 +487,7 @@ function createSessionRelease(
 ): () => void {
   const release = () => {
     if (dead.value) return;
-    dead.value = true; // D4: teardown wins — wrappers stop freeing individually
+    dead.value = true; // teardown wins — wrappers stop freeing individually
     parts.open.delete(release);
     parts.module._free(scratch);
     parts.raw.Library_DestroyInstance(lib);
@@ -592,7 +592,7 @@ function openPicoSession(
       return ctx.readVec3(scratch + VEC3_BYTES);
     },
     mmToVoxel(mm: Vec3): Vec3 {
-      // B2 fix: upstream Library.MmToVoxels calls _VoxelsToMm (Library.cs:276) —
+      // Upstream bug: Library.MmToVoxels calls _VoxelsToMm (Library.cs:276) —
       // the inverse conversion — so there is no working upstream behaviour to match.
       // Bind the real export and round to the NEAREST index (C#'s (int)(v + 0.5f)
       // idiom truncates toward zero and mis-rounds negative coordinates).
@@ -869,7 +869,7 @@ function openPicoSession(
     voxelsFromVdb(bytes: Uint8Array): Voxels {
       liveSession();
       ctx.maybeWarnMemory();
-      // SG5 (VoxelsIo.cs:60-83): first GRID_LEVEL_SET field wins; anything else is
+      // As upstream (VoxelsIo.cs:60-83): the first GRID_LEVEL_SET field wins; anything else is
       // reported, not guessed at.
       const file = session.openVdb(bytes);
       try {
@@ -936,8 +936,8 @@ function openPicoSession(
     },
 
     dispose() {
-      if (ctx.dead.value) return; // D3 (also after the runtime disposed this session)
-      ctx.registry.unregister(session); // D2
+      if (ctx.dead.value) return; // idempotent (also after the runtime disposed this session)
+      ctx.registry.unregister(session); // never both GC-free and explicit free
       release();
       // A session from the entry's createPico owns its runtime: they go together,
       // pool included. A session opened on a shared runtime leaves the
@@ -946,7 +946,7 @@ function openPicoSession(
     },
   };
   adoptHandle(ctx, session, lib, release);
-  return session as unknown as Pico; // adoptHandle added [Symbol.dispose] (D6)
+  return session as unknown as Pico; // adoptHandle added [Symbol.dispose]
 }
 
 // ── The multi entry's pool warm-up (glue-free, so it lives beside the runtime) ──
