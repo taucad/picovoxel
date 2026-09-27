@@ -60,16 +60,37 @@ test('R12 — mesh exposes typed arrays as caller-owned copies', async () => {
   pico.dispose();
 });
 
+// `using` is a syntax error on engines without explicit resource management (Node 22),
+// so the syntax is compiled at runtime rather than parsed with this module. Where it
+// is missing, the same disposers run through Symbol.dispose, which is what `using`
+// calls; either way the counters below prove both wrappers were freed.
+const scopeWithUsing = (() => {
+  try {
+    // eslint-disable-next-line no-new-func -- feature detection needs a runtime parse
+    return new Function('pico', `{
+      using sphere = pico.createVoxels({ shape: 'sphere', radius: 10 });
+      using mesh = sphere.toMesh();
+      return mesh.triangleCount;
+    }`);
+  } catch {
+    return null;
+  }
+})();
+
 test('R7 — native `using` still works for power users (feature-detected)', async () => {
   // The shim guarantees Symbol.dispose exists everywhere; node 24 has it natively.
   assert.equal(typeof Symbol.dispose, 'symbol', 'Symbol.dispose must exist after importing picovoxel');
   const pico = await createPico({ voxelSize: 0.5 });
-  {
-    using sphere = pico.createVoxels({ shape: 'sphere', radius: 10 });
-    using mesh = sphere.toMesh();
+  if (scopeWithUsing) {
+    assert.ok(scopeWithUsing(pico) > 0);
+  } else {
+    const sphere = pico.createVoxels({ shape: 'sphere', radius: 10 });
+    const mesh = sphere.toMesh();
     assert.ok(mesh.triangleCount > 0);
+    mesh[Symbol.dispose]();
+    sphere[Symbol.dispose]();
   }
-  // `using` ran both disposers at scope exit — counters prove it.
+  // Both disposers ran at scope exit — counters prove it.
   assert.equal(pico.allocated.voxels, 0, 'leaked Voxels after using-scope');
   assert.equal(pico.allocated.meshes, 0, 'leaked Meshes after using-scope');
   pico.dispose();

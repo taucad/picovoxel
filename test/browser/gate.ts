@@ -1,5 +1,5 @@
 // R25 — the in-page half of the three-engine browser gate. Bundled by tsdown
-// (tsdown.gate.config.ts) with the wasm pair copied beside it; the node driver
+// (tsdown.gate.config.ts) from dist/ with the wasm pair copied beside it; the node driver
 // (scripts/browser-gate.mjs) injects the node-computed records via the URL and
 // reads window.__results / window.__done back out.
 //
@@ -9,8 +9,10 @@
 // tight tolerance because Math.sin/cos differ across engines by ULPs.
 
 import { createGearOutline, triangulate } from '../../examples/pico/gear.ts';
-import { createPico } from '../../src/index.ts';
-import { contoursFromSdf } from '../../src/slicing.ts';
+// The package by name: the gate bundles the built dist/ (in CI, the candidate's),
+// so the page proves the bytes that ship rather than the sources.
+import { createPico } from 'picovoxel';
+import { contoursFromSdf } from 'picovoxel/slicing';
 
 interface GateRecords {
   sphereVolumeHex: string;

@@ -33,13 +33,17 @@ if (offenders.length > 0) {
   process.exit(1);
 }
 
-// ── 1. Build the gate bundle ──
+// ── 1. Build the gate bundle from dist/ (npm run build, or the CI candidate) ──
+if (!existsSync(join(HERE, 'dist/index.js'))) {
+  console.error('dist/ is missing: run `npm run build` (CI extracts the candidate tarball there)');
+  process.exit(1);
+}
 console.log('building gate bundle…');
 execFileSync('./node_modules/.bin/tsdown', ['--config', 'tsdown.gate.config.ts'], { cwd: HERE, stdio: 'inherit' });
 
-// ── 2. Node-side records from the same wasm ──
+// ── 2. Node-side records from the same package build ──
 console.log('computing node records…');
-const { createPico } = await import('../src/index.ts');
+const { createPico } = await import('picovoxel');
 const { createGearOutline, triangulate, buildGearMesh } = await import('../examples/pico/gear.ts');
 
 const hexFloat = (value) => {
@@ -118,13 +122,16 @@ await new Promise((ready) => server.listen(0, '127.0.0.1', ready));
 const port = server.address().port;
 const url = `http://127.0.0.1:${port}/test/browser/index.html?records=${encodeURIComponent(JSON.stringify(records))}`;
 
-// ── 4. Drive all three engines ──
+// ── 4. Drive the engines (all three, or the comma-separated BROWSER subset) ──
+const ENGINES = { chromium, webkit, firefox };
+const selected = (process.env.BROWSER ?? Object.keys(ENGINES).join(',')).split(',');
+const unknown = selected.filter((name) => !(name in ENGINES));
+if (unknown.length > 0) {
+  console.error(`unknown BROWSER engine(s): ${unknown.join(', ')}`);
+  process.exit(1);
+}
 let failed = false;
-for (const [name, engine] of [
-  ['chromium', chromium],
-  ['webkit', webkit],
-  ['firefox', firefox],
-]) {
+for (const [name, engine] of selected.map((name) => [name, ENGINES[name]])) {
   console.log(`\n=== ${name} ===`);
   const browser = await engine.launch();
   const page = await browser.newPage();
@@ -155,4 +162,4 @@ if (failed) {
   console.error('\nBROWSER GATE FAILED');
   process.exit(1);
 }
-console.log('\nBROWSER GATE: ALL ENGINES PASS');
+console.log(`\nBROWSER GATE: ${selected.join(', ')} PASS`);

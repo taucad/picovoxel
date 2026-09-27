@@ -5,7 +5,7 @@
 import { expect, test } from 'vitest';
 import * as serialEntry from '../src/index.ts';
 import * as multiEntry from '../src/multi.ts';
-import { gyroidExpression } from './tape.test.ts';
+import { gyroidExpression } from './helpers.ts';
 
 test('multi entry exports the same surface as the base entry (drop-in specifier swap)', () => {
   expect(Object.keys(multiEntry).sort()).toEqual(Object.keys(serialEntry).sort());

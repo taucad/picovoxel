@@ -13,8 +13,9 @@
 # never controlled (§14.3) — which is why this CAN run on CI while timing
 # benchmarks cannot (bench.yml stays a drift canary only).
 #
-# No wasm build: the multi artifact (src/pico-multi.wasm) is tracked, exactly
-# what the per-commit suite tests against.
+# No wasm build here: the run certifies the artifacts that ship. It checks out the
+# head of the latest green ci.yml push run on main and downloads that run's
+# wasm-serial and wasm-multi artifacts (built from pinned sources; close-out D3).
 name: g0-nightly
 
 # Manual only while the repository is private: the nightly schedule returns when it
@@ -22,19 +23,45 @@ name: g0-nightly
 on:
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
   g0-identity:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 350
     permissions:
+      actions: read
       contents: read
       issues: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Find the latest green CI run on main
+        id: ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          read -r run_id sha < <(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch main \
+            --event push --status success --limit 1 --json databaseId,headSha --jq '.[] | "\(.databaseId) \(.headSha)"') || true
+          if [[ -z "${run_id:-}" ]]; then
+            echo "::error::no successful ci.yml push run on main to certify"
+            exit 1
+          fi
+          echo "certifying ci.yml run $run_id at $sha"
+          { echo "run-id=$run_id"; echo "sha=$sha"; } >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: 24
-      - run: npm ci
+          ref: ${{ steps.ci.outputs.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          node-version: '26'
+      - uses: ./.github/actions/download-verified-artifact
+        with:
+          pattern: wasm-*
+          path: .
+          merge-multiple: 'true'
+          run-id: ${{ steps.ci.outputs.run-id }}
+          github-token: ${{ github.token }}
+          expect: src/pico.mjs src/pico.wasm src/pico-multi.mjs src/pico-multi.wasm
       # dist/ is needed at runtime: examples import the package by name.
       - run: npm run build
       - name: Pick tonight's fixture (rotation by day-of-year)
@@ -46,24 +73,32 @@ jobs:
             2) echo "fixture=heatx"  >> "$GITHUB_OUTPUT"; echo "size=0.5"  >> "$GITHUB_OUTPUT" ;;
           esac
       - name: 11-run G0 identity spike
+        env:
+          FIXTURE: ${{ steps.rotate.outputs.fixture }}
+          SIZE: ${{ steps.rotate.outputs.size }}
         run: |
           node bench/g0-identity.mjs triple \
-            --fixture ${{ steps.rotate.outputs.fixture }} \
+            --fixture "$FIXTURE" \
             --build multi \
-            --size ${{ steps.rotate.outputs.size }} \
+            --size "$SIZE" \
             --runs 11 --jsonl g0-nightly.jsonl
       - name: Upload records
-        if: always()
-        uses: actions/upload-artifact@v4
+        if: always() && steps.rotate.outputs.fixture != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: g0-nightly-${{ steps.rotate.outputs.fixture }}-${{ steps.rotate.outputs.size }}
           path: g0-nightly.jsonl
-      - name: Open an issue on identity failure
+          if-no-files-found: warn
+      - name: Open an issue on failure
         if: failure()
-        run: |
-          gh issue create \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "G0 nightly identity failure: ${{ steps.rotate.outputs.fixture }}@${{ steps.rotate.outputs.size }}mm multi" \
-            --body "The 11-run G0 identity spike diverged or the oracles disagreed. Records are in the run's artifact: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID — treat as a race until attributed (NON-DETERMINISM.md §14.3; first suspect list in the SKv2-0 charter watch items)."
         env:
           GH_TOKEN: ${{ github.token }}
+          SUBJECT: ${{ steps.rotate.outputs.fixture && format('{0}@{1}mm multi', steps.rotate.outputs.fixture, steps.rotate.outputs.size) || 'setup' }}
+        run: |
+          gh label create claude --repo "$GITHUB_REPOSITORY" --force \
+            --description 'Work for the Claude maintenance loop' --color 5319e7
+          gh issue create \
+            --repo "$GITHUB_REPOSITORY" \
+            --label claude \
+            --title "G0 nightly identity failure: $SUBJECT" \
+            --body "The G0 nightly run failed ($SUBJECT). If the 11-run identity spike diverged or the oracles disagreed, the records are in the run's artifact: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID — treat a divergence as a race until attributed (NON-DETERMINISM.md §14.3; first suspect list in the SKv2-0 charter watch items)."

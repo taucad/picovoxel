@@ -23,26 +23,24 @@ if [ "${THREADS:-0}" = "1" ]; then MT="-mt"; WASM_FLAGS="$WASM_FLAGS -pthread"; 
 # WASM_LEGACY_EXCEPTIONS is [compile+link]: pin the legacy EH format everywhere
 # (Safari 15.2+; the exnref format is 18.4+, above the 16.4 SIMD floor).
 EH_FLAGS="${EH_FLAGS:--fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=1}"
-# Sources resolve vendor-first (scripts/fetch-deps.sh); the sibling checkouts remain
-# the documented local fallback for development without a vendor/ tree.
-if [ -z "${EMSDK:-}" ]; then
-  if [ -x "$HERE/vendor/emsdk/emsdk" ]; then EMSDK="$HERE/vendor/emsdk"
-  else EMSDK="$HOME/git/tau/repos/opencascade.js/deps/emsdk"; fi
-fi
-if [ -z "${PICOGK_RUNTIME:-}" ]; then
-  if [ -d "$HERE/vendor/PicoGKRuntime/Source" ]; then PICOGK_RUNTIME="$HERE/vendor/PicoGKRuntime"
-  else PICOGK_RUNTIME="$HOME/git/tau/repos/PicoGKRuntime"; fi
-fi
-if [ -z "${ONETBB_SRC:-}" ]; then
-  if [ -d "$HERE/vendor/oneTBB/src" ]; then ONETBB_SRC="$HERE/vendor/oneTBB"
-  else ONETBB_SRC="$HOME/git/tau/repos/oneTBB"; fi
+# Sources come from vendor/ (scripts/fetch-deps.sh: pinned, patched, stamped).
+# EMSDK/PICOGK_RUNTIME/ONETBB_SRC may point elsewhere deliberately; there is no
+# silent fallback to an unpatched checkout.
+EMSDK="${EMSDK:-$HERE/vendor/emsdk}"
+PICOGK_RUNTIME="${PICOGK_RUNTIME:-$HERE/vendor/PicoGKRuntime}"
+ONETBB_SRC="${ONETBB_SRC:-$HERE/vendor/oneTBB}"
+if ! { [ -x "$EMSDK/emsdk" ] && [ -d "$PICOGK_RUNTIME/openvdb" ] && [ -d "$ONETBB_SRC/src" ]; }; then
+  echo "build-deps-wasm: missing vendor/ sources; run scripts/fetch-deps.sh first" >&2
+  exit 1
 fi
 OUT="${OUT:-$HERE/build}"
 PREFIX="${PREFIX:-$OUT/wasm-prefix$MT}"
 
+# D27: builder paths never reach the archives' __FILE__ strings or the shipped wasm.
+WASM_FLAGS="$WASM_FLAGS -ffile-prefix-map=$HERE=."
+JOBS="$(getconf _NPROCESSORS_ONLN)"
+
 source "$EMSDK/emsdk_env.sh" >/dev/null 2>&1
-[ -d "$EMSDK/upstream/emscripten/node_modules/acorn" ] || \
-  (cd "$EMSDK/upstream/emscripten" && npm install acorn --no-save --no-audit --no-fund)
 
 # TBB_EMSCRIPTEN_STACK_SIZE (SK-0.7): worker pthread stack, 64 KB upstream. Deep
 # OpenVDB tree recursion runs on those stacks and -O3 emits no overflow check, so
@@ -57,7 +55,7 @@ emcmake cmake -B "$OUT/tbb-wasm$MT" -S "$ONETBB_SRC" -DCMAKE_BUILD_TYPE=Release 
   -DTBB_EMSCRIPTEN_STACK_SIZE="${TBB_STACK_SIZE:-1048576}" \
   -DCMAKE_CXX_FLAGS="-Wno-unused-command-line-argument $WASM_FLAGS $EH_FLAGS" \
   -DCMAKE_INSTALL_PREFIX="$PREFIX"
-cmake --build "$OUT/tbb-wasm$MT" -j"$(sysctl -n hw.ncpu)" --target install
+cmake --build "$OUT/tbb-wasm$MT" -j"$JOBS" --target install
 
 echo "=== OpenVDB -> wasm ==="
 emcmake cmake -B "$OUT/ovdb-wasm$MT" -S "$PICOGK_RUNTIME/openvdb" -DCMAKE_BUILD_TYPE=Release \
@@ -69,7 +67,7 @@ emcmake cmake -B "$OUT/ovdb-wasm$MT" -S "$PICOGK_RUNTIME/openvdb" -DCMAKE_BUILD_
   -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH \
   -DCMAKE_CXX_FLAGS="$WASM_FLAGS $EH_FLAGS" \
   -DCMAKE_INSTALL_PREFIX="$PREFIX"
-cmake --build "$OUT/ovdb-wasm$MT" -j"$(sysctl -n hw.ncpu)"
+cmake --build "$OUT/ovdb-wasm$MT" -j"$JOBS"
 cmake --install "$OUT/ovdb-wasm$MT" --prefix "$PREFIX"
 echo "PREFIX ready: $PREFIX"
 ls -la "$PREFIX/lib/"

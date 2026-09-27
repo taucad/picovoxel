@@ -79,13 +79,17 @@ See [MIGRATING-FROM-CSHARP.md](MIGRATING-FROM-CSHARP.md) for the complete member
 ## Building from source
 
 ```sh
-bash scripts/fetch-deps.sh        # sha256-pinned sources into vendor/ (+ emsdk on first run)
-bash scripts/build-deps-wasm.sh   # OpenVDB + oneTBB wasm prefix (~5 min cold)
-bash scripts/build-pico-module.sh  # -> src/pico.{mjs,wasm}
-npm ci && npm test                # vitest, 100% coverage enforced
-npm run test:browser              # Playwright: chromium + webkit + firefox
-npm run bench                     # refuses loaded machines by design
+bash scripts/fetch-deps.sh                   # sha256-pinned sources + pinned emsdk into vendor/
+bash scripts/build-deps-wasm.sh              # OpenVDB + oneTBB wasm prefix (~5 min cold)
+THREADS=1 bash scripts/build-deps-wasm.sh    # the same prefix for the pthread variant
+bash scripts/build-pico-module.sh            # -> src/pico.{mjs,wasm}
+THREADS=1 bash scripts/build-pico-module.sh  # -> src/pico-multi.{mjs,wasm}
+npm ci && npm test                           # vitest, 100% coverage enforced
+npm run build && npm run test:browser        # Playwright: chromium + webkit + firefox, against dist/
+npm run bench                                # refuses loaded machines by design
 ```
+
+Neither wasm pair is committed: CI builds both from the pinned sources, and the published binaries come from that run.
 
 Upstream PicoGKRuntime is consumed **pristine** — no patch queue. The only C++ this repo owns is one translation unit adding four bulk mesh-transfer exports.
 

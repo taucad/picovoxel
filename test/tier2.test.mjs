@@ -1104,6 +1104,8 @@ test('Library — info strings, conversions, voxel size', () => {
 
 // ── The R14 gate ───────────────────────────────────────────────────────────────
 after(() => {
+  // The multi artifact (PICOVOXEL_R14_ARTIFACT=multi) keeps pthread workers alive.
+  module.PThread?.terminateAllThreads();
   const { covered, total, missing, byFamily } = pk.report();
   const pct = ((covered / total) * 100).toFixed(1);
   console.log(`\n  Tier-2 ABI coverage: ${covered}/${total} (${pct}%)`);

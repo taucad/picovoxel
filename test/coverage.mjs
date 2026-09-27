@@ -6,11 +6,21 @@
 // fails to bind. Both are things a hand-maintained list would hide. Routing through
 // raw.generated.ts means the gate also proves every generated binding is callable.
 
-import { loadPicoRaw } from '../src/raw.ts';
+import { bindPicoRaw, loadPicoRaw } from '../src/raw.ts';
+
+// PICOVOXEL_R14_ARTIFACT=multi runs the same gate against the pthread artifact
+// (CI runs both; the ABI is shared, so both must reach every export).
+const loadRaw = async (options) => {
+  if (process.env.PICOVOXEL_R14_ARTIFACT !== 'multi') return loadPicoRaw(options);
+  const { default: createPicoMultiModule } = await import('../src/pico-multi.mjs');
+  const module = await createPicoMultiModule(options);
+  if (!(module.HEAPU8.buffer instanceof SharedArrayBuffer)) throw new Error('R14: expected the pthread artifact');
+  return { module, raw: bindPicoRaw(module) };
+};
 
 /** Binds all 152 exports (140 core + 12 own-TU), counting calls per name. */
 export async function loadInstrumented(options = {}) {
-  const { module, raw } = await loadPicoRaw(options);
+  const { module, raw } = await loadRaw(options);
   const calls = new Map();
   const fns = {};
 

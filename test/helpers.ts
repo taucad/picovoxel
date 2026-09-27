@@ -1,5 +1,6 @@
 // Shared test utilities (disposal-facade doc, test strategy).
 
+import type { SdfExpression } from '../src/index.ts';
 import type { Held, HandleRegistry } from '../src/registry.ts';
 
 export interface FakeRegistry extends HandleRegistry {
@@ -67,3 +68,23 @@ export async function gcUntil(predicate: () => boolean, iterations = 50): Promis
   }
   return predicate();
 }
+
+// The gyroid as a tape expression and as a JS callback — shared by tape.test.ts and
+// multi.test.ts. It lives here, not in a test file: importing a test file
+// re-registers its tests inside the importer.
+const GYROID_SCALE = (2 * Math.PI) / 10;
+export const gyroidExpression: SdfExpression = [
+  '-',
+  ['abs', ['+',
+    ['*', ['sin', ['*', 'x', GYROID_SCALE]], ['cos', ['*', 'y', GYROID_SCALE]]],
+    ['*', ['sin', ['*', 'y', GYROID_SCALE]], ['cos', ['*', 'z', GYROID_SCALE]]],
+    ['*', ['sin', ['*', 'z', GYROID_SCALE]], ['cos', ['*', 'x', GYROID_SCALE]]],
+  ]],
+  0.4,
+];
+export const gyroidFunction = (x: number, y: number, z: number): number =>
+  Math.abs(
+    Math.sin(x * GYROID_SCALE) * Math.cos(y * GYROID_SCALE) +
+      Math.sin(y * GYROID_SCALE) * Math.cos(z * GYROID_SCALE) +
+      Math.sin(z * GYROID_SCALE) * Math.cos(x * GYROID_SCALE),
+  ) - 0.4;

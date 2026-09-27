@@ -10,6 +10,7 @@
 import { expect, test } from 'vitest';
 import { createPico, PicoError, type SdfExpression } from '../src/index.ts';
 import { compileSdfExpression } from '../src/tape.ts';
+import { gyroidExpression, gyroidFunction } from './helpers.ts';
 
 // ── encoding ──
 
@@ -80,23 +81,6 @@ test('compiler enforces the u16 instruction ceiling', () => {
 });
 
 // ── runtime: tape ≡ JS callback on the same session ──
-
-const GYROID_SCALE = (2 * Math.PI) / 10;
-export const gyroidExpression: SdfExpression = [
-  '-',
-  ['abs', ['+',
-    ['*', ['sin', ['*', 'x', GYROID_SCALE]], ['cos', ['*', 'y', GYROID_SCALE]]],
-    ['*', ['sin', ['*', 'y', GYROID_SCALE]], ['cos', ['*', 'z', GYROID_SCALE]]],
-    ['*', ['sin', ['*', 'z', GYROID_SCALE]], ['cos', ['*', 'x', GYROID_SCALE]]],
-  ]],
-  0.4,
-];
-export const gyroidFunction = (x: number, y: number, z: number): number =>
-  Math.abs(
-    Math.sin(x * GYROID_SCALE) * Math.cos(y * GYROID_SCALE) +
-      Math.sin(y * GYROID_SCALE) * Math.cos(z * GYROID_SCALE) +
-      Math.sin(z * GYROID_SCALE) * Math.cos(x * GYROID_SCALE),
-  ) - 0.4;
 
 test('tape gyroid is exactly the JS-callback gyroid: volume, counts, STL bytes', async () => {
   const pk = await createPico({ voxelSize: 0.5 });
