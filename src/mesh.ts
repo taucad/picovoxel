@@ -34,18 +34,18 @@ export interface Mesh {
   /** Bounding box; the empty-bounds sentinel (±FLT_MAX) for an empty mesh, never NaN. */
   bounds(): Bounds;
   /**
-   * Enclosed volume (mm³) and surface area (mm²), summed over the triangles:
-   * the divergence theorem for the volume, the triangle areas for the area.
+   * Enclosed volume (mm³) and surface area (mm²) from the triangles: the
+   * divergence theorem for the volume (new), the triangle-area sum of
+   * ShapeKernel's `Measure.fGetSurfaceArea(Mesh)` for the area.
    *
-   * No voxels are involved, so this is the cross-check for `Voxels.properties()`,
-   * whose mesh → voxels round trip fills sealed cavities and cavities reached only
-   * through passages about two voxels wide or narrower (see
-   * docs/memory-and-limits.md). `voxels.toMesh().measure()` is exact for the
-   * mesh the grid produces; the values differ slightly from `properties()` even
-   * where both are right, because they measure the mesh rather than a grid.
+   * No voxels are involved, so `voxels.toMesh().measure()` cross-checks
+   * `Voxels.properties()`, whose round trip fills sealed cavities and cavities
+   * behind passages about two voxels wide or narrower (see
+   * https://github.com/taucad/picovoxel/blob/main/docs/memory-and-limits.md#known-limits).
    *
-   * The volume is meaningful for a closed mesh only, and it is negative when the
-   * triangles face inwards. An empty mesh measures 0 and 0.
+   * The volume assumes a closed mesh and is negative when the triangles face
+   * inwards. Coincident duplicate faces count twice in the area. An empty mesh
+   * measures 0 and 0.
    */
   measure(): { volume: number; area: number };
   /**

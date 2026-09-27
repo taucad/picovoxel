@@ -145,7 +145,8 @@ export interface Voxels {
    *
    * As in C# `CalculateProperties`, the round trip fills a sealed cavity, or one
    * whose openings are about two voxels wide or narrower, and drops its surface.
-   * Cross-check parts with internal voids with `toMesh().measure()`.
+   * Cross-check parts with internal voids with `toMesh().measure()`; see
+   * https://github.com/taucad/picovoxel/blob/main/docs/memory-and-limits.md#known-limits.
    */
   properties(): { volume: number; area: number; bounds: Bounds };
   /**
