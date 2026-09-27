@@ -37,8 +37,8 @@ const linkTargets = (markdown: string): string[] => {
   return [
     ...text.matchAll(/\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/gu),
     ...text.matchAll(/^\s*\[[^\]]+\]:\s*<?([^\s>]+)>?/gmu),
-    ...text.matchAll(/\b(?:src|href)=(["'])(.+?)\1/gu),
-  ].map((match) => match.at(-1)!);
+    ...text.matchAll(/(?<![\w-])(?:src|href)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gu),
+  ].map((match) => match.slice(1).find((value) => value !== undefined)!);
 };
 
 /** GitHub's heading anchors (github-slugger), plus explicit HTML ids, for one document. */
@@ -127,7 +127,11 @@ describe('documentation links', () => {
     const markdown =
       '[a](x.md#y) ![b](i.svg "t") <img src="h.svg" />\n[r]: ref.md\n`[c](no.md)`\n```\n[d](no.md)\n```';
     expect(linkTargets(markdown).sort()).toEqual(['h.svg', 'i.svg', 'ref.md', 'x.md#y']);
-    expect(linkTargets(`<a href='s.md'>s</a> <img src="it's.svg">`)).toEqual(['s.md', "it's.svg"]);
+    expect(linkTargets(`<a href='s.md'>s</a> <img src="it's.svg"> <a href=u.md data-href="no.md">`)).toEqual([
+      's.md',
+      "it's.svg",
+      'u.md',
+    ]);
   });
 
   it('should resolve repository URLs by ref, and root-relative and relative targets', () => {
