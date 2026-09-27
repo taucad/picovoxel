@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'vitest';
+import { assertPinSource } from '../bench/pin-guard.mjs';
 import { createPico } from '../src/index.ts';
 
 const examplesDir = join(import.meta.dirname, '..', 'examples', 'latticelibrary');
@@ -56,6 +57,7 @@ for (const { name, voxelSize } of EXAMPLES) {
         properties(): { volume: number };
         toMesh(): { triangleCount: number };
         isEmpty: boolean;
+        lane: 'exact' | 'fast';
       }>;
     };
     const pk = await createPico({ voxelSize });
@@ -64,6 +66,7 @@ for (const { name, voxelSize } of EXAMPLES) {
       assert.ok(outputs.length > 0);
       const recorded: Pin[] = outputs.map((voxels) => {
         assert.equal(voxels.isEmpty, false, 'every example output voxelizes non-empty');
+        assertPinSource(voxels.lane, name); // LANES item 3 — only exact sources pin
         return { volumeHex: hexFloat(voxels.properties().volume), triangles: voxels.toMesh().triangleCount };
       });
       if (updatePins) {

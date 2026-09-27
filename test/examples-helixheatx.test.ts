@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'vitest';
+import { assertPinSource } from '../bench/pin-guard.mjs';
 import { createPico } from '../src/index.ts';
 import { createPico as createMulti } from '../src/multi.ts';
 
@@ -117,6 +118,7 @@ test('HelixHeatX @ 1.0 mm: pinned result, STL-size parity, single↔multi identi
       triangles: singleMesh.triangleCount,
       stlBytes: singleStl.length,
     };
+    assertPinSource(singleMesh.lane, 'HelixHeatX'); // LANES item 3 — only exact sources pin
     if (updatePins) {
       writeFileSync(fixturePath, `${JSON.stringify(recorded, null, 1)}\n`);
     } else {

@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'vitest';
+import { assertPinSource } from '../bench/pin-guard.mjs';
 import { createPico } from '../src/index.ts';
 
 const fixturePath = join(import.meta.dirname, 'fixtures', 'simulation.json');
@@ -35,6 +36,7 @@ test('SimpleFluidSimulation @ 1.0 mm: pinned device, 5-field round-trip, probe-g
     // The flow-device voxels, pinned byte-exact (hex-float volume + triangles).
     const pin = (voxels: (typeof written)['fluidDomain']) => {
       assert.equal(voxels.isEmpty, false, 'every device domain voxelizes non-empty');
+      assertPinSource(voxels.lane, 'flow device'); // LANES item 3 — only exact sources pin
       return { volumeHex: hexFloat(voxels.properties().volume), triangles: voxels.toMesh().triangleCount };
     };
     const recorded = { fluid: pin(written.fluidDomain), solid: pin(written.solidDomain), inlet: pin(written.inletPatch) };

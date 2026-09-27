@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'vitest';
+import { assertPinSource } from '../bench/pin-guard.mjs';
 import { createPico } from '../src/index.ts';
 import { createPico as createPicoMulti } from '../src/multi.ts';
 
@@ -39,6 +40,7 @@ const loadTasks = async () =>
       properties(): { volume: number };
       toMesh(): { triangleCount: number; toStl(): Uint8Array };
       isEmpty: boolean;
+      lane: 'exact' | 'fast';
     };
     randomWheelTask: (
       pk: Awaited<ReturnType<typeof createPico>>,
@@ -52,6 +54,7 @@ test('wheel-02 preset builds headless and matches its byte-locked pins', { timeo
   try {
     const voxels = presetWheelTask(pk);
     assert.equal(voxels.isEmpty, false);
+    assertPinSource(voxels.lane, 'wheel-02'); // LANES item 3 — only exact sources pin
     const recorded: Pin = {
       volumeHex: hexFloat(voxels.properties().volume),
       triangles: voxels.toMesh().triangleCount,
