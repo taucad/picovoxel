@@ -1,0 +1,395 @@
+# Maintains the standing release pull request (head `release/next`, base `main`).
+#
+# After every successful `main` push run of CI with pending Version Plans:
+#   1. `generate` regenerates the release commit with `release:prepare
+#      --from-plans` at the commit that run tested, with that run's wasm
+#      artifacts in `src/`. The plans dictate the version, and the same
+#      validations and release gate (format, lint, typecheck, pkgcheck) apply
+#      as to a manual `release:prepare -- <version>` run. Every consumed plan
+#      file is deleted explicitly: nx has left consumed plans on disk before,
+#      and a survivor would re-trigger this workflow for a version that just
+#      shipped. The commit leaves the job as a git bundle.
+#   2. `propose` holds the bot credentials and runs no dependency code. It
+#      checks that the bundle is one commit on top of the tested commit that
+#      ci.yml's release policy accepts, force-pushes it to `release/next`, and
+#      upserts one pull request titled with the exact release subject, so a
+#      squash merge lands a commit the policy publishes (the subject regex
+#      tolerates the ` (#N)` suffix).
+#
+# With no pending plans (a release just merged, or plans were reverted),
+# `propose` closes the pull request and deletes the branch instead.
+#
+# Merging the pull request is the entire release act: the push to `main`
+# carries the release subject, and `ci.yml` owns publication, provenance,
+# registry verification, tags, and GitHub Releases; nothing here touches npm.
+#
+# A minted `tau-release-bot` installation token pushes and opens the pull
+# request, because pushes made with the default GITHUB_TOKEN start no CI (the
+# required `ci-gate` check would never report) and the organization does not
+# allow Actions to create pull requests. Its credentials live in the
+# `release-pr` environment, which the tau-cloud stack manages. They never reach
+# the job that installs dependencies and runs the release gate, and they are
+# never stored in git configuration: each push passes the token for that one
+# command only.
+name: Release PR
+
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      ci_run_id:
+        description: Successful main push run of CI, at the tip of main, whose wasm artifacts to reuse
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: release-pr
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    # `branches: [main]` matches the head branch name alone, and a fork pull
+    # request can be named main too, so the event, the head repository and the
+    # workflow file are checked as well: only this repository's own ci.yml
+    # pushes to main qualify.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.path == '.github/workflows/ci.yml' &&
+      github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      current: ${{ steps.tip.outputs.current }}
+      pending: ${{ steps.plans.outputs.pending }}
+      sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - name: Resolve the CI run
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_RUN_ID: ${{ inputs.ci_run_id }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == workflow_run ]]; then
+            echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+            echo "sha=$RUN_SHA" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          [[ "$INPUT_RUN_ID" =~ ^[1-9][0-9]*$ ]] || { echo "::error::ci_run_id must be a run id"; exit 1; }
+          IFS=$'\t' read -r path event branch conclusion head_repository sha < <(
+            gh api "repos/$REPOSITORY/actions/runs/$INPUT_RUN_ID" \
+              --jq '[.path, .event, .head_branch, .conclusion, .head_repository.full_name, .head_sha] | @tsv'
+          )
+          if [[ "$path" != .github/workflows/ci.yml || "$event" != push || "$branch" != main ||
+            "$conclusion" != success || "$head_repository" != "$REPOSITORY" ]]; then
+            echo "::error::run $INPUT_RUN_ID is not a successful main push run of ci.yml ($path, $event, $branch, $conclusion, $head_repository)"
+            exit 1
+          fi
+          echo "run_id=$INPUT_RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.source.outputs.sha }}
+          persist-credentials: false
+
+      # A release generated from an older commit would miss the commits and
+      # plans merged since. The run for the newer tip regenerates it instead.
+      - name: Require the tip of main
+        id: tip
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          tip=$(git rev-parse origin/main)
+          if [[ "$tip" == "$SOURCE_SHA" ]]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::main moved from $SOURCE_SHA to $tip; the CI run for $tip regenerates the release"
+            echo "current=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check pending Version Plans
+        id: plans
+        if: steps.tip.outputs.current == 'true'
+        run: |
+          set -euo pipefail
+          if compgen -G '.nx/version-plans/*.md' > /dev/null; then
+            echo "pending=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "pending=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup repository
+        if: steps.plans.outputs.pending == 'true'
+        uses: ./.github/actions/setup
+        with:
+          node-version: '26'
+
+      # The release gate builds the package, and the build copies both wasm
+      # pairs from src/. They are the artifacts of the run that tested this
+      # commit, never rebuilt here.
+      - name: Download the tested wasm artifacts
+        if: steps.plans.outputs.pending == 'true'
+        uses: ./.github/actions/download-verified-artifact
+        with:
+          pattern: wasm-*
+          path: .
+          merge-multiple: 'true'
+          expect: src/pico.mjs src/pico.wasm src/pico.exports.ts src/pico-multi.mjs src/pico-multi.wasm src/pico-multi.exports.ts
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.source.outputs.run_id }}
+
+      - name: Generate the release commit
+        if: steps.plans.outputs.pending == 'true'
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          pnpm release:prepare -- --from-plans
+
+          # nx has left consumed plan files on disk before; every plan affects
+          # the one released package, so every release consumes every plan.
+          git rm --quiet --force '.nx/version-plans/*.md'
+
+          # Stage the release files explicitly. The version bump rewrites only
+          # the changelog and the manifest: the lockfile records no importer
+          # version, so it never appears here.
+          git add CHANGELOG.md package.json
+          staged=$(git diff --cached --name-only)
+          allowed='^(CHANGELOG\.md|package\.json|\.nx/version-plans/.+\.md)$'
+          unexpected=$(grep -Ev "$allowed" <<< "$staged" || true)
+          if [ -n "$unexpected" ]; then
+            echo "::error::release generation changed unexpected files: $unexpected"
+            exit 1
+          fi
+
+          version=$(node -p "require('./package.json').version")
+          git -c user.name="tau-release-bot[bot]" -c user.email="tau-release-bot[bot]@users.noreply.github.com" \
+            commit --quiet -m "chore(release): picovoxel v$version"
+          git update-ref refs/heads/release-bundle HEAD
+          mkdir -p release-commit
+          git bundle create release-commit/release.bundle "$SOURCE_SHA..refs/heads/release-bundle"
+
+      - name: Upload the release commit
+        if: steps.plans.outputs.pending == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-commit
+          path: release-commit/release.bundle
+          if-no-files-found: error
+          retention-days: 1
+
+  propose:
+    needs: generate
+    if: needs.generate.outputs.current == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # A plain environment: its main-only branch policy applies to this job.
+    environment: release-pr
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.generate.outputs.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: needs.generate.outputs.pending == 'true'
+        with:
+          node-version: '26'
+
+      - name: Download the release commit
+        if: needs.generate.outputs.pending == 'true'
+        uses: ./.github/actions/download-verified-artifact
+        with:
+          name: release-commit
+          path: release-commit
+          expect: release.bundle
+
+      # The bundle was produced beside dependency code, so it is checked with
+      # this commit's own release policy before anything is pushed: exactly one
+      # commit on the tested commit, by the bot, with the release subject, that
+      # ci.yml would accept as a release pull request from release/next.
+      - name: Validate the release commit
+        id: commit
+        if: needs.generate.outputs.pending == 'true'
+        env:
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_SHA: ${{ needs.generate.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git -c transfer.fsckObjects=true fetch --quiet release-commit/release.bundle refs/heads/release-bundle
+          commit=$(git rev-parse FETCH_HEAD)
+          parents=$(git rev-list --parents -n 1 "$commit")
+          if [[ "$parents" != "$commit $SOURCE_SHA" ]]; then
+            echo "::error::the release commit is not one commit on $SOURCE_SHA ($parents)"
+            exit 1
+          fi
+          author=$(git log -1 --format='%an <%ae>' "$commit")
+          if [[ "$author" != 'tau-release-bot[bot] <tau-release-bot[bot]@users.noreply.github.com>' ]]; then
+            echo "::error::the release commit is authored by $author"
+            exit 1
+          fi
+          version=$(git show "$commit:package.json" | node -e "console.log(JSON.parse(require('fs').readFileSync(0, 'utf8')).version)")
+          subject=$(git log -1 --format=%s "$commit")
+          if [[ "$subject" != "chore(release): picovoxel v$version" ]]; then
+            echo "::error::the release commit subject is '$subject'"
+            exit 1
+          fi
+          policy=$(mktemp -d)
+          git diff --name-only --no-renames --diff-filter=ACDMRT "$SOURCE_SHA" "$commit" > "$policy/changed-files"
+          git diff --name-only --no-renames --diff-filter=D "$SOURCE_SHA" "$commit" > "$policy/deleted-files"
+          git show "$SOURCE_SHA:package.json" > "$policy/base-package.json"
+          git show "$commit:package.json" > "$policy/package.json"
+          git show "$commit:CHANGELOG.md" > "$policy/CHANGELOG.md"
+          kind=$(cd "$policy" && node "$GITHUB_WORKSPACE/scripts/ci-release.mjs" \
+            --event pull_request \
+            --ref refs/heads/release/next \
+            --sha "$commit" \
+            --package-version "$version" \
+            --subject "$subject" \
+            --changed-files-file changed-files \
+            --deleted-files-file deleted-files \
+            --base-package-json-file base-package.json \
+            --package-json-file package.json \
+            --head-ref release/next \
+            --head-repository "$REPOSITORY" \
+            --repository "$REPOSITORY" | sed -n 's/^kind=//p')
+          if [[ "$kind" != release-pull-request ]]; then
+            echo "::error::the release policy classifies the release commit as '$kind'"
+            exit 1
+          fi
+          {
+            echo "sha=$commit"
+            echo "version=$version"
+          } >> "$GITHUB_OUTPUT"
+
+      # Minted only after validation, so no step before the push holds it.
+      - name: Mint tau-release-bot token
+        id: bot
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          # GitHub accepts the App ID wherever the input asks for a client ID.
+          client-id: ${{ secrets.RELEASE_BOT_APP_ID }}
+          private-key: ${{ secrets.RELEASE_BOT_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Close the release pull request
+        if: needs.generate.outputs.pending != 'true'
+        env:
+          BOT_TOKEN: ${{ steps.bot.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ steps.bot.outputs.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          pr_number=$(gh pr list --base main --head release/next --state open --json number --jq '.[0].number // empty')
+          if [ -n "$pr_number" ]; then
+            gh pr close "$pr_number" --comment "No Version Plans are pending on \`main\`, so there is nothing to release." --delete-branch
+          else
+            basic=$(printf 'x-access-token:%s' "$BOT_TOKEN" | base64 -w0)
+            echo "::add-mask::$basic"
+            git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $basic" \
+              push "https://github.com/$REPOSITORY.git" --delete release/next 2>/dev/null || true
+          fi
+
+      - name: Push release/next
+        if: needs.generate.outputs.pending == 'true'
+        env:
+          BOT_TOKEN: ${{ steps.bot.outputs.token }}
+          COMMIT: ${{ steps.commit.outputs.sha }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          basic=$(printf 'x-access-token:%s' "$BOT_TOKEN" | base64 -w0)
+          echo "::add-mask::$basic"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $basic" \
+            push --force "https://github.com/$REPOSITORY.git" "$COMMIT:refs/heads/release/next"
+
+      - name: Describe the release
+        id: describe
+        if: needs.generate.outputs.pending == 'true'
+        env:
+          SOURCE_SHA: ${{ needs.generate.outputs.sha }}
+        run: |
+          set -euo pipefail
+          previous_version=$(node -p "require('./package.json').version")
+          # A plan states its bump under the project key or under nx's
+          # `__default__` wildcard. The list is read only by the pull request
+          # body (nx reads the plans themselves), so a plan that matches neither
+          # must not abort this block under `pipefail`.
+          {
+            echo 'plans<<PLANSEOF'
+            grep -HE '^(picovoxel|__default__):' .nx/version-plans/*.md | sed 's/^/- /' || true
+            echo 'PLANSEOF'
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "previous_version=$previous_version"
+            echo 'commit_log<<LOGEOF'
+            if git rev-parse --verify --quiet "refs/tags/v$previous_version" >/dev/null; then
+              git log -100 "v$previous_version..$SOURCE_SHA" --pretty='- %h %s'
+            else
+              git log -100 "$SOURCE_SHA" --pretty='- %h %s'
+            fi
+            echo 'LOGEOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upsert the release pull request
+        if: needs.generate.outputs.pending == 'true'
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ steps.bot.outputs.token }}
+          TITLE: 'chore(release): picovoxel v${{ steps.commit.outputs.version }}'
+          VERSION: ${{ steps.commit.outputs.version }}
+          PREVIOUS_VERSION: ${{ steps.describe.outputs.previous_version }}
+          PLANS: ${{ steps.describe.outputs.plans }}
+          COMMIT_LOG: ${{ steps.describe.outputs.commit_log }}
+        run: |
+          set -euo pipefail
+          body=$(cat <<BODYEOF
+          Releases picovoxel **v${VERSION}** (from v${PREVIOUS_VERSION}). The consumed Version
+          Plans dictate the bump:
+
+          ${PLANS}
+
+          Commits since v${PREVIOUS_VERSION} (at most 100):
+
+          ${COMMIT_LOG}
+
+          ---
+
+          - This pull request is **bot-managed**: it is regenerated after every green CI run on
+            \`main\` and closes itself when no Version Plans are pending. Do not push to
+            \`release/next\` or enable auto-merge.
+          - **Merging this pull request publishes to npm.** Prefer a squash merge with the
+            title unchanged; the release policy validates the commit either way.
+          BODYEOF
+          )
+          pr_number=$(gh pr list --base main --head release/next --state open --json number --jq '.[0].number // empty')
+          if [ -z "$pr_number" ]; then
+            gh pr create --base main --head release/next --title "$TITLE" --body "$body"
+          else
+            gh pr edit "$pr_number" --title "$TITLE" --body "$body"
+          fi

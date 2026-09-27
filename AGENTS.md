@@ -16,8 +16,8 @@ pnpm nx run picovoxel:validate-pack
 Tests import `src/pico{,-multi}.{mjs,wasm}`, which are build output: build them with
 the "Building from source" commands in `README.md` (`THREADS=1` for the multi
 pair), or copy the `wasm-serial`/`wasm-multi` artifacts of a green `ci.yml` run
-into `src/`. Build tools need Node `^22.18.0 || >=24.11.0`; the package supports
-Node 22.14.0 and later.
+into `src/`. Build tools need Node `^22.18.0 || ^24.11.0 || >=26.0.0`; the
+package supports Node 22.14.0 and later.
 
 ## Scope and authority
 

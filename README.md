@@ -179,7 +179,7 @@ pnpm nx run picovoxel:quality                # build, types, package shape, lint
 pnpm run bench                               # refuses loaded machines by design
 ```
 
-The build tools declare Node `^22.18.0 || >=24.11.0`; CI builds on Node 26. The package itself needs Node
+The build tools need Node `^22.18.0 || ^24.11.0 || >=26.0.0`; CI builds on Node 26. The package itself needs Node
 22.14.0. Neither wasm pair is committed: CI builds both, and the published binaries come from that run.
 Each build also writes `src/<variant>.exports.ts`, the export names its glue reads; for a wasm pair copied
 in from elsewhere, run `node scripts/generate-wasm-exports.mjs pico` (and `pico-multi`).

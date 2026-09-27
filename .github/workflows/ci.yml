@@ -10,9 +10,16 @@
 # cost 10x on a private repository.
 #
 # OSV scanning is its own workflow (osv-scan.yml: report-only on pull requests,
-# blocking on main). Still to come, by owner: ci-release.mjs, the Version Plan
-# check, publish and registry verification (PR5, T1.6); the benchmark job, the
-# hard wasm byte ceilings and the 2.0 mm candidate G0 pin (W4).
+# blocking on main). Still to come, by owner: the benchmark job, the hard wasm
+# byte ceilings and the 2.0 mm candidate G0 pin (W4).
+#
+# Publication: `preflight` runs scripts/ci-release.mjs once per run. Only a push
+# to main whose commit is the exact `chore(release): picovoxel v<version>`
+# release commit sets `npm-publish`; pull requests, ordinary main commits and
+# manual runs never publish. `publish` then pushes the tested candidate tarball
+# to npm through OIDC trusted publishing with provenance, and `registry-verify`
+# proves the registry bytes and attestation before recording the GitHub
+# release. release-pr.yml maintains the pull request that creates that commit.
 name: CI
 
 on:
@@ -24,8 +31,13 @@ on:
 permissions:
   contents: read
 
+# A newer pull request run cancels the older one. Main pushes and manual runs
+# get a group of their own run: GitHub keeps one pending run per group and
+# cancels it when a newer run joins, so a shared main group would let any later
+# push or dispatch silently drop a queued release run. Publication serializes
+# on the `publish` job's own group instead, which only release runs reach.
 concurrency:
-  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'publish-main' }}
+  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -54,24 +66,43 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
-      # PR5 (T1.6) replaces this with scripts/ci-release.mjs, which derives the
-      # release kind from the commit subject and changed files. Until then no
-      # run is a release, so publish stays off.
+      # The release kind, derived once from immutable event, ref and SHA inputs:
+      # the commit subject and the files it changes decide whether this run is
+      # a release, and only a release push to main sets npm-publish.
       - id: release
         env:
+          BASE_REF: ${{ github.base_ref }}
           EVENT_NAME: ${{ github.event_name }}
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          REF_NAME: ${{ github.ref }}
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          case "$EVENT_NAME" in
-            pull_request) kind=pull-request ;;
-            push) kind=main ;;
-            *) kind=dispatch ;;
-          esac
-          {
-            echo "kind=$kind"
-            echo 'npm_publish=false'
-            echo "version=$(node -p "require('./package.json').version")"
-          } >> "$GITHUB_OUTPUT"
+          if [[ "$EVENT_NAME" == pull_request ]]; then
+            base_sha="$(git merge-base "origin/$BASE_REF" "$SOURCE_SHA")"
+          else
+            base_sha="$(git rev-parse "$SOURCE_SHA^")"
+          fi
+          git diff --name-only --no-renames --diff-filter=ACDMRT "$base_sha" "$SOURCE_SHA" > /tmp/changed-files
+          git diff --name-only --no-renames --diff-filter=D "$base_sha" "$SOURCE_SHA" > /tmp/deleted-files
+          git show "$base_sha:package.json" > /tmp/base-package.json
+          git show "$SOURCE_SHA:package.json" > /tmp/package.json
+          node scripts/ci-release.mjs \
+            --event "$EVENT_NAME" \
+            --ref "$REF_NAME" \
+            --sha "$SOURCE_SHA" \
+            --package-version "$(node -p "require('./package.json').version")" \
+            --subject "$(git log -1 --pretty=%s "$SOURCE_SHA")" \
+            --changed-files-file /tmp/changed-files \
+            --deleted-files-file /tmp/deleted-files \
+            --base-package-json-file /tmp/base-package.json \
+            --package-json-file /tmp/package.json \
+            --head-ref "$HEAD_REF" \
+            --head-repository "$HEAD_REPOSITORY" \
+            --repository "$REPOSITORY"
 
   # The only place a pull request builds shipped wasm (coverage-cpp builds an
   # instrumented serial variant that never leaves its job). The build steps, and
@@ -127,6 +158,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: ./.github/actions/setup
         with:
@@ -143,6 +175,32 @@ jobs:
       # `docs-prose`, which runs in its own job, so no gate runs twice. The suite
       # itself runs sharded below (D28), not here.
       - run: pnpm nx run picovoxel:package-checks
+      # A change that can reach the published package needs a pending Version
+      # Plan; development-only manifest fields, the lockfile, CI, tooling and
+      # docs outside the tarball do not (scripts/plan-check.mjs). The release
+      # commit consumes the plans, so release runs skip the check.
+      - name: Require a Version Plan for release-affecting changes
+        if: needs.preflight.outputs.kind != 'release-pull-request' && needs.preflight.outputs.kind != 'release'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE_SHA: ${{ github.event.before }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [[ "$EVENT_NAME" == pull_request ]]; then
+            node scripts/plan-check.mjs --base="origin/$BASE_REF" --head=HEAD
+          elif [[ "$EVENT_NAME" == push ]]; then
+            if [[ "$BEFORE_SHA" == 0000000000000000000000000000000000000000 ]]; then
+              echo "::error::Cannot validate Version Plans without a previous push SHA"
+              exit 1
+            fi
+            git merge-base --is-ancestor "$BEFORE_SHA" HEAD || {
+              echo "::error::Cannot validate Version Plans across a force-push"
+              exit 1
+            }
+            node scripts/plan-check.mjs --base="$BEFORE_SHA" --head=HEAD
+          else
+            node scripts/plan-check.mjs --base=HEAD~1 --head=HEAD
+          fi
 
   # Format, type-aware lint, dead code, Vale and the prose tests, actionlint and
   # shellcheck. It downloads the wasm only because lint reads the built dist/
@@ -527,13 +585,25 @@ jobs:
             echo "$url $integrity" | tee -a "$GITHUB_STEP_SUMMARY"
           done
 
-  # Inert until PR5 (T1.6): preflight never sets npm-publish, and PR5 adds
-  # scripts/registry-wait.mjs and scripts/verify-release-attestations.mjs.
+  # Main-branch release commits only: preflight sets npm-publish for nothing
+  # else, and the event and ref are checked again here. The job has no checkout
+  # and runs no build: it publishes the candidate tarball every test job
+  # exercised, after proving the downloaded bytes are the recorded ones. npm
+  # authenticates it through OIDC trusted publishing (taucad/picovoxel, ci.yml);
+  # there is no registry token. The npm-publish environment admits only main,
+  # so the trusted publisher can also require it (MAINTAINER.md). Re-running
+  # the job is safe: a version the registry already serves with the candidate's
+  # integrity is skipped, any other integrity fails, and a registry error other
+  # than "not found" stops it.
   publish:
-    if: needs.preflight.outputs.npm-publish == 'true'
+    if: needs.preflight.outputs.npm-publish == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
       [preflight, candidate, test-unit, test-subjects, coverage, coverage-cpp, consumer, browser, security]
     runs-on: ubuntu-24.04
+    environment: npm-publish
+    concurrency:
+      group: npm-publish
+      cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
@@ -548,24 +618,49 @@ jobs:
           registry-url: https://registry.npmjs.org
       - name: Publish the exact candidate with provenance
         shell: bash
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
         run: |
-          node -e "for (const p of require('./candidate/manifest.json').packages) console.log([p.name,p.version,p.filename,p.integrity].join('\t'))" > /tmp/packages
+          packages="$(mktemp)"
+          node -e "for (const p of require('./candidate/manifest.json').packages) console.log([p.name,p.version,p.filename,p.integrity].join('\t'))" > "$packages"
+          test -s "$packages" || { echo "::error::the candidate manifest lists no packages"; exit 1; }
           while IFS=$'\t' read -r name version filename integrity; do
-            published="$(npm view "$name@$version" dist.integrity 2>/dev/null || true)"
-            if [[ -n "$published" ]]; then
+            if [[ "$version" != "$VERSION" ]]; then
+              echo "::error::candidate $name is $version, but the release commit is $VERSION"
+              exit 1
+            fi
+            actual="sha512-$(openssl dgst -sha512 -binary "./candidate/$filename" | openssl base64 -A)"
+            if [[ "$actual" != "$integrity" ]]; then
+              echo "::error::candidate/$filename is not the tested tarball ($actual, recorded $integrity)"
+              exit 1
+            fi
+            view_error="$(mktemp)"
+            if published="$(npm view "$name@$version" dist.integrity 2>"$view_error" </dev/null)"; then
+              if [[ -z "$published" ]]; then
+                echo "::error::registry returned $name@$version without dist.integrity"
+                exit 1
+              fi
               if [[ "$published" != "$integrity" ]]; then
                 echo "::error::registry integrity differs for $name@$version"
                 exit 1
               fi
+              echo "$name@$version is already published with the candidate's integrity"
               continue
             fi
-            if [[ -n "$(npm view "$name@$version" version 2>/dev/null || true)" ]]; then
-              echo "::error::registry returned $name@$version without dist.integrity"
+            if ! grep -q '^npm error code E404$' "$view_error"; then
+              cat "$view_error" >&2
+              echo "::error::could not read $name@$version from the registry"
               exit 1
             fi
             npm publish "./candidate/$filename" --access public --provenance </dev/null
-          done < /tmp/packages
+          done < "$packages"
 
+  # Installs nothing from this checkout: it proves what a consumer gets. It
+  # waits for the registry to serve the candidate's integrity with an
+  # attestation, installs the exact version into an empty project, has npm
+  # verify the registry signatures and attestations, and binds the provenance
+  # to taucad/picovoxel, .github/workflows/ci.yml, refs/heads/main, this commit
+  # and this run. Only then does it record the GitHub release and its tag.
   registry-verify:
     if: always() && needs.preflight.outputs.npm-publish == 'true' && needs.publish.result == 'success'
     needs: [preflight, candidate, publish]
@@ -587,7 +682,7 @@ jobs:
           node-version: ${{ env.NODE_LATEST }}
           registry-url: https://registry.npmjs.org
       - name: Wait for the registry to serve the candidate with its attestation
-        run: node scripts/registry-wait.mjs --manifest candidate/manifest.json
+        run: node scripts/registry-wait.mjs --manifest candidate/manifest.json --interval-seconds 30 --timeout-minutes 30
       - name: Verify registry bytes and provenance
         shell: bash
         run: |
@@ -596,7 +691,7 @@ jobs:
           cd "$directory"
           npm init --yes >/dev/null
           mapfile -t package_specs < <(node -e "for (const p of require('$workspace/candidate/manifest.json').packages) console.log(p.name+'@'+p.version)")
-          npm install --force --ignore-scripts "${package_specs[@]}"
+          npm install --ignore-scripts "${package_specs[@]}"
           npm audit signatures --json --include-attestations > /tmp/npm-audit-signatures.json
           cd "$workspace"
           node scripts/verify-release-attestations.mjs \
@@ -604,12 +699,31 @@ jobs:
             candidate/manifest.json \
             '${{ github.sha }}' \
             '${{ github.run_id }}'
+      # `gh release create --target` attaches to a tag that already exists and
+      # ignores the target, so an existing tag must already name this commit.
       - name: Record the verified release
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          VERSION: ${{ needs.preflight.outputs.version }}
         run: |
-          tag='v${{ needs.preflight.outputs.version }}'
-          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --target '${{ github.sha }}' --generate-notes
+          tag="v$VERSION"
+          if refs="$(git ls-remote --exit-code origin "refs/tags/$tag" "refs/tags/$tag^{}")"; then
+            tagged="$(awk -v peeled="refs/tags/$tag^{}" '$2 == peeled { print $1 }' <<< "$refs")"
+            [[ -n "$tagged" ]] || tagged="$(awk '{ print $1; exit }' <<< "$refs")"
+            if [[ "$tagged" != "$SHA" ]]; then
+              echo "::error::tag $tag points at $tagged, not the release commit $SHA"
+              exit 1
+            fi
+          else
+            status=$?
+            if [[ "$status" -ne 2 ]]; then
+              echo "::error::could not list tag $tag (git ls-remote exited $status)"
+              exit 1
+            fi
+          fi
+          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --target "$SHA" --generate-notes
 
   ci-gate:
     if: always()
