@@ -111,7 +111,11 @@ export interface CreatePicoRuntimeOptions {
 export interface CreatePicoSessionOptions {
   /** Voxel edge length in millimetres. Cost scales cubically as it shrinks. */
   voxelSize?: number;
-  /** Native-memory warning threshold in bytes (default 1 GiB); 0 disables. */
+  /**
+   * Native-memory warning threshold in bytes (default 1 GiB); 0 disables. It counts
+   * this session's PicoGK objects only: sessions on one runtime share a single wasm
+   * heap (and its 4 GB ceiling), which no per-session warning sees in full.
+   */
   memoryWarningBytes?: number;
   /**
    * SKv2-0 V0.5 (§14.1) — the named lane bundle; a POLICY claim about every
