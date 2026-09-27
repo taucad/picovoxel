@@ -13,13 +13,25 @@ import { fileURLToPath } from 'node:url';
 const HERE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const resultsDir = join(HERE, 'bench/results');
 
-const files = readdirSync(resultsDir).filter((f) => f.endsWith('.json')).sort();
-if (files.length < 2) {
-  console.log(`drift check: ${files.length} results file(s) — need a baseline plus a fresh run; nothing to compare.`);
+// Only bench/run.mjs records (`YYYY-MM-DD-<sha>.json`) are comparable; other
+// JSON in bench/results (sweeps, native runs) has another schema. The baseline is
+// the newest COMMITTED record; the fresh record is the one this run wrote, which
+// git does not track yet.
+const RECORD = /^\d{4}-\d{2}-\d{2}-[0-9a-f]+\.json$/;
+const tracked = new Set(
+  execFileSync('git', ['ls-files', '--', 'bench/results'], { cwd: HERE, encoding: 'utf8' })
+    .split('\n')
+    .map((path) => path.slice('bench/results/'.length)),
+);
+const records = readdirSync(resultsDir).filter((f) => RECORD.test(f)).sort();
+const baselineFile = records.filter((f) => tracked.has(f)).at(-1);
+const latestFile = records.filter((f) => !tracked.has(f)).at(-1);
+if (!baselineFile || !latestFile) {
+  console.log(`drift check: need a committed baseline and a fresh run (baseline ${baselineFile}, fresh ${latestFile}); nothing to compare.`);
   process.exit(0);
 }
-const baseline = JSON.parse(readFileSync(join(resultsDir, files[0]), 'utf8'));
-const latest = JSON.parse(readFileSync(join(resultsDir, files[files.length - 1]), 'utf8'));
+const baseline = JSON.parse(readFileSync(join(resultsDir, baselineFile), 'utf8'));
+const latest = JSON.parse(readFileSync(join(resultsDir, latestFile), 'utf8'));
 
 const drifts = [];
 for (const [id, entry] of Object.entries(latest.results)) {
@@ -34,18 +46,19 @@ for (const [id, entry] of Object.entries(latest.results)) {
 }
 
 if (drifts.length === 0) {
-  console.log(`drift check: ${files[files.length - 1]} within 2x of ${files[0]} on every phase.`);
+  console.log(`drift check: ${latestFile} within 2x of ${baselineFile} on every phase.`);
   process.exit(0);
 }
 
-const body = `Benchmark drift >2x vs the committed baseline (${files[0]}):\n\n` +
+const body = `Benchmark drift >2x vs the committed baseline (${baselineFile}):\n\n` +
   drifts.map((d) => `- ${d}`).join('\n') +
-  `\n\nLatest: ${files[files.length - 1]} on ${latest.fingerprint.cpu}. ` +
+  `\n\nLatest: ${latestFile} on ${latest.fingerprint.cpu}. ` +
   'CI numbers are canaries, not certification — reproduce on a quiet machine with `npm run bench`.';
 console.error(body);
 
 if (process.argv.includes('--open-issue')) {
-  execFileSync('gh', ['issue', 'create', '--title', `bench drift >2x (${drifts.length} phases)`, '--body', body], {
+  const title = `bench drift >2x (${drifts.length} phases)`;
+  execFileSync('gh', ['issue', 'create', '--label', 'claude', '--title', title, '--body', body], {
     stdio: 'inherit',
   });
 }
