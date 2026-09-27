@@ -1,17 +1,22 @@
 picovoxel
 Copyright (c) 2025-2026 the picovoxel contributors
 
-This product is a TypeScript/WebAssembly port of PicoGK and includes material
-derived from the following LEAP 71 projects, each licensed under the Apache
-License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0):
+picovoxel is an unofficial, community-maintained TypeScript/WebAssembly binding
+of PicoGK. It is not affiliated with, endorsed by, or supported by LEAP 71.
 
-  PicoGK ("peacock") — a compact software kernel for computational geometry
-  Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
+This product includes material derived from the following LEAP 71 projects,
+each licensed under the Apache License, Version 2.0
+(http://www.apache.org/licenses/LICENSE-2.0):
+
+  PicoGK ("peacock"), a compact software kernel for computational geometry
+  Copyright (c) 2023-2026 LEAP 71, https://leap71.com
   https://github.com/leap71/PicoGK
+  The TypeScript API is a semantic port of the C# library (see
+  MIGRATING-FROM-CSHARP.md).
 
-  PicoGKRuntime (compiled to WebAssembly, unmodified)
+  PicoGKRuntime, compiled to WebAssembly with modifications
   Copyright (c) 2023-2026 LEAP 71
-  https://github.com/leap71/PicoGKRuntime
+  https://github.com/leap71/PicoGKRuntime (built from commit 0f26321c)
 
   LEAP71_ShapeKernel (ported to TypeScript under src/shapekernel/)
   Copyright (c) 2023-2026 LEAP 71
@@ -21,14 +26,56 @@ License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0):
   Copyright (c) 2023-2026 LEAP 71
   https://github.com/leap71/LEAP71_LatticeLibrary
 
-Benchmark/validation subjects under examples/ include ports of
-LEAP71_RoverWheel, LEAP71_HelixHeatX and LEAP71_QuasiCrystals
-(Apache-2.0, Copyright (c) LEAP 71), and of PicoGK_Examples and
-PicoGK_SimulationExample (CC0-1.0).
+Modifications to PicoGKRuntime (Apache License 2.0, section 4(b)). The
+WebAssembly modules in this package are built from PicoGKRuntime with these
+changes, each kept as a patch or a script in the source repository:
 
-The PicoGKRuntime WebAssembly build links OpenVDB, oneTBB, Blosc, zlib and
-supporting libraries; see their respective licenses in the upstream projects.
+  patches/PicoGKRuntime/0001-parallel-disjoint-mesh-flatten.patch
+  patches/PicoGKRuntime/0002-post-fill-prune.patch
+  patches/PicoGKRuntime/0003-lattice-parameter-accessors.patch
+  patches/PicoGKRuntime/0004-lattice-beam-value-storage.patch
+  scripts/make-core-tu.sh: compiles a copy of Source/PicoGKLibrary.cpp that
+    ends before the viewer exports and comments out the three viewer
+    includes; no other line is changed.
 
-The geometry-identity oracle (src/pico-hash.cpp) includes xxHash
-(BSD 2-Clause License, Copyright (c) 2012-2023 Yann Collet) —
-https://github.com/Cyan4973/xxHash
+The modules also contain nine translation units written for picovoxel
+(src/pico-boolean.cpp, pico-bulk.cpp, pico-hash.cpp, pico-lattice.cpp,
+pico-offset.cpp, pico-props.cpp, pico-query.cpp, pico-tape.cpp,
+pico-zslice.cpp), which add exports against the PicoGKRuntime headers.
+
+Third-party components compiled into the WebAssembly modules:
+
+  OpenVDB, Apache License 2.0
+  Copyright Contributors to the OpenVDB Project
+  https://github.com/AcademySoftwareFoundation/openvdb (commit 7c03e1f0)
+  Modified by patches/openvdb/0001-flat-quad-output.patch.
+  Its half-precision type (openvdb/math/Half.h, Half.cc) is BSD 3-Clause,
+  Copyright Contributors to the OpenEXR Project.
+
+  oneTBB, Apache License 2.0
+  Copyright (c) 2005-2025 Intel Corporation
+  https://github.com/uxlfoundation/oneTBB (v2022.2.0)
+  Modified by patches/oneTBB/0001-wasm-substrate-edges.patch. See its
+  third-party-programs.txt for components it includes.
+
+  xxHash (xxhash.h v0.8.3, used by src/pico-hash.cpp), BSD 2-Clause License
+  Copyright (c) 2012-2023 Yann Collet
+  https://github.com/Cyan4973/xxHash
+
+  mimalloc (the allocator of pico-multi.wasm), MIT License
+  Copyright (c) 2018-2021 Microsoft Corporation, Daan Leijen
+  https://github.com/microsoft/mimalloc
+
+  The Emscripten runtime and system libraries linked by Emscripten 5.0.1:
+  the JavaScript glue (pico.mjs, pico-multi.mjs; MIT or University of
+  Illinois/NCSA), musl libc (MIT), LLVM libc++, libc++abi, libunwind and
+  compiler-rt (Apache License 2.0 with LLVM Exceptions), and dlmalloc
+  (public domain, the allocator of pico.wasm). https://github.com/emscripten-core/emscripten
+
+OpenVDB is built without Blosc, zlib or OpenEXR support; none of them is in
+the package.
+
+The source repository's examples/ directory, which is not part of the npm
+package, includes ports of LEAP71_RoverWheel, LEAP71_HelixHeatX,
+LEAP71_QuasiCrystals and PicoGK example code (Apache-2.0, Copyright LEAP 71),
+and of PicoGK_Examples and PicoGK_SimulationExample (CC0-1.0).

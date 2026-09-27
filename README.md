@@ -2,9 +2,41 @@
 
 # picovoxel
 
-[PicoGK](https://github.com/leap71/PicoGK) — the voxel/implicit computational-geometry kernel on OpenVDB — compiled to WebAssembly, with an idiomatic TypeScript API. Runs in the browser and in node from a single 5.8 MB wasm module.
+[![npm](https://img.shields.io/npm/v/picovoxel)](https://www.npmjs.com/package/picovoxel)
+[![CI](https://github.com/taucad/picovoxel/actions/workflows/ci.yml/badge.svg)](https://github.com/taucad/picovoxel/actions/workflows/ci.yml)
+[![Part of the Tau ecosystem](https://img.shields.io/badge/Tau-ecosystem-6d28d9)](https://tau.new)
 
-> ⚠️ **Unofficial & community-maintained.** `picovoxel` is an independent project — **not** affiliated with, endorsed by, or supported by LEAP 71. It binds the open-source PicoGK runtime (compiled, unmodified, to WebAssembly), but the API, packaging, and package name (`picovoxel`, not `picogk`) are ours. Please file issues [on this repo](https://github.com/taucad/picovoxel/issues), not with the PicoGK team.
+[PicoGK](https://github.com/leap71/PicoGK), the voxel and implicit geometry kernel on OpenVDB, compiled to
+WebAssembly with a typed TypeScript API. It runs in browsers and in Node, from a serial build or a
+multithreaded one with the same API.
+
+> **Unofficial and community-maintained.** picovoxel is an independent binding, not affiliated with,
+> endorsed by, or supported by LEAP 71. It compiles the open-source PicoGK runtime with a small, documented
+> patch series (listed in [NOTICE](NOTICE)); the API, packaging and package name are ours. File issues
+> [on this repository](https://github.com/taucad/picovoxel/issues), not with the PicoGK team.
+
+| I want to…                         | Start here                                                          |
+| ---------------------------------- | ------------------------------------------------------------------- |
+| Install the package                | [Install](#install)                                                 |
+| Run the smallest example           | [Quick start](#quick-start)                                         |
+| Use threads or bundle the wasm     | [docs/threads-and-isolation.md](docs/threads-and-isolation.md)      |
+| Choose exact or fast results       | [docs/lanes.md](docs/lanes.md)                                      |
+| Understand memory and known limits | [docs/memory-and-limits.md](docs/memory-and-limits.md)              |
+| Port C# PicoGK code                | [MIGRATING-FROM-CSHARP.md](MIGRATING-FROM-CSHARP.md)                |
+| Choose a supported host            | [compatibility.md](compatibility.md)                                |
+| Contribute or release              | [CONTRIBUTING.md](CONTRIBUTING.md) / [MAINTAINER.md](MAINTAINER.md) |
+
+## Install
+
+```bash
+npm install picovoxel
+```
+
+```bash
+pnpm add picovoxel
+```
+
+## Quick start
 
 ```js
 import { createPico } from 'picovoxel';
@@ -15,163 +47,157 @@ const gyroid = sphere.maskedByImplicit({
   sdf: (x, y, z) =>
     Math.abs(Math.sin(x) * Math.cos(y) + Math.sin(y) * Math.cos(z) + Math.sin(z) * Math.cos(x)) - 0.4,
 });
-const stl = gyroid.toMesh().toStl(); // binary STL bytes, ready to download
+const stl = gyroid.toMesh().toStl(); // binary STL bytes
 pico.dispose();
 ```
 
-No cleanup calls in sight — that is the API contract, not an oversight (see [Memory](#memory)).
+Objects need no per-handle cleanup: the garbage collector frees them, and `pico.dispose()` frees the whole
+session at once ([memory](docs/memory-and-limits.md)). Replace `'picovoxel'` with `'picovoxel/multi'` for
+the multithreaded build.
 
 ## What you get
 
-- **The full non-viewer PicoGK surface**: voxel CSG (`union`/`subtract`/`intersect`), the offset design vocabulary (`offset`, `doubleOffset`, `smoothen`, `fillet`, `shell`, `trim`), implicit rendering and masking from plain JS SDF callbacks, meshes with bulk transfer, STL/GLB/VDB IO, lattices, polylines, scalar/vector fields, and field metadata.
-- **`picovoxel/slicing`** — marching-squares vectorization of voxel slices to closed contours, SVG, and ASCII CLI (Common Layer Interface) for LPBF/SLS printers.
-- **`picovoxel/three`** — `toBufferGeometry` / `meshFromBufferGeometry` bridges (`three` is an optional peer dependency).
-- **`picovoxel/raw`** — the generated, typed binding for all 140 core C-ABI exports, for when you need the escape hatch.
+| Entry                      | Contents                                                                                                                                                                                                                                       |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `picovoxel`                | The PicoGK surface without the viewer: voxel CSG, offsets, fillets, shells and trims, implicit rendering from JavaScript SDF callbacks, meshes with bulk transfer, STL, GLB and VDB input and output, lattices, polylines, fields and metadata |
+| `picovoxel/multi`          | The same API on the pthreads build ([threads](docs/threads-and-isolation.md))                                                                                                                                                                  |
+| `picovoxel/slicing`        | Voxel slices to closed contours, SVG, and CLI (Common Layer Interface) files for powder-bed printers                                                                                                                                           |
+| `picovoxel/three`          | `toBufferGeometry` and `meshFromBufferGeometry` for three.js (an optional peer dependency)                                                                                                                                                     |
+| `picovoxel/numerics`       | Vectors, matrices, quaternions and frames: the System.Numerics and `PicoGK.Numerics` layer, pure TypeScript                                                                                                                                    |
+| `picovoxel/shapekernel`    | A TypeScript port of LEAP 71's ShapeKernel                                                                                                                                                                                                     |
+| `picovoxel/latticelibrary` | A TypeScript port of LEAP 71's LatticeLibrary                                                                                                                                                                                                  |
+| `picovoxel/raw`            | The generated, typed binding for all 163 C-ABI exports (140 from PicoGKRuntime, 23 from picovoxel)                                                                                                                                             |
 
-## Browser and node
+Every session has a lane: `exact` reproduces the reference results byte for byte, `fast` allows faster
+algorithms that change values slightly and marks what they produce. See [docs/lanes.md](docs/lanes.md).
 
-Two entries share one API: `picovoxel` is the serial build and `picovoxel/multi` is the pthreads build, so switching is a one-specifier change. Node needs 22.14.0 or later.
+## Browser and Node
 
-- **Node**: both entries work with no configuration. The multi entry spawns its pool with `worker_threads`, and idle pool workers never keep the process alive.
-- **Browser, serial**: serve `pico.wasm` next to `pico.mjs` with `Content-Type: application/wasm`. No COOP/COEP headers are needed.
-- **Browser, multi**: the shared wasm memory needs `SharedArrayBuffer`, so the page must be cross-origin isolated: `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` (or `credentialless`). `pico-multi.mjs` is also the module script of every pthread worker, so serve it and `pico-multi.wasm` from the same origin. `createPico` starts one worker per `navigator.hardwareConcurrency` before it resolves.
+- **Node 22.14.0 or later**: both entries work with no configuration.
+- **TypeScript 5.7 or later** for the declarations: they use typed-array generics such as
+  `Uint8Array<ArrayBuffer>`, which older compilers reject.
+- **Browser, serial** (`picovoxel`): serve `pico.wasm` beside `pico.mjs` with `Content-Type: application/wasm`.
+  No special headers.
+- **Browser, multithreaded** (`picovoxel/multi`): the page must be cross-origin isolated
+  (`Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` or
+  `credentialless`), and `pico-multi.mjs` and `pico-multi.wasm` must come from the same origin.
 
-The relocatable assets have their own subpaths, so a host can resolve, copy or precompile them:
-
-| Subpath                  | File                   | Loaded by                                  |
-| ------------------------ | ---------------------- | ------------------------------------------ |
-| `picovoxel/wasm`         | `dist/pico.wasm`       | the serial glue                            |
-| `picovoxel/glue`         | `dist/pico.mjs`        | `picovoxel` (static import)                |
-| `picovoxel/multi/wasm`   | `dist/pico-multi.wasm` | the pthreads glue                          |
-| `picovoxel/multi/worker` | `dist/pico-multi.mjs`  | `picovoxel/multi` and every pthread worker |
-
-**Bundlers**: each glue finds its wasm, and the multi glue finds its worker script, with `new URL(file, import.meta.url)`. A bundler that emits those files as siblings needs nothing more. Otherwise pass Emscripten overrides through `createPico({ wasm })`:
+Each glue file finds its wasm with `new URL(file, import.meta.url)`, so a bundler that copies those files
+beside the output needs nothing more. A host that relocates or precompiles the assets resolves them from
+their own subpaths (`picovoxel/wasm`, `picovoxel/glue`, `picovoxel/multi/wasm`, `picovoxel/multi/worker`)
+and passes Emscripten overrides through `createPico({ wasm })`:
 
 ```js
 import { createPico } from 'picovoxel';
+// Vite's asset-URL import; other bundlers have an equivalent.
+import wasmUrl from 'picovoxel/wasm?url';
 
-// Serial: tell the glue where the wasm lives.
-const pico = await createPico({
-  wasm: { locateFile: () => import.meta.resolve('picovoxel/wasm') },
-});
+const pico = await createPico({ wasm: { locateFile: () => wasmUrl } });
 ```
 
 ```js
-import { createPico } from 'picovoxel/multi';
+import { fileURLToPath } from 'node:url';
+import { createPico } from 'picovoxel';
 
-// Multi: compile once, reuse the module for every session, and name the worker script.
-const module = await WebAssembly.compileStreaming(fetch(import.meta.resolve('picovoxel/multi/wasm')));
+// Node: import.meta.resolve returns a file: URL; pass the path.
 const pico = await createPico({
-  wasm: {
-    // In Node this must be a filesystem path: fileURLToPath(import.meta.resolve('picovoxel/multi/worker')).
-    mainScriptUrlOrBlob: import.meta.resolve('picovoxel/multi/worker'),
-    instantiateWasm: (imports, receive) => {
-      WebAssembly.instantiate(module, imports).then((instance) => receive(instance, module));
-      return {};
-    },
-  },
+  wasm: { locateFile: () => fileURLToPath(import.meta.resolve('picovoxel/wasm')) },
 });
 ```
 
-- `locateFile(file)` receives `pico.wasm` or `pico-multi.wasm` and returns its URL (a path also works in Node). It is not consulted when `instantiateWasm` is given.
-- `mainScriptUrlOrBlob` is handed to `new Worker(...)` for each pthread. Node's `worker_threads` rejects `file:` URL strings, so pass a path there.
-- `instantiateWasm(imports, receive)` lets the host supply a precompiled `WebAssembly.Module`. Pass the module as the second argument: the pthread workers receive it from the main thread and never fetch the wasm themselves.
-
-The CI consumer job exercises both overrides against the installed tarball on Node (the multi case with the path form and a module compiled from the file bytes).
-
-**TypeScript**: the declarations need TypeScript 5.7 or later in your project. They use typed-array generics, for example `meshToStlBytes()` returns `Uint8Array<ArrayBuffer>`, which older compilers reject.
-
-**Safari**: supported from 16.4 (the wasm-SIMD floor). `Symbol.dispose` is self-shimmed on engines that lack it (Safari 16.4–18.3), so `using` in _your_ transpiled code works there too. The shim assigns only when the native symbol is missing; nothing is patched on modern engines. Proven per-release by a Playwright gate that runs the full suite on Chromium, WebKit, and Firefox — pure-wasm results are bit-identical across all three.
-
-## Memory
-
-PicoGK's data lives in WebAssembly memory (up to 4 GB), which the JavaScript garbage
-collector cannot see — a 100-byte wrapper can pin a multi-hundred-MB voxel grid.
-picovoxel handles this for you:
-
-- **Ordinary use needs no cleanup.** Every wrapper is registered with a
-  `FinalizationRegistry`; when it is collected, its native handle is freed.
-  Fluent chains (`a.union(b).subtract(c)`) drop intermediates immediately and
-  minor GC cycles reclaim them.
-- **`session.dispose()` frees everything at once** — the deterministic teardown.
-  "Create session → work → dispose session" is the complete story.
-- **`dispose()` exists on every object** for tight loops and power users; it is
-  idempotent and optional. `using` works too — picovoxel self-shims
-  `Symbol.dispose` on engines that lack it.
-- **A one-time warning** fires if PicoGK-owned memory crosses 1 GiB
-  (`createPico({ memoryWarningBytes })` to raise or `0` to disable) — the GC has
-  no idea native memory is piling up, so we refuse to fail silently at 4 GB.
-- **The leak oracle is built in**: `session.allocated` reports PicoGK's own
-  per-type allocation counters.
+The multithreaded overrides (`mainScriptUrlOrBlob`, `instantiateWasm` with one compiled module per worker)
+are in [docs/threads-and-isolation.md](docs/threads-and-isolation.md).
 
 ## Reusing one module across sessions
 
-`createPico()` instantiates a wasm module for every session, and on
-`picovoxel/multi` it also starts and warms a thread pool. A host that opens many
-sessions, such as one per render, can pay that once with a runtime:
+`createPico()` instantiates a wasm module for every session, and on `picovoxel/multi` it also starts a
+thread pool. A host that opens many sessions can pay that once:
 
 ```js
 import { createPicoRuntime } from 'picovoxel/multi';
 
-const runtime = await createPicoRuntime(); // instantiate + warm the pool once
+const runtime = await createPicoRuntime(); // instantiate and warm the pool once
 const pico = await runtime.createPico({ voxelSize: 0.5 });
-// ... build ...
-pico.dispose(); // frees this session only; the pool keeps running
+pico.dispose(); // frees this session only
 runtime.dispose(); // disposes open sessions, then stops the pool
 ```
 
-Each session is its own PicoGK Library instance, so voxel size, lane and every
-object stay per session. Dispose the runtime when you are done with it: it is
-the only thing that stops the thread pool.
+Each session keeps its own voxel size, lane and objects, but all of them share one heap and its 4 GiB
+ceiling, while the memory warning counts one session at a time
+([memory](docs/memory-and-limits.md#sessions-sharing-a-runtime)).
 
-The memory warning is per session, but the heap is not. `memoryWarningBytes`
-counts only the objects of the session it was passed to, while every session on
-a runtime shares one wasm memory and its 4 GB ceiling. Two sessions can
-therefore each stay under the threshold while the heap they share fills up. To
-watch the whole runtime, sample the heap size itself
-(`pico.module.HEAPU8.buffer.byteLength`).
+## Compatibility
 
-To compile the wasm once per worker, pass the compiled module as
-`createPicoRuntime({ wasmModule })` (it must come from the same entry's `.wasm`),
-or supply your own `wasm: { instantiateWasm }` override.
+See [compatibility.md](compatibility.md), including the known issues. Every check mark in that table maps
+to a named job in `.github/workflows/ci.yml`.
 
 ## Performance
 
-Numbers from the committed, harness-enforced baseline ([bench/BENCHMARKS.md](bench/BENCHMARKS.md) — Apple M2 Pro; treat ratios as the portable signal):
-
-| What                                                   | Number                                                              |
-| ------------------------------------------------------ | ------------------------------------------------------------------- |
-| Module instantiate                                     | ~10 ms                                                              |
-| Sphere r=10 @ 0.5 mm                                   | ~1 ms                                                               |
-| Gyroid via **JS SDF callback** @ 0.25 mm (~1M samples) | ~130 ms (≈130 ns/sample, 3–9% over a native SDF)                    |
-| Mesh readback                                          | 2 ABI crossings instead of one per element (~150× at 174k vertices) |
-| Facade overhead over raw cwraps                        | not measurable at 10k calls                                         |
-| vs native PicoGK (arm64)                               | ~1.95× wall clock, bit-identical geometry\*                         |
-
-\*The wasm is deterministic: no threads, no relaxed-SIMD — the differential suite holds meshes byte-identical against a `-ffp-contract=off` native reference, and the browser gate holds volumes hex-float-identical across engines.
+Measured on an Apple M2 Pro (12 cores) in July and August 2026 with LEAP 71's HelixHeatX fixture:
+`picovoxel/multi` built the part in about 8.4 s at 1.0 mm and 32.9 s at 0.5 mm, where the prebuilt native
+PicoGK runtime took 19.8 s and 65.4 s on the same machine. The native runs include preview and screenshot
+work that the TypeScript port leaves out, which favours picovoxel at coarse voxel sizes. A native build
+with the parallel lattice change that picovoxel offers upstream took 6.9 s and 28.8 s. Methods and the
+harness: [bench/BENCHMARKS.md](bench/BENCHMARKS.md) and
+[bench/native-heatx](bench/native-heatx/README.md).
 
 ## Migrating from C# PicoGK
 
-See [MIGRATING-FROM-CSHARP.md](MIGRATING-FROM-CSHARP.md) for the complete member-by-member mapping. The port is semantic, not verbatim: constructor overloads became named factories, mutate/copy pairs became pure methods, `out` params became `T | null` returns — and three upstream bugs are fixed here rather than ported (non-uniform mesh scaling, the mm→voxel conversion, the `AddBeam` overload footgun).
+[MIGRATING-FROM-CSHARP.md](MIGRATING-FROM-CSHARP.md) maps every C# member. The port is semantic:
+constructor overloads became named factories, mutate/copy pairs became pure methods, and `out` parameters
+became `T | null` returns. Upstream bugs are fixed here rather than ported; the table in that document
+records each one and whether LEAP 71 has fixed it since.
+
+## Versioning and stability
+
+Versions follow Semantic Versioning. Before 1.0, a minor release may contain a breaking API change; each
+one is recorded in [BREAKING_CHANGES.md](BREAKING_CHANGES.md). Changes to the bytes an `exact` session
+produces are breaking changes.
+
+## Security and provenance
+
+Report vulnerabilities through GitHub private vulnerability reporting. Releases are published from the
+`ci.yml` workflow with npm provenance; verify with `npm audit signatures`.
+
+Both wasm modules are built in CI from sources pinned by commit and SHA-256 (`scripts/fetch-deps.sh`):
+PicoGKRuntime, OpenVDB, oneTBB and xxHash, compiled with Emscripten 5.0.1. The build applies the patch
+series in `patches/`, asserts the wasm SIMD instruction count, and fails if the build path is embedded in
+the output. The published wasm is the file the tests ran against.
 
 ## Building from source
 
 ```sh
-bash scripts/fetch-deps.sh                   # sha256-pinned sources + pinned emsdk into vendor/
+bash scripts/fetch-deps.sh                   # pinned sources and emsdk into vendor/
 bash scripts/build-deps-wasm.sh              # OpenVDB + oneTBB wasm prefix (~5 min cold)
-THREADS=1 bash scripts/build-deps-wasm.sh    # the same prefix for the pthread variant
+THREADS=1 bash scripts/build-deps-wasm.sh    # the same prefix for the pthreads build
 bash scripts/build-pico-module.sh            # -> src/pico.{mjs,wasm,exports.ts}
 THREADS=1 bash scripts/build-pico-module.sh  # -> src/pico-multi.{mjs,wasm,exports.ts}
 pnpm install && pnpm test                    # vitest, 100% coverage enforced
-pnpm run build && pnpm run test:browser      # Playwright: chromium + webkit + firefox, against dist/
-pnpm nx run picovoxel:quality                # build, typecheck, package shape, size budgets
+pnpm run build && pnpm run test:browser      # Playwright: Chromium, WebKit and Firefox against dist/
+pnpm nx run picovoxel:quality                # build, types, package shape, lint, prose and size gates
 pnpm run bench                               # refuses loaded machines by design
 ```
 
-Neither wasm pair is committed: CI builds both from the pinned sources, and the published binaries come from that run. Each build also writes `src/<variant>.exports.ts`, the export names its glue reads. Like the wasm, it is not committed. With a wasm pair copied in from elsewhere, run `node scripts/generate-wasm-exports.mjs pico` (and `pico-multi`).
+The build tools declare Node `^22.18.0 || >=24.11.0`; CI builds on Node 26. The package itself needs Node
+22.14.0. Neither wasm pair is committed: CI builds both, and the published binaries come from that run.
+Each build also writes `src/<variant>.exports.ts`, the export names its glue reads; for a wasm pair copied
+in from elsewhere, run `node scripts/generate-wasm-exports.mjs pico` (and `pico-multi`).
+The C++ this repository owns is nine translation units in `src/` that add exports; the patches that
+change PicoGKRuntime, OpenVDB and oneTBB are in `patches/`, and fixes offered upstream are in
+[`upstream/`](upstream/README.md).
 
-Upstream PicoGKRuntime is consumed **pristine** — no patch queue. The only C++ this repo owns is one translation unit adding four bulk mesh-transfer exports.
+## Documentation
+
+- [Lanes and exact results](docs/lanes.md)
+- [Threads and cross-origin isolation](docs/threads-and-isolation.md)
+- [Memory and limits](docs/memory-and-limits.md)
+- [Migrating from C#](MIGRATING-FROM-CSHARP.md)
+- [Changelog](CHANGELOG.md)
+- [Source](https://github.com/taucad/picovoxel) and [issues](https://github.com/taucad/picovoxel/issues)
 
 ## License
 
-Apache-2.0, matching upstream PicoGK, whose compiled runtime this package embeds.
+Apache-2.0, matching upstream PicoGK, whose compiled runtime this package embeds. See [license](license)
+and [NOTICE](NOTICE) for the bundled third-party components.
+
+Part of the [Tau ecosystem](https://tau.new).
