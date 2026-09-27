@@ -164,7 +164,96 @@ OOM is a typed observable outcome — lane choice changes success/failure.
 ## Status
 
 Recorded 2026-07-27, mid-Wave-C (V0.3–V0.7 landed; V0.8 in flight). Nothing
-here changes code yet by operator direction; incorporation is scheduled
-ahead of Wave D+. The full gap register (G1–G24), alternatives matrix,
+here changed code by operator direction; incorporation was scheduled
+ahead of Wave D+ and landed 2026-09-27 (see the addendum below). The full gap register (G1–G24), alternatives matrix,
 persona walk-throughs, precedent catalogs, and per-facet open questions live
 in the four subdocuments.
+
+## Addendum: the ratified menu, implemented (2026-09-27)
+
+The operator ratified the D-pre.1 proposal's compressed menu on 2026-09-27
+(PicoVoxel production close-out, gate G14: "ratified as recommended", item 2
+conditional on the CLI comment slot). This addendum records what landed; the
+findings above stay as written. Only the five menu items bind code; D1, D4,
+D6 and D7 change nothing, and Part 3's decomposition is documentation.
+
+**Item 1: the session-claim hybrid (D2+D3), with riders.** The export
+boundary keys on the session's claim, for Class-2 provenance only (Class-3
+export policy is reserved for SK-2):
+
+| Session | STL (`toStl`) | `.vdb` (`toBytes`) | GLB (`toGlb`) |
+| --- | --- | --- | --- |
+| `'fast'`, or `'auto'` resolved to it | stamps `LANE=<set>`, never refuses | exports; the field tags are the stamp | refuses unless `acceptLane` (no slot until V0.18; acknowledged bytes record nothing) |
+| `'open'` (lane omitted) | refuses unless `acceptLane`, then stamps | refuses unless `acceptLane` | refuses unless `acceptLane` |
+| `'exact'` | cannot hold fast handles (item 5) | same | same |
+
+`'auto'` counts as consent. The `'open'` refusal message names both remedies:
+acknowledge the one export, or declare `lane: 'fast'` on the session. Rider
+R2: the session-less `meshToStlBytes` keeps `'open'` semantics (a
+`lane: 'fast'` call refuses unless `options.acceptLane` is `'fast'`); its
+docstring says so, and it now also accepts `lane: 'exact'`. The ratchet
+endpoint stays stamp-always if the `'open'` refusal proves to be dead
+friction; relaxing to it later is non-breaking. Riders R3/R4 are Tau-side.
+
+**Item 2: the CLI and SVG stamps (D5).** `SliceStack` and `Slice` gain an
+optional `lane` (absent = exact); `sliceVoxels` copies `voxels.lane` onto both.
+`slicesToCli` writes `// PicoVoxel LANE=fast //` as the last line before
+`$$HEADEREND` when the stack or any slice is fast, and `slicesFromCli`
+restores `lane` from remark lines inside the header only. `sliceToSvg` writes
+`<metadata>PicoVoxel LANE=fast</metadata>` before the `<g>` for a fast slice.
+Exact CLI and SVG bytes are unchanged. **Comment-slot verdict: legal.** CLI
+v2.0 §3.1.1 defines the remark command as `// text //` ("the text between the
+// commands will be interpreted as a comment; within the comment the double
+stroke is not allowed"), and the specification's own §4 example places
+remark lines inside `$$HEADERSTART … $$HEADEREND`. Upstream PicoGK's reader
+(`IO/Cli.cs`) implements that closed form, including multi-line remarks,
+which is why the stamp always closes its `//` on the same line.
+
+**Item 3: the pin-writer guard (D8), in the same change.**
+`bench/pin-guard.mjs` exports `assertPinSource(lane, label)`, called on the
+recorded source's value provenance before the compare-or-write branch in
+every `UPDATE_PINS` arm (`test/g0-gate.test.ts` and the six
+`test/examples-*.test.ts` subjects; `test/examples-pico.test.ts` has none) and
+on the exact reference records in `bench/g0-identity.mjs`'s sweep. G0 records
+gain `provenance` (`mesh.lane`) beside the session `lane`; the pinned tuple is
+unchanged. A static test in `test/lanes.test.ts` fails when an `UPDATE_PINS`
+arm appears without the guard.
+
+**Item 4: the persisted set.** `PicoVoxel.Lane` holds a canonical
+comma-separated member set (`src/lanes.ts`): sorted, deduplicated, members
+`[a-z0-9][a-z0-9-]*`; `fast` today is already canonical. The TS enum is
+unchanged: the empty set (or only `exact`) collapses to `'exact'`, any other
+member, known or not, to `'fast'`. Tokens outside the grammar, and non-string
+tags, read as the reserved member `unknown`. Handles carry the full set
+internally, and derivations write the union of their inputs' sets, so an
+unknown member survives a boolean instead of being narrowed to `fast`. The
+STL token uses the same grammar; a set that does not fit the 80-byte header
+stamps `LANE=unknown`.
+
+**Item 5: the five defects, as amended.** (1) `readLaneTag` reads the value
+(float-typed tags no longer read as exact). (2) The STL lane token is a
+whitespace/NUL-delimited, anchored, case-exact `LANE=` token, so
+`PLANE=FASTENED` and `lane=fast` read as exact. (3) The `UNITS=` search folds
+ASCII letters only, so a `ß` (0xDF) earlier in the header no longer shifts the
+index. (4) Loads never rewrite a persisted tag: foreign tags pass through
+`openVdb(bytes).toBytes()` unchanged, untagged imports stay untagged (the weak
+claim; no third lane value), and the boundary gates locally added fields
+only. (5) Importing non-exact provenance into a `lane: 'exact'` session
+(`voxelsFromVdb`, `getVoxels`/`getScalarField`/`getVectorField`,
+`meshFromStl`) throws `PICO_LANE_LOOSENED` naming the remedy (load it in an
+`'open'` or `'fast'` session), frees the refused handle, and has no override.
+Folded hygiene: fresh creations pass an explicit empty set (no tag read), and
+tagged loads no longer write the tag back. A derived write removes any
+inherited entry first, because OpenVDB will not overwrite a float-typed entry
+with a string.
+
+**Part 4.** `serialLattice` stays the entire algorithm-arm surface, and no
+automatic arm is added without a charter row. Its docstring now states the
+tiny-lattice setup-cost inversion (the reason to choose `true`) and the U23
+asymmetry (the serial arm is the one that is wrong on nested end spheres).
+
+Evidence: `test/lanes.test.ts` (session × format × provenance matrix, R2,
+CLI/SVG stamps, the guard and its backstop, set parsing and derivation,
+STL parse cases, foreign `.vdb` pass-through, the ingest lock). G0/L0 pins
+unmoved: exact outputs are byte-identical by construction (no exact code path
+writes a tag or a stamp).
