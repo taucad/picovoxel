@@ -397,10 +397,20 @@ describe('CI workflow policy', () => {
 
     it('builds wasm only in the wasm job and packs only in the candidate job', () => {
       const building = [...ciJobs].filter(([, body]) => body.includes('uses: ./.github/actions/build-wasm'));
+      // coverage-cpp builds an instrumented module for its own measurement;
+      // only the wasm job's build reaches an artifact.
       assert.deepEqual(
         building.map(([name]) => name),
-        ['wasm'],
+        ['wasm', 'coverage-cpp'],
       );
+      assert.match(
+        job('coverage-cpp'),
+        /build-wasm\n {8}with:\n {10}variant: serial\n {10}coverage: 'true'\n/u,
+      );
+      const uploads = stepsOf(job('coverage-cpp'))
+        .filter(({ text }) => text.includes('uses: actions/upload-artifact@'))
+        .map(({ text }) => /name: (\S+)/u.exec(text)[1]);
+      assert.deepEqual(uploads, ['lcov-cpp']);
       const packing = [...ciJobs].filter(([, body]) => body.includes('npm pack'));
       assert.deepEqual(
         packing.map(([name]) => name),

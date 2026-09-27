@@ -53,6 +53,7 @@
         "scripts/candidate-manifest.mjs",
         "scripts/check-prose.sh",
         "scripts/check-workflows.sh",
+        "scripts/coverage-*",
         "scripts/ci-release.mjs",
         "scripts/extract-candidate-packages.mjs",
         "scripts/install-ci-tool.sh",

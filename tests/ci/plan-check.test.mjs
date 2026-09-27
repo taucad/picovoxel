@@ -53,6 +53,7 @@ describe('Version Plan requirement', () => {
         'test/mesh.test.ts',
         'scripts/ci-release.mjs',
         'scripts/plan-check.mjs',
+        'scripts/coverage-cpp-gate.mjs',
         'eslint.config.mjs',
         'tools/eslint-plugin/index.js',
         '.vale/styles/Tau/NoEmojiBody.yml',
