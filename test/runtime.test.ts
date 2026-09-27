@@ -341,6 +341,8 @@ test('multi: failed instantiations let the process exit (no worker holds it open
       [
         // No --input-type: the pthread workers inherit execArgv and refuse it.
         '--no-warnings',
+        // Node below 22.18 strips types only behind this flag; the child imports src/*.ts.
+        ...(process.features.typescript ? [] : ['--experimental-strip-types']),
         '-e',
         `(async () => {
            const { createPicoRuntime } = await import(${JSON.stringify(entry)});
