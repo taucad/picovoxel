@@ -499,7 +499,7 @@ if (UPDATE) {
   );
   lines.push('> **Absolute numbers are device-specific; treat ratios and phase splits as the portable signal.**');
   lines.push(
-    `> Reproduce with \`npm run bench\` (the harness refuses loaded machines). Source: \`bench/results/${fileName}\`.`,
+    `> Reproduce with \`pnpm run bench\` (the harness refuses loaded machines). Source: \`bench/results/${fileName}\`.`,
   );
   lines.push('>');
   lines.push("> Native-comparison figures (the ~1.95× PicoGK wasm tax, R20's 3–9% SDF callback overhead, R11's ~150×");
