@@ -1,0 +1,11 @@
+extends: existence
+# ponytail: warning (reports, does not fail) until the shorthand sweep lands; then raise to error.
+message: "Program shorthand '%s' means nothing to a reader outside the project — describe the behaviour."
+level: warning
+ignorecase: false
+nonword: true
+tokens:
+  - '\bClass-\d+\b'
+  - '\bSKv?\d*-\d+(\.\d+)*\b'
+  - '\bL0\b'
+  - '\bpin-comparable\b'
