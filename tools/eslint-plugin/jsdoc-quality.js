@@ -1,6 +1,7 @@
 import {
   MAX_PROSE_WORDS,
   INTERNAL_REFERENCES,
+  INTERNAL_SHORTHAND,
   TEMPORAL_CLAIMS,
   SLOP,
   firstMatch,
@@ -64,23 +65,61 @@ export const jsdocQualityRule = {
   meta: {
     type: 'suggestion',
     docs: {
-      description: 'Require concise, current, self-contained JSDoc.',
+      description:
+        'Require concise, current, self-contained JSDoc; with `shipped`, keep every comment and string free of planning references.',
     },
-    schema: [],
+    schema: [
+      {
+        type: 'object',
+        properties: {
+          // For files that ship: line comments, non-JSDoc blocks and string
+          // literals (thrown messages included) are checked for planning
+          // references and program shorthand too.
+          shipped: { type: 'boolean' },
+        },
+        additionalProperties: false,
+      },
+    ],
     messages: {
       internalReference: 'Describe the implemented contract without internal planning reference "{{term}}".',
+      internalShorthand: 'Replace program shorthand "{{term}}" with the behaviour it names.',
       temporalClaim: 'Replace time-relative or speculative JSDoc phrase "{{term}}" with a stable contract.',
       slop: 'Replace low-information JSDoc phrase "{{term}}" with a concrete capability or behavior.',
       tooLong: 'JSDoc contains {{count}} prose words; keep it at or below {{max}} words.',
     },
   },
   create(context) {
+    const shipped = context.options[0]?.shipped === true;
+    const reportPlanning = (loc, text) => {
+      const shorthand = firstMatch(INTERNAL_SHORTHAND, text);
+      if (shorthand) context.report({ loc, messageId: 'internalShorthand', data: { term: shorthand } });
+      const reference = firstMatch(INTERNAL_REFERENCES, text.replace(/https?:\/\/\S+/gu, ' '));
+      if (reference) context.report({ loc, messageId: 'internalReference', data: { term: reference } });
+    };
+    const shippedVisitors = shipped
+      ? {
+          Literal(node) {
+            if (typeof node.value === 'string') reportPlanning(node.loc, node.value);
+          },
+          TemplateElement(node) {
+            reportPlanning(node.loc, node.value.cooked ?? node.value.raw);
+          },
+        }
+      : {};
     return {
+      ...shippedVisitors,
       'Program:exit'() {
         for (const comment of context.sourceCode.getAllComments()) {
-          if (comment.type !== 'Block' || !comment.value.startsWith('*')) continue;
+          if (comment.type !== 'Block' || !comment.value.startsWith('*')) {
+            if (shipped) reportPlanning(comment.loc, comment.value);
+            continue;
+          }
 
           const prose = extractProse(comment);
+          const shorthand = firstMatch(INTERNAL_SHORTHAND, prose);
+          if (shorthand) {
+            context.report({ loc: comment.loc, messageId: 'internalShorthand', data: { term: shorthand } });
+          }
           const directReference = firstMatch(INTERNAL_REFERENCES.slice(0, 4), prose);
           const withoutUrls = prose.replace(/https?:\/\/\S+/gu, ' ');
           const planningReference = firstMatch(INTERNAL_REFERENCES.slice(4), withoutUrls);

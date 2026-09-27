@@ -66,4 +66,14 @@ export default tseslint.config(
     plugins: { picovoxel: plugin },
     rules: { 'picovoxel/jsdoc-quality': 'error' },
   },
+  {
+    // What ships: dist/ is built from these files, so their line comments,
+    // thrown messages and every other string reach users too. The C++
+    // translation units, the patch headers under patches/ and the proposal
+    // files under upstream/ are outside this check: ESLint cannot parse them,
+    // and their comments are rewritten together with the upstream proposals
+    // they belong to.
+    files: ['src/**/*.ts'],
+    rules: { 'picovoxel/jsdoc-quality': ['error', { shipped: true }] },
+  },
 );
