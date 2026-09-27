@@ -375,3 +375,35 @@ changes together; against the quiet 298.069 ms measured after that change, batch
 
 Residual: 20.9 of the 39.2 ns/beam is C++-side ingest (`make_shared` per beam into upstream's
 `std::vector<LatticeBeam::Ptr>`).
+
+### HeatX flange without the preview-only thread cutters (2026-09-28)
+
+Samples: `bench/results/flange-fc2-ab-2026-09-28.json`.
+
+The C# Task builds six flat-capped `ThreadCutter`s in the flange stage for a preview it
+discards. The port stopped building them in `dc966e0`, and the stage is now timed as
+`flange.create-v2`. Flat caps have no tube-complex form, so each cutter rendered on the
+serial lattice fallback.
+
+|                                     | before (`38bdac8` example) | after (`flange.create-v2`) |          Δ |
+| ----------------------------------- | -------------------------: | -------------------------: | ---------: |
+| flange stage @1.0 mm, multi, median |                 4,371.7 ms |                   231.9 ms | **18.85×** |
+| min / max                           |       2,483.1 / 8,593.5 ms |            98.2 / 492.9 ms |            |
+
+Both variants produced the same flange and screw-hole volumes (`40d5598ca0000000`,
+`40c4788120000000`).
+
+Method: a paired ABAB ×15 in one Node v24.10.0 process on one `picovoxel/multi` session at
+1.0 mm (12 threads), after one discarded warm-up each. The "before" variant is
+`git show 38bdac8:examples/helixheatx/helixHeatX.ts` beside the current `helpers.ts`, which
+`dc966e0` left unchanged apart from comments and a type import. Both variants ran against the
+same CI-built wasm, from main `7040437`, ci.yml run 36344828928. Each sample times
+`new HelixHeatX(session).flange()`, the body the Task times as the flange stage.
+
+Machine: M2 Pro, shared, 1-minute load average 27.8→39.2 over the run. The load inflates the
+absolute times: the quiet 2026-07-23 `M12@multi` row above records 2,601 ms before the change.
+The size of the ratio probably owes something to the load too, since the serial fallback would
+lose more to contention than the parallel remainder does. That reading is a hypothesis. On quiet
+numbers, removing six cutters of 296.8 ms each from a 2,165.8 ms stage predicts about 5.6×. The
+acceptance bar was ≥4×. A quiet `pnpm run bench -- --update` records `kernel:flange.create-v2`
+in the `M12-v2` rows of the table above.
