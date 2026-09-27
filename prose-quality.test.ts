@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { MAX_PROSE_WORDS, countWords } from './tools/eslint-plugin/prose-rules.js';
+import { INTERNAL_SHORTHAND, MAX_PROSE_WORDS, countWords } from './tools/eslint-plugin/prose-rules.js';
 
 const ROOT = resolve(import.meta.dirname);
 
@@ -82,6 +82,13 @@ describe('prose quality', () => {
       countWords(paragraph) + RENDERED_REFERENCE_WORDS,
     );
     expect(countWords(COMMIT_REFERENCE)).toBe(RENDERED_REFERENCE_WORDS);
+  });
+
+  it('should hold the Vale shorthand rule and the ESLint shorthand list to one set of patterns', () => {
+    const vale = readFileSync(resolve(ROOT, '.vale/styles/Tau/InternalShorthand.yml'), 'utf8');
+    expect(vale).toMatch(/^level: error$/mu);
+    const tokens = [...vale.matchAll(/^ {2}- '(.+)'$/gmu)].map(([, token]) => token);
+    expect(tokens).toEqual(INTERNAL_SHORTHAND.map((pattern) => pattern.source));
   });
 
   it('should read a Version Plan past its front matter without shifting line numbers', () => {

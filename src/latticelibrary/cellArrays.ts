@@ -2,13 +2,13 @@
 // {RegularCellArray,ConformalCellArray}.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picovoxel (blueprint R13); see NOTICE.
+// Ported to TypeScript for picovoxel; see NOTICE.
 //
 // The per-corner noise reseeds a fresh random stream from the corner's
 // coordinates, so shared corners of adjacent cells deform identically. The C#
 // seed `iX * iY * iZ` collides wildly (any zero coordinate → seed 0) and
 // overflows int — ported verbatim via Math.imul. The seeded corpus is
-// self-referential (createRandom, not C# Random), per the blueprint rule.
+// self-referential (createRandom, not C# Random), like every seeded port here.
 
 import { BaseBox } from '../shapekernel/baseBox.ts';
 import { BaseLens } from '../shapekernel/baseLens.ts';

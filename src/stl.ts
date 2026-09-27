@@ -1,4 +1,4 @@
-// SG7 — binary STL, ported from upstream MeshIo.cs (45-301).
+// Binary STL, ported from upstream MeshIo.cs (45-301).
 //
 // Format: 80-byte header (PicoGK writes "PicoGK UNITS=xx" space-padded), uint32
 // triangle count, then 50-byte records (normal + 3 vertices as float32, uint16
@@ -43,7 +43,7 @@ export interface ToStlOptions {
   /** Offset in mm, applied first. */
   offset?: Vec3;
   /**
-   * §14.1 — acknowledges, for this one export, that the geometry has non-exact
+   * Acknowledges, for this one export, that the geometry has non-exact
    * provenance. Needed only where nothing else consented: in a session that
    * declared no lane (`'open'`) and in the session-less `meshToStlBytes`.
    * A `lane: 'fast'` (or `'auto'`) session already consented. Either way the
@@ -73,7 +73,7 @@ const fround = Math.fround;
  * historical header, byte for byte. The stamp is a best-effort audit, not a
  * security boundary: third-party tools rewrite STL headers.
  *
- * The bytes own a fresh, non-shared `ArrayBuffer` (TAU-E1), so a caller can hand
+ * The bytes own a fresh, non-shared `ArrayBuffer`, so a caller can hand
  * them to a `Blob`, a transfer list or a file write without copying first.
  */
 export function meshToStlBytes(
@@ -85,8 +85,9 @@ export function meshToStlBytes(
   if (lane === 'fast' && options.acceptLane !== 'fast') {
     throw new PicoError(
       'PICO_LANE_EXPORT',
-      "meshToStlBytes() with lane 'fast': the geometry is not L0/pin-comparable, and this session-less call never " +
-        "consented to exporting it. Acknowledge with meshToStlBytes(vertices, triangles, { acceptLane: 'fast' }, 'fast') " +
+      "meshToStlBytes() with lane 'fast': the bytes may not match an exact build of the same model, and this " +
+        'session-less call never consented to exporting them. Acknowledge with meshToStlBytes(vertices, triangles, ' +
+        "{ acceptLane: 'fast' }, 'fast') " +
         "— the header records LANE=fast — or pass geometry replayed in a lane: 'exact' session.",
     );
   }
@@ -112,7 +113,7 @@ export function writeStlBytes(
 
   const bytes = new Uint8Array(84 + triangleCount * 50);
   const view = new DataView(bytes.buffer);
-  // §14.1 — the lane stamp only ever appears on non-exact exports, so every
+  // The lane stamp only ever appears on non-exact exports, so every
   // byte-locked exact fixture keeps its exact historical header.
   const units = `PicoGK ${UNIT_HEADER[unit]}`;
   let stamp = provenance.length === 0 ? '' : ` ${formatLaneToken(provenance)}`;
@@ -246,6 +247,6 @@ export function meshFromStlBytes(
       triangles[t * 3 + c] = t * 3 + c;
     }
   }
-  // §14.1 — restore the stamped provenance set (anchored, case-exact token).
+  // Restore the stamped provenance set (anchored, case-exact token).
   return { vertices, triangles, provenance: findLaneToken(rawHeader) };
 }

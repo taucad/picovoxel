@@ -117,6 +117,7 @@ jobs:
             src/pico${{ matrix.variant == 'multi' && '-multi' || '' }}.wasm
             src/pico${{ matrix.variant == 'multi' && '-multi' || '' }}.exports.ts
             build/wasm-${{ matrix.variant }}.json
+            vendor/PicoGKRuntime/API/PicoGK.h
           if-no-files-found: error
 
   quality:
@@ -200,8 +201,9 @@ jobs:
           if-no-files-found: error
 
   # The light files against the sources on the Node floor and latest, with both
-  # wasm artifacts in src/. The latest leg writes the coverage blob. R14 (every
-  # export exercised) runs on both artifacts.
+  # wasm artifacts in src/ and the pinned header they were built against (the
+  # ABI consistency test reads it). The latest leg writes the coverage blob. R14
+  # (every export exercised) runs on both artifacts.
   test-unit:
     name: test-unit (node ${{ matrix.node }})
     needs: wasm
@@ -223,7 +225,7 @@ jobs:
           pattern: wasm-*
           path: .
           merge-multiple: 'true'
-          expect: src/pico.mjs src/pico.wasm src/pico.exports.ts src/pico-multi.mjs src/pico-multi.wasm src/pico-multi.exports.ts
+          expect: src/pico.mjs src/pico.wasm src/pico.exports.ts src/pico-multi.mjs src/pico-multi.wasm src/pico-multi.exports.ts vendor/PicoGKRuntime/API/PicoGK.h
       - name: Light files (coverage blob on the latest leg)
         env:
           COVERAGE: ${{ matrix.node == env.NODE_LATEST }}

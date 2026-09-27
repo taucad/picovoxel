@@ -1,11 +1,18 @@
 extends: existence
-# ponytail: warning (reports, does not fail) until the shorthand sweep lands; then raise to error.
+# The same patterns as INTERNAL_SHORTHAND in tools/eslint-plugin/prose-rules.js,
+# which applies them to JSDoc and to everything under src/; prose-quality.test.ts
+# holds the two lists equal.
 message: "Program shorthand '%s' means nothing to a reader outside the project — describe the behaviour."
-level: warning
+level: error
 ignorecase: false
 nonword: true
 tokens:
-  - '\bClass-\d+\b'
-  - '\bSKv?\d*-\d+(\.\d+)*\b'
+  - '\bClass[- ](?:\d+|X)\b'
+  - '\bSK(?:v\d+)?-\d+(?:\.\d+)*\b'
+  - '\bV0\.\d+\b'
   - '\bL0\b'
   - '\bpin-comparable\b'
+  - '\bD-pre\.\d+\b'
+  - '\bSG\d+\b'
+  - '\blane [A-F]\b'
+  - '§ ?\d'

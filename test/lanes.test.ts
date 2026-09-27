@@ -284,7 +284,7 @@ afterAll(() => {
   for (const p of [exactS, fastS, autoS, openS]) p.dispose();
 });
 
-/** A Class-2 derived part: the session default in fast/auto, the per-op opt-in in open. */
+/** A part with fast provenance: the session default in fast/auto, the per-op opt-in in open. */
 const fastPart = (p: Pico): Voxels => {
   const part = body(p).offset({ distance: 1, ...(p.lane === 'open' ? { fastRenorm: true } : {}) });
   assert.equal(part.lane, 'fast', 'fixture must carry fast provenance');
@@ -421,11 +421,11 @@ test("rider R2: meshToStlBytes has no session, so it keeps 'open' semantics", ()
   assert.deepEqual(stamped.subarray(80), historical.subarray(80), 'the stamp changes the header only');
 });
 
-test("rider (ii): a lane: 'fast' session consents to Class-2 'fast' only — gpu-l1 and unknown still need acceptLane", () => {
+test("rider (ii): a lane: 'fast' session consents to the 'fast' member only — gpu-l1 and unknown still need acceptLane", () => {
   const mm = openS.createMesh(TETRA).toStl();
   const outsideConsent = (error: unknown) =>
     isCode('PICO_LANE_EXPORT')(error) &&
-    /outside the Class-2 consent/.test((error as Error).message) &&
+    /outside what a lane: 'fast' session consents to/.test((error as Error).message) &&
     /acceptLane: 'fast'/.test((error as Error).message) &&
     !/createPico\(\{ lane: 'fast' \}\)/.test((error as Error).message); // declaring the lane would not help
 

@@ -2,11 +2,11 @@
 // SurfaceModulation(2D)}.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picovoxel (blueprint R5); see NOTICE.
+// Ported to TypeScript for picovoxel; see NOTICE.
 //
 // Modulations are the dimension-varying inputs of every base shape. The C#
 // operator overloads (`mod + mod`, `mod - mod`, `f * mod`) become the
-// `add`/`sub`/`scale` methods — the one visible API-shape change (Finding 7).
+// `add`/`sub`/`scale` methods — the one visible API-shape change.
 // The image-based SurfaceModulation form is viewer/Skia-bound and not ported.
 
 import type { Vec3 } from '../types.ts';

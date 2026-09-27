@@ -1,4 +1,4 @@
-// picovoxel/slicing — manufacturing output (subpaths doc, Part 1).
+// picovoxel/slicing — manufacturing output.
 //
 // Ported from upstream Types/Slice.cs (marching squares + the partially-sorted
 // greedy segment stitcher + winding detection, PolySlice.oFromSdf:293) and
@@ -31,7 +31,7 @@ export interface Slice {
   z: number;
   contours: SliceContour[];
   /**
-   * §14.1 value-class provenance of the sliced voxels (`'exact'` or absent = exact;
+   * Value provenance of the sliced voxels (`'exact'` or absent = exact;
    * `sliceVoxels` and `slicesFromCli` always set it).
    * `sliceToSvg` stamps `'fast'` into the SVG's `<metadata>`.
    */
@@ -43,7 +43,7 @@ export interface SliceStack {
   /** XY bounds over every contour + Z from first/last layer. */
   bounds: { min: readonly [number, number, number]; max: readonly [number, number, number] };
   /**
-   * §14.1 value-class provenance (`'exact'` or absent = exact): `sliceVoxels` copies
+   * Value provenance (`'exact'` or absent = exact): `sliceVoxels` copies
    * `voxels.lane`, `slicesFromCli` restores it from the header stamp, and
    * `slicesToCli` stamps `'fast'` — manufacturing bytes are stamped, never
    * refused.
@@ -472,8 +472,9 @@ const WINDING_TO_CLI: Record<ContourWinding, number> = { cw: 0, ccw: 1, unknown:
 /**
  * The provenance stamp for slice artifacts: the STL header's
  * `LANE=<set>` token (`./lanes.ts`) after a `PicoVoxel` marker. In CLI it
- * rides a `// … //` remark line inside `$$HEADERSTART … $$HEADEREND` — CLI
- * v2.0 §3.1.1 defines `// text //` as a comment and its own §4 example puts
+ * rides a `// … //` remark line inside `$$HEADERSTART … $$HEADEREND` — the CLI
+ * v2.0 specification (section 3.1.1) defines `// text //` as a comment and its
+ * own section 4 example puts
  * remark lines in the header — so readers that follow the spec (upstream
  * PicoGK's included) skip it and no command changes. Exact stacks carry no
  * remark, so exact CLI bytes are unchanged.

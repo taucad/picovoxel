@@ -1,7 +1,7 @@
 // Derived from LEAP71_LatticeLibrary — ImplicitLibrary/CoordinateTrafo.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picovoxel (blueprint R13); see NOTICE.
+// Ported to TypeScript for picovoxel; see NOTICE.
 //
 // C# `Apply(out fX, out fY, out fZ, vecPt)` becomes `apply(pt): Vec3`.
 

@@ -1,4 +1,4 @@
-// Numerics foundation (real-world-subjects blueprint R1).
+// Numerics foundation.
 // Ports PicoGK Numerics/Coordinates.cs: polar / cylindrical / spherical
 // coordinates — the currency of rotational and helical construction in CEM.
 // Factories validate as the C# constructors do; conversions and lerps mirror

@@ -1,10 +1,10 @@
 // Voxels wrapper — the heart of the surface.
 //
-// PicoGK's booleans and offsets mutate the receiver in the ABI (SG11) — every
+// PicoGK's booleans and offsets mutate the receiver in the ABI — every
 // derived op copies first via Voxels_hCreateCopy so the fluent form is pure and
 // `a.subtract(b)` never silently destroys `a`. Two soundness rules ride along:
-// emptiness is `isEmpty` (SG2 — a−a keeps ~5% narrow-band "volume"), and correct
-// volume/bounds after booleans need the mesh round-trip (SG1 — OpenVDB retains
+// emptiness is `isEmpty` (a−a keeps ~5% narrow-band "volume"), and correct
+// volume/bounds after booleans need the mesh round-trip (OpenVDB retains
 // distance-0 surface voxels).
 
 import {
@@ -34,7 +34,7 @@ import type { SdfExpression } from './tape.ts';
 import type { Bounds, SdfFunction, Vec3 } from './types.ts';
 
 export type SliceAxis = 'x' | 'y' | 'z';
-/** SG8 — modes are pure post-processing over the native narrow-band floats. */
+/** Slice modes are pure post-processing over the native narrow-band floats. */
 export type SliceMode = 'sdf' | 'bw' | 'antialiased';
 
 export interface VoxelSlice {
@@ -55,7 +55,7 @@ export interface ShellOptions {
   inner?: number;
   outer?: number;
   smoothInner?: number;
-  /** SK-0.8 — see `offset({ fastRenorm })`; applies to every offset this shell runs. */
+  /** See `offset({ fastRenorm })`; applies to every offset this shell runs. */
   fastRenorm?: boolean;
 }
 
@@ -87,28 +87,28 @@ export interface Voxels {
   subtract(...others: Voxels[]): Voxels;
   /** Pure intersection. */
   intersect(other: Voxels): Voxels;
-  /** Content equality (SG10-guarded). */
+  /** Content equality; `other` must belong to the same session. */
   equals(other: Voxels): boolean;
-  /** SG2 — THE emptiness oracle. Never test volume ≈ 0. */
+  /** THE emptiness oracle. Never test volume ≈ 0. */
   readonly isEmpty: boolean;
   /**
    * Pure surface offset: positive grows, negative shrinks.
    *
-   * `fastRenorm` (SK-0.8, opt-in) runs the renormalization upstream performs after
+   * `fastRenorm` (opt-in) runs the renormalization upstream performs after
    * every half-voxel CFL step with a first-order upwind gradient instead of 5th-order
    * HJ-WENO — 3.5–3.9x on the offset family, since renormalization is 94–97% of the
    * offset wall. It CHANGES THE OUTPUT (measured at ≤2.2% volume, ≤0.36 mm peak
-   * narrow-band displacement, level set still clean; gate values and the full sweep in
-   * bench/results/webgpu-v2/sk-0.8-ab.json), so it is never the library default —
+   * narrow-band displacement, level set still clean; the measurements are recorded in
+   * the repository's bench/results/webgpu-v2/sk-0.8-ab.json), so it is never the library default —
    * a session may default it on (see `CreatePicoOptions.fastRenorm`), and an
    * explicit per-op value always wins.
    */
   offset(options: { distance: number; fastRenorm?: boolean }): Voxels;
   /** Two offsets in sequence (closing/opening when signs differ). */
   doubleOffset(options: { first: number; second: number; fastRenorm?: boolean }): Voxels;
-  /** SG9 — in, 2× out, in again: strips detail below the distance threshold. */
+  /** In, 2× out, in again: strips detail below the distance threshold. */
   smoothen(options: { distance: number; fastRenorm?: boolean }): Voxels;
-  /** SG9 — over-offset composition; fillet-like rounding (C# voxFillet). */
+  /** Over-offset composition; fillet-like rounding (C# voxFillet). */
   fillet(options: { rounding: number; finalSurfaceDistance?: number; fastRenorm?: boolean }): Voxels;
   /** Shell: one-offset form ({offset}) or two-offset form ({inner, outer, smoothInner}). */
   shell(options: ShellOptions): Voxels;
@@ -135,20 +135,20 @@ export interface Voxels {
    * — `equals()`-identical results, see `withImplicit` on the fast-volume caveat.
    */
   maskedByImplicit(options: { sdf: SdfFunction | SdfExpression }): Voxels;
-  /** Volume in mm³ from the raw grid — fast but approximate after booleans (SG1). */
+  /** Volume in mm³ from the raw grid — fast but approximate after booleans (use `properties()`). */
   readonly volume: number;
   /**
-   * SG1 — the correct volume (mm³), surface area (mm²) and bounds, from one
+   * The correct volume (mm³), surface area (mm²) and bounds, from one
    * native traversal of the mesh → fresh-voxels round-trip (src/pico-props.cpp).
    * Area is openvdb's `levelSetArea` over the same corrected grid; it costs no
    * extra meshing pass.
    */
   properties(): { volume: number; area: number; bounds: Bounds };
   /**
-   * The G0 canonical grid hash: representation-normalized XXH3-128 over the level set's exact content
+   * The canonical grid hash: representation-normalized XXH3-128 over the level set's exact content
    * (src/pico-hash.cpp). Two grids hash equal iff they classify and value
    * every voxel identically — tile vs dense-leaf encodings of one field hash
-   * equal. Index-space only: voxel size is pinned by the tuple's volume/counts.
+   * equal. Index-space only: pair it with the volume and counts to pin the voxel size.
    */
   gridHash(): { hash: string; activeVoxels: number; insideTiles: number; insideOffVoxels: number };
   /**
@@ -158,7 +158,7 @@ export interface Voxels {
    * O(bbox volume): small fixtures only.
    */
   densifyInterior(): void;
-  /** SG1 — bounding box via the intermediate mesh (the only accurate way). */
+  /** Bounding box via the intermediate mesh (the only accurate way). */
   bounds(): Bounds;
   /** True if the point is at or below the surface. */
   isInside(position: Vec3): boolean;
@@ -169,7 +169,7 @@ export interface Voxels {
   /** Ray-surface intersection, or null on a miss. */
   raycastToSurface(position: Vec3, direction: Vec3): Vec3 | null;
   /**
-   * SKv2-0 V0.11 (P8) — N rays over ONE cached intersector and one ABI
+   * N rays over ONE cached intersector and one ABI
    * crossing. Per-ray results are EXACTLY the serial `raycastToSurface`
    * semantics (incl. upstream's integer-voxel hit truncation). `hits` is
    * xyz-triples; entries where `hit[i] === 0` are undefined.
@@ -179,7 +179,7 @@ export interface Voxels {
     hit: Uint8Array;
   };
   /**
-   * SKv2-0 V0.11 (P8) — N closest-surface-point queries over one index
+   * N closest-surface-point queries over one index
    * build (openvdb ClosestSurfacePoint): sub-voxel results, C2 by nature.
    * The SDF is its own oracle: |φ(query)| is the true distance.
    */
@@ -190,22 +190,22 @@ export interface Voxels {
   readonly sliceCount: number;
   /** Real-world origin of slice `index` in mm. */
   sliceOrigin(index?: number): Vec3;
-  /** One slice image; SG8 modes; interpolated form takes a fractional Z index. */
+  /** One slice image; `mode` post-processes it; the interpolated form takes a fractional Z index. */
   getSlice(options: GetSliceOptions): VoxelSlice;
   toMesh(): Mesh;
   toScalarField(): ScalarField;
   readonly metadata: Metadata;
   readonly memUsage: number;
   /**
-   * §14.1 value-class provenance: least upper bound over this handle's
-   * ancestry ('fast' = at least one Class-2 op — e.g. `fastRenorm` — fed it,
+   * Value provenance: least upper bound over this handle's ancestry ('fast' =
+   * at least one value-changing acceleration — e.g. `fastRenorm` — fed it,
    * or it was loaded from bytes tagged with provenance this build treats as
    * fast-like). Persisted on the grid as the `PicoVoxel.Lane` member set, so
    * it survives copies and `.vdb` interchange. See `Mesh.toStl` for what the
    * export boundary does with it.
    */
   readonly lane: 'exact' | 'fast';
-  /** Raw ABI handle — escape hatch (§10). */
+  /** Raw ABI handle — escape hatch. */
   readonly handle: bigint;
   /** Optional: GC reclaims un-disposed voxels. Idempotent. */
   dispose(): void;
@@ -222,7 +222,7 @@ export interface Voxels {
 export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: LaneSet): Voxels {
   let disposed = false;
   let metadataCache: Metadata | null = null;
-  // §14.1 provenance — a non-empty set rides the grid as PicoVoxel.Lane, so it
+  // Provenance — a non-empty set rides the grid as PicoVoxel.Lane, so it
   // survives copies and .vdb interchange with no serializer work.
   const lane = settleProvenance(
     ctx,
@@ -237,7 +237,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     return handle;
   };
 
-  /** Copy-first derivation (SG11): clone, mutate the clone, wrap the clone. */
+  /** Copy-first derivation (the ABI mutates in place): clone, mutate the clone, wrap the clone. */
   const derive = (name: string, mutate: (copy: bigint) => void, resultLane: LaneSet = lane): Voxels => {
     const copy = expectHandle('Voxels_hCreateCopy', ctx.raw.Voxels_hCreateCopy(ctx.lib, live()));
     try {
@@ -249,12 +249,12 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     return wrapVoxels(ctx, copy, resultLane);
   };
 
-  /** §14.1 tighten-only: a Class-2 per-op request inside 'exact' throws. */
+  /** Tighten-only: a per-op `fastRenorm: true` inside an 'exact' session throws. */
   const rejectLoosening = (fastRenorm: boolean | undefined, where: string): void => {
     if (ctx.lane === 'exact' && fastRenorm === true) {
       throw new PicoError(
         'PICO_LANE_LOOSENED',
-        `${where}({ fastRenorm: true }) inside a lane: 'exact' session: one Class-2 op would destroy the ` +
+        `${where}({ fastRenorm: true }) inside a lane: 'exact' session: one value-changing acceleration would destroy the ` +
           "session's structural exactness claim. Tightening is allowed; loosening requires a 'fast' or " +
           'lane-less session.',
       );
@@ -262,7 +262,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
   };
 
   /**
-   * SK-0.8 — one offset sequence under FAST_RENORM_*. Distances carry PicoGK's sign
+   * One offset sequence under FAST_RENORM_*. Distances carry PicoGK's sign
    * (positive grows) and run on a single LevelSetFilter, exactly as the untuned
    * Offset/DoubleOffset/TripleOffset exports do. ctx.scratch is BBOX_BYTES = 6
    * floats, and the longest sequence in the family is 3.
@@ -282,7 +282,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
           FAST_RENORM_COUNT,
         );
       },
-      unionLaneSets(lane, FAST_LANE_SET), // the one Class-2 producer today — provenance taints here
+      unionLaneSets(lane, FAST_LANE_SET), // the one value-changing op: provenance taints here
     );
 
   const operandHandle = (other: Voxels, what: string): bigint => {
@@ -290,7 +290,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     return other.handle;
   };
 
-  /** V0.7 — pairwise chain over a csg*Copy export; intermediates die eagerly. */
+  /** Pairwise chain over a csg*Copy export; intermediates die eagerly. */
   const composeCopy = (
     name: 'Voxels_hBoolAddCopy' | 'Voxels_hBoolSubtractCopy' | 'Voxels_hBoolIntersectCopy',
     what: string,
@@ -339,7 +339,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     }
   };
 
-  /** SG1 — the mesh round-trip both properties() and bounds() are built on. */
+  /** The mesh round-trip both properties() and bounds() are built on. */
   const meshRoundTrip = <T>(body: (meshHandle: bigint) => T): T => {
     const meshHandle = expectHandle(
       'Mesh_hCreateFromVoxels',
@@ -374,7 +374,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     clone: (): Voxels =>
       wrapVoxels(ctx, expectHandle('Voxels_hCreateCopy', ctx.raw.Voxels_hCreateCopy(ctx.lib, live())), lane),
 
-    // SKv2-0 V0.7 — booleans ride the shared-nothing csg*Copy exports: const
+    // Booleans ride the shared-nothing csg*Copy exports: const
     // inputs, exactly ONE fresh grid per pair (the old shape paid a receiver
     // copy in derive() plus upstream's operand deep copy). Variadic forms
     // chain pairwise, destroying intermediates immediately; the mutating
@@ -386,8 +386,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       composeCopy('Voxels_hBoolIntersectCopy', 'intersect operand', [other]),
 
     equals(other: Voxels): boolean {
-      // T11 (SKv2-0 V0.8): O(stored) sign-set comparison, upstream-verdict-
-      // identical; the dense O(bbox³) Voxels_bIsEqual stays on the raw subpath.
+      // O(stored) sign-set comparison, upstream-verdict-identical; the dense O(bbox³) Voxels_bIsEqual stays on the raw subpath.
       return guard('Voxels_bIsEqualFast', () =>
         ctx.raw.Voxels_bIsEqualFast(ctx.lib, live(), operandHandle(other, 'equals operand')),
       )();
@@ -448,7 +447,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       }
       // C# voxShell(neg, pos, smooth) (Voxels.cs:680-700) semantic port. Upstream
       // calls the COPY forms as if they mutated, so its smoothing and subtraction
-      // are silently discarded (upstream bug B4, do-not-port) — this implements the
+      // are silently discarded (an upstream bug, not ported) — this implements the
       // documented intent: outer offset minus (optionally smoothed) inner offset.
       let inner = requireFinite(options.inner, 'inner', 'shell');
       let outer = requireFinite(options.outer, 'outer', 'shell');
@@ -468,7 +467,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     },
     trim(bounds: Bounds): Voxels {
       // C# voxTrim (Voxels.cs:458-474): cube mesh over the box, then intersect
-      // — on the V0.7 shared-nothing export like the rest of the boolean family.
+      // — on the shared-nothing export like the rest of the boolean family.
       const cube = cubeVoxels(ctx, bounds);
       try {
         const result = expectHandle(
@@ -483,12 +482,12 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       }
     },
     projectZSlice(options: { startZ: number; endZ: number }) {
-      // SKv2-0 V0.9 — the T5×F15 column-culled export with the U2 voxel-unit
-      // seal count; upstream's dense mutating export stays on the raw subpath
-      // as the differential oracle. At 1.0 mm the seal counts coincide, so
-      // 1.0 mm pins are byte-identical; other scales seal CORRECTLY now (the
-      // pre-fix geometry was wrong — pins regenerated per the SK-0.4
-      // protocol with this cause named).
+      // The column-culled export, which counts the seal in voxels (upstream
+      // passes millimetres as a layer count); upstream's dense mutating export
+      // stays on the raw subpath as the differential oracle. At 1.0 mm the
+      // seal counts coincide, so 1.0 mm results are byte-identical to upstream;
+      // other scales seal CORRECTLY (upstream's geometry there is wrong, and
+      // the repository's reference pins record the corrected output).
       const startZ = requireFinite(options.startZ, 'startZ', 'projectZSlice');
       const endZ = requireFinite(options.endZ, 'endZ', 'projectZSlice');
       return derive('Voxels_ProjectZSliceFast', (copy) =>
@@ -531,7 +530,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
           }),
         );
       }
-      // R9 — compose-into-existing tape path: min(sdf, existing) with upstream
+      // Compose-into-existing tape path: min(sdf, existing) with upstream
       // semantics, slab-parallel (src/pico-tape.cpp ParallelTapeComposeGrid).
       return derive('Voxels_RenderImplicitTapeCompose', (copy) =>
         withSdfTape(ctx, sdf, (instrPtr, instrCount, constPtr, constCount) => {
@@ -551,8 +550,8 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     },
     maskedByImplicit({ sdf }: { sdf: SdfFunction | SdfExpression }): Voxels {
       // C# voxIntersectImplicit (Voxels.cs:748-753) — the gyroid-sphere idiom.
-      // SKv2-0 V0.10 — both paths ride the U1-corrected, F17 support-
-      // restricted exports (fresh band = background/voxelSize voxels; the
+      // Both paths ride the support-restricted exports with a corrected narrow
+      // band (fresh band = background/voxelSize voxels; upstream's
       // truncated-band originals stay raw-side as oracles). At 1.0 mm the
       // corrected band coincides with upstream's truncation, so 1.0 mm pins
       // hold; finer scales gain the correct narrow band (<1/3 mm was broken).
@@ -575,8 +574,8 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     },
     properties(): { volume: number; area: number; bounds: Bounds } {
       // C# CalculateProperties (Voxels.cs:812-825): mesh (skips distance-0 surface
-      // voxels) -> fresh voxels -> volume of THAT; bounds from the mesh. SK-0.5
-      // moved the whole sequence in-module (src/pico-props.cpp) — same floats, one
+      // voxels) -> fresh voxels -> volume of THAT; bounds from the mesh. The whole
+      // sequence runs in-module (src/pico-props.cpp) — same floats, one
       // crossing instead of four, and area comes along for free.
       const floats = ctx.scratch;
       const box = ctx.scratch + 8;
@@ -819,17 +818,17 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       return handle;
     },
     dispose() {
-      if (disposed) return; // D3
+      if (disposed) return; // idempotent
       disposed = true;
       metadataCache?.dispose();
-      ctx.registry.unregister(voxels); // D2
-      if (!ctx.dead.value) ctx.raw.Voxels_Destroy(ctx.lib, handle); // D4
+      ctx.registry.unregister(voxels); // never both GC-free and explicit free
+      if (!ctx.dead.value) ctx.raw.Voxels_Destroy(ctx.lib, handle); // teardown already freed it
     },
   };
-  tagFieldClass(ctx, ctx.raw.Metadata_hFromVoxels, handle, 'Voxels'); // SG4
+  tagFieldClass(ctx, ctx.raw.Metadata_hFromVoxels, handle, 'Voxels');
   recordProvenance(voxels, lane);
   adoptHandle(ctx, voxels, handle, ctx.raw.Voxels_Destroy);
-  return voxels as Voxels; // adoptHandle added [Symbol.dispose] (D6)
+  return voxels as Voxels; // adoptHandle added [Symbol.dispose]
 }
 
 /**

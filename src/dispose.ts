@@ -1,4 +1,4 @@
-// The ONLY file that mentions Symbol.dispose (disposal-facade doc, Finding 3).
+// The ONLY file that mentions Symbol.dispose.
 //
 // No released Safari ships Symbol.dispose (MDN, 2026-09), and our floor is Safari 16.4
 // (SIMD), so hosts without it need the symbol defined before any consumer `using` runs —

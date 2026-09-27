@@ -153,7 +153,7 @@ async function countingSession(voxelSize) {
 }
 
 /**
- * The pre-SK-0.3 facade, re-created: every addBeam/addSphere writes the session
+ * The per-element facade that batching replaced, re-created: every addBeam/addSphere writes the session
  * scratch and crosses immediately. Same option destructuring and same validation
  * shape as the body src/lattice.ts carried before this spike.
  */

@@ -1,7 +1,7 @@
 // Derived from LEAP71_ShapeKernel — ShapeKernel/BaseShapes/BaseLens.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picovoxel (blueprint R5); see NOTICE.
+// Ported to TypeScript for picovoxel; see NOTICE.
 //
 // Upstream quirk ported verbatim: the height modulations are queried with
 // (phi ANGLE, radiusRatio) — not two 0..1 ratios.

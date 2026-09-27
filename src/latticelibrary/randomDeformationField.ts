@@ -1,10 +1,10 @@
 // Derived from LEAP71_LatticeLibrary — ImplicitLibrary/RandomDeformationField.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picovoxel (blueprint R13); see NOTICE.
+// Ported to TypeScript for picovoxel; see NOTICE.
 //
 // The C# constructor's sub-cube loop exists only to preview wireframes and is
-// dropped (headless surface, R16 rule); the grid/noise arrays and the
+// dropped (headless surface); the grid/noise arrays and the
 // trilinear lookup are ported verbatim. Randomness is an explicit
 // RandomSource (self-referential seeded corpus), drawn in the same
 // x-outer/z-inner grid order as upstream.

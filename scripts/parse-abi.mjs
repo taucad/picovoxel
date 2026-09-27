@@ -33,10 +33,10 @@ const HANDLE_TYPES = new Set([
 
 /**
  * Maps a C type to how the value crosses the boundary. Pointers and enums cross as i32.
- * The `cwrap`/`cwrapReturn` field names are historical — the bindings stopped being cwraps
- * in SK-0.2 — and are kept so the 4,000-line `src/abi.json` does not churn for a rename.
+ * The `cwrap`/`cwrapReturn` field names are historical (the bindings are direct exports,
+ * not cwraps) and are kept so the 4,000-line `src/abi.json` does not churn for a rename.
  */
-function cwrapType(cType) {
+export function cwrapType(cType) {
   const t = cType
     .replace(/\bconst\b/g, '')
     .replace(/\s+/g, ' ')
@@ -104,6 +104,32 @@ export async function parseAbi(headerPath = DEFAULT_HEADER) {
     core: core.length,
     functions,
   };
+}
+
+/**
+ * The `PICOGK_API` definitions of one of this repo's own translation units
+ * (src/pico-*.cpp), in the manifest's function shape. Definitions, not
+ * declarations: each runs from `PICOGK_API` to the `)` closing its parameters.
+ * The return type may carry qualifiers and pointers (`const char*`, `unsigned int`).
+ */
+export function parseOwnExports(source) {
+  const definitions = source.matchAll(
+    /^PICOGK_API\s+((?:(?:const|unsigned|signed)\s+)*[A-Za-z0-9_]+(?:\s*\*)*(?:\s+const\b)?)\s*\b([A-Za-z0-9_]+)\s*\(([^)]*)\)/gmu,
+  );
+  return [...definitions].map(([, returnType, name, argText]) => ({
+    name,
+    returnType: returnType.trim(),
+    cwrapReturn: cwrapType(returnType),
+    args: argText
+      .split(',')
+      .map((arg) => arg.trim().split(/\s+/u))
+      .filter((parts) => parts[0] !== '')
+      .map((parts) => {
+        const name = parts.pop();
+        const type = parts.join(' ');
+        return { type, name, cwrap: cwrapType(type) };
+      }),
+  }));
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

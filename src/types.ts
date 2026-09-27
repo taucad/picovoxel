@@ -1,4 +1,4 @@
-// Public value types (API surface spec, Finding 1). Vec3 stays a readonly tuple:
+// Public value types. Vec3 stays a readonly tuple:
 // JSON-serialisable, spread-friendly, interops with three.js fromArray and gl-matrix
 // without adopting either. All lengths are millimetres.
 
@@ -11,18 +11,18 @@ export interface Bounds {
   max: Vec3;
 }
 
-/** float32 FLT_MAX — the ABI's empty-bounds sentinel component (SG15). */
+/** float32 FLT_MAX — the ABI's empty-bounds sentinel component. */
 const FLOAT_MAX = 3.4028234663852886e38;
 
 /**
- * SG15 — the empty-bounds sentinel the ABI structs use (`BBox3()` default:
+ * The empty-bounds sentinel the ABI structs use (`BBox3()` default:
  * min = +FLT_MAX, max = −FLT_MAX). Never NaN.
  */
 export function emptyBounds(): Bounds {
   return { min: [FLOAT_MAX, FLOAT_MAX, FLOAT_MAX], max: [-FLOAT_MAX, -FLOAT_MAX, -FLOAT_MAX] };
 }
 
-/** True for the SG15 sentinel (an empty mesh/field produced it). */
+/** True for the empty-bounds sentinel (an empty mesh/field produced it). */
 export function isEmptyBounds(bounds: Bounds): boolean {
   return bounds.min[0] === FLOAT_MAX;
 }

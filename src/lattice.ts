@@ -1,17 +1,17 @@
-// Lattice wrapper. One addBeam signature (fixes upstream B3 — two C# overloads
-// differing only in parameter order); roundCap defaults true (SG12).
+// Lattice wrapper. One addBeam signature (fixes the upstream bug of two C# overloads
+// differing only in parameter order); roundCap defaults true, as upstream.
 //
-// SK-0.3 — authoring is BATCHED. addBeam/addSphere used to cross the ABI once per
-// element: HelixHeatX made 1,197,460 Lattice_AddBeam calls across 37 lattices, and
-// even at the post-SK-0.2 direct-export cost (56.4 ns raw, 131.6 ns through this
-// facade) that is the single hottest ABI site in the port. Elements now accumulate
+// Authoring is BATCHED. Crossing the ABI once per element made HelixHeatX issue
+// 1,197,460 Lattice_AddBeam calls across 37 lattices, and even at the
+// direct-export cost (56.4 ns raw, 131.6 ns through a per-element facade) that
+// would be the single hottest ABI site in the port. Elements accumulate
 // in a flat Float32Array and cross in ONE call per lattice (src/pico-bulk.cpp).
 //
 // Layout is dictated by the GPU upload seam, not by this file: 8 floats per beam,
 // (x, y, z, radius) per endpoint — two vec4 lanes, 32 B stride, no padding under
 // std140 or std430 — so `beams.subarray(0, beamCount * 8)` can go straight into
-// writeBuffer with no repacking (harmonic architecture S-A/S-C, and the slab-binned
-// access SK-0.4's tube-complex lane wants). Round-cap flags ride in a parallel
+// writeBuffer with no repacking (and the slab-binned access the tube-complex lattice
+// lane wants). Round-cap flags ride in a parallel
 // Uint32Array because WGSL has no u8.
 //
 // The public API is unchanged: batching is internal, and the flush points are the
@@ -40,7 +40,7 @@ export interface AddBeamOptions {
   radius?: number;
   startRadius?: number;
   endRadius?: number;
-  /** Hemispherical end caps (SG12 default). */
+  /** Hemispherical end caps (default true, as upstream). */
   roundCap?: boolean;
 }
 
@@ -50,7 +50,7 @@ export interface Lattice {
   /** Renders the lattice into a fresh voxel field. */
   toVoxels(): Voxels;
   readonly memUsage: number;
-  /** Raw ABI handle — escape hatch (§10). Flushes pending authoring first. */
+  /** Raw ABI handle — escape hatch. Flushes pending authoring first. */
   readonly handle: bigint;
   /** Optional: GC reclaims un-disposed lattices. Idempotent. */
   dispose(): void;
@@ -204,14 +204,14 @@ export function wrapLattice(ctx: SessionContext, handle: bigint): Lattice {
       return handle;
     },
     dispose() {
-      if (disposed) return; // D3
+      if (disposed) return; // idempotent
       disposed = true;
       beamCount = 0;
       sphereCount = 0;
-      ctx.registry.unregister(lattice); // D2
-      if (!ctx.dead.value) ctx.raw.Lattice_Destroy(ctx.lib, handle); // D4
+      ctx.registry.unregister(lattice); // never both GC-free and explicit free
+      if (!ctx.dead.value) ctx.raw.Lattice_Destroy(ctx.lib, handle); // teardown already freed it
     },
   };
   adoptHandle(ctx, lattice, handle, ctx.raw.Lattice_Destroy);
-  return lattice as Lattice; // adoptHandle added [Symbol.dispose] (D6)
+  return lattice as Lattice; // adoptHandle added [Symbol.dispose]
 }

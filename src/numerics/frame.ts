@@ -1,6 +1,5 @@
-// Numerics foundation (real-world-subjects blueprint R1).
-// Ports PicoGK Shapes/3D/Frame3d.cs as the ONE canonical rigid-frame type
-// (Finding 9 of the blueprint): a local coordinate system — position plus a
+// Numerics foundation.
+// Ports PicoGK Shapes/3D/Frame3d.cs as the ONE canonical rigid-frame type: a local coordinate system — position plus a
 // right-handed orthonormal basis — used for placement ("build this shape
 // *here*, pointing *that way*") and transport (frame chains along a spine).
 // ShapeKernel-TS's LocalFrame is this type plus construction helpers; the C#
@@ -102,7 +101,7 @@ export const frame = {
 
   /**
    * The inverse transform — maps world to local (C# `frmInverse`), **fixed
-   * here** (upstream bug B5, fixed upstream in 0e6cf6b6; see upstream/LEDGER.md):
+   * here** (an upstream bug, fixed upstream in 0e6cf6b6):
    * C# copies `vecLz`/`vecLx` verbatim into the inverse, inverting the
    * translation but NOT the rotation, so `frmCompose(frmInverse())` is only
    * the identity for rotation-free frames. The inverse rotation is Rᵀ, whose

@@ -1,4 +1,4 @@
-// R10 — typed errors at the C ABI boundary.
+// Typed errors at the C ABI boundary.
 //
 // PicoGK throws std::out_of_range from HandleManager::roGet (PicoGKHandleManager.h:79)
 // and PicoGKLibrary.cpp has zero try/catch in 1,798 lines. Under -fwasm-exceptions

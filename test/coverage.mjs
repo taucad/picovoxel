@@ -1,5 +1,5 @@
-// R14 — Tier-2 coverage: wraps the GENERATED raw layer (R9) and records which
-// bindings actually get called.
+// R14 — Tier-2 coverage: wraps the GENERATED raw layer (src/raw.generated.ts)
+// and records which bindings actually get called.
 //
 // The point is that coverage is MEASURED against what upstream exports, not asserted
 // in prose. A new upstream export appears here as an uncovered function; a renamed one
@@ -19,7 +19,7 @@ const loadRaw = async (options) => {
   return { module, raw: bindPicoRaw(module) };
 };
 
-/** Binds all 152 exports (140 core + 12 own-TU), counting calls per name. */
+/** Binds every export (140 core + the own translation units' additions), counting calls per name. */
 export async function loadInstrumented(options = {}) {
   const { module, raw } = await loadRaw(options);
   const calls = new Map();

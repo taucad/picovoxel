@@ -109,6 +109,77 @@ test('should reject invalid or unpaired timing samples', () => {
   });
 });
 
+test('should reject every malformed input with a RangeError, and fit flat data exactly', async () => {
+  const rejects = (call, message) => assert.throws(call, { name: 'RangeError', message });
+  rejects(() => summarizeSamples([]), 'samples must contain at least one sample');
+  for (const bad of [0, -1, Number.POSITIVE_INFINITY]) {
+    rejects(() => summarizeSamples([1, bad]), `samples[1] must be a finite positive number, got ${bad}`);
+  }
+  for (const iterations of [0, 1.5]) {
+    rejects(
+      () => summarizeBootstrapMedian([1], { iterations }),
+      `iterations must be a positive integer, got ${iterations}`,
+    );
+    rejects(
+      () => summarizePairedSamples({ slowMs: [2], fastMs: [1], iterations }),
+      `iterations must be a positive integer, got ${iterations}`,
+    );
+  }
+  rejects(
+    () => summarizePairedSamples({ slowMs: [], fastMs: [] }),
+    'slowMs and fastMs must contain the same non-zero number of samples',
+  );
+  rejects(
+    () => summarizePairedSamples({ slowMs: [0], fastMs: [1] }),
+    'slowMs[0] must be a finite positive number, got 0',
+  );
+
+  rejects(() => fitLinearCost([{ bytes: 1, ms: 1 }]), 'linear cost fit needs at least two points');
+  for (const point of [
+    { bytes: Number.NaN, ms: 1 },
+    { bytes: -1, ms: 1 },
+    { bytes: 1, ms: Number.POSITIVE_INFINITY },
+    { bytes: 1, ms: 0 },
+  ]) {
+    rejects(() => fitLinearCost([{ bytes: 0, ms: 1 }, point]), 'invalid linear cost point at index 1');
+  }
+  rejects(
+    () =>
+      fitLinearCost([
+        { bytes: 5, ms: 1 },
+        { bytes: 5, ms: 2 },
+      ]),
+    'linear cost fit needs distinct byte counts',
+  );
+  assert.equal(
+    fitLinearCost([
+      { bytes: 1, ms: 3 },
+      { bytes: 2, ms: 3 },
+    ]).rSquared,
+    1,
+    'flat data fits exactly',
+  );
+
+  const timer = async () => 1;
+  for (const [repeats, warmups] of [
+    [0, 1],
+    [1.5, 1],
+    [1, -1],
+    [1, 0.5],
+  ]) {
+    await assert.rejects(collectPairedSamples({ repeats, warmups, slow: timer, fast: timer }), {
+      name: 'RangeError',
+      message: `repeats must be positive and warmups non-negative, got ${repeats}/${warmups}`,
+    });
+  }
+  assert.equal(summarizeSamples([1, 3]).median, 2, 'an even count takes the mean of the middle pair');
+  // xorshift has a fixed point at 0, so seed 0 must still yield a moving generator.
+  assert.deepEqual(
+    summarizeBootstrapMedian([1, 2, 3, 4], { iterations: 50, seed: 0 }).ci95,
+    summarizeBootstrapMedian([1, 2, 3, 4], { iterations: 50, seed: 1 }).ci95,
+  );
+});
+
 test('should fail loudly when an accelerated path did not engage', () => {
   assert.doesNotThrow(() =>
     assertAccelerationEngaged({
@@ -119,6 +190,24 @@ test('should fail loudly when an accelerated path did not engage', () => {
       resultConsumed: true,
     }),
   );
+  const engaged = {
+    requestedLane: 'gpu',
+    activeLane: 'gpu',
+    adapter: 'Apple M2 Pro',
+    dispatchCount: 2,
+    resultConsumed: true,
+  };
+  for (const miss of [
+    { adapter: null },
+    { dispatchCount: 1.5 },
+    { dispatchCount: 0 },
+    { resultConsumed: false },
+  ]) {
+    assert.throws(
+      () => assertAccelerationEngaged({ ...engaged, ...miss }),
+      /accelerated path did not engage/,
+    );
+  }
   assert.throws(
     () =>
       assertAccelerationEngaged({
@@ -137,7 +226,7 @@ test('should fail loudly when an accelerated path did not engage', () => {
 });
 
 test('should pair allocator A/B samples across blocks and name regressions honestly', () => {
-  // A silent mis-pairing here would corrupt the SK-0.1 headline rather than fail
+  // A silent mis-pairing here would corrupt the allocator headline rather than fail
   // loudly, so the script is driven end to end over two blocks per side.
   const run = (win, lose) => ({
     fingerprint: {},

@@ -1,4 +1,4 @@
-// picovoxel/three — the BufferGeometry bridge (subpaths doc, Part 2).
+// picovoxel/three — the BufferGeometry bridge.
 //
 // `three` is an OPTIONAL peer: only importers of this subpath pay for it. Runtime
 // imports are limited to BufferGeometry/BufferAttribute, which run headless in

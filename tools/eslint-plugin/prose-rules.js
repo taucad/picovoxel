@@ -22,6 +22,24 @@ export const INTERNAL_REFERENCES = [
   /\brule[-\s#]+\d+(?:\.\d+)?\b/iu,
 ];
 
+/**
+ * Program shorthand: work-package, change-class and gate labels from the
+ * project's own planning. Case-sensitive, and kept in the RE2 subset so that
+ * `.vale/styles/Tau/InternalShorthand.yml` can carry the same sources
+ * (`prose-quality.test.ts` holds the two lists equal).
+ */
+export const INTERNAL_SHORTHAND = [
+  /\bClass[- ](?:\d+|X)\b/u,
+  /\bSK(?:v\d+)?-\d+(?:\.\d+)*\b/u,
+  /\bV0\.\d+\b/u,
+  /\bL0\b/u,
+  /\bpin-comparable\b/u,
+  /\bD-pre\.\d+\b/u,
+  /\bSG\d+\b/u,
+  /\blane [A-F]\b/u,
+  /§ ?\d/u,
+];
+
 /** Claims that date the text and go wrong on their own. */
 export const TEMPORAL_CLAIMS = [
   /\bcurrently\b/iu,

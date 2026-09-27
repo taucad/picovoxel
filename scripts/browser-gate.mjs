@@ -1,4 +1,4 @@
-// R25 — the three-engine browser gate (quality-infra doc, Finding 3).
+// The three-engine browser gate.
 //
 // A plain node script, not a second test framework: build the gate bundle, compute
 // the node-side records from the SAME wasm (pure-wasm numbers must be EXACT across
@@ -7,26 +7,31 @@
 // claim) + firefox through the page. Console errors fail the run; the tolerated
 // [gc-indeterminate] marker is the one designed exception (disposal doc).
 //
-// Also the ignore-comment audit lives here: any `v8 ignore` without a ` -- reason`
-// justification fails the gate.
+// Also the ignore-comment audit lives here: any coverage-ignore directive in a
+// tracked source file, at any depth, without a ` -- reason` fails the gate.
 
 import { execFileSync } from 'node:child_process';
-import { createReadStream, existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, firefox, webkit } from 'playwright';
 
+import { unjustifiedIgnores } from './ignore-audit.mjs';
+
 const HERE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 // ── 0. Ignore-comment audit ──
 const offenders = [];
-for (const entry of readdirSync(join(HERE, 'src'))) {
-  if (!entry.endsWith('.ts')) continue;
-  const source = readFileSync(join(HERE, 'src', entry), 'utf8');
-  for (const match of source.matchAll(/v8 ignore[^\n]*/g)) {
-    if (!match[0].includes('--')) offenders.push(`${entry}: ${match[0]}`);
-  }
+const sources = execFileSync('git', ['ls-files', '-z', '--', '*.ts', '*.mts', '*.js', '*.mjs', '*.cjs'], {
+  cwd: HERE,
+  encoding: 'utf8',
+})
+  .split('\0')
+  .filter(Boolean);
+for (const path of sources) {
+  for (const line of unjustifiedIgnores(readFileSync(join(HERE, path), 'utf8')))
+    offenders.push(`${path}: ${line}`);
 }
 if (offenders.length > 0) {
   console.error('UNJUSTIFIED coverage ignores (need a `-- reason`):\n  ' + offenders.join('\n  '));

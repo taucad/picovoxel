@@ -334,7 +334,7 @@ surfaces as a raw `RangeError` from `HEAPF32.set` rather than the typed
 `PICO_OUT_OF_MEMORY` error — hardened in the facade as a follow-up
 commit.)
 
-### SK-0.3 — lattice authoring batched: one ABI crossing per lattice (2026-07-26)
+### Lattice authoring batched: one ABI crossing per lattice (2026-07-26)
 
 Samples: `bench/results/webgpu-v2/sk-0.3-lattice-batch.json`.
 
@@ -349,7 +349,7 @@ Samples: `bench/results/webgpu-v2/sk-0.3-lattice-batch.json`.
 | HeatX `author` stage @3.0 mm      |            238.72 ms |            **150.83 ms** |  **−36.8%** |
 
 ¹ The `raw per-call (Lattice_AddBeam)` export measured in the same process — the floor the old
-facade sat _on top of_ (SK-0.2 measured that facade at 131.6 ns). The batched facade is now
+facade sat _on top of_ (an earlier run measured that facade at 131.6 ns). The batched facade is now
 below the bare crossing it replaced.
 
 Method: `bench/lattice-batch.mjs`. Per-beam rows are min-of-7 over 9×200,000-beam runs in one
@@ -365,10 +365,11 @@ Machine: M2
 Pro, AC, `lowpowermode 0`, loadavg 2.8→7.6 (two sibling spikes sharing the box — which is why
 the claim rests on the paired in-process A/B and not on a macro suite run).
 
-A load-flagged full-suite pass (`bench/results/webgpu-v2/sk-0.3-macro-loaded.json`, kept out of
-`bench/results/` so the drift canary is not polluted by its contaminated 12-thread rows) puts
-`M12@single/author` at **153.382 ms** against SK-0.1's 406.692 — but that baseline is pre-SK-0.2,
-so the −62% is the two spikes together; against SK-0.2's quiet 298.069 ms, SK-0.3's share is
+A load-flagged full-suite pass (`bench/results/webgpu-v2/sk-0.3-macro-loaded.json`, kept in a
+subdirectory, outside the dated top-level records the drift canary reads, so its contaminated
+12-thread rows cannot pollute it) puts `M12@single/author` at **153.382 ms** against the
+406.692 ms baseline recorded before the direct-export binding change — so the −62% is the two
+changes together; against the quiet 298.069 ms measured after that change, batching's share is
 −48.5%. Every single-thread row in that pass is within ±1%; every regressed row is a 12-thread
 `M12@multi` stage with a flat single-thread twin, i.e. load, not this change.
 

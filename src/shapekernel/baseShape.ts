@@ -1,14 +1,14 @@
 // Derived from LEAP71_ShapeKernel — ShapeKernel/BaseShapes/BaseShape.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picovoxel (blueprint R5); see NOTICE.
+// Ported to TypeScript for picovoxel; see NOTICE.
 //
-// Explicit-session surface (blueprint D3): shapes are pure authoring objects —
+// Explicit-session surface: shapes are pure authoring objects —
 // the session enters only at the construction boundary, so `voxConstruct` and
 // `mshConstruct` take the PicoGK session instead of using an ambient Library.
 // MeshBuilder mirrors upstream's convenience `Mesh.nAddTriangle(v0, v1, v2)`
 // (three fresh vertices per triangle, no dedup) but accumulates into flat
-// arrays and crosses the ABI ONCE through the bulk mesh path (Finding 8).
+// arrays and crosses the ABI ONCE through the bulk mesh path.
 
 import type { Mesh } from '../mesh.ts';
 import type { Pico } from '../session.ts';

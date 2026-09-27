@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Library module build — produces pico.mjs + pico.wasm (MODULARIZE/EXPORT_ES6),
-# the artifact `src/index.mjs` loads. Reconstructed 2026-07-18 from the build-harness
-# flag matrix + shipped-artifact forensics (256MB initial memory, 144 exported
-# functions, runtime-method set measured from src/*.mjs usage); this build was
-# previously ad hoc. The parity CLI harness lives in build-pico-wasm.sh.
+# the artifact `src/index.ts` loads (THREADS=1: the pico-multi pair `src/multi.ts`
+# loads). 256MB initial memory; the exported functions are src/pico-exports.txt;
+# the runtime-method set is what the TypeScript facade uses. The parity CLI
+# harness lives in build-pico-wasm.sh.
 #
 # Exceptions: -fwasm-exceptions (native wasm EH). JS EH (-fexceptions) routed every
 # potentially-throwing call in EH-aware frames through JS invoke_* trampolines; wasm
@@ -11,7 +11,7 @@
 # HandleManager::roGet throws through extern "C" and PicoGKLibrary.cpp has zero
 # try/catch — without support one bad handle kills the module. Escaped C++ throws
 # surface in JS as WebAssembly.Exception (not the JS-EH bare Number) — see
-# src/errors.mjs. WASM_LEGACY_EXCEPTIONS is pinned ON: the legacy EH format is
+# src/errors.ts. WASM_LEGACY_EXCEPTIONS is pinned ON: the legacy EH format is
 # Safari 15.2+, inside the 16.4 SIMD floor; the newer exnref format is Safari 18.4+
 # and would break the floor if an emsdk upgrade flips the default.
 set -euo pipefail
@@ -29,13 +29,12 @@ OUT="${OUT:-$HERE/build}"
 OUT_JS="${OUT_JS:-$HERE/src}"
 WASM_FLAGS="${WASM_FLAGS:--O3 -msimd128}"
 EH_FLAGS="${EH_FLAGS:--fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=1}"
-# Allocator (SK-0.1): link-time only — the dep archives call malloc/free and bind
+# Allocator: link-time only — the dep archives call malloc/free and bind
 # at link, so A/B needs no dep rebuild. emscripten's default is dlmalloc, whose
 # global free-list mutex serializes the 12-thread creation paths.
-# Lane-scoped defaults (SKv2-0 V0.3, per the SK-0-EXIT decision table): the MT
-# fast lane (pico-multi) defaults to mimalloc — HeatX multi construct 2.164×
+# Per-artifact defaults: the pthread artifact (pico-multi) defaults to mimalloc — HeatX multi construct 2.164×
 # [CI 2.141–2.178], byte-identical to dlmalloc across all 64 exit-baseline
-# comparisons. The single-thread artifact is the L0 oracle lane and stays
+# comparisons. The single-thread artifact is the byte-locked reference build and stays
 # dlmalloc (mimalloc is 0.84–0.99× on 45 of 73 ST phases anyway). MALLOC=…
 # still overrides either default for A/B runs.
 # THREADS=1 — pthread variant: links the -mt prefix (shared-memory ABI, built by
@@ -69,10 +68,10 @@ bash "$HERE/scripts/make-core-tu.sh" \
   "$PICOGK_RUNTIME/Source/PicoGKLibrary.cpp" "$OUT/PicoGKLibraryCore.cpp"
 
 INCLUDES=(-I"$HERE/shim" -I"$PICOGK_RUNTIME/API" -I"$PICOGK_RUNTIME/Source" -I"$PREFIX/include")
-# D27: -ffile-prefix-map (which implies -fmacro-prefix-map) rewrites the builder's
+# -ffile-prefix-map (which implies -fmacro-prefix-map) rewrites the builder's
 # checkout path to "." in every __FILE__ the live assert()s embed. The asserts
 # stay live on purpose (no -DNDEBUG): an abort on a violated precondition is
-# safer than undefined behaviour in the L0 oracle lane.
+# safer than undefined behaviour in the byte-locked reference build.
 # shellcheck disable=SC2206 # WASM_FLAGS/EH_FLAGS are space-separated flag lists by contract
 CXXFLAGS=(-std=c++20 $WASM_FLAGS $EH_FLAGS "-ffile-prefix-map=$HERE=." "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY)
 

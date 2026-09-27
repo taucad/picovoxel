@@ -2,7 +2,7 @@
 // {BodyCentreLattice,OctahedronLattice,RandomSplineLattice}.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picovoxel (blueprint R13); see NOTICE.
+// Ported to TypeScript for picovoxel; see NOTICE.
 //
 // The identical private `AddBeam` in the two C# 8-corner types is one shared
 // helper here. `RandomSplineLattice` swaps C#'s ambient `Uf` randomness for an

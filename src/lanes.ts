@@ -50,19 +50,19 @@ export function laneOf(set: LaneSet): PicoLane {
 }
 
 /**
- * A session's `lane: 'fast'` (or resolved `'auto'`) consent covers the Class-2
- * lane — exactly the `fast` member. Any other member (`gpu-l1`, a relaxed-math
- * Class-3 member, `unknown`) is outside it: Class-3 export policy is reserved,
- * so for consent an unknown member is NOT fast-like (that would be the
- * permissive direction).
+ * A session's `lane: 'fast'` (or resolved `'auto'`) consent covers exactly the
+ * `fast` member: the deterministic, value-changing accelerations. Any other
+ * member (`gpu-l1`, a relaxed-math member, `unknown`) is outside it, because
+ * no export policy is defined for those yet; so for consent an unknown member
+ * is NOT fast-like (that would be the permissive direction).
  */
 function withinFastConsent(set: LaneSet): boolean {
   return set.every((member) => member === 'fast');
 }
 
 /**
- * The §14.1 export boundary for stampable formats (STL, `.vdb`), keyed by the
- * session's claim: exact provenance always exports; Class-2 provenance
+ * The export boundary for stampable formats (STL, `.vdb`), keyed by the
+ * session's claim: exact provenance always exports; `fast` provenance
  * exports freely in a session that declared `lane: 'fast'`; everything else
  * needs this export's `acceptLane: 'fast'`. The message names only remedies
  * that actually apply.
@@ -75,19 +75,19 @@ export function assertLaneExport(
   acceptLane: 'fast' | undefined,
 ): void {
   if (set.length === 0 || acceptLane === 'fast') return;
-  const class2 = withinFastConsent(set);
-  if (class2 && sessionLane === 'fast') return;
-  const why = class2
+  const fastOnly = withinFastConsent(set);
+  if (fastOnly && sessionLane === 'fast') return;
+  const why = fastOnly
     ? 'this session declared no lane, so nothing consented to exporting them'
-    : `members other than 'fast' are outside the Class-2 consent a lane: 'fast' session gives (their export ` +
-      'policy is reserved for SK-2), so this export must be acknowledged on its own';
+    : `members other than 'fast' are outside what a lane: 'fast' session consents to (no export policy ` +
+      'covers them), so this export must be acknowledged on its own';
   throw new PicoError(
     'PICO_LANE_EXPORT',
-    `${where}() on ${subject} with non-exact provenance (${set.join(',')}): its bytes are not L0/pin-comparable, ` +
-      `and ${why}. Either acknowledge this export with ${where}({ acceptLane: 'fast' })` +
-      (class2 ? ", or declare the lane once with createPico({ lane: 'fast' })" : '') +
-      ` — the lane set is recorded in the artifact either way. For pin-comparable bytes, rebuild it in a ` +
-      "lane: 'exact' session (a replay, not a conversion).",
+    `${where}() on ${subject} with non-exact provenance (${set.join(',')}): its bytes may not match an exact ` +
+      `build of the same model, and ${why}. Either acknowledge this export with ${where}({ acceptLane: 'fast' })` +
+      (fastOnly ? ", or declare the lane once with createPico({ lane: 'fast' })" : '') +
+      ` — the lane set is recorded in the artifact either way. For bytes that match the exact reference, rebuild ` +
+      "it in a lane: 'exact' session (a replay, not a conversion).",
   );
 }
 
