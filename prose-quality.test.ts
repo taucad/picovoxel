@@ -67,9 +67,18 @@ const proseBlocks = (markdown: string): Block[] => {
 };
 
 describe('prose quality', () => {
-  it('should inspect repository prose, including the Version Plans', () => {
+  // A release commit consumes every plan, so none may be pending; whichever are
+  // tracked must all be scanned.
+  it('should inspect repository prose, including every pending Version Plan', () => {
+    const plans = execFileSync('git', ['ls-files', '-z', '.nx/version-plans'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    })
+      .split('\0')
+      .filter((path) => path.endsWith('.md'))
+      .sort();
     expect(DOCUMENTS).toContain('README.md');
-    expect(DOCUMENTS.some(isVersionPlan)).toBe(true);
+    expect(DOCUMENTS.filter(isVersionPlan)).toEqual(plans);
   });
 
   it('should ignore both Markdown fence syntaxes', () => {
