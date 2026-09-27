@@ -40,7 +40,7 @@ export interface Metadata {
  * SG3 — upstream's GuardInternalFields (FieldMetadata.cs:349-364): Pico.* is
  * internal, class/name/file_* corrupt OpenVDB's own bookkeeping.
  */
-export function assertWritableMetadataName(name: string): void {
+function assertWritableMetadataName(name: string): void {
   const lower = name.toLowerCase();
   const reason = lower.startsWith('picogk.')
     ? `'PicoGK.*' names are PicoGK-internal`
@@ -91,7 +91,7 @@ export function tagFieldClass(
  * item 4): loads never rewrite it, derived handles carry the union of their
  * inputs' members.
  */
-export const LANE_METADATA_NAME = 'PicoVoxel.Lane';
+const LANE_METADATA_NAME = 'PicoVoxel.Lane';
 
 // Every live handle's provenance set, keyed by its wrapper object — the
 // public `.lane` is the collapsed enum, and derivations need the full set.
@@ -122,7 +122,7 @@ export function provenanceOf(handle: object): LaneSet {
  * Removes any inherited entry first: OpenVDB refuses to overwrite metadata
  * with a value of another type (a copy of a float-tagged foreign grid).
  */
-export function writeLaneTag(
+function writeLaneTag(
   ctx: SessionContext,
   metaFrom: (lib: bigint, field: bigint) => bigint,
   fieldHandle: bigint,
@@ -148,7 +148,7 @@ export function writeLaneTag(
  * ponytail: distinguishing them needs a names() scan per load; add it when a
  * foreign writer is seen emitting a non-string/float/vector PicoVoxel.Lane.
  */
-export function readLaneTag(
+function readLaneTag(
   ctx: SessionContext,
   metaFrom: (lib: bigint, field: bigint) => bigint,
   fieldHandle: bigint,

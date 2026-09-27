@@ -27,7 +27,7 @@ import type { Voxels } from './voxels.ts';
  * differ between two sessions in one process. Both exports share one
  * signature; the arm choice is per-session on `SessionContext`.
  */
-export type RenderLatticeExport = 'Voxels_RenderLattice' | 'Voxels_RenderLatticeTubes';
+type RenderLatticeExport = 'Voxels_RenderLattice' | 'Voxels_RenderLatticeTubes';
 
 /** Resolved session lane (§14.1). `'open'` = no lane requested: library
  * defaults with per-op freedom in both directions — the pre-lane behavior. */

@@ -46,7 +46,7 @@ export interface VdbFile {
 
 let temporaryCounter = 0;
 /** A unique MEMFS scratch path per operation (sessions may interleave). */
-export function temporaryVdbPath(): string {
+function temporaryVdbPath(): string {
   return `/pico-tmp-${++temporaryCounter}.vdb`;
 }
 
@@ -226,7 +226,7 @@ function stampPicoMetadata(ctx: SessionContext, vdbHandle: bigint): void {
 }
 
 /** Discriminates a field wrapper by its surface (structural, no brands on the API). */
-export function fieldKind(ctx: SessionContext, field: object): 'voxels' | 'scalarField' | 'vectorField' {
+function fieldKind(ctx: SessionContext, field: object): 'voxels' | 'scalarField' | 'vectorField' {
   if ('isEmpty' in field && 'union' in field) return 'voxels';
   if ('signedDistanceAt' in field) return 'scalarField';
   if ('traverse' in field) return 'vectorField';

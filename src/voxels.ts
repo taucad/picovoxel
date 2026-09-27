@@ -717,7 +717,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
  * Voxelized axis-aligned box via a 12-triangle cube mesh (C# Utils.mshCreateCube),
  * the internal helper trim() is built on. Returns a raw handle the caller destroys.
  */
-export function cubeVoxels(ctx: SessionContext, bounds: Bounds): bigint {
+function cubeVoxels(ctx: SessionContext, bounds: Bounds): bigint {
   const [minX, minY, minZ] = bounds.min;
   const [maxX, maxY, maxZ] = bounds.max;
   const corners: Vec3[] = [

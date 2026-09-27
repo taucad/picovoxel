@@ -12,7 +12,7 @@ export interface Bounds {
 }
 
 /** float32 FLT_MAX — the ABI's empty-bounds sentinel component (SG15). */
-export const FLOAT_MAX = 3.4028234663852886e38;
+const FLOAT_MAX = 3.4028234663852886e38;
 
 /**
  * SG15 — the empty-bounds sentinel the ABI structs use (`BBox3()` default:

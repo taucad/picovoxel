@@ -28,7 +28,7 @@ export const UNKNOWN_LANE_MEMBER = 'unknown';
 const LANE_MEMBER = /^[a-z0-9][a-z0-9-]*$/;
 
 /** Canonical form: deduplicated, sorted, `exact` (the bottom element) dropped. */
-export function canonicalLaneSet(members: Iterable<string>): LaneSet {
+function canonicalLaneSet(members: Iterable<string>): LaneSet {
   return [...new Set(members)].filter((member) => member !== 'exact').sort();
 }
 
@@ -54,7 +54,7 @@ export function laneOf(set: LaneSet): PicoLane {
  * outside it: Class-3 export policy is reserved for SK-2, so for consent an
  * unknown member is NOT fast-like (that would be the permissive direction).
  */
-export function withinFastConsent(set: LaneSet): boolean {
+function withinFastConsent(set: LaneSet): boolean {
   return set.every((member) => member === 'fast');
 }
 
