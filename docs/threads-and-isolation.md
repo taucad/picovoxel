@@ -48,7 +48,7 @@ const { createPico } = globalThis.crossOriginIsolated
   : await import('picovoxel');
 ```
 
-The repository's browser gate runs the serial entry in Chromium, WebKit and Firefox. The pthreads entry is tested in Node; it is not exercised by the browser gate.
+CI runs both entries in Chromium, WebKit and Firefox from the packed package, built with Vite: the serial entry on a page served without isolation headers, and the pthreads entry on a cross-origin isolated page, where its worker pool must start and its results must equal the serial entry's in Node bit for bit.
 
 ## The worker pool
 
@@ -133,7 +133,14 @@ const pico = await createPico({
 });
 ```
 
-These Vite snippets are not exercised by this repository's CI. For other bundlers, check how they turn a package file into a URL. Write `new URL('picovoxel/wasm', import.meta.url)` only if your bundler documents resolving package specifiers in that pattern: plain JavaScript resolves the string relative to the current module, not as a package.
+With Vite, `picovoxel/multi` also needs ES module workers. Vite bundles the glue's own `new Worker(new URL('pico-multi.mjs', import.meta.url))` as a worker entry, and the glue uses top-level `await`, which Vite's default `iife` worker format rejects at build time:
+
+```js
+// vite.config.js
+export default { worker: { format: 'es' } };
+```
+
+CI builds these snippets with Vite and runs them in Chromium, WebKit and Firefox. For other bundlers, check how they turn a package file into a URL. Write `new URL('picovoxel/wasm', import.meta.url)` only if your bundler documents resolving package specifiers in that pattern: plain JavaScript resolves the string relative to the current module, not as a package.
 
 ### In Node
 

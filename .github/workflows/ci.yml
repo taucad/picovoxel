@@ -401,9 +401,10 @@ jobs:
           expect: manifest.json
       - run: node scripts/test-package.mjs candidate
 
-  # The serial page on each engine, bundled from the candidate's dist/, with
-  # pure-wasm results compared hex-float-exact against Node records. The
-  # COOP/COEP multi page lands with the W3 browser work.
+  # Per engine: the serial gate page, bundled from the candidate's dist/, then a
+  # Vite build of the installed candidate with a serial page (no isolation
+  # headers) and a COOP/COEP multi page whose pthread pool must engage. Every
+  # pure-wasm result is compared hex-float-exact against Node records.
   browser:
     name: browser (${{ matrix.browser }})
     needs: candidate
@@ -434,6 +435,9 @@ jobs:
           key: playwright-${{ runner.os }}-${{ matrix.browser }}-${{ steps.playwright.outputs.version }}
       - run: pnpm exec playwright install --with-deps '${{ matrix.browser }}'
       - run: pnpm run test:browser
+        env:
+          BROWSER: ${{ matrix.browser }}
+      - run: node scripts/test-bundler.mjs candidate
         env:
           BROWSER: ${{ matrix.browser }}
 
