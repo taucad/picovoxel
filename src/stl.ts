@@ -85,7 +85,7 @@ export function meshToStlBytes(
   if (lane === 'fast' && options.acceptLane !== 'fast') {
     throw new PicoError(
       'PICO_LANE_EXPORT',
-      "meshToStlBytes() with lane 'fast': the bytes will not match an exact build of the same model, and this " +
+      "meshToStlBytes() with lane 'fast': the bytes may not match an exact build of the same model, and this " +
         'session-less call never consented to exporting them. Acknowledge with meshToStlBytes(vertices, triangles, ' +
         "{ acceptLane: 'fast' }, 'fast') " +
         "— the header records LANE=fast — or pass geometry replayed in a lane: 'exact' session.",

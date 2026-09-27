@@ -83,7 +83,7 @@ export function assertLaneExport(
       'covers them), so this export must be acknowledged on its own';
   throw new PicoError(
     'PICO_LANE_EXPORT',
-    `${where}() on ${subject} with non-exact provenance (${set.join(',')}): its bytes will not match an exact ` +
+    `${where}() on ${subject} with non-exact provenance (${set.join(',')}): its bytes may not match an exact ` +
       `build of the same model, and ${why}. Either acknowledge this export with ${where}({ acceptLane: 'fast' })` +
       (fastOnly ? ", or declare the lane once with createPico({ lane: 'fast' })" : '') +
       ` — the lane set is recorded in the artifact either way. For bytes that match the exact reference, rebuild ` +
