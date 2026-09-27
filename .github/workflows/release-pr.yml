@@ -200,47 +200,17 @@ jobs:
     if: needs.generate.outputs.current == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    environment:
-      name: release-pr
-      deployment: false
+    # A plain environment: its main-only branch policy applies to this job.
+    environment: release-pr
+    permissions:
+      contents: read
     steps:
-      - name: Mint tau-release-bot token
-        id: bot
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
-        with:
-          # GitHub accepts the App ID wherever the input asks for a client ID.
-          client-id: ${{ secrets.RELEASE_BOT_APP_ID }}
-          private-key: ${{ secrets.RELEASE_BOT_APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: ${{ github.event.repository.name }}
-          permission-contents: write
-          permission-pull-requests: write
-
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           ref: ${{ needs.generate.outputs.sha }}
           persist-credentials: false
-
-      - name: Close the release pull request
-        if: needs.generate.outputs.pending != 'true'
-        env:
-          BOT_TOKEN: ${{ steps.bot.outputs.token }}
-          GH_REPO: ${{ github.repository }}
-          GH_TOKEN: ${{ steps.bot.outputs.token }}
-          REPOSITORY: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          pr_number=$(gh pr list --base main --head release/next --state open --json number --jq '.[0].number // empty')
-          if [ -n "$pr_number" ]; then
-            gh pr close "$pr_number" --comment "No Version Plans are pending on \`main\`, so there is nothing to release." --delete-branch
-          else
-            basic=$(printf 'x-access-token:%s' "$BOT_TOKEN" | base64 -w0)
-            echo "::add-mask::$basic"
-            git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $basic" \
-              push "https://github.com/$REPOSITORY.git" --delete release/next 2>/dev/null || true
-          fi
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         if: needs.generate.outputs.pending == 'true'
@@ -267,7 +237,7 @@ jobs:
           SOURCE_SHA: ${{ needs.generate.outputs.sha }}
         run: |
           set -euo pipefail
-          git fetch --quiet release-commit/release.bundle refs/heads/release-bundle
+          git -c transfer.fsckObjects=true fetch --quiet release-commit/release.bundle refs/heads/release-bundle
           commit=$(git rev-parse FETCH_HEAD)
           parents=$(git rev-list --parents -n 1 "$commit")
           if [[ "$parents" != "$commit $SOURCE_SHA" ]]; then
@@ -286,8 +256,8 @@ jobs:
             exit 1
           fi
           policy=$(mktemp -d)
-          git diff --name-only --diff-filter=ACDMRT "$SOURCE_SHA" "$commit" > "$policy/changed-files"
-          git diff --name-only --diff-filter=D "$SOURCE_SHA" "$commit" > "$policy/deleted-files"
+          git diff --name-only --no-renames --diff-filter=ACDMRT "$SOURCE_SHA" "$commit" > "$policy/changed-files"
+          git diff --name-only --no-renames --diff-filter=D "$SOURCE_SHA" "$commit" > "$policy/deleted-files"
           git show "$SOURCE_SHA:package.json" > "$policy/base-package.json"
           git show "$commit:package.json" > "$policy/package.json"
           git show "$commit:CHANGELOG.md" > "$policy/CHANGELOG.md"
@@ -312,6 +282,38 @@ jobs:
             echo "sha=$commit"
             echo "version=$version"
           } >> "$GITHUB_OUTPUT"
+
+      # Minted only after validation, so no step before the push holds it.
+      - name: Mint tau-release-bot token
+        id: bot
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          # GitHub accepts the App ID wherever the input asks for a client ID.
+          client-id: ${{ secrets.RELEASE_BOT_APP_ID }}
+          private-key: ${{ secrets.RELEASE_BOT_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Close the release pull request
+        if: needs.generate.outputs.pending != 'true'
+        env:
+          BOT_TOKEN: ${{ steps.bot.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ steps.bot.outputs.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          pr_number=$(gh pr list --base main --head release/next --state open --json number --jq '.[0].number // empty')
+          if [ -n "$pr_number" ]; then
+            gh pr close "$pr_number" --comment "No Version Plans are pending on \`main\`, so there is nothing to release." --delete-branch
+          else
+            basic=$(printf 'x-access-token:%s' "$BOT_TOKEN" | base64 -w0)
+            echo "::add-mask::$basic"
+            git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $basic" \
+              push "https://github.com/$REPOSITORY.git" --delete release/next 2>/dev/null || true
+          fi
 
       - name: Push release/next
         if: needs.generate.outputs.pending == 'true'

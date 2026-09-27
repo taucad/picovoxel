@@ -718,7 +718,7 @@ describe('CI workflow policy', () => {
       });
 
       it('fails, without publishing, on other registry bytes, a missing integrity or a registry error', () => {
-        for (const view of ['sha512-other', '', 'code:ECONNREFUSED', 'code:E500']) {
+        for (const view of ['sha512-other', '', 'code:ECONNREFUSED', 'code:E500', 'code:E403', 'code:E401']) {
           const { calls, status, stderr } = publish({ view });
           assert.equal(status, 1, `npm view "${view}" must fail the job`);
           assert(!calls.some((call) => call.startsWith('publish')), `npm view "${view}" must not publish`);
@@ -993,7 +993,13 @@ describe('release pull request workflow', () => {
     }
     assert(generate.includes('uses: ./.github/actions/setup'));
     // propose holds the credentials and installs and runs no dependency code.
-    assert.match(propose, /environment:\n {6}name: release-pr\n {6}deployment: false/u);
+    // A plain environment, so its main-only branch policy binds the job, and
+    // the default token only reads the repository.
+    assert.match(
+      propose,
+      /^ {4}environment: release-pr\n {4}permissions:\n {6}contents: read\n {4}steps:$/mu,
+    );
+    assert(!releasePr.includes('deployment:'), 'no job may opt out of the environment deployment');
     for (const code of ['./.github/actions/setup', 'pnpm', 'npm ', 'npx']) {
       assert(!propose.includes(code), `propose must not run ${code}`);
     }
@@ -1006,6 +1012,12 @@ describe('release pull request workflow', () => {
     assert.equal(occurrences(releasePr, 'uses: actions/checkout@'), 2);
     assert.equal(occurrences(releasePr, 'persist-credentials: false'), 2);
     assert(!releasePr.includes('token: ${{ steps.bot.outputs.token }}'), 'no action receives the bot token');
+    // The token is minted only after the bundle is validated.
+    const order = stepsOf(propose).map(({ name }) => name);
+    assert(
+      order.indexOf('Mint tau-release-bot token') > order.indexOf('Validate the release commit'),
+      'the bot token must be minted after validation',
+    );
     const holders = stepsOf(propose)
       .filter(({ text }) => text.includes('steps.bot.outputs.token'))
       .map(({ name }) => name);
@@ -1292,6 +1304,31 @@ describe('release pull request workflow', () => {
       });
       assert.equal(two.status, 1);
       assert.match(two.stderr, /is not one commit on/u);
+    });
+
+    it('refuses a merge commit or a pull-request suffix that the release policy alone would accept', () => {
+      const asBot = (directory, ...args) =>
+        git(
+          directory,
+          '-c',
+          'user.name=tau-release-bot[bot]',
+          '-c',
+          'user.email=tau-release-bot[bot]@users.noreply.github.com',
+          ...args,
+        );
+      // The release tree, but as a merge whose first parent is the tested commit.
+      const merge = proposal((directory, source) => {
+        const release = git(directory, 'rev-parse', 'HEAD');
+        git(directory, 'checkout', '--quiet', '--detach', source);
+        asBot(directory, 'merge', '--quiet', '--no-ff', '-m', 'chore(release): picovoxel v0.1.0', release);
+      });
+      assert.equal(merge.status, 1);
+      assert.match(merge.stderr, /is not one commit on/u);
+      const suffix = proposal((directory) =>
+        asBot(directory, 'commit', '--quiet', '--amend', '-m', 'chore(release): picovoxel v0.1.0 (#5)'),
+      );
+      assert.equal(suffix.status, 1);
+      assert.match(suffix.stderr, /subject is 'chore\(release\): picovoxel v0\.1\.0 \(#5\)'/u);
     });
 
     /** Run one pushing step with a fake git that records its arguments. */

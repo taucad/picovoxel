@@ -4,12 +4,19 @@
 
 Require `ci-gate`, a Version Plan for shipped changes, and reviewable admission
 edits for byte or timing regressions. A change needs a plan when it touches the
-package's `files` set, the sources `dist/` is built from, or a shipped
-`package.json` field such as `dependencies` or `peerDependencies`;
+package's `files` set, the sources `dist/` is built from (including the wasm
+recipe in `.github/actions/build-wasm/`), a shipped `package.json` field such as
+`dependencies` or `peerDependencies`, an install lifecycle script, or the
+`build` script. Zero approvals is the solo-maintainer ruleset; revisit it when a
+second maintainer joins. Squash-merge with the pull request title as the commit
+subject.
+
 devDependency-only, lockfile-only, CI-only and tooling changes, and docs outside
-the tarball, need none (`scripts/plan-check.mjs`). Zero approvals is the solo-maintainer
-ruleset; revisit it when a second maintainer joins. Squash-merge with the pull
-request title as the commit subject.
+the tarball, need no plan (`scripts/plan-check.mjs`). Workflow files count as
+CI-only although `ci.yml`'s `wasm` and `candidate` jobs call the build: they
+call the recipes above, which carry the plan. A toolchain bump in
+devDependencies can still change the bytes; that is the accepted cost of keeping
+Dependabot updates plan-free.
 
 A pull request that moves an `exact`-lane byte pin needs its cause attributed
 in the description and an entry in `BREAKING_CHANGES.md` before it merges.
@@ -26,9 +33,10 @@ entire release act. Do not push to `release/next` or enable auto-merge on it.
 The bot regenerates at the commit the CI run tested, with that run's wasm
 artifacts, and skips a run that `main` has already moved past. Preparation runs
 the release gate (format, lint, typecheck, pkgcheck) once, in a job that never
-holds the bot credentials; a second job checks the generated commit against the
-release policy before it pushes. The release pull request's own CI run is the
-full pipeline. When a bot run fails, for example
+holds the bot credentials. A second job, in the main-only `release-pr`
+environment, checks the generated commit against the release policy, and only
+then mints the bot token and pushes. The release pull request's own CI run is
+the full pipeline. When a bot run fails, for example
 before the `release-pr` environment holds its credentials, run `release-pr.yml`
 by hand with the id of the green CI run at the tip of `main`.
 

@@ -86,8 +86,8 @@ jobs:
           else
             base_sha="$(git rev-parse "$SOURCE_SHA^")"
           fi
-          git diff --name-only --diff-filter=ACDMRT "$base_sha" "$SOURCE_SHA" > /tmp/changed-files
-          git diff --name-only --diff-filter=D "$base_sha" "$SOURCE_SHA" > /tmp/deleted-files
+          git diff --name-only --no-renames --diff-filter=ACDMRT "$base_sha" "$SOURCE_SHA" > /tmp/changed-files
+          git diff --name-only --no-renames --diff-filter=D "$base_sha" "$SOURCE_SHA" > /tmp/deleted-files
           git show "$base_sha:package.json" > /tmp/base-package.json
           git show "$SOURCE_SHA:package.json" > /tmp/package.json
           node scripts/ci-release.mjs \
