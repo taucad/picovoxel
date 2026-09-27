@@ -9,13 +9,15 @@ without a check mark is supported by design but not gated by CI; its note says w
 | --------------------- | -------------------- | ---------------------------- | ---------------------------------------------------------------- |
 | Node 22.14.0          | ✅                   | ✅                           | `test-unit (node 22.14.0)`, `consumer (node 22.14.0)`            |
 | Node 26               | ✅                   | ✅                           | `test-unit (node 26)`, `consumer (node 26)`, `test-subjects (*)` |
-| Chromium (Playwright) | ✅                   | Not gated                    | `browser (chromium)`                                             |
-| Firefox (Playwright)  | ✅                   | Not gated                    | `browser (firefox)`                                              |
-| WebKit (Playwright)   | ✅                   | Not gated                    | `browser (webkit)`                                               |
+| Chromium (Playwright) | ✅                   | ✅                           | `browser (chromium)`                                             |
+| Firefox (Playwright)  | ✅                   | ✅                           | `browser (firefox)`                                              |
+| WebKit (Playwright)   | ✅                   | ✅                           | `browser (webkit)`                                               |
 
 - The browser jobs load the serial entry from the packed candidate and compare pure-wasm results with Node
-  records, hex-float exact. The multithreaded entry runs in browsers only on a cross-origin isolated page
-  ([threads](https://github.com/taucad/picovoxel/blob/main/docs/threads-and-isolation.md)); no CI job serves such a page.
+  records, hex-float exact. They also install the candidate, build a two-page app with Vite, and run the
+  serial entry on a page without isolation headers and the multithreaded entry on a cross-origin isolated
+  page ([threads](https://github.com/taucad/picovoxel/blob/main/docs/threads-and-isolation.md)), both
+  hex-float exact against Node.
 - Browser floor by design: wasm SIMD and wasm exception handling set the floor at Safari 16.4, Chrome 95
   and Firefox 100. The `Symbol.dispose` shim in `src/dispose.ts` defines the symbol where the host lacks it, which
   includes every released Safari (MDN compatibility data, September 2026). Only the current Playwright engines are tested.
