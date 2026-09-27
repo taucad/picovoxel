@@ -55,15 +55,26 @@ The repository's browser gate runs the serial entry in Chromium, WebKit and Fire
 A build flag sets the pool size to `navigator.hardwareConcurrency`; `createPico` has no option for it.
 
 1. When the module instantiates, the glue creates `navigator.hardwareConcurrency` workers and loads the module into each before instantiation resolves. The pool is created up front because a main thread blocked inside a parallel loop cannot spawn new workers.
-2. `createPico` then runs a small warm-up (a sphere and an offset) and yields to the event loop, polling until at least `navigator.hardwareConcurrency - 1` workers are running or 100 ms have passed. oneTBB starts its workers on the first parallel region, and that handshake completes only while the main thread is off the wasm stack. Without the warm-up, back-to-back synchronous calls could stay single-threaded.
+2. `createPico`, or `createPicoRuntime` once per runtime, then runs a small warm-up (a sphere and an offset) on a scratch session and yields to the event loop, polling until at least `navigator.hardwareConcurrency - 1` workers are running or 100 ms have passed. oneTBB starts its workers on the first parallel region, and that handshake completes only while the main thread is off the wasm stack. Without the warm-up, back-to-back synchronous calls could stay single-threaded.
 
-Every `createPico` call instantiates its own module, with its own linear memory and its own pool. `session.dispose()` terminates that session's workers. Reuse one session rather than holding many at once.
+Every `createPico` call instantiates its own module, with its own linear memory and its own pool, and `session.dispose()` terminates that session's workers. To pay for the module and the warm-up once, create a runtime:
+
+```js
+import { createPicoRuntime } from 'picovoxel/multi';
+
+const runtime = await createPicoRuntime(); // one module, one warmed pool
+const pico = await runtime.createPico({ voxelSize: 0.5 });
+pico.dispose(); // frees this session only; the pool keeps running
+runtime.dispose(); // disposes open sessions, then stops the pool
+```
+
+Sessions on a runtime share its pool and its memory ([memory](memory-and-limits.md#sessions-sharing-a-runtime)). The serial entry has the same `createPicoRuntime`, without a pool.
 
 ## Node
 
 Both entries work in Node 22.14.0 or later with no configuration. The multi entry spawns its pool with `worker_threads`. Pool workers are unreferenced, so idle workers never keep the process alive.
 
-Call `session.dispose()` before the process exits. It joins the session's pool; a pthread worker still executing while the process tears down wasm memory has been observed to crash the process.
+Call `session.dispose()` (or `runtime.dispose()` for a runtime) before the process exits. It joins the pool; a pthread worker still executing while the process tears down wasm memory has been observed to crash the process.
 
 ## Determinism across the two builds
 
@@ -147,6 +158,8 @@ const pico = await createPico({
 ```
 
 The package test runs this form, and `locateFile` on the serial entry, against the packed tarball. Compiling once and reusing the module saves the compile cost for every later session.
+
+A simpler form passes the compiled module directly: `createPico({ wasmModule })` or `createPicoRuntime({ wasmModule })`. It must be compiled from the same entry's `.wasm`; a module from another build or variant is rejected with `PICO_WASM_INIT_FAILED` before instantiation. It cannot be combined with `wasm.instantiateWasm`.
 
 ## See also
 

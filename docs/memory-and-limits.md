@@ -6,7 +6,7 @@ picovoxel, an unofficial community TypeScript/WebAssembly binding of PicoGK, kee
 
 Both builds (`picovoxel` and `picovoxel/multi`) are 32-bit WebAssembly linked with the same memory flags: 256 MB initial memory, growth allowed, and a 4 GB maximum. That maximum is the most a 32-bit module can address.
 
-- **Per session.** Every `createPico` call instantiates its own module, so each session has its own linear memory and its own 4 GiB ceiling.
+- **Per module.** Every `createPico` call instantiates its own module, so each session has its own linear memory and its own 4 GiB ceiling. Sessions opened on one runtime (`createPicoRuntime`) share a single module, memory and ceiling; see [Sessions sharing a runtime](#sessions-sharing-a-runtime).
 - **It only grows.** WebAssembly memory cannot shrink. A session's heap stays at the size of its largest peak for the session's life, even after the objects are freed. `session.dispose()` frees every object inside that heap; the heap itself goes away when the module is garbage collected. After a fine-voxel peak in a long-lived process, dispose that session and create a new one.
 - **It can fail earlier.** A browser can refuse to grow memory below 4 GiB on memory-constrained devices or under per-tab limits. Treat an out-of-memory error as an expected outcome.
 
@@ -32,6 +32,12 @@ According to MDN's browser compatibility data (read on 2026-09-28), native `Symb
 - It measures PicoGK's own count of bytes held by live objects (`session.memory.total`), not the size of linear memory.
 - It is sampled when a session factory runs (`createVoxels`, `createMesh`, `createLattice`, `createPolyLine`, `createScalarField`, `createVectorField`, `voxelsFromVdb`, `meshFromStl`), at most once per second. Derived operations such as booleans and offsets do not sample it.
 - It fires once per session through `console.warn`. Each session has its own threshold.
+
+### Sessions sharing a runtime
+
+`createPicoRuntime()` instantiates one module and opens any number of sessions on it with `runtime.createPico()`. Each session is its own PicoGK Library instance, so the memory warning counts only that session's objects, while every session on the runtime shares one heap and its 4 GiB ceiling. Two sessions can each stay under their thresholds while the heap they share fills up.
+
+To watch the whole runtime, sample `session.module.HEAPU8.buffer.byteLength` from any of its sessions: they all report the same memory. `session.dispose()` frees that session's objects; `runtime.dispose()` disposes every open session and stops the thread pool.
 
 To watch memory yourself, read `session.memory` (bytes per object type), `session.allocated` (live object counts), `voxels.memUsage`, and `session.module.HEAPU8.buffer.byteLength`, the size of linear memory and therefore the session's peak so far.
 
@@ -82,7 +88,7 @@ At 0.4 mm the pthreads build left 0.24 GiB below the ceiling. The first failing 
 
 ## Known limits
 
-- **The 4 GiB ceiling.** Per session, as above. Models that need more than that at the chosen voxel size fail with an out-of-memory error; a 64-bit build is not provided.
+- **The 4 GiB ceiling.** Per module, as above: per session with `createPico`, shared by every session on a runtime. Models that need more than that at the chosen voxel size fail with an out-of-memory error; a 64-bit build is not provided.
 - **GLB has no provenance slot.** picovoxel's GLB writer cannot record a lane, so `toGlb()` refuses fast-provenance geometry in every session unless the export passes `acceptLane: 'fast'`, and the acknowledged bytes record nothing. STL and `.vdb` exports carry the record. See [Lanes](lanes.md).
 - **`properties()` on closed internal cavities.** `properties()` follows PicoGK's `CalculateProperties`: it meshes the grid, rebuilds a fresh grid from the mesh, and measures that. [PicoGK Discussion #118](https://github.com/leap71/PicoGK/discussions/118) reports that this round-trip returns the outer volume of a closed hollow body. That mechanism is not reproduced here, but a related misreport was measured on 2026-07-31: on the HelixHeatX example at 0.7 mm, `properties().volume` was 1.93 times the grid's own volume. Cross-check `properties().volume` against `voxels.volume` on parts with enclosed voids.
 - **Nesting depth of an `SdfExpression`.** The expression compiler recurses once per nesting level, so a very deep expression overflows the JavaScript call stack and throws a plain `RangeError`, not a `PicoError`. On 2026-09-28, on Node 24.10.0 with the default stack, the limit was about 6,900 levels for a chain of binary operations and about 7,400 for a chain of unary ones; other engines and deeper call sites allow fewer, and an earlier measurement on pairwise-composed expressions found about 3,900 (engine not recorded).
