@@ -7,6 +7,14 @@
 // upstream does. Per-step float32 rounding (Math.fround) matches the C# math.
 
 import { PicoError } from './errors.ts';
+import {
+  EXACT_LANE_SET,
+  FAST_LANE_SET,
+  findLaneToken,
+  formatLaneToken,
+  UNKNOWN_LANE_MEMBER,
+  type LaneSet,
+} from './lanes.ts';
 import type { Vec3 } from './types.ts';
 
 export type StlUnit = 'auto' | 'mm' | 'cm' | 'm' | 'ft' | 'in';
@@ -35,9 +43,11 @@ export interface ToStlOptions {
   /** Offset in mm, applied first. */
   offset?: Vec3;
   /**
-   * §14.1 — acknowledges exporting `'fast'`-provenance geometry across the
-   * L0 boundary. Required (throws `PICO_LANE_EXPORT` otherwise) when the
-   * mesh's lane is `'fast'`; the header then records `LANE=fast`.
+   * §14.1 — acknowledges, for this one export, that the geometry has non-exact
+   * provenance. Needed only where nothing else consented: in a session that
+   * declared no lane (`'open'`) and in the session-less `meshToStlBytes`.
+   * A `lane: 'fast'` (or `'auto'`) session already consented. Either way the
+   * header records the lane set (`LANE=fast`).
    */
   acceptLane?: 'fast';
 }
@@ -53,12 +63,40 @@ export interface FromStlOptions {
 
 const fround = Math.fround;
 
-/** Serialises indexed geometry to binary STL bytes (deindexed, as the format is). */
+/**
+ * Serialises indexed geometry to binary STL bytes (deindexed, as the format is).
+ *
+ * LANES item 1, rider R2: this free function has no session, so no lane was
+ * ever declared for it — it keeps the `'open'`-session semantics. Passing
+ * `lane: 'fast'` refuses with `PICO_LANE_EXPORT` unless `options.acceptLane`
+ * is `'fast'`; an acknowledged export stamps `LANE=fast` into the 80-byte
+ * header (read back by `meshFromStl`). `'exact'` or omitted writes the
+ * historical header, byte for byte. The stamp is a best-effort audit, not a
+ * security boundary: third-party tools rewrite STL headers.
+ */
 export function meshToStlBytes(
   vertices: Float32Array,
   triangles: Uint32Array,
   options: ToStlOptions = {},
-  lane?: 'fast',
+  lane?: 'exact' | 'fast',
+): Uint8Array {
+  if (lane === 'fast' && options.acceptLane !== 'fast') {
+    throw new PicoError(
+      'PICO_LANE_EXPORT',
+      "meshToStlBytes() with lane 'fast': the geometry is not L0/pin-comparable, and this session-less call never " +
+        "consented to exporting it. Acknowledge with meshToStlBytes(vertices, triangles, { acceptLane: 'fast' }, 'fast') " +
+        "— the header records LANE=fast — or pass geometry replayed in a lane: 'exact' session.",
+    );
+  }
+  return writeStlBytes(vertices, triangles, options, lane === 'fast' ? FAST_LANE_SET : EXACT_LANE_SET);
+}
+
+/** The STL writer itself; callers have already settled the export boundary for `provenance`. */
+export function writeStlBytes(
+  vertices: Float32Array,
+  triangles: Uint32Array,
+  options: ToStlOptions,
+  provenance: LaneSet,
 ): Uint8Array {
   const { unit = 'mm', scale = 1, offset = [0, 0, 0] } = options;
   if (unit === 'auto') {
@@ -69,9 +107,14 @@ export function meshToStlBytes(
 
   const bytes = new Uint8Array(84 + triangleCount * 50);
   const view = new DataView(bytes.buffer);
-  // §14.1 — the lane stamp only ever appears on acknowledged fast exports, so
-  // every byte-locked exact fixture keeps its exact historical header.
-  const header = `PicoGK ${UNIT_HEADER[unit]}${lane === 'fast' ? ' LANE=fast' : ''}`.padEnd(80, ' ');
+  // §14.1 — the lane stamp only ever appears on non-exact exports, so every
+  // byte-locked exact fixture keeps its exact historical header.
+  const units = `PicoGK ${UNIT_HEADER[unit]}`;
+  let stamp = provenance.length === 0 ? '' : ` ${formatLaneToken(provenance)}`;
+  // ponytail: 80 bytes leave ~59 for members; only foreign tags can grow a set
+  // past that, and it then stamps the reserved `unknown` — still fast-like.
+  if (units.length + stamp.length > 80) stamp = ` ${formatLaneToken([UNKNOWN_LANE_MEMBER])}`;
+  const header = `${units}${stamp}`.padEnd(80, ' ');
   for (let i = 0; i < 80; i++) bytes[i] = header.charCodeAt(i);
   view.setUint32(80, triangleCount, true);
 
@@ -111,14 +154,15 @@ export function meshToStlBytes(
 export function meshFromStlBytes(
   bytes: Uint8Array,
   options: FromStlOptions = {},
-): { vertices: Float32Array; triangles: Uint32Array; lane: 'exact' | 'fast' } {
+): { vertices: Float32Array; triangles: Uint32Array; provenance: LaneSet } {
   const { unit = 'auto', scale = 1, offset = [0, 0, 0] } = options;
   if (bytes.length < 84) {
     throw new PicoError('PICO_INVALID_ARGUMENT', `STL too short: ${bytes.length} bytes cannot hold the 80-byte header + count.`);
   }
-  let header = '';
-  for (let i = 0; i < 80; i++) header += String.fromCharCode(bytes[i]!);
-  header = header.trim();
+  // One char per byte (Latin-1), so string indices ARE byte offsets.
+  let rawHeader = '';
+  for (let i = 0; i < 80; i++) rawHeader += String.fromCharCode(bytes[i]!);
+  const header = rawHeader.trim();
 
   // ASCII detection exactly as upstream: 'solid' start + 'vertex' in the first 1KB.
   if (header.startsWith('solid')) {
@@ -134,9 +178,12 @@ export function meshFromStlBytes(
 
   let effectiveUnit: Exclude<StlUnit, 'auto'> = 'mm';
   if (unit === 'auto') {
-    const at = header.toUpperCase().indexOf('UNITS=');
+    // LANES defect 3 — case-fold ASCII letters only: toUpperCase() maps 'ß'
+    // (0xDF) to 'SS', and the length change used to shift the index onto the
+    // wrong bytes. This fold is length-preserving, so `at` indexes the bytes.
+    const at = rawHeader.replace(/[a-z]/g, (letter) => letter.toUpperCase()).indexOf('UNITS=');
     if (at !== -1) {
-      const value = header.slice(at + 'UNITS='.length);
+      const value = rawHeader.slice(at + 'UNITS='.length);
       // Order matters: ' m' (metres, leading space) before 'mm' would never match mm.
       if (value.startsWith(' m')) effectiveUnit = 'm';
       else if (value.startsWith('mm')) effectiveUnit = 'mm';
@@ -176,6 +223,6 @@ export function meshFromStlBytes(
       triangles[t * 3 + c] = t * 3 + c;
     }
   }
-  // §14.1 — restore provenance stamped by an acknowledged fast export.
-  return { vertices, triangles, lane: header.toUpperCase().includes('LANE=FAST') ? 'fast' : 'exact' };
+  // §14.1 — restore the stamped provenance set (anchored, case-exact token).
+  return { vertices, triangles, provenance: findLaneToken(rawHeader) };
 }

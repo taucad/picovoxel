@@ -16,6 +16,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'vitest';
 import { G0_FIELDS, compareG0, g0Record, oraclesAgree } from '../bench/g0-identity.mjs';
+import { assertPinSource } from '../bench/pin-guard.mjs';
 
 const fixturePath = join(import.meta.dirname, 'fixtures', 'g0-reference.json');
 const updatePins = process.env.UPDATE_PINS === '1';
@@ -38,6 +39,7 @@ for (const size of [1.0, 0.7]) {
     assert.deepEqual(compareG0(runs[0]!, runs[1]!), [], 'run-to-run G0 identity (the race canary)');
     assert.ok(oraclesAgree(runs[0]!, runs[1]!), 'field and mesh oracles agree');
 
+    assertPinSource(runs[0]!.provenance, key); // LANES item 3 — only exact sources pin
     if (updatePins) {
       const pins = existsSync(fixturePath) ? JSON.parse(readFileSync(fixturePath, 'utf8')) : {};
       pins[key] = tuple(runs[0]!);

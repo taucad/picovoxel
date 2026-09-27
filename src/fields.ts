@@ -12,11 +12,11 @@ import {
   checkedMalloc,
   expectHandle,
   VEC3_BYTES,
-  type PicoLane,
   type SessionContext,
 } from './context.ts';
 import { assertLive, guard, PicoError } from './errors.ts';
-import { readLaneTag, tagFieldClass, tagLaneFast, wrapMetadata, type Metadata } from './metadata.ts';
+import { laneOf, type LaneSet } from './lanes.ts';
+import { recordProvenance, settleProvenance, tagFieldClass, wrapMetadata, type Metadata } from './metadata.ts';
 import type { Bounds, Vec3 } from './types.ts';
 import type { Voxels } from './voxels.ts';
 
@@ -77,12 +77,18 @@ function withCallback<T>(ctx: SessionContext, signature: string, fn: (...args: n
   }
 }
 
-export function wrapScalarField(ctx: SessionContext, handle: bigint, laneIn?: PicoLane): ScalarField {
+export function wrapScalarField(ctx: SessionContext, handle: bigint, provenance?: LaneSet): ScalarField {
   let disposed = false;
   let metadataCache: Metadata | null = null;
-  // §14.1 provenance — same persisted-tag scheme as wrapVoxels.
-  const lane: PicoLane = laneIn ?? readLaneTag(ctx, ctx.raw.Metadata_hFromScalarField, handle) ?? 'exact';
-  if (lane === 'fast') tagLaneFast(ctx, ctx.raw.Metadata_hFromScalarField, handle);
+  // §14.1 provenance — same persisted-set scheme as wrapVoxels (omit = a .vdb load).
+  const lane = settleProvenance(
+    ctx,
+    ctx.raw.Metadata_hFromScalarField,
+    handle,
+    provenance,
+    ctx.raw.ScalarField_Destroy,
+    'getScalarField',
+  );
   const live = () => {
     assertLive(disposed, 'ScalarField');
     return handle;
@@ -157,7 +163,7 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint, laneIn?: Pi
       return wrapScalarField(ctx, expectHandle('ScalarField_hCreateCopy', ctx.raw.ScalarField_hCreateCopy(ctx.lib, live())), lane);
     },
     get lane() {
-      return lane;
+      return laneOf(lane);
     },
     get memUsage() {
       return Number(guard('ScalarField_nMemUsage', () => ctx.raw.ScalarField_nMemUsage(ctx.lib, live()))());
@@ -181,16 +187,23 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint, laneIn?: Pi
     },
   };
   tagFieldClass(ctx, ctx.raw.Metadata_hFromScalarField, handle, 'ScalarField'); // SG4
+  recordProvenance(field, lane);
   adoptHandle(ctx, field, handle, ctx.raw.ScalarField_Destroy);
   return field as ScalarField; // adoptHandle added [Symbol.dispose] (D6)
 }
 
-export function wrapVectorField(ctx: SessionContext, handle: bigint, laneIn?: PicoLane): VectorField {
+export function wrapVectorField(ctx: SessionContext, handle: bigint, provenance?: LaneSet): VectorField {
   let disposed = false;
   let metadataCache: Metadata | null = null;
-  // §14.1 provenance — same persisted-tag scheme as wrapVoxels.
-  const lane: PicoLane = laneIn ?? readLaneTag(ctx, ctx.raw.Metadata_hFromVectorField, handle) ?? 'exact';
-  if (lane === 'fast') tagLaneFast(ctx, ctx.raw.Metadata_hFromVectorField, handle);
+  // §14.1 provenance — same persisted-set scheme as wrapVoxels (omit = a .vdb load).
+  const lane = settleProvenance(
+    ctx,
+    ctx.raw.Metadata_hFromVectorField,
+    handle,
+    provenance,
+    ctx.raw.VectorField_Destroy,
+    'getVectorField',
+  );
   const live = () => {
     assertLive(disposed, 'VectorField');
     return handle;
@@ -226,7 +239,7 @@ export function wrapVectorField(ctx: SessionContext, handle: bigint, laneIn?: Pi
       return wrapVectorField(ctx, expectHandle('VectorField_hCreateCopy', ctx.raw.VectorField_hCreateCopy(ctx.lib, live())), lane);
     },
     get lane() {
-      return lane;
+      return laneOf(lane);
     },
     get memUsage() {
       return Number(guard('VectorField_nMemUsage', () => ctx.raw.VectorField_nMemUsage(ctx.lib, live()))());
@@ -250,6 +263,7 @@ export function wrapVectorField(ctx: SessionContext, handle: bigint, laneIn?: Pi
     },
   };
   tagFieldClass(ctx, ctx.raw.Metadata_hFromVectorField, handle, 'VectorField'); // SG4
+  recordProvenance(field, lane);
   adoptHandle(ctx, field, handle, ctx.raw.VectorField_Destroy);
   return field as VectorField; // adoptHandle added [Symbol.dispose] (D6)
 }

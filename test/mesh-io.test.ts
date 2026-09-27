@@ -106,7 +106,7 @@ test('meshToStlBytes (public entry) serialises raw arrays byte-identically to me
     'options follow the wrapper',
   );
 
-  const fast = meshToStlBytes(vertices, triangles, {}, 'fast');
+  const fast = meshToStlBytes(vertices, triangles, { acceptLane: 'fast' }, 'fast');
   assert.match(headerText(fast), /^PicoGK UNITS=mm LANE=fast {2}/, 'lane stamp only when asked');
   assert.deepEqual(fast.subarray(80), mesh.toStl().subarray(80), 'the stamp changes the header only');
   assert.equal(pk.meshFromStl(fast).lane, 'fast');

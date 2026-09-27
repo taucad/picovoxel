@@ -42,6 +42,7 @@ import { appendFileSync, readFileSync } from 'node:fs';
 import { cpus, loadavg, platform, release, totalmem } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertPinSource } from './pin-guard.mjs';
 import { stlIdentity } from './stl-identity.mjs';
 
 const HERE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -211,6 +212,7 @@ export async function g0Record({ fixture, build, size, lane = undefined, fastRen
     build,
     size,
     lane: session.lane,
+    provenance: mesh.lane, // value provenance (LUB over the fixture) — what pin writers assert on
     gridHash: grid.hash,
     activeVoxels: grid.activeVoxels,
     insideTiles: grid.insideTiles,
@@ -288,6 +290,8 @@ async function cmdSweep({ runs, jsonl }) {
         const result = await runTriple({ fixture, build, size, runs, jsonl });
         failed ||= result.failed;
         firstOf[build] = result.records[0];
+        // LANES item 3 — this record is the exact reference every fast leg is gated against.
+        assertPinSource(firstOf[build].provenance, `${fixture}@${size}mm/${build} reference`);
       }
       // Cross-lane: single and multi are one geometry (Class 0/1 lanes).
       const differing = compareG0(firstOf.single, firstOf.multi);

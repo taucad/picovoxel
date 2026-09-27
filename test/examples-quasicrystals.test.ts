@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'vitest';
+import { assertPinSource } from '../bench/pin-guard.mjs';
 import { createPico } from '../src/index.ts';
 
 const fixturePath = join(import.meta.dirname, 'fixtures', 'quasicrystals.json');
@@ -31,6 +32,7 @@ test('QuasiCrystal wireframes @ 2.0 mm: gens 0-2 pinned and scaling; face/tile t
     const generations = [0, 1, 2].map((generation) => {
       const { voxels, tileCount, beamCount } = wireframeFromCrystalTask(pk, generation);
       assert.equal(voxels.isEmpty, false, `gen ${generation} wireframe voxelizes non-empty`);
+      assertPinSource(voxels.lane, `wireframe gen ${generation}`); // LANES item 3 — only exact sources pin
       return {
         tileCount,
         beamCount,
@@ -55,6 +57,7 @@ test('QuasiCrystal wireframes @ 2.0 mm: gens 0-2 pinned and scaling; face/tile t
 
     const pinVoxels = (voxels: ReturnType<typeof crystalFromFaceTask>) => {
       assert.equal(voxels.isEmpty, false, 'every showcase task voxelizes non-empty');
+      assertPinSource(voxels.lane, 'showcase task');
       return { volumeHex: hexFloat(voxels.properties().volume), triangles: voxels.toMesh().triangleCount };
     };
     const recorded = {

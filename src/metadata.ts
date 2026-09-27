@@ -11,6 +11,7 @@ import {
   type SessionContext,
 } from './context.ts';
 import { assertLive, guard, PicoError } from './errors.ts';
+import { EXACT_LANE_SET, parseLaneSet, UNKNOWN_LANE_MEMBER, type LaneSet } from './lanes.ts';
 import type { Vec3 } from './types.ts';
 
 export type MetadataType = 'string' | 'float' | 'vector' | 'unknown';
@@ -81,42 +82,140 @@ export function tagFieldClass(
 /**
  * SKv2-0 V0.5 — lane provenance (§14.1). The tag rides the field's grid like
  * `PicoGK.Class` does, so it survives copies, `.vdb` interchange and container
- * round-trips with no serializer changes. Only `'fast'` is ever written:
- * absence of the tag IS the exact/L0 claim, which keeps every byte-locked
- * exact fixture untouched. Bypasses the SG3-style guard exactly as
- * `tagFieldClass` does (users cannot write `PicoVoxel.*` — provenance must
- * not be forgeable through the public surface).
+ * round-trips with no serializer changes. Absence of the tag IS the exact/L0
+ * claim, which keeps every byte-locked exact fixture untouched. Bypasses the
+ * SG3-style guard exactly as `tagFieldClass` does (users cannot write
+ * `PicoVoxel.*` — provenance must not be forgeable through the public surface).
+ *
+ * The value is a lane SET in the persisted grammar of `./lanes.ts` (LANES
+ * item 4): loads never rewrite it, derived handles carry the union of their
+ * inputs' members.
  */
 export const LANE_METADATA_NAME = 'PicoVoxel.Lane';
 
-export function tagLaneFast(
+// Every live handle's provenance set, keyed by its wrapper object — the
+// public `.lane` is the collapsed enum, and derivations need the full set.
+const provenance = new WeakMap<object, LaneSet>();
+
+export function recordProvenance(handle: object, set: LaneSet): void {
+  provenance.set(handle, set);
+}
+
+/**
+ * The provenance set of a Voxels/Mesh/ScalarField/VectorField wrapper. Other
+ * same-session wrappers (Lattice, PolyLine, VdbFile) pass `assertSameSession`
+ * but carry no value provenance: they are refused here, before any native call.
+ */
+export function provenanceOf(handle: object): LaneSet {
+  const set = provenance.get(handle);
+  if (set === undefined) {
+    throw new PicoError(
+      'PICO_INVALID_ARGUMENT',
+      'Expected a Voxels, Mesh, ScalarField or VectorField operand — this wrapper carries no geometry provenance.',
+    );
+  }
+  return set;
+}
+
+/**
+ * Writes a non-empty provenance set onto a field's grid in canonical form.
+ * Removes any inherited entry first: OpenVDB refuses to overwrite metadata
+ * with a value of another type (a copy of a float-tagged foreign grid).
+ */
+export function writeLaneTag(
   ctx: SessionContext,
   metaFrom: (lib: bigint, field: bigint) => bigint,
   fieldHandle: bigint,
+  set: LaneSet,
 ): void {
   const meta = expectHandle('Metadata_hFrom*', metaFrom(ctx.lib, fieldHandle));
   try {
-    withStrings(ctx, [LANE_METADATA_NAME, 'fast'], (namePtr, valuePtr) =>
-      ctx.raw.Metadata_SetStringValue(ctx.lib, meta, namePtr, valuePtr),
-    );
+    withStrings(ctx, [LANE_METADATA_NAME, set.join(',')], (namePtr, valuePtr) => {
+      ctx.raw.MetaData_RemoveValue(ctx.lib, meta, namePtr);
+      ctx.raw.Metadata_SetStringValue(ctx.lib, meta, namePtr, valuePtr);
+    });
   } finally {
     ctx.raw.Metadata_Destroy(ctx.lib, meta);
   }
 }
 
-/** Reads the persisted lane tag off a field's grid; null = untagged = exact. */
+/**
+ * Reads the persisted lane tag off a field's grid by VALUE (LANES defect 1 —
+ * it used to test presence only, collapsing unknown strings to `'fast'` and
+ * float-typed tags to `'exact'`). `null` = untagged. The ABI's type query
+ * reports absence and exotic foreign types (int, double) alike, so those read
+ * as untagged.
+ * ponytail: distinguishing them needs a names() scan per load; add it when a
+ * foreign writer is seen emitting a non-string/float/vector PicoVoxel.Lane.
+ */
 export function readLaneTag(
   ctx: SessionContext,
   metaFrom: (lib: bigint, field: bigint) => bigint,
   fieldHandle: bigint,
-): 'fast' | null {
+): LaneSet | null {
   const meta = expectHandle('Metadata_hFrom*', metaFrom(ctx.lib, fieldHandle));
   try {
-    const type = withStrings(ctx, [LANE_METADATA_NAME], (n) => ctx.raw.Metadata_nTypeAt(ctx.lib, meta, n));
-    return type === 0 ? 'fast' : null; // 0 = string; the only value ever written is 'fast'
+    const type = TYPE_NAMES[withStrings(ctx, [LANE_METADATA_NAME], (n) => ctx.raw.Metadata_nTypeAt(ctx.lib, meta, n))];
+    if (type === undefined) return null;
+    if (type !== 'string') return [UNKNOWN_LANE_MEMBER]; // float/vector: not our format, fast-like
+    const length = withStrings(ctx, [LANE_METADATA_NAME], (n) => ctx.raw.Metadata_nStringLengthAt(ctx.lib, meta, n)) + 1;
+    const buffer = checkedMalloc(ctx.module, length, 'a metadata string buffer');
+    try {
+      withStrings(ctx, [LANE_METADATA_NAME], (n) => ctx.raw.Metadata_bGetStringAt(ctx.lib, meta, n, buffer, length));
+      return parseLaneSet(readCString(ctx, buffer));
+    } finally {
+      ctx.module._free(buffer);
+    }
   } finally {
     ctx.raw.Metadata_Destroy(ctx.lib, meta);
   }
+}
+
+/**
+ * LANES defect 5 — the ingest lock. Importing fast-provenance content into a
+ * `lane: 'exact'` session throws: the session claims no Class-2 op fed
+ * anything in it, and a fast import falsifies that. No override exists (an
+ * escape hatch would create exactly the handle the claim rules out).
+ */
+export function rejectLaneIngest(ctx: SessionContext, set: LaneSet, where: string): void {
+  if (ctx.lane === 'exact' && set.length > 0) {
+    throw new PicoError(
+      'PICO_LANE_LOOSENED',
+      `${where}: this asset carries non-exact provenance (${LANE_METADATA_NAME}=${set.join(',')}), and importing it ` +
+        "into a lane: 'exact' session would falsify the session's claim that no Class-2 op fed anything in it. " +
+        "Load it in an 'open' session (omit lane) or a lane: 'fast' session instead.",
+    );
+  }
+}
+
+/**
+ * Settles a field wrapper's provenance. `given` = a derivation: the set is
+ * explicit, and a non-empty one is written onto the grid so it rides copies
+ * and `.vdb` bytes (fresh creations pass `[]` and skip the read entirely).
+ * `undefined` = a load from `.vdb` bytes: the persisted tag is authoritative
+ * and is NEVER rewritten (foreign tags pass through untouched; untagged stays
+ * untagged), and the ingest lock applies — on refusal the handle is freed.
+ */
+export function settleProvenance(
+  ctx: SessionContext,
+  metaFrom: (lib: bigint, field: bigint) => bigint,
+  fieldHandle: bigint,
+  given: LaneSet | undefined,
+  destroy: (lib: bigint, field: bigint) => void,
+  where: string,
+): LaneSet {
+  if (given !== undefined) {
+    if (given.length > 0) writeLaneTag(ctx, metaFrom, fieldHandle, given);
+    return given;
+  }
+  const persisted = readLaneTag(ctx, metaFrom, fieldHandle) ?? EXACT_LANE_SET;
+  try {
+    rejectLaneIngest(ctx, persisted, where);
+  } catch (error) {
+    destroy(ctx.lib, fieldHandle);
+    throw error;
+  }
+  return persisted;
 }
 
 export function wrapMetadata(ctx: SessionContext, handle: bigint): Metadata {

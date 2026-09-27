@@ -7,6 +7,7 @@
 // voxels.getSlice()/dimensions() — zero native touchpoints and zero dependencies.
 
 import { PicoError } from './errors.ts';
+import { EXACT_LANE_SET, findLaneToken, formatLaneToken, laneOf, unionLaneSets, type LaneSet } from './lanes.ts';
 import type { Voxels } from './voxels.ts';
 
 export type ContourWinding = 'ccw' | 'cw' | 'unknown';
@@ -22,12 +23,25 @@ export interface Slice {
   /** Layer height position in mm (first layer at one layerHeight, as CLI wants). */
   z: number;
   contours: SliceContour[];
+  /**
+   * §14.1 value-class provenance of the sliced voxels (`'exact'` or absent = exact;
+   * `sliceVoxels` and `slicesFromCli` always set it).
+   * `sliceToSvg` stamps `'fast'` into the SVG's `<metadata>`.
+   */
+  lane?: 'exact' | 'fast';
 }
 
 export interface SliceStack {
   slices: Slice[];
   /** XY bounds over every contour + Z from first/last layer. */
   bounds: { min: readonly [number, number, number]; max: readonly [number, number, number] };
+  /**
+   * §14.1 value-class provenance (`'exact'` or absent = exact): `sliceVoxels` copies
+   * `voxels.lane`, `slicesFromCli` restores it from the header stamp, and
+   * `slicesToCli` stamps `'fast'` — manufacturing bytes are stamped, never
+   * refused (LANES item 2).
+   */
+  lane?: 'exact' | 'fast';
 }
 
 export interface SliceVoxelsOptions {
@@ -311,7 +325,7 @@ export function sliceVoxels(voxels: Voxels, options: SliceVoxelsOptions = {}): S
     if (slices.length === 0 && contours.length === 0) {
       continue; // skip empty layers until the first filled one (layerZ stays put)
     }
-    slices.push({ z: layerZ, contours });
+    slices.push({ z: layerZ, contours, lane: voxels.lane });
     layerZ += layerHeight;
   }
 
@@ -321,7 +335,7 @@ export function sliceVoxels(voxels: Voxels, options: SliceVoxelsOptions = {}): S
   while (slices.length > 0 && slices[slices.length - 1]!.contours.length === 0) slices.pop();
   onProgress?.(1);
 
-  return { slices, bounds: stackBounds(slices) };
+  return { slices, bounds: stackBounds(slices), lane: voxels.lane };
 }
 
 /**
@@ -368,7 +382,11 @@ export interface ToSvgOptions {
   viewBox?: readonly [number, number, number, number];
 }
 
-/** Renders one slice as a standalone SVG document string. Deterministic output. */
+/**
+ * Renders one slice as a standalone SVG document string. Deterministic output.
+ * A `'fast'` slice carries `<metadata>PicoVoxel LANE=fast</metadata>` (the
+ * `slicesToCli` token grammar); exact slices render the historical bytes.
+ */
 export function sliceToSvg(slice: Slice, options: ToSvgOptions = {}): string {
   const { solid = false, strokeWidth = 0.1 } = options;
   let minX = Number.POSITIVE_INFINITY;
@@ -390,6 +408,7 @@ export function sliceToSvg(slice: Slice, options: ToSvgOptions = {}): string {
   lines.push(
     `<svg xmlns='http://www.w3.org/2000/svg' version='1.1' viewBox='${vx} ${vy} ${vw} ${vh}' width='${vw}mm' height='${vh}mm'>`,
   );
+  if (slice.lane === 'fast') lines.push(`<metadata>${LANE_STAMP}</metadata>`);
   lines.push('<g>');
   if (solid) {
     let path = "<path d='";
@@ -433,6 +452,17 @@ export interface ToCliOptions {
 
 const WINDING_TO_CLI: Record<ContourWinding, number> = { cw: 0, ccw: 1, unknown: 2 };
 
+/**
+ * LANES item 2 — the provenance stamp for slice artifacts: the STL header's
+ * `LANE=<set>` token (`./lanes.ts`) after a `PicoVoxel` marker. In CLI it
+ * rides a `// … //` remark line inside `$$HEADERSTART … $$HEADEREND` — CLI
+ * v2.0 §3.1.1 defines `// text //` as a comment and its own §4 example puts
+ * remark lines in the header — so readers that follow the spec (upstream
+ * PicoGK's included) skip it and no command changes. Exact stacks carry no
+ * remark, so exact CLI bytes are unchanged.
+ */
+const LANE_STAMP = `PicoVoxel ${formatLaneToken(['fast'])}`;
+
 function formatDimension(value: number): string {
   const sign = value < 0 ? '-' : '';
   const magnitude = Math.abs(value);
@@ -463,6 +493,8 @@ export function slicesToCli(stack: SliceStack, options: ToCliOptions = {}): Uint
       `${formatDimension(stack.bounds.max[0])},${formatDimension(stack.bounds.max[1])},${formatDimension(stack.slices[stack.slices.length - 1]!.z)}`,
   );
   lines.push(`$$LAYERS/${String(stack.slices.length + (emptyFirstLayer ? 1 : 0)).padStart(5, '0')}`);
+  // LUB: a hand-assembled stack is fast if its stack claim or any slice is.
+  if (stack.lane === 'fast' || stack.slices.some((slice) => slice.lane === 'fast')) lines.push(`// ${LANE_STAMP} //`);
   lines.push('$$HEADEREND');
   lines.push('$$GEOMETRYSTART');
   if (emptyFirstLayer) lines.push('$$LAYER/0.0');
@@ -506,6 +538,7 @@ export function slicesFromCli(bytes: Uint8Array, options: { onProgress?: (fracti
   let date = '';
   let headerLayerCount = 0;
   let label = -1;
+  let provenance: LaneSet = EXACT_LANE_SET;
 
   const fail = (message: string): never => {
     throw new PicoError('PICO_INVALID_ARGUMENT', `CLI parse: ${message}`);
@@ -538,7 +571,11 @@ export function slicesFromCli(bytes: Uint8Array, options: { onProgress?: (fracti
   let headerEnded = false;
   for (; lineIndex < rawLines.length && !headerEnded; lineIndex++) {
     let line = rawLines[lineIndex]!.trim();
-    if (line.startsWith('//')) continue; // comment line
+    if (line.startsWith('//')) {
+      // A remark line; inside the header it may carry the provenance stamp.
+      if (headerStarted) provenance = unionLaneSets(provenance, findLaneToken(line.slice(2).replace(/\/\/$/, '')));
+      continue;
+    }
     if (!headerStarted) {
       const at = line.indexOf('$$HEADERSTART');
       if (at === -1) continue;
@@ -637,5 +674,7 @@ export function slicesFromCli(bytes: Uint8Array, options: { onProgress?: (fracti
   if (current) slices.push(current);
   options.onProgress?.(1);
 
-  return { slices, bounds: stackBounds(slices), unitsHeader: units, date, headerLayerCount, warnings };
+  const lane = laneOf(provenance);
+  for (const slice of slices) slice.lane = lane;
+  return { slices, bounds: stackBounds(slices), lane, unitsHeader: units, date, headerLayerCount, warnings };
 }
