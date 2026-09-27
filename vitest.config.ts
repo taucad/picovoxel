@@ -22,6 +22,7 @@ export default defineConfig({
       include: [
         'src/**/*.ts',
         'scripts/generate-raw.mjs',
+        'scripts/ignore-audit.mjs',
         'bench/stats.mjs',
         'bench/g0-compare.mjs',
         'bench/stl-multiset.mjs',

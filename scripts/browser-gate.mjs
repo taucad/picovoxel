@@ -17,6 +17,8 @@ import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, firefox, webkit } from 'playwright';
 
+import { unjustifiedIgnores } from './ignore-audit.mjs';
+
 const HERE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 // ── 0. Ignore-comment audit ──
@@ -28,12 +30,8 @@ const sources = execFileSync('git', ['ls-files', '-z', '--', '*.ts', '*.mts', '*
   .split('\0')
   .filter(Boolean);
 for (const path of sources) {
-  const source = readFileSync(join(HERE, path), 'utf8');
-  // The directive as a comment opener, so prose that names it never matches; a
-  // `stop` only closes a justified `start`.
-  for (const match of source.matchAll(/\/[*/]\s*(?:v8|c8|istanbul) ignore\b(?! stop)[^\n]*/g)) {
-    if (!match[0].includes(' -- ')) offenders.push(`${path}: ${match[0]}`);
-  }
+  for (const line of unjustifiedIgnores(readFileSync(join(HERE, path), 'utf8')))
+    offenders.push(`${path}: ${line}`);
 }
 if (offenders.length > 0) {
   console.error('UNJUSTIFIED coverage ignores (need a `-- reason`):\n  ' + offenders.join('\n  '));
