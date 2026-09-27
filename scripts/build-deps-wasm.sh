@@ -38,7 +38,7 @@ PREFIX="${PREFIX:-$OUT/wasm-prefix$MT}"
 
 # D27: builder paths never reach the archives' __FILE__ strings or the shipped wasm.
 WASM_FLAGS="$WASM_FLAGS -ffile-prefix-map=$HERE=."
-JOBS="$(getconf _NPROCESSORS_ONLN)"
+JOBS="${JOBS:-$(getconf _NPROCESSORS_ONLN)}"
 
 source "$EMSDK/emsdk_env.sh" >/dev/null 2>&1
 
