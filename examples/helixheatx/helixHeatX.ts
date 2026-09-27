@@ -25,7 +25,7 @@ import {
   uf,
   vecOps,
 } from 'picovoxel/shapekernel';
-import { ScrewHole, ThreadCutter, ThreadReinforcement } from './helpers.ts';
+import { ScrewHole, ThreadReinforcement } from './helpers.ts';
 
 type Fluid = 'hot' | 'cool';
 
@@ -107,8 +107,9 @@ export class HelixHeatX {
     const splitters = this.measureKernel('splitters.union', () => hot.splitters.union(cool.splitters));
     let outerVolume = this.measureKernel('outer-volume.offset', () => innerVolume.offset({ distance: 0.9 }));
 
-    const { flange, screwHoles } = this.measureKernel('flange.create', () => this.flange());
-    // (voxFlangeScrewCutters is preview-only in the C# Task.)
+    // '-v2': the stage no longer builds the preview-only thread cutters (see flange()),
+    // so its timings are a new series, not a step change in the old one.
+    const { flange, screwHoles } = this.measureKernel('flange.create-v2', () => this.flange());
 
     const filletedFlange = this.measureKernel('finished-flange.fillet', () => flange.fillet({ rounding: 5 }));
     const finishedFlange = this.measureKernel('finished-flange.smoothen', () =>
@@ -442,17 +443,24 @@ export class HelixHeatX {
 
   // ── Flange.cs ──────────────────────────────────────────────────────────────
 
-  /** Bottom flange + screw holes (+ thread cutters, preview-only in the Task). */
-  private flange(): { flange: Voxels; screwHoles: Voxels; screwCutter: Voxels } {
-    const coreRadius = 5;
-    const maxRadius = 6;
-    const cutLength = 24;
+  /**
+   * Bottom flange + screw holes.
+   *
+   * Provenance: the C# Task also builds six flat-capped `ThreadCutter`s here and
+   * unions them into `voxFlangeScrewCutters`, a preview-only stage whose result
+   * never enters the part. This port omits that stage, so its composition diverges
+   * from the C# Task while the output is unchanged (D33 / PV-FC2 of the picovoxel
+   * production close-out). The cutters were ≈82% of the old `flange.create`
+   * stage, now timed as `flange.create-v2`: flat caps have no tube-complex form
+   * and render on the serial lattice fallback (`src/pico-lattice.cpp`).
+   * `ThreadCutter` stays in `helpers.ts` for the flat-cap lattice benchmark.
+   */
+  private flange(): { flange: Voxels; screwHoles: Voxels } {
     const screwThreadRadius = 3.5;
     const screwThreadLength = 2;
     const screwHeadRadius = 7;
     const screwHeadLength = 10;
     const flangeList: Voxels[] = [];
-    const cutterList: Voxels[] = [];
     const screwList: Voxels[] = [];
     for (const x of [-60, 60]) {
       for (const y of [-38, 0, 38]) {
@@ -467,19 +475,10 @@ export class HelixHeatX {
         screwList.push(screwHole.voxConstruct(this.pk));
         const cylinder = new BaseCylinder(localFrame.create(pt), 8, screwHeadRadius + 5);
         flangeList.push(cylinder.voxConstruct(this.pk));
-        const cutter = new ThreadCutter(
-          localFrame.create(vec3.sub(pt, [0, 0, 10])),
-          cutLength,
-          maxRadius,
-          coreRadius,
-          1.3,
-        );
-        cutterList.push(cutter.voxConstruct(this.pk));
       }
     }
     return {
       screwHoles: screwList[0]!.union(...screwList.slice(1)),
-      screwCutter: cutterList[0]!.union(...cutterList.slice(1)),
       flange: flangeList[0]!.union(...flangeList.slice(1)),
     };
   }

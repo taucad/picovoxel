@@ -2,11 +2,16 @@
   "module": [
     "PicoError",
     "createPico",
+    "createPicoRuntime",
     "emptyBounds",
     "isEmptyBounds",
     "meshToStlBytes",
     "surfaceNormalFieldExtractor",
     "vectorFieldMerge"
+  ],
+  "runtime": [
+    "createPico",
+    "dispose"
   ],
   "session": [
     "allocated",

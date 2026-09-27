@@ -73,13 +73,16 @@ const fround = Math.fround;
  * header (read back by `meshFromStl`). `'exact'` or omitted writes the
  * historical header, byte for byte. The stamp is a best-effort audit, not a
  * security boundary: third-party tools rewrite STL headers.
+ *
+ * The bytes own a fresh, non-shared `ArrayBuffer` (TAU-E1), so a caller can hand
+ * them to a `Blob`, a transfer list or a file write without copying first.
  */
 export function meshToStlBytes(
   vertices: Float32Array,
   triangles: Uint32Array,
   options: ToStlOptions = {},
   lane?: 'exact' | 'fast',
-): Uint8Array {
+): Uint8Array<ArrayBuffer> {
   if (lane === 'fast' && options.acceptLane !== 'fast') {
     throw new PicoError(
       'PICO_LANE_EXPORT',
@@ -97,7 +100,7 @@ export function writeStlBytes(
   triangles: Uint32Array,
   options: ToStlOptions,
   provenance: LaneSet,
-): Uint8Array {
+): Uint8Array<ArrayBuffer> {
   const { unit = 'mm', scale = 1, offset = [0, 0, 0] } = options;
   if (unit === 'auto') {
     throw new PicoError('PICO_INVALID_ARGUMENT', "toStl unit 'auto' only applies when reading — pick a concrete unit.");

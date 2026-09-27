@@ -38,9 +38,14 @@
 //     spherical-capped convex hulls, and there is no "open"/"flat" variant in the API.
 //     These fall back to the serial lane, as a lattice of their own.
 //
-// The fallback is not hypothetical but it is small: of the HeatX lattices only the
-// ScrewHole pair (2 beams each) and the ThreadCutter helix use roundCap: false, and the
-// two dominant stages (turning-fins, helical-void) are round-capped throughout.
+// The fallback is not small where it is hit. Of the HeatX lattices only the ScrewHole
+// pair (2 beams each) and the ThreadCutter helix use roundCap: false, and the two
+// dominant stages (turning-fins, helical-void) are round-capped throughout — but one
+// ThreadCutter is ≈23.2k flat-capped beams, 296.8 ms serial at 1.0 mm / 12 threads
+// (1.00× at 0.5 mm too; SK-0.4 §6), and six of them were ≈82% of HeatX's
+// flange.create (picovoxel production close-out, lane D K1). The HeatX example
+// therefore no longer builds those preview-only cutters (PV-FC2); parallelising
+// flat caps here is PV-FC1, deferred.
 //
 // DETERMINISM IS BY CONSTRUCTION, NOT BY LUCK. The 0.7 mm fine-cell single==multi
 // identity gate is part of L0 (bench/results/webgpu-v2/SK-0-P0-finecell.md — a spike was

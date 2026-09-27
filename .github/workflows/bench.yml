@@ -49,7 +49,7 @@ jobs:
           path: .
           run-id: ${{ steps.ci.outputs.run-id }}
           github-token: ${{ github.token }}
-          expect: src/pico.mjs src/pico.wasm
+          expect: src/pico.mjs src/pico.wasm src/pico.exports.ts
       - name: Run benchmarks (loadavg guard relaxed — CI numbers are drift canaries only)
         run: pnpm run bench -- --allow-loaded
       - name: Upload results

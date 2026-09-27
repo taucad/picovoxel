@@ -397,6 +397,11 @@ fine.dispose();
 // share (Finding 8's promotion trigger); each kernel stage is timed separately.
 // The full 1.0→0.5mm voxel sweep lives in bench/heatx-sweep.mjs (its own
 // repeat policy — six repeats of the fine cells would take hours).
+// M12-v2 (2026-09-27, PV-FC2): the Task no longer builds the flange's preview-only
+// thread cutters (~1.78 s of serial flat-cap lattice work at 1.0 mm multi), so
+// construct and the flange stage (now kernel:flange.create-v2) measure a smaller
+// workload. Renamed, not overwritten, so compare-baselines never reads the drop as
+// a speed-up against the committed M12 baselines.
 {
   const { task: heatXTask } = await import('../examples/helixheatx/run.ts');
   const { createPico: createMulti } = await import('../src/multi.ts');
@@ -404,7 +409,7 @@ fine.dispose();
     ['single', () => createPico({ voxelSize: 1.0 })],
     ['multi', () => createMulti({ voxelSize: 1.0 })],
   ]) {
-    await metric(`M12@${suffix}`, `HelixHeatX @ 1.0mm (${suffix} entry)`, async () => {
+    await metric(`M12-v2@${suffix}`, `HelixHeatX @ 1.0mm (${suffix} entry)`, async () => {
       const session = await make();
       const { voxels, authorMs, constructMs, kernelTimings, unattributedMs } = heatXTask(session);
       const t1 = now();

@@ -6,7 +6,10 @@ import path from 'node:path';
 // declaration reaches, the four copied Emscripten artifacts, the CommonJS
 // diagnostic and the docs. Change the list and the ceiling together in the
 // causing pull request. PR #8 review (R2 S1): +1 for dist/cjs-error.d.cts.
-const PACKAGE_FILE_COUNT_CEILING = 132;
+// T4.2 (createPicoRuntime): +2 for dist/pico.exports.js and
+// dist/pico-multi.exports.js, the per-build export names the wasmModule
+// pre-flight checks (generated beside the CI-built wasm).
+const PACKAGE_FILE_COUNT_CEILING = 134;
 
 export const PACKAGE_FILES = [
   'MIGRATING-FROM-CSHARP.md',
@@ -71,8 +74,10 @@ export const PACKAGE_FILES = [
   'dist/numerics/quaternion.js',
   'dist/numerics/vector.d.ts',
   'dist/numerics/vector.js',
+  'dist/pico-multi.exports.js',
   'dist/pico-multi.mjs',
   'dist/pico-multi.wasm',
+  'dist/pico.exports.js',
   'dist/pico.mjs',
   'dist/pico.wasm',
   'dist/polyline.d.ts',

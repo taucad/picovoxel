@@ -8,16 +8,18 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'vitest';
 import * as picoModule from '../src/index.ts';
-import { createPico } from '../src/index.ts';
+import { createPico, createPicoRuntime } from '../src/index.ts';
 import manifest from './surface-manifest.json' with { type: 'json' };
 
 test('every wrapper key set matches the checked-in manifest exactly', async () => {
   const pk = await createPico({ voxelSize: 0.5 });
+  const runtime = await createPicoRuntime();
   const voxels = pk.createVoxels({ shape: 'sphere', radius: 3 });
   const keys = (value: object) => Object.keys(value).sort();
 
   const live: Record<string, string[]> = {
     module: keys(picoModule),
+    runtime: keys(runtime),
     session: keys(pk),
     voxels: keys(voxels),
     mesh: keys(voxels.toMesh()),
@@ -37,6 +39,7 @@ test('every wrapper key set matches the checked-in manifest exactly', async () =
       `${section} surface drifted — update test/surface-manifest.json AND the API surface spec tables together`,
     );
   }
+  runtime.dispose();
   pk.dispose();
 });
 

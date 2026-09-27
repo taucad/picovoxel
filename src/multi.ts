@@ -14,52 +14,54 @@
 import './dispose.ts';
 
 import createPicoMultiModuleUntyped from './pico-multi.mjs';
-import { createPicoSession, type CreatePicoOptions, type Pico, type PicoGlueFactory } from './session.ts';
+import { WASM_EXPORTS } from './pico-multi.exports.ts';
+import {
+  createPicoSession,
+  openPicoRuntime,
+  warmPool,
+  type CreatePicoOptions,
+  type CreatePicoRuntimeOptions,
+  type Pico,
+  type PicoGlueFactory,
+  type PicoRuntime,
+} from './session.ts';
 
-const glue = createPicoMultiModuleUntyped as PicoGlueFactory;
+// The glue plus the export names it reads, so a caller's wasmModule is checked first.
+const glue: PicoGlueFactory = Object.assign((overrides?: object) => (createPicoMultiModuleUntyped as PicoGlueFactory)(overrides), {
+  wasmExports: WASM_EXPORTS,
+});
 
 /**
  * Creates a multithreaded (pthreads) PicoGK session. Resolves once the wasm
- * module is instantiated AND the TBB worker pool has had a chance to spin up.
- *
- * The warmup matters: oneTBB launches its workers on the first parallel region,
- * and the launch handshake only completes while the main thread is off the wasm
- * stack. Without it, back-to-back synchronous calls run single-threaded forever
- * (measured: identical-to-serial timings, and a livelock under memory growth).
- * One tiny op + one yield turns that into full parallelism (measured 5–6× on
- * offsets at 12 threads).
+ * module is instantiated AND the TBB worker pool has had a chance to spin up
+ * (see `warmPool` in session.ts). The session owns its module and pool:
+ * `dispose()` terminates both.
  */
 export async function createPico(options: CreatePicoOptions = {}): Promise<Pico> {
-  const session = await createPicoSession(glue, options);
-  const warm = session.createVoxels({ shape: 'sphere', radius: 2 });
-  warm.offset({ distance: 0.5 });
-  warm.dispose();
-  // The yielding is load-bearing (the handshake needs the main thread off the
-  // wasm stack) but the *duration* never was: poll the pool instead of sleeping
-  // a flat 100 ms. TBB wants one worker per core besides this thread, and a
-  // 12-core machine gets there in 2–4 ms. The deadline is the old constant, so
-  // a slow host — or one whose browser caps workers below hardwareConcurrency —
-  // is never worse off than it was, it just stops being the common case.
-  // No fallbacks on the two lookups: navigator.hardwareConcurrency exists in
-  // every supported engine (Node >=21, all three gated browsers) and PThread is
-  // unconditionally present in the -pthread glue this entry is bound to.
-  const pool = session.module.PThread!;
-  const wanted = navigator.hardwareConcurrency - 1;
-  const deadline = Date.now() + 100;
-  while (pool.runningWorkers.length < wanted && Date.now() < deadline) {
-    await new Promise((resume) => setTimeout(resume, 0));
-  }
-  return session;
+  return createPicoSession(glue, options, warmPool);
+}
+
+/**
+ * Creates a multithreaded runtime: the module is instantiated and its pool warmed
+ * once, then `runtime.createPico()` opens sessions on it with no per-session
+ * instantiation, pool spawn or warm-up. Dispose the runtime when done — it
+ * terminates the pool, which nothing else does.
+ */
+export async function createPicoRuntime(options: CreatePicoRuntimeOptions = {}): Promise<PicoRuntime> {
+  return openPicoRuntime(glue, options, warmPool);
 }
 
 export type {
   AllocatedCounts,
   CreatePicoOptions,
+  CreatePicoRuntimeOptions,
+  CreatePicoSessionOptions,
   CreateScalarFieldOptions,
   CreateVectorFieldOptions,
   CreateVoxelsOptions,
   MemoryUsage,
   Pico,
+  PicoRuntime,
 } from './session.ts';
 export type { GetSliceOptions, ShellOptions, SliceAxis, SliceMode, Voxels, VoxelSlice } from './voxels.ts';
 export type { Mesh, TransformOptions } from './mesh.ts';

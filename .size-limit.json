@@ -1,8 +1,8 @@
 [
   {
-    "name": "core: picovoxel, /multi, /raw, /slicing, /three (25,715 B brotli at T1.2 on 38bdac8, 2026-09-27)",
+    "name": "core: picovoxel, /multi, /raw, /slicing, /three (25,715 B brotli at T1.2 on 38bdac8; 27,213 B at T4.2 with createPicoRuntime and the two generated export lists, 2026-09-28)",
     "path": ["dist/*.js", "!dist/shapekernel.js", "!dist/latticelibrary.js", "!dist/numerics.js"],
-    "limit": "26 kB"
+    "limit": "27.5 kB"
   },
   {
     "name": "picovoxel/shapekernel (13,309 B brotli at T1.2, 2026-09-27)",

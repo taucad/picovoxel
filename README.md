@@ -79,6 +79,8 @@ const pico = await createPico({
 
 The CI consumer job exercises both overrides against the installed tarball on Node (the multi case with the path form and a module compiled from the file bytes).
 
+**TypeScript**: the declarations need TypeScript 5.7 or later in your project. They use typed-array generics, for example `meshToStlBytes()` returns `Uint8Array<ArrayBuffer>`, which older compilers reject.
+
 **Safari**: supported from 16.4 (the wasm-SIMD floor). `Symbol.dispose` is self-shimmed on engines that lack it (Safari 16.4–18.3), so `using` in *your* transpiled code works there too. The shim assigns only when the native symbol is missing; nothing is patched on modern engines. Proven per-release by a Playwright gate that runs the full suite on Chromium, WebKit, and Firefox — pure-wasm results are bit-identical across all three.
 
 ## Memory
@@ -101,6 +103,37 @@ picovoxel handles this for you:
   no idea native memory is piling up, so we refuse to fail silently at 4 GB.
 - **The leak oracle is built in**: `session.allocated` reports PicoGK's own
   per-type allocation counters.
+
+## Reusing one module across sessions
+
+`createPico()` instantiates a wasm module for every session, and on
+`picovoxel/multi` it also starts and warms a thread pool. A host that opens many
+sessions, such as one per render, can pay that once with a runtime:
+
+```js
+import { createPicoRuntime } from 'picovoxel/multi';
+
+const runtime = await createPicoRuntime();         // instantiate + warm the pool once
+const pico = await runtime.createPico({ voxelSize: 0.5 });
+// ... build ...
+pico.dispose();                                    // frees this session only; the pool keeps running
+runtime.dispose();                                 // disposes open sessions, then stops the pool
+```
+
+Each session is its own PicoGK Library instance, so voxel size, lane and every
+object stay per session. Dispose the runtime when you are done with it: it is
+the only thing that stops the thread pool.
+
+The memory warning is per session, but the heap is not. `memoryWarningBytes`
+counts only the objects of the session it was passed to, while every session on
+a runtime shares one wasm memory and its 4 GB ceiling. Two sessions can
+therefore each stay under the threshold while the heap they share fills up. To
+watch the whole runtime, sample the heap size itself
+(`pico.module.HEAPU8.buffer.byteLength`).
+
+To compile the wasm once per worker, pass the compiled module as
+`createPicoRuntime({ wasmModule })` (it must come from the same entry's `.wasm`),
+or supply your own `wasm: { instantiateWasm }` override.
 
 ## Performance
 
@@ -127,15 +160,15 @@ See [MIGRATING-FROM-CSHARP.md](MIGRATING-FROM-CSHARP.md) for the complete member
 bash scripts/fetch-deps.sh                   # sha256-pinned sources + pinned emsdk into vendor/
 bash scripts/build-deps-wasm.sh              # OpenVDB + oneTBB wasm prefix (~5 min cold)
 THREADS=1 bash scripts/build-deps-wasm.sh    # the same prefix for the pthread variant
-bash scripts/build-pico-module.sh            # -> src/pico.{mjs,wasm}
-THREADS=1 bash scripts/build-pico-module.sh  # -> src/pico-multi.{mjs,wasm}
+bash scripts/build-pico-module.sh            # -> src/pico.{mjs,wasm,exports.ts}
+THREADS=1 bash scripts/build-pico-module.sh  # -> src/pico-multi.{mjs,wasm,exports.ts}
 pnpm install && pnpm test                    # vitest, 100% coverage enforced
 pnpm run build && pnpm run test:browser      # Playwright: chromium + webkit + firefox, against dist/
 pnpm nx run picovoxel:quality                # build, typecheck, package shape, size budgets
 pnpm run bench                               # refuses loaded machines by design
 ```
 
-Neither wasm pair is committed: CI builds both from the pinned sources, and the published binaries come from that run.
+Neither wasm pair is committed: CI builds both from the pinned sources, and the published binaries come from that run. Each build also writes `src/<variant>.exports.ts`, the export names its glue reads. Like the wasm, it is not committed. With a wasm pair copied in from elsewhere, run `node scripts/generate-wasm-exports.mjs pico` (and `pico-multi`).
 
 Upstream PicoGKRuntime is consumed **pristine** — no patch queue. The only C++ this repo owns is one translation unit adding four bulk mesh-transfer exports.
 
