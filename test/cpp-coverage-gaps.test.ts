@@ -454,10 +454,9 @@ test('compose: a column proven solid fills clipped and whole blocks with the den
   // skips the tape: whole leaves become tiles, bbox-clipped blocks are written directly.
   // The oracle is the per-voxel definition itself: over the box grown by the 3-voxel band
   // (voxels -13..13 on each axis) the result is solid, elsewhere it is the base field.
-  // (Not the callback: the post-fill prune picovoxel's own patch adds to the callback
-  // render, patches/PicoGKRuntime/0002-post-fill-prune.patch, collapses an inactive leaf
-  // holding both signs by the sign of its first voxel. Upstream PicoGK does not prune
-  // there, and the tape path matches upstream's per-voxel result, which this test locks in.)
+  // The callback render must agree too: its post-fill prune
+  // (patches/PicoGKRuntime/0002-post-fill-prune.patch) keeps an inactive node that holds
+  // both signs, which the clipped faces of this box produce.
   // pow(v, 2) rather than v * v: its interval knows a square is non-negative, so a column
   // whose z range straddles 0 still classifies (v * v's corners go negative there).
   const solid: SdfExpression = ['-', ['sqrt', ['+', ['pow', 'x', 2], ['pow', 'y', 2], ['pow', 'z', 2]]], 50];
@@ -475,6 +474,11 @@ test('compose: a column proven solid fills clipped and whole blocks with the den
     }
   }
   assert.equal(mismatches, 0, 'the composed inside set is not box ∪ base');
+  const viaCallback = base.withImplicit({
+    ...bounds,
+    sdf: (x, y, z) => Math.sqrt(x ** 2 + y ** 2 + z ** 2) - 50,
+  });
+  assert.equal(viaCallback.equals(composed), true, 'the callback compose kept the same inside set');
   // On an empty field the compose and the fresh-grid fill are one field.
   const empty = pk.createVoxels({ shape: 'empty' }).withImplicit({ ...bounds, sdf: solid });
   const fresh = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: solid });
