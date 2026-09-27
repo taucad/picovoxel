@@ -85,12 +85,12 @@ export const splineOps = {
 
   /** Split at an index into two non-overlapping lists (C# `aSplitLists`). */
   splitAt: (points: readonly Vec3[], firstIndexOfSecond: number): [Vec3[], Vec3[]] => [
-    points.slice(0, firstIndexOfSecond) as Vec3[],
-    points.slice(firstIndexOfSecond) as Vec3[],
+    points.slice(0, firstIndexOfSecond),
+    points.slice(firstIndexOfSecond),
   ],
 
   /** Concatenate lists (C# `aCombineLists`). */
-  combine: (lists: readonly (readonly Vec3[])[]): Vec3[] => lists.flat() as Vec3[],
+  combine: (lists: readonly (readonly Vec3[])[]): Vec3[] => lists.flat(),
 
   /** Every point rotated about the absolute Z axis (C# `aRotateListAroundZ`). */
   rotatedAroundZ: (points: readonly Vec3[], angle: number): Vec3[] =>

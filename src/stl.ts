@@ -66,8 +66,7 @@ const fround = Math.fround;
 /**
  * Serialises indexed geometry to binary STL bytes (deindexed, as the format is).
  *
- * LANES item 1, rider R2: this free function has no session, so no lane was
- * ever declared for it — it keeps the `'open'`-session semantics. Passing
+ * This free function has no session, so no lane is declared for it — it keeps the `'open'`-session semantics. Passing
  * `lane: 'fast'` refuses with `PICO_LANE_EXPORT` unless `options.acceptLane`
  * is `'fast'`; an acknowledged export stamps `LANE=fast` into the 80-byte
  * header (read back by `meshFromStl`). `'exact'` or omitted writes the
@@ -197,9 +196,8 @@ export function meshFromStlBytes(
 
   let effectiveUnit: Exclude<StlUnit, 'auto'> = 'mm';
   if (unit === 'auto') {
-    // LANES defect 3 — case-fold ASCII letters only: toUpperCase() maps 'ß'
-    // (0xDF) to 'SS', and the length change used to shift the index onto the
-    // wrong bytes. This fold is length-preserving, so `at` indexes the bytes.
+    // Case-fold ASCII letters only: toUpperCase() maps 'ß' (0xDF) to 'SS', and
+    // that length change would shift the index onto the wrong bytes. This fold is length-preserving, so `at` indexes the bytes.
     const at = rawHeader.replace(/[a-z]/g, (letter) => letter.toUpperCase()).indexOf('UNITS=');
     if (at !== -1) {
       const value = rawHeader.slice(at + 'UNITS='.length);

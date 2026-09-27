@@ -88,7 +88,7 @@ export function assertLive(disposed: boolean, kind: string): void {
   }
 }
 
-/** R3 placeholder thrown by subpath stubs until their phases land. */
+/** Placeholder error thrown by subpath stubs for unimplemented entry points. */
 export function notImplemented(what: string): never {
   throw new PicoError(
     'PICO_NOT_IMPLEMENTED',

@@ -142,8 +142,8 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint, provenance?
         'vif',
         (positionPointer: number, value: number) => {
           const f32 = ctx.module.HEAPF32;
-          const i = positionPointer! >>> 2;
-          callback(f32[i]!, f32[i + 1]!, f32[i + 2]!, value!);
+          const i = positionPointer >>> 2;
+          callback(f32[i]!, f32[i + 1]!, f32[i + 2]!, value);
         },
         (pointer) =>
           guard('ScalarField_TraverseActive', () =>
@@ -268,8 +268,8 @@ export function wrapVectorField(ctx: SessionContext, handle: bigint, provenance?
         'vii',
         (positionPointer: number, valuePointer: number) => {
           const f32 = ctx.module.HEAPF32;
-          const i = positionPointer! >>> 2;
-          const j = valuePointer! >>> 2;
+          const i = positionPointer >>> 2;
+          const j = valuePointer >>> 2;
           callback(f32[i]!, f32[i + 1]!, f32[i + 2]!, f32[j]!, f32[j + 1]!, f32[j + 2]!);
         },
         (pointer) =>

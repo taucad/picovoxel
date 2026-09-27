@@ -46,7 +46,7 @@ export interface SliceStack {
    * §14.1 value-class provenance (`'exact'` or absent = exact): `sliceVoxels` copies
    * `voxels.lane`, `slicesFromCli` restores it from the header stamp, and
    * `slicesToCli` stamps `'fast'` — manufacturing bytes are stamped, never
-   * refused (LANES item 2).
+   * refused.
    */
   lane?: 'exact' | 'fast';
 }
@@ -462,7 +462,7 @@ export interface ToCliOptions {
   units?: number;
   /** Emit an intentionally-empty first layer so readers can infer layer height. */
   emptyFirstLayer?: boolean;
-  /** Header date string; defaults to today (pass a fixed one for reproducible bytes). */
+  /** Header date string; defaults to the date at call time (pass a fixed one for reproducible bytes). */
   date?: string;
   onProgress?: (fraction: number) => void;
 }
@@ -470,7 +470,7 @@ export interface ToCliOptions {
 const WINDING_TO_CLI: Record<ContourWinding, number> = { cw: 0, ccw: 1, unknown: 2 };
 
 /**
- * LANES item 2 — the provenance stamp for slice artifacts: the STL header's
+ * The provenance stamp for slice artifacts: the STL header's
  * `LANE=<set>` token (`./lanes.ts`) after a `PicoVoxel` marker. In CLI it
  * rides a `// … //` remark line inside `$$HEADERSTART … $$HEADEREND` — CLI
  * v2.0 §3.1.1 defines `// text //` as a comment and its own §4 example puts

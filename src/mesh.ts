@@ -50,24 +50,21 @@ export interface Mesh {
   /**
    * SG7 — binary STL bytes with the UNITS= header convention.
    *
-   * §14.1 export boundary, keyed by the session's claim (LANES item 1, the
-   * D2+D3 hybrid ratified 2026-09-27; Class-2 provenance only — Class-3
-   * policy is reserved for SK-2): exact provenance always exports with the
-   * historical header. Non-exact provenance is stamped into the 80-byte
-   * header (`LANE=fast`, read back by `meshFromStl`) and
-   * - in a `lane: 'fast'` session (explicit, or resolved from `'auto'` —
-   *   choosing "best available" is choosing acceleration) exports without
-   *   asking when every member is `fast`: declaring the lane was the consent;
+   * Export is keyed by the session's lane claim (see docs/lanes.md). Exact
+   * provenance always exports with the standard header. Non-exact provenance
+   * is stamped into the 80-byte header (`LANE=fast`, read back by
+   * `meshFromStl`) and
+   * - in a `lane: 'fast'` session (explicit, or resolved from `'auto'`)
+   *   exports without asking when every member is `fast`;
    * - otherwise — a session that declared no lane (`'open'`), or any member
-   *   outside Class 2 (`gpu-l1`, `unknown`, …) in any session — refuses with
+   *   other than `fast` (`gpu-l1`, `unknown`, …) — refuses with
    *   `PICO_LANE_EXPORT` unless acknowledged with `{ acceptLane: 'fast' }`.
    * A `lane: 'exact'` session never holds non-exact geometry. The stamp is a
    * best-effort audit, not security: third-party tools rewrite STL headers.
    */
   toStl(options?: ToStlOptions): Uint8Array;
   /**
-   * GLB container (positions + indices). GLB has no provenance slot until
-   * V0.18, so non-exact provenance refuses with `PICO_LANE_EXPORT` in EVERY
+   * GLB container (positions + indices). GLB has no provenance slot, so non-exact provenance refuses with `PICO_LANE_EXPORT` in EVERY
    * session — including `lane: 'fast'` — unless acknowledged with
    * `{ acceptLane: 'fast' }`, and the acknowledged bytes record nothing.
    */
@@ -81,7 +78,7 @@ export interface Mesh {
   [Symbol.dispose](): void;
 }
 
-/** Writes vertex/triangle arrays into a fresh raw mesh via the R8 bulk imports. */
+/** Writes vertex/triangle arrays into a fresh raw mesh via the bulk-add imports. */
 export function bulkCreateMesh(
   ctx: SessionContext,
   vertices: ArrayLike<number>,
@@ -111,7 +108,7 @@ export function bulkCreateMesh(
   if (vertexCount > 0) {
     const vertexPointer = checkedMalloc(module, vertexCount * VEC3_BYTES, 'mesh vertices');
     try {
-      module.HEAPF32.set(vertices as ArrayLike<number> & { length: number }, vertexPointer >>> 2);
+      module.HEAPF32.set(vertices, vertexPointer >>> 2);
       raw.Mesh_AddVertices(lib, mesh, vertexPointer, vertexCount);
     } finally {
       module._free(vertexPointer);
@@ -120,7 +117,7 @@ export function bulkCreateMesh(
   if (triangleCount > 0) {
     const trianglePointer = checkedMalloc(module, triangleCount * TRI_BYTES, 'mesh triangles');
     try {
-      module.HEAPU32.set(triangles as ArrayLike<number> & { length: number }, trianglePointer >>> 2);
+      module.HEAPU32.set(triangles, trianglePointer >>> 2);
       raw.Mesh_AddTriangles(lib, mesh, trianglePointer, triangleCount);
     } finally {
       module._free(trianglePointer);

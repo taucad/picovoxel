@@ -95,7 +95,7 @@ export class RegularCellArray implements CellArray {
 }
 
 /**
- * A grid of just one unit cell, centred in XY and based at z = 0
+ * A grid of exactly one unit cell, centred in XY and based at z = 0
  * (C# `RegularUnitCell`).
  */
 export class RegularUnitCell implements CellArray {

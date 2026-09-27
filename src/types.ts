@@ -54,6 +54,7 @@ export interface PicoWasmModule {
   UTF8ToString(pointer: number): string;
   stringToUTF8(text: string, pointer: number, maxBytes: number): void;
   lengthBytesUTF8(text: string): number;
+  // eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- Emscripten callbacks may return nothing ('v' signatures); undefined would reject void-returning functions
   addFunction(fn: (...args: number[]) => number | void, signature: string): number;
   removeFunction(pointer: number): void;
   _malloc(bytes: number): number;

@@ -46,11 +46,12 @@ export function meshFromBufferGeometry(session: Pico, geometry: BufferGeometry):
     );
   }
   const position = geometry.getAttribute('position');
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- three's typing omits the undefined getAttribute returns for a missing attribute
   if (!position) {
     throw new PicoError('PICO_INVALID_ARGUMENT', 'BufferGeometry has no position attribute.');
   }
   return session.createMesh({
-    vertices: position.array as ArrayLike<number>,
-    triangles: index.array as ArrayLike<number>,
+    vertices: position.array,
+    triangles: index.array,
   });
 }

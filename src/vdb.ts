@@ -33,15 +33,15 @@ export interface VdbFile {
   /**
    * Serialises the container to .vdb bytes. Provenance always rides each
    * field's `PicoVoxel.Lane` metadata inside the bytes (the stamp is built in).
-   * §14.1 export boundary, the same session-claim hybrid as `Mesh.toStl`
-   * (LANES item 1): fields `add()`-ed in this session whose provenance is
+   * §14.1 export boundary, the same session-claim rule as `Mesh.toStl`
+   * (see docs/lanes.md): fields `add()`-ed in this session whose provenance is
    * Class-2 `fast` export freely in a `lane: 'fast'` (or `'auto'`) session;
    * in a session that declared no lane, or when any member lies outside
    * Class 2, `toBytes` refuses with `PICO_LANE_EXPORT` unless acknowledged
    * with `{ acceptLane: 'fast' }`. Fields that came in with
    * opened bytes pass through untouched — their tags byte-for-byte, untagged
    * ones untagged: the boundary gates locally-added provenance and never
-   * asserts authorship of foreign content (LANES defect 4).
+   * asserts authorship of foreign content.
    */
   toBytes(options?: { acceptLane?: 'fast' }): Uint8Array;
   /** Raw ABI handle — escape hatch (§10). */

@@ -114,7 +114,7 @@ export const rad = {
   div: (r: Rad, f: number): Rad => asRad(r / f),
   /** Dimensionless ratio of two angles (C# `Rad / Rad`). */
   ratio: (a: Rad, b: Rad): number => a / b,
-  neg: (r: Rad): Rad => asRad(-r),
+  neg: (r: Rad): Rad => asRad(-(r as number)),
 } as const;
 
 function overhangOutOfRange(what: string, range: string, value: number): PicoError {

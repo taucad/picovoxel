@@ -30,7 +30,7 @@ export const mat4 = {
   multiply(a: Mat4, b: Mat4): Mat4 {
     checkMat4(a, 'left matrix');
     checkMat4(b, 'right matrix');
-    const out = new Array<number>(16);
+    const out: number[] = []; // filled in index order 0..15 below
     for (let row = 0; row < 4; row += 1) {
       for (let col = 0; col < 4; col += 1) {
         out[row * 4 + col] =

@@ -1,9 +1,8 @@
-// R14 (real-world-subjects blueprint) — the two headless FieldUtils helpers
-// PicoGK_SimulationExample consumes, ported from PicoGK Utils/FieldUtils.cs
-// (Apache-2.0, © 2023-2026 LEAP 71; see NOTICE) over the existing
-// `traverse()` surface — no ABI change (Finding 3 exception).
+// The two headless FieldUtils helpers PicoGK_SimulationExample consumes,
+// ported from PicoGK Utils/FieldUtils.cs (Apache-2.0, © 2023-2026 LEAP 71; see
+// NOTICE) over the existing `traverse()` surface, with no ABI change.
 
-import type { ScalarField, VectorField } from './fields.ts';
+import type { VectorField } from './fields.ts';
 import { vec3 } from './numerics/vector.ts';
 import type { Pico } from './session.ts';
 import type { Vec3 } from './types.ts';

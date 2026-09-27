@@ -8,8 +8,8 @@
 // inputs and builds exactly one fresh output tree with thread-per-leaf
 // shared-nothing composition (`composite::doCSGCopy`) — the execution shape
 // this repo has proven deterministic at production scale, and the reason the
-// reverted merge-based U20 design is not re-attempted here (NON-DETERMINISM
-// §12.10, §11.3).
+// reverted merge-based U20 design, whose output depended on thread scheduling,
+// is not re-attempted here.
 //
 // Post-processing parity: upstream's RebuildGrid() after every boolean is a
 // disabled no-op (PicoGKVdbVoxels.h:888 returns immediately), so value-level

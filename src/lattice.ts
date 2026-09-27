@@ -26,7 +26,7 @@ import { EXACT_LANE_SET } from './lanes.ts';
 import type { Vec3 } from './types.ts';
 import { wrapVoxels, type Voxels } from './voxels.ts';
 
-/** Floats per staged beam: (x0, y0, z0, r0, x1, y1, z1, r1). */
+/** Floats per staged beam: start x, y, z and radius, then end x, y, z and radius. */
 const BEAM_FLOATS = 8;
 /** Floats per staged sphere: (x, y, z, r) — one beam-endpoint lane. */
 const SPHERE_FLOATS = 4;

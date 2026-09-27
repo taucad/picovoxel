@@ -60,25 +60,20 @@ export interface ShellOptions {
 }
 
 /**
- * SK-0.8 — the certified opt-in renormalization setting for the offset family:
- * `openvdb::math::FIRST_BIAS` (first-order upwind) instead of the LevelSetTracker
- * default of `HJWENO5_BIAS`, with the sweep COUNT left at upstream's 3.
+ * The opt-in renormalization setting for the offset family: `FIRST_BIAS`
+ * (first-order upwind) instead of the LevelSetTracker default `HJWENO5_BIAS`,
+ * with upstream's sweep count of 3 kept.
  *
- * Both knobs were swept against four offset fixtures (bench/results/webgpu-v2/SK-0.8.md)
- * and they are not interchangeable. Dropping the spatial scheme's order keeps the
- * Eikonal property — openvdb's own `tools::checkLevelSet` reports a clean field, i.e.
- * |∇φ| stays inside [0.5, 1.5] — and buys 3.5–3.9x. Dropping the sweep count buys more
- * but breaks it: every count < 3 setting measured left voxels outside that range on at
- * least one fixture, and `HJWENO5` at one sweep is strictly dominated (slower AND
- * broken) by `FIRST_BIAS` at three. So the count stays at the default and only the
- * scheme moves; `Voxels_OffsetTuned` on the raw subpath still reaches both knobs for
- * anyone who wants to re-sweep.
+ * Measured on four offset fixtures (bench/results/webgpu-v2/sk-0.8-ab.json):
+ * lowering the scheme order keeps |∇φ| inside [0.5, 1.5] per openvdb's
+ * `tools::checkLevelSet` and is 3.5–3.9x faster; every sweep count below 3
+ * broke that bound on some fixture. `Voxels_OffsetTuned` (raw subpath)
+ * reaches both knobs.
  *
- * The LIBRARY default path is the untuned upstream call, bit-for-bit, and the
- * byte-locked fixtures plus test/voxels-offsets.test.ts pin that. Since SKv2-0
- * V0.4 a session may default the family on (`createPico({ fastRenorm: true })`;
- * the V0.5 `'fast'` lane bundle is what sets it) — precedence is explicit
- * per-op > session default > library default false.
+ * The library default is the untuned upstream call, pinned by the byte-locked
+ * fixtures and test/voxels-offsets.test.ts. Precedence: explicit
+ * per-op > session default (`createPico({ fastRenorm })`, set by the `'fast'`
+ * lane) > library default false.
  */
 const FAST_RENORM_SCHEME = 0; // openvdb::math::FIRST_BIAS (FiniteDifference.h:166)
 const FAST_RENORM_COUNT = -1; // < 0 == leave upstream's normCount (LEVEL_SET_HALF_WIDTH = 3)
@@ -104,7 +99,7 @@ export interface Voxels {
    * HJ-WENO — 3.5–3.9x on the offset family, since renormalization is 94–97% of the
    * offset wall. It CHANGES THE OUTPUT (measured at ≤2.2% volume, ≤0.36 mm peak
    * narrow-band displacement, level set still clean; gate values and the full sweep in
-   * bench/results/webgpu-v2/SK-0.8.md), so it is never the library default —
+   * bench/results/webgpu-v2/sk-0.8-ab.json), so it is never the library default —
    * a session may default it on (see `CreatePicoOptions.fastRenorm`), and an
    * explicit per-op value always wins.
    */
@@ -128,7 +123,7 @@ export interface Voxels {
   /**
    * Pure: clone + render the SDF into the clone within bounds. A JS callback
    * runs upstream's serial per-voxel loop; a serialized `SdfExpression` takes
-   * the slab-parallel tape path (R9). The two paths produce `equals()`-identical
+   * the slab-parallel tape path. The two paths produce `equals()`-identical
    * grids with identical `properties()` and STL bytes; only the raw fast
    * `volume` approximation may differ between them (it integrates
    * representation bookkeeping the pruned fill legitimately omits).
@@ -136,7 +131,7 @@ export interface Voxels {
   withImplicit(options: { sdf: SdfFunction | SdfExpression; boundsMin: Vec3; boundsMax: Vec3 }): Voxels;
   /**
    * The gyroid-in-sphere idiom: existing voxels re-evaluated under the SDF.
-   * Callback = serial upstream loop; `SdfExpression` = parallel tape path (R9)
+   * Callback = serial upstream loop; `SdfExpression` = parallel tape path
    * — `equals()`-identical results, see `withImplicit` on the fast-volume caveat.
    */
   maskedByImplicit(options: { sdf: SdfFunction | SdfExpression }): Voxels;
@@ -150,8 +145,7 @@ export interface Voxels {
    */
   properties(): { volume: number; area: number; bounds: Bounds };
   /**
-   * SKv2-0 V0.1 — the G0 canonical grid hash (NON-DETERMINISM.md §14.5):
-   * representation-normalized XXH3-128 over the level set's exact content
+   * The G0 canonical grid hash: representation-normalized XXH3-128 over the level set's exact content
    * (src/pico-hash.cpp). Two grids hash equal iff they classify and value
    * every voxel identically — tile vs dense-leaf encodings of one field hash
    * equal. Index-space only: voxel size is pinned by the tuple's volume/counts.
@@ -672,8 +666,8 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       const bytes = count * VEC3_BYTES;
       const pointer = checkedMalloc(ctx.module, 2 * bytes + bytes + count, 'a raycast batch buffer');
       try {
-        ctx.module.HEAPF32.set(origins as ArrayLike<number> & number[], pointer >>> 2);
-        ctx.module.HEAPF32.set(directions as ArrayLike<number> & number[], (pointer + bytes) >>> 2);
+        ctx.module.HEAPF32.set(origins, pointer >>> 2);
+        ctx.module.HEAPF32.set(directions, (pointer + bytes) >>> 2);
         guard('Voxels_RayCastBatch', () =>
           ctx.raw.Voxels_RayCastBatch(
             ctx.lib,
@@ -711,7 +705,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       const bytes = count * VEC3_BYTES;
       const pointer = checkedMalloc(ctx.module, 2 * bytes + count, 'a closest-point batch buffer');
       try {
-        ctx.module.HEAPF32.set(points as ArrayLike<number> & number[], pointer >>> 2);
+        ctx.module.HEAPF32.set(points, pointer >>> 2);
         guard('Voxels_ClosestPointBatch', () =>
           ctx.raw.Voxels_ClosestPointBatch(
             ctx.lib,

@@ -154,6 +154,7 @@ export function compileSdfExpression(expression: SdfExpression): SdfTape {
       for (const operand of operands.slice(1)) register = emit(folding, register, compile(operand));
       return register;
     }
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-conversion -- untyped JavaScript callers may pass a Symbol, which a bare template literal throws on
     throw invalid(`unknown operator '${String(operator)}'`);
   };
 

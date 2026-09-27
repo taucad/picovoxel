@@ -90,8 +90,8 @@ export function tagFieldClass(
  * SG3-style guard exactly as `tagFieldClass` does (users cannot write
  * `PicoVoxel.*` — provenance must not be forgeable through the public surface).
  *
- * The value is a lane SET in the persisted grammar of `./lanes.ts` (LANES
- * item 4): loads never rewrite it, derived handles carry the union of their
+ * The value is a lane SET in the persisted grammar of `./lanes.ts`: loads
+ * never rewrite it, derived handles carry the union of their
  * inputs' members.
  */
 const LANE_METADATA_NAME = 'PicoVoxel.Lane';
@@ -143,9 +143,9 @@ function writeLaneTag(
 }
 
 /**
- * Reads the persisted lane tag off a field's grid by VALUE (LANES defect 1 —
- * it used to test presence only, collapsing unknown strings to `'fast'` and
- * float-typed tags to `'exact'`). `null` = untagged. The ABI's type query
+ * Reads the persisted lane tag off a field's grid by VALUE, not presence, so
+ * unknown strings do not collapse to `'fast'` nor float-typed tags to
+ * `'exact'`. `null` = untagged. The ABI's type query
  * reports absence and exotic foreign types (int, double) alike, so those read
  * as untagged.
  * ponytail: distinguishing them needs a names() scan per load; add it when a
@@ -179,7 +179,7 @@ function readLaneTag(
 }
 
 /**
- * LANES defect 5 — the ingest lock. Importing fast-provenance content into a
+ * The ingest lock. Importing fast-provenance content into a
  * `lane: 'exact'` session throws: the session claims no Class-2 op fed
  * anything in it, and a fast import falsifies that. No override exists (an
  * escape hatch would create exactly the handle the claim rules out).
@@ -294,6 +294,7 @@ export function wrapMetadata(ctx: SessionContext, handle: bigint): Metadata {
         withStrings(ctx, [name, value], (n, v) => ctx.raw.Metadata_SetStringValue(ctx.lib, handle, n, v));
       } else if (typeof value === 'number') {
         withStrings(ctx, [name], (n) => ctx.raw.Metadata_SetFloatValue(ctx.lib, handle, n, value));
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime guard for untyped JavaScript callers
       } else if (Array.isArray(value) && value.length === 3) {
         ctx.writeVec3(ctx.scratch, value as Vec3);
         withStrings(ctx, [name], (n) => ctx.raw.Metadata_SetVectorValue(ctx.lib, handle, n, ctx.scratch));

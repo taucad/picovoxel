@@ -10,8 +10,8 @@
 // This TU is that same sequence, in-module, plus openvdb's levelSetArea over the
 // grid the sequence already builds.
 //
-// WHY THE MESH ROUND-TRIP SURVIVES (audit deviation, deliberate — see
-// bench/results/webgpu-v2/SK-0.5.md). The A4/A5 reading was that properties()
+// WHY THE MESH ROUND-TRIP SURVIVES (a deliberate deviation from the audit).
+// The A4/A5 reading was that properties()
 // re-voxelizes out of laziness and that levelSetVolume over the live grid would
 // do. It would not. openvdb's csg ops leave distance-0 voxels behind on
 // coincident surfaces, and LevelSetMeasure integrates them as real surface: a−a

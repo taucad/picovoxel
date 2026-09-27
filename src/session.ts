@@ -67,7 +67,7 @@ export type CreateVoxelsOptions =
   | { shape: 'empty' }
   | { shape: 'sphere'; center?: Vec3; radius: number }
   | { shape: 'beam'; start: Vec3; end: Vec3; radius?: number; startRadius?: number; endRadius?: number }
-  /** Alias of 'beam' kept for continuity with the R12 surface. */
+  /** Alias of 'beam', kept for source compatibility. */
   | { shape: 'capsule'; start: Vec3; end: Vec3; radius?: number; startRadius?: number; endRadius?: number }
   /**
    * A JS `sdf` function runs on upstream's serial fill (the callback is only
@@ -124,29 +124,18 @@ export interface CreatePicoSessionOptions {
    */
   memoryWarningBytes?: number;
   /**
-   * SKv2-0 V0.5 (§14.1) — the named lane bundle; a POLICY claim about every
-   * value this session produces.
-   * - `'exact'`: the byte-locked numerics policy, LOCKED — session-level or
-   *   per-op loosening (e.g. `fastRenorm: true`) throws `PICO_LANE_LOOSENED`,
-   *   and so does importing a `.vdb`/STL asset that carries non-exact
-   *   provenance (no override: load it in an `'open'` or `'fast'` session).
-   *   The claim is the weak, enforceable one — no Class-2 op fed anything in
-   *   this session; the L0 *oracle* is specifically this lane on the serial
-   *   artifact.
-   * - `'fast'`: Class-2 accelerations default on (`fastRenorm` today; T1/T2
-   *   when they land). Per-op/session-level *tightening* is allowed. Declaring
-   *   it is also the export consent: STL and `.vdb` exports stamp the lane
-   *   and never refuse (GLB still refuses until it has a provenance slot).
-   * - `'auto'`: resolves to the strongest lane available at construction —
-   *   `'fast'` today, adapter-qualified GPU lanes later — and counts as the
-   *   same consent. `session.lane` always reports the RESOLUTION, never
-   *   `'auto'` (an unresolved `'auto'` is the value that keys identically
-   *   while resolving differently).
-   * Omitted = `'open'`: unspecified — the pre-lane legacy; library defaults
-   * with per-op freedom both ways, and exports of non-exact provenance refuse
-   * unless acknowledged per export with `acceptLane: 'fast'`. The consent
-   * rules cover today's Class-2 fast lane only; Class-3 (machine-scoped
-   * relaxed-math/GPU) export policy is reserved for SK-2.
+   * The session's lane, a policy claim about every value it produces (see
+   * docs/lanes.md).
+   * - `'exact'`: the byte-locked numerics policy, locked. Loosening (e.g.
+   *   `fastRenorm: true`) throws `PICO_LANE_LOOSENED`, as does importing a
+   *   `.vdb`/STL asset with non-exact provenance (no override).
+   * - `'fast'`: Class-2 accelerations (`fastRenorm`) default on; tightening is
+   *   allowed. It also consents to export: STL and `.vdb` stamp the lane and
+   *   never refuse (GLB, lacking a provenance slot, refuses).
+   * - `'auto'`: resolves at construction to the strongest available lane
+   *   (`'fast'` on this build); `session.lane` reports the resolution.
+   * Omitted = `'open'`: library defaults with per-op freedom; exports of
+   * non-exact provenance refuse unless acknowledged with `acceptLane: 'fast'`.
    */
   lane?: 'exact' | 'fast' | 'auto';
   /**
@@ -158,23 +147,17 @@ export interface CreatePicoSessionOptions {
    */
   fastRenorm?: boolean;
   /**
-   * SKv2-0 V0.6 — routes lattice rendering down the serial C#-identical
-   * `Voxels::RenderLattice` loop instead of the parallel tube-complex lane
-   * (both deterministic; they differ at byte level, which is why this is a
-   * keyed init option and not ambient state). Replaces the deleted
-   * `PICOVOXEL_SERIAL_LATTICE` env read. Default false: tube-complex always —
-   * nothing switches arms by size, and no automatic arm will be added without
-   * a new charter row (LANES Part 4, ratified 2026-09-27).
+   * Routes lattice rendering down the serial C#-identical `Voxels::RenderLattice`
+   * loop instead of the parallel tube-complex lane. Both are deterministic but
+   * differ at byte level. Default false: always the tube complex; nothing
+   * switches arms by size.
    *
-   * When to choose `true`: tiny lattices. The tube-complex lane pays a fixed
-   * setup cost (spatial bucketing, the deterministic split tree) that is free
-   * at 10^5 beams and dominant at ~14: the 14-beam HeatX print web went from
-   * 2.9 to 7.3 ms on the tube lane (`bench/results/webgpu-v2/SK-0-EXIT.md` §5).
-   * The catch: the serial arm is the defect-carrying one on beams whose end
-   * spheres nest (upstream U23 — the round-cone SDF renders the larger ball
-   * as something else entirely, -90.7% volume in the SK-0.4 corpus), while
-   * the tube lane renders it correctly. In C# that defect is unconditional;
-   * here it is opt-in with this flag.
+   * Choose `true` for tiny lattices: the tube lane's fixed setup cost (spatial
+   * bucketing, the deterministic split tree) is negligible at 10^5 beams and
+   * dominant at ~14 — the 14-beam HeatX print web takes 2.9 ms serial and
+   * 7.3 ms on the tube lane. The catch: the serial arm mis-renders beams whose
+   * end spheres nest (upstream defect U23, -90.7% volume), which the tube lane
+   * renders correctly.
    */
   serialLattice?: boolean;
   /** @internal test seam — fake disposal registry. */
@@ -643,6 +626,7 @@ function openPicoSession(
         case 'beam':
         case 'capsule': {
           const { start, end } = options;
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime guard for untyped JavaScript callers
           if (!start || !end) {
             throw new PicoError(
               'PICO_INVALID_ARGUMENT',
@@ -665,6 +649,7 @@ function openPicoSession(
         }
         case 'implicit': {
           const { boundsMin, boundsMax, sdf } = options;
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime guard for untyped JavaScript callers
           if (!boundsMin || !boundsMax) {
             throw new PicoError(
               'PICO_INVALID_ARGUMENT',
@@ -741,6 +726,7 @@ function openPicoSession(
     createScalarField(options: CreateScalarFieldOptions = {}): ScalarField {
       liveSession();
       ctx.maybeWarnMemory();
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime guard for untyped JavaScript callers
       if ('from' in options && options.from) {
         const from = assertVoxelsOperand(ctx, options.from, 'createScalarField from');
         const lane = provenanceOf(options.from); // refuses a non-geometry operand before the native call
@@ -775,6 +761,7 @@ function openPicoSession(
     createVectorField(options: CreateVectorFieldOptions = {}): VectorField {
       liveSession();
       ctx.maybeWarnMemory();
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime guard for untyped JavaScript callers
       if ('from' in options && options.from) {
         const from = assertVoxelsOperand(ctx, options.from, 'createVectorField from');
         const lane = provenanceOf(options.from); // refuses a non-geometry operand before the native call
@@ -903,7 +890,7 @@ function openPicoSession(
       liveSession();
       ctx.maybeWarnMemory();
       const { vertices, triangles, provenance } = meshFromStlBytes(bytes, options);
-      rejectLaneIngest(ctx, provenance, 'meshFromStl'); // LANES defect 5 — before any native allocation
+      rejectLaneIngest(ctx, provenance, 'meshFromStl'); // ingest lock — before any native allocation
       return wrapMesh(ctx, bulkCreateMesh(ctx, vertices, triangles), provenance);
     },
 

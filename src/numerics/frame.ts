@@ -102,7 +102,7 @@ export const frame = {
 
   /**
    * The inverse transform — maps world to local (C# `frmInverse`), **fixed
-   * here** (upstream bug B5, do-not-port list in MIGRATING-FROM-CSHARP.md):
+   * here** (upstream bug B5, fixed upstream in 0e6cf6b6; see upstream/LEDGER.md):
    * C# copies `vecLz`/`vecLx` verbatim into the inverse, inverting the
    * translation but NOT the rotation, so `frmCompose(frmInverse())` is only
    * the identity for rotation-free frames. The inverse rotation is Rᵀ, whose
