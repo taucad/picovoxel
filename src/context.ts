@@ -43,7 +43,7 @@ export const INFO_STRING_BYTES = 255; // PKINFOSTRINGLEN
  * direct wasm exports that never read `this`, so detaching one (for example to
  * pass a destroy function to the registry) is safe.
  */
-export type SessionRaw = {
+type SessionRaw = {
   [K in keyof PicoRaw]: (...args: Parameters<PicoRaw[K]>) => ReturnType<PicoRaw[K]>;
 };
 
