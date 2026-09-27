@@ -12,7 +12,7 @@
 //
 //   node bench/native-heatx/compare-arms.mjs
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { summarizeBootstrapMedian } from '../stats.mjs';

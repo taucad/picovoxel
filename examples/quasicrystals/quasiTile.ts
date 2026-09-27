@@ -33,8 +33,8 @@ export abstract class QuasiTile {
   }
 
   /**
-   * Applies the coordinate trafo to each vertex of each face — used to place
-   * sub-tiles during inflation (C# `ApplyTrafo`).
+   * Applies the coordinate trafo to each vertex of each face; inflation places
+   * sub-tiles with it (C# `ApplyTrafo`).
    */
   applyTrafo(trafo: (pt: Vec3) => Vec3): void {
     for (const face of this.aFaces) {

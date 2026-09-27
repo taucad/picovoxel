@@ -1,10 +1,9 @@
-// G0 identity oracle for binary STL streams (NON-DETERMINISM.md §6): the
-// order-invariant multiset hash that discriminates "permuted bytes, same mesh"
-// (Class 1) from "different mesh" (Class X / UB) — the discriminator §11.1 asks
-// for. Built for SK-0.9; kept as general tooling.
+// G0 identity oracle for binary STL streams: the order-invariant multiset hash
+// that discriminates "permuted bytes, same mesh" (Class 1) from "different
+// mesh" (Class X / UB). Built for SK-0.9; kept as general tooling.
 //
-// Construction (reconciled with NON-DETERMINISM.md §14.5, SK-0.10)
-// ----------------------------------------------------------------
+// Construction (SK-0.10)
+// ----------------------
 // A binary STL is an 80-byte header + uint32 count + N 50-byte records. Each
 // record is 12 little-endian f32 (facet normal, then three vertices) followed by
 // a 2-byte attribute word this writer always sets to 0 (src/stl.ts).
@@ -24,7 +23,7 @@
 //
 // Per-record: d_i = SHA-256(canonical payload_i), read as a 256-bit big-endian
 // integer. Combined: H = (sum_i d_i) mod 2^256, in 8 uint32 limbs with carry.
-// SHA-256 rather than §14.5's 128-bit xxh3/BLAKE3: node stdlib, no dependency,
+// SHA-256 rather than a 128-bit xxh3/BLAKE3: node stdlib, no dependency,
 // and strictly stronger. It costs ~4 min over a 10 M-record / 502 MB stream
 // against ~40 s of meshing, which is worth it for an oracle run offline; swap in
 // xxh3-128 the day this tool goes near CI.
@@ -64,7 +63,7 @@ const PAYLOAD = 36; // 9 f32 — the three vertices, canonicalized
 const ATTR = 48; // offset of the 2-byte attribute word
 const GEOMETRY = 48; // normal + vertices — what `diff` compares byte-wise
 
-/** -0.0 -> +0.0, any NaN -> 0x7fc00000, everything else raw f32 bits (§14.5). */
+/** -0.0 -> +0.0, any NaN -> 0x7fc00000, everything else raw f32 bits. */
 export function canonicalizeF32Bits(bits) {
   if ((bits & 0x7f800000) === 0x7f800000 && (bits & 0x007fffff) !== 0) return 0x7fc00000;
   return bits === 0x80000000 ? 0 : bits;
@@ -76,7 +75,7 @@ export function stlIdentity(bytes) {
   const triangles = view.getUint32(80, true);
   const limbs = new Uint32Array(8);
   let attrNonZero = 0;
-  // Hard health boolean (NON-DETERMINISM.md §6 G0): a non-finite coordinate is
+  // Hard health boolean (G0): a non-finite coordinate is
   // never legitimate output. src/stl.ts writes NaN when a triangle index points
   // past the vertex array (JS `undefined` through Math.fround), so this counter
   // is the cheapest detector of out-of-range indices in the extracted mesh.
@@ -178,8 +177,8 @@ function cmdDiff(fileA, fileB) {
   console.log(`first differing record indices: ${differing.join(', ')}`);
   for (const t of differing.slice(0, 3)) {
     console.log(`\nrecord ${t}`);
-    console.log(`  A n=[${decode(viewA, t).slice(0, 3)}] v=[${decode(viewA, t).slice(3)}]`);
-    console.log(`  B n=[${decode(viewB, t).slice(0, 3)}] v=[${decode(viewB, t).slice(3)}]`);
+    console.log(`  A n=[${decode(viewA, t).slice(0, 3).join()}] v=[${decode(viewA, t).slice(3).join()}]`);
+    console.log(`  B n=[${decode(viewB, t).slice(0, 3).join()}] v=[${decode(viewB, t).slice(3).join()}]`);
     // Where does A's record sit in B? A pure permutation puts it somewhere.
     const needle = record(a, t);
     let found = -1;
@@ -282,14 +281,14 @@ function cmdSelftest() {
     wrap[limb] = sum >>> 0;
     carry = sum > 0xffffffff ? 1 : 0;
   }
-  eq('mod-2^256 wraparound', [...wrap].join(), new Array(8).fill(0).join());
+  eq('mod-2^256 wraparound', [...wrap].join(), Array.from({ length: 8 }, () => 0).join());
   eq(
     'permuted streams are not byte-identical',
     stlIdentity(make([1, 2, 3])).sha256 === stlIdentity(make([3, 1, 2])).sha256,
     false,
   );
 
-  // §14.5 reconciliation (SK-0.10): the normal is out of the payload, and the
+  // Construction checks (SK-0.10): the normal is out of the payload, and the
   // two canonicalizations fold. Each claim also asserts the streams really do
   // differ byte-wise, so a no-op construction cannot pass by accident.
   const normalA = makeBits(twelve((f) => (f < 3 ? 0x3f800000 : 0x40000000 + f)));

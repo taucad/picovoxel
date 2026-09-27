@@ -45,14 +45,14 @@ interface LeafTransformRun {
 }
 
 const gpuConstants = (): GpuConstants => {
-  const buffer = Reflect.get(globalThis, 'GPUBufferUsage');
-  const mapMode = Reflect.get(globalThis, 'GPUMapMode');
+  const buffer: unknown = Reflect.get(globalThis, 'GPUBufferUsage');
+  const mapMode: unknown = Reflect.get(globalThis, 'GPUMapMode');
   if (typeof buffer !== 'object' || typeof mapMode !== 'object') {
     throw new Error('WebGPU runtime constants are unavailable');
   }
   return {
     buffer: buffer as GpuConstants['buffer'],
-    mapRead: Reflect.get(mapMode, 'READ') as number,
+    mapRead: Reflect.get(mapMode as object, 'READ') as number,
   };
 };
 
@@ -523,23 +523,25 @@ const runTrilinearProbe = async (options: {
   }
 };
 
+// Every operand is a float32 value; ties are written as their exact decimal
+// expansion so each literal names its double without rounding.
 const FMA_OPERANDS = [
   [59.336978912353516, -833.156005859375, 49436.91796875],
   [13.295721054077148, -123.22908020019531, 1638.3519287109375],
-  [76.48648071289062, 539.8080444335938, -41287.953125],
-  [-541.4644165039062, -173.85125732421875, -94134.3125],
-  [974.5603637695312, -582.8273315429688, 568000.4375],
+  [76.486480712890625, 539.8080444335938, -41287.953125],
+  [-541.46441650390625, -173.85125732421875, -94134.3125],
+  [974.56036376953125, -582.8273315429688, 568000.4375],
   [928.5485229492188, 605.8433837890625, -562554.9375],
-  [810.6235961914062, -493.9886779785156, 400438.8125],
+  [810.62359619140625, -493.9886779785156, 400438.8125],
   [835.0673217773438, -672.02197265625, 561183.625],
   [934.2449951171875, 911.886962890625, -851925.75],
   [507.95458984375, 832.4600830078125, -422851.9375],
-  [-876.4014282226562, 937.616455078125, 821728.4375],
-  [592.7744140625, 183.68252563476562, -108882.2890625],
+  [-876.40142822265625, 937.616455078125, 821728.4375],
+  [592.7744140625, 183.682525634765625, -108882.2890625],
   [35.910091400146484, 619.2056884765625, -22235.65234375],
   [-43.92039108276367, -184.41712951660156, -8099.603515625],
   [-66.99906158447266, -467.2255554199219, -31303.73828125],
-  [-775.6477661132812, -590.029296875, -457654.96875],
+  [-775.64776611328125, -590.029296875, -457654.96875],
 ] as const;
 
 const runFmaProbe = async (options: {
@@ -775,7 +777,7 @@ const runChunkingProbe = async (options: {
         options.report.adapter.description || options.report.adapter.device || options.report.adapter.vendor,
       dispatchCount: gpu.dispatchCount,
       requestedLane: 'webgpu',
-      resultConsumed: mismatch === null,
+      resultConsumed: true, // a mismatch threw above
     });
     return {
       activeCount: snapshot.activeCount,

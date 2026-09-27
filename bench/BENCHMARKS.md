@@ -4,9 +4,9 @@
 > **Absolute numbers are device-specific; treat ratios and phase splits as the portable signal.**
 > Reproduce with `pnpm run bench` (the harness refuses loaded machines). Source: `bench/results/2026-07-23-3622099.json`.
 >
-> Native-comparison figures (the ~1.95× PicoGK wasm tax, R20's 3–9% SDF callback overhead, R11's ~150×
-> bulk-readback win) are imported by reference from the measured records in the research docs
-> (picovoxel-wasm-kernel-blueprint) — native builds live outside this repo's toolchain.
+> Native-comparison figures (the ~1.95× PicoGK wasm cost, the 3–9% SDF callback overhead, the ~150×
+> bulk-readback win) come from earlier measured runs, not from this harness; native builds live outside
+> this repository's toolchain.
 
 | Metric     | Description                                                  | Phase                                    |       Median |       Min |       Max |
 | ---------- | ------------------------------------------------------------ | ---------------------------------------- | -----------: | --------: | --------: |
@@ -136,10 +136,10 @@ Identity oracles (hex-float volumes, FNV-1a mesh hashes) are bit-stable across t
 **Repeatability**: consecutive quiet-machine runs agree within ±10% on every phase ≥ 1 ms;
 sub-millisecond phases (e.g. M6 bulk readback) are timer-noise-dominated and may vary up to ±20% — their RATIO to the paired phase is the signal.
 
-**Sanity anchors** (vs the research-doc records): M6's bulk-vs-per-element ratio grows with mesh size —
-~50× here on a ~40k-vertex gyroid, consistent with R11's ~150× record at 174k vertices; M3's render phase
-(~130 ns/sample at 0.25 mm including voxel work) is consistent with R20's 3–9% JS-SDF callback overhead;
-M9's raw10k is a deliberately retained emscripten ccall (SK-0.2) and the facade now runs on direct exports; the rows sit within a few percent because bIsEmpty on a real sphere field is ~1.6 µs of C++ against a ~65 ns boundary delta — the isolated per-call cost is measured by `bench/abi-call-cost.mjs`, not here.
+**Sanity anchors** (vs earlier measured runs): M6's bulk-vs-per-element ratio grows with mesh size —
+~50× here on a ~40k-vertex gyroid, consistent with the earlier ~150× measurement at 174k vertices; M3's render phase
+(~130 ns/sample at 0.25 mm including voxel work) is consistent with the earlier 3–9% JS-SDF callback overhead measurement;
+M9's raw10k is a deliberately retained emscripten ccall and the facade now runs on direct exports; the rows sit within a few percent because bIsEmpty on a real sphere field is ~1.6 µs of C++ against a ~65 ns boundary delta — the isolated per-call cost is measured by `bench/abi-call-cost.mjs`, not here.
 
 ## Appendix — TP7: post-pruning evaluation program (2026-07-18)
 
@@ -218,7 +218,7 @@ nil for the distance fixtures.
 **Measured — NEGATIVE RESULT, REVERTED**: gyroid single 561 → 603 ms (**0.93×**), union64
 192 → 202 ms (0.95× — union64 has no trig, so that loss is pure partner-bookkeeping overhead
 in the hot evaluator loops), sphere flat, multi flat; identity stayed exact and the suite
-green, so the fusion itself was correct — just slower. Root cause: musl `sincos` returns
+green, so the fusion itself was correct, but slower. Root cause: musl `sincos` returns
 through memory out-params (two linear-memory stores + loads per call on wasm) and still runs
 both kernels, so the one shared `__rem_pio2` it saves is eaten by the call shape; the added
 per-instruction partner checks then push the balance negative even on the fixture the stage
@@ -242,7 +242,7 @@ measurement: kept only if a net win on the gyroid with no regression elsewhere.
 **Measured — NEGATIVE RESULT, REVERTED**: gyroid single 537 → 538 ms (**1.00× — the affine
 retry reclassified essentially nothing**), sphere 90 → 93 ms (−3%), union64 182 → **220 ms
 (−17%)** — its 144 IA-ambiguous columns each paid a 1,343-instruction affine sweep that never
-fired. Identity exact, suite green: the AF1 rules were sound, just useless here. Structural
+fired. Identity exact, suite green: the AF1 rules were sound but useless here. Structural
 diagnosis, not an implementation artifact: the gyroid's `abs(Σ sin·cos) − 0.4` needs the
 affine sum to clear **±0.7** (background 0.3 + iso offset 0.4), and the unavoidable slack —
 mul cross-terms rad·rad ≈ 0.06 per product at 0.5 rad/block, plus the abs-straddle collapse
@@ -258,9 +258,9 @@ Cumulative landed effect (TP6 → TP7b, back-to-back pairs): **gyroid single 1,4
 (1.8×); union64 single 471 → 196 ms (2.4×) / multi 70 → 29 ms (2.4×)** — on top of TP6
 pruning's 1.2–13.3×, all bit-identical to the JS-callback path.
 
-### R11 — HelixHeatX voxel sweep vs LEAP71's published table (2026-07-19)
+### HelixHeatX voxel sweep vs LEAP71's published table (2026-07-19)
 
-The flagship real-world subject (blueprint R11): the whole HelixHeatX Task
+The flagship real-world subject: the whole HelixHeatX Task
 headless — geometry generation (1,197,460 lattice beams across 37 lattices; the long-standing "~10⁵" figure was an order of magnitude low, counted directly in SK-0.2), the boolean assembly,
 the full finishing family (offset/fillet/smoothen/projectZSlice), meshing and
 binary-STL bytes. LEAP71's published numbers ("on a MacBook Air", README
@@ -290,16 +290,16 @@ Readings:
   (the narrow-band work at fine voxels parallelizes; per-op overheads amortize).
 - **wasm vs native**: multi lands within 1.4× of the published native-C#
   number at 0.5 mm despite the previews delta running against us.
-- **Authoring is noise (Finding 8 confirmed at production scale)**: the pure-JS
+- **Authoring is noise, confirmed at production scale**: the pure-JS
   lattice loops cost 0.4–0.8 s of 38–421 s wall — <1.5% everywhere. No batch
   promotion warranted.
 - Native memory passes 1 GiB below 0.7 mm (the session-level warning fires);
-  the 0.3/0.2 mm cells are R12's memory-gated territory.
+  the 0.3/0.2 mm cells hit the memory ceiling (next section).
 
 M11 (RoverWheel Wheel_02) and M12 (HelixHeatX @ 1.0 mm single/multi) join the
 generated metric table on the next `pnpm run bench -- --update` run.
 
-### R12 — fine-voxel ceiling (0.3/0.2 mm), documented (2026-07-19)
+### Fine-voxel ceiling (0.3/0.2 mm), documented (2026-07-19)
 
 Attempted per the memory-gated protocol (`node bench/heatx-sweep.mjs --sizes
 0.3 --builds multi`): **0.3 mm does NOT complete on wasm32.** The session's
@@ -322,8 +322,7 @@ commit.)
 
 ### SK-0.3 — lattice authoring batched: one ABI crossing per lattice (2026-07-26)
 
-Graduation row for `WORKLOAD-EXECUTORS.md`'s _Lattice authoring_ entry (rule 1). Full evidence:
-`bench/results/webgpu-v2/SK-0.3.md`; samples `bench/results/webgpu-v2/sk-0.3-lattice-batch.json`.
+Samples: `bench/results/webgpu-v2/sk-0.3-lattice-batch.json`.
 
 `lattice.addBeam()`/`addSphere()` stage into a flat `Float32Array` (8 f32/beam,
 `(x, y, z, radius)` per endpoint — the GPU-upload layout) and cross once per lattice via
@@ -356,4 +355,4 @@ so the −62% is the two spikes together; against SK-0.2's quiet 298.069 ms, SK-
 `M12@multi` stage with a flat single-thread twin, i.e. load, not this change.
 
 Residual: 20.9 of the 39.2 ns/beam is C++-side ingest (`make_shared` per beam into upstream's
-`std::vector<LatticeBeam::Ptr>`). Filed as U18 in `MIGRATING-FROM-CSHARP.md`.
+`std::vector<LatticeBeam::Ptr>`).

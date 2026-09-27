@@ -96,8 +96,8 @@ extract "$DL/PicoGKRuntime-${PICOGK_RUNTIME_SHA:0:8}.tar.gz" "$VENDOR/PicoGKRunt
 extract "$DL/openvdb-${OPENVDB_SHA:0:8}.tar.gz" "$VENDOR/PicoGKRuntime/openvdb" "$HERE/patches/openvdb"
 extract "$DL/oneTBB-${ONETBB_SHA:0:8}.tar.gz" "$VENDOR/oneTBB" "$HERE/patches/oneTBB"
 
-# xxhash: one header, fetched raw — the XXH3-128 the G0 canonical grid hash uses
-# (NON-DETERMINISM.md §14.5). Same verify-always rule as the tarballs.
+# xxhash: one header, fetched raw — the XXH3-128 the G0 canonical grid hash uses.
+# Same verify-always rule as the tarballs.
 if [ ! -f "$DL/xxhash-$XXHASH_TAG.h" ]; then
   echo "fetch-deps: downloading xxhash.h @ $XXHASH_TAG"
   curl -sfL -o "$DL/xxhash-$XXHASH_TAG.h.tmp" \

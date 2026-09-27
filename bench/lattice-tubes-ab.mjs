@@ -3,8 +3,8 @@
 //
 // Three passes, run as separate processes so nothing contaminates anything else:
 //
-//   --equivalence  geometry, serial lane as the reference. The SK-0.8 gate shape verbatim
-//                  (bench/results/webgpu-v2/SK-0.8.md §4): corrected volume and area
+//   --equivalence  geometry, serial lane as the reference. The SK-0.8 gate shape verbatim:
+//                  corrected volume and area
 //                  relative delta, iso-surface bounds max component delta, narrow-band SDF
 //                  max/mean |Δ| over the intersection of the two active boxes, band
 //                  mismatch reported not gated, tools::checkLevelSet must be EMPTY, mesh
@@ -118,7 +118,7 @@ const bytesAt = (pointer, length) => new Uint8Array(module.HEAPF32.buffer, point
 const heapBytes = () => module.HEAPF32.buffer.byteLength;
 const hexFloat = (value) => Buffer.from(Float64Array.of(value).buffer).toString('hex');
 
-// ── accuracy metrics (SK-0.8 §4, verbatim shape) ──────────────────────────────
+// ── accuracy metrics (SK-0.8 gate, verbatim shape) ────────────────────────────
 const readDims = (h) => {
   raw.Voxels_GetVoxelDimensions(lib, h, dims, dims + 4, dims + 8, dims + 12, dims + 16, dims + 20);
   const i = (o) => module.HEAP32[(dims + o) >> 2];

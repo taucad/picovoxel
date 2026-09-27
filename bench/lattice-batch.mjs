@@ -280,7 +280,7 @@ console.log(
 const volumes = new Set([...heatx.batched, ...heatx['per-call']].map((r) => r.volume));
 results.volumeIdentical = volumes.size === 1;
 console.log(
-  `  volume identity across variants: ${results.volumeIdentical ? 'IDENTICAL' : `DIVERGED ${[...volumes]}`}`,
+  `  volume identity across variants: ${results.volumeIdentical ? 'IDENTICAL' : `DIVERGED ${[...volumes].join()}`}`,
 );
 
 const payload = { spike: 'SK-0.3', fingerprint, endLoad: loadavg()[0], results };

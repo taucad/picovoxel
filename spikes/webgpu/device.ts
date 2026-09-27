@@ -90,6 +90,7 @@ const errorDetail = (error: unknown): string => (error instanceof Error ? error.
 
 const resolveGpu = (provided: GPU | null | undefined): GPU | null => {
   if (provided !== undefined) return provided;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- lib.dom types navigator.gpu as always present; Node and non-WebGPU browsers lack it
   return globalThis.navigator?.gpu ?? null;
 };
 
@@ -101,6 +102,7 @@ const mergeLimits = (defaults: LimitTable, overrides: Partial<LimitTable> | unde
 
 const readAdapterInfo = (info: GPUAdapterInfo): WebGpuCapabilityReport['adapter'] => {
   const subgroup =
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- lib.dom types subgroupMaxSize as always present; adapters without subgroup support omit it
     info.subgroupMaxSize === undefined
       ? {}
       : {

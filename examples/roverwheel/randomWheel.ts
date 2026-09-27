@@ -1,7 +1,7 @@
 // Derived from LEAP71_RoverWheel — RoverWheel/Wheels/RandomWheel.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picovoxel (blueprint R10); see NOTICE.
+// Ported to TypeScript for picovoxel; see NOTICE.
 //
 // C# draws from an ambient `Random`; here every draw comes from ONE explicit
 // mulberry32 stream seeded per wheel (`createRandom(seed)`), in the exact C#

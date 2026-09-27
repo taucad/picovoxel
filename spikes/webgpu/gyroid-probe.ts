@@ -32,8 +32,8 @@ interface WebGpuRuntimeConstants {
 }
 
 const runtimeConstants = (): WebGpuRuntimeConstants => {
-  const bufferUsage = Reflect.get(globalThis, 'GPUBufferUsage');
-  const mapMode = Reflect.get(globalThis, 'GPUMapMode');
+  const bufferUsage: unknown = Reflect.get(globalThis, 'GPUBufferUsage');
+  const mapMode: unknown = Reflect.get(globalThis, 'GPUMapMode');
   if (typeof bufferUsage !== 'object' || typeof mapMode !== 'object') {
     throw new Error('WebGPU runtime constants are unavailable');
   }

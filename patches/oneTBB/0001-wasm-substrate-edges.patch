@@ -19,8 +19,8 @@ compile-time behaviour of the dependency itself and have no flag-level override.
    so -DTBB_EMSCRIPTEN_STACK_SIZE=... was silently ignored. Guard it so the
    worker stack size is configurable (we build with 1 MB).
 
-Evidence: docs/research/tbb-emscripten-substrate-audit.md (F2, F3, F4),
-bench/results/webgpu-v2/SK-0.7.md.
+Evidence: bench/tbb-substrate-probe.cpp and its recorded runs,
+bench/results/webgpu-v2/sk-0.7-probe-*.txt.
 --- a/include/oneapi/tbb/detail/_machine.h
 +++ b/include/oneapi/tbb/detail/_machine.h
 @@ -53,6 +53,10 @@

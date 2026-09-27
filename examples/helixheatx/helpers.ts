@@ -1,10 +1,10 @@
 // Derived from LEAP71_HelixHeatX — src/{ScrewHole,ThreadCutter,ThreadReinforcement}.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picovoxel (blueprint R11); see NOTICE.
+// Ported to TypeScript for picovoxel; see NOTICE.
 // The three standalone construction modules the heat exchanger composes.
 
-import type { Pico, Vec3, Voxels } from 'picovoxel';
+import type { Pico, Voxels } from 'picovoxel';
 import { frame, type Frame, BaseCylinder, BasePipe, SurfaceModulation, vecOps } from 'picovoxel/shapekernel';
 import { vec3 } from 'picovoxel/numerics';
 

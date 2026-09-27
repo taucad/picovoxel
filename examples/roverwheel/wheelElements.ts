@@ -2,7 +2,7 @@
 // EgyptianStruts,RosettaStruts,SpiralStruts}.cs
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picovoxel (blueprint R10); see NOTICE.
+// Ported to TypeScript for picovoxel; see NOTICE.
 //
 // The C# abstract WheelElements class (three fields + one method) becomes a
 // function type; the C# static RoverWheel reads become the explicit ctx

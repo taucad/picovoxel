@@ -3,10 +3,10 @@
 // sha256 for the glue and the module, written to build/wasm-<variant>.json (it
 // travels in the wasm-<variant> artifact) and to the job summary.
 //
-// Byte ceilings are REPORT-ONLY here (a ::warning::, never a failure); W4 (T4.5)
-// makes them hard gates once two no-change CI rebuilds show whether the raw size
-// moves. Origin of every ceiling: PicoVoxel close-out lane D §3.3, measured
-// 2026-09-27 with Node 24.10 zlib on the committed/local builds at 3db6a0c. Raw
+// Byte ceilings are REPORT-ONLY here (a ::warning::, never a failure) until two
+// no-change CI rebuilds show whether the raw size moves; then they become hard
+// gates. Origin of every ceiling: measured 2026-09-27 with Node 24.10 zlib on
+// the local builds at 3db6a0c. Raw
 // allows +0.5% (the link is not byte-reproducible); compressed figures carry
 // +0.5% for compressor-version spread.
 //
@@ -37,7 +37,10 @@ const measure = (bytes) => ({
   sha256: createHash('sha256').update(bytes).digest('hex'),
 });
 
-/** The measurements over a ceiling, as human-readable strings. */
+/**
+ * The measurements over a ceiling, as human-readable strings.
+ * @param {keyof typeof CEILINGS} variant
+ */
 const overCeilings = (variant, wasm) =>
   Object.entries(CEILINGS[variant])
     .filter(([kind, limit]) => wasm[kind] > limit)

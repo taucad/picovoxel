@@ -14,7 +14,7 @@
 //
 // Usage: node bench/run.mjs [--allow-loaded] [--update]
 //   --allow-loaded  skip the loadavg guard (CI drift canaries only, never baselines)
-//   --update        regenerate bench/BENCHMARKS.md from this run (R28)
+//   --update        regenerate bench/BENCHMARKS.md from this run
 //   BENCH_REPEATS=N measured repeats per metric (default 5). SK-0.1 runs at 10+:
 //                   a bootstrap CI over 5 samples resolves only gross differences,
 //                   and allocator deltas are expected in the tens of percent.
@@ -162,10 +162,10 @@ const pk = await createPico({ voxelSize: 0.5 });
 const fine = await createPico({ voxelSize: 0.25 });
 
 // ── M2 — sphere build ──
-for (const [suffix, session] of [
+for (const [suffix, session] of /** @type {const} */ ([
   ['0.5', pk],
   ['0.25', fine],
-]) {
+])) {
   await metric(`M2@${suffix}`, `sphere r=10 @ ${suffix}mm`, () => {
     const t0 = now();
     const sphere = session.createVoxels({ shape: 'sphere', radius: 10 });
@@ -178,11 +178,11 @@ for (const [suffix, session] of [
   });
 }
 
-// ── M3 — gyroid implicit (the R20 headline: JS SDF callback path) ──
-for (const [suffix, session] of [
+// ── M3 — gyroid implicit (JS SDF callback path) ──
+for (const [suffix, session] of /** @type {const} */ ([
   ['0.5', pk],
   ['0.25', fine],
-]) {
+])) {
   await metric(`M3@${suffix}`, `gyroid implicit @ ${suffix}mm (JS SDF)`, () => {
     const t0 = now();
     const gyroid = session.createVoxels({
@@ -231,7 +231,7 @@ await metric('M5', 'offset +2 and smoothen(1) on a CSG body', () => {
   return { phases: { offset: offsetMs, smoothen: smoothenMs }, identity };
 });
 
-// ── M6 — mesh readback: bulk vs per-element (the ~150x R11 win) ──
+// ── M6 — mesh readback: bulk vs per-element (the ~150x bulk win) ──
 await metric('M6', 'mesh readback bulk vs per-element (0.25mm gyroid)', () => {
   const gyroid = fine.createVoxels({
     shape: 'implicit',
@@ -337,10 +337,10 @@ await metric('M9', 'facade vs raw: 10k isEmpty calls', () => {
     0.4,
   ];
   const { createPico: createMulti } = await import('../src/multi.ts');
-  for (const [suffix, make] of [
+  for (const [suffix, make] of /** @type {const} */ ([
     ['single', () => createPico({ voxelSize: 0.25 })],
     ['multi', () => createMulti({ voxelSize: 0.25 })],
-  ]) {
+  ])) {
     await metric(`M10@${suffix}`, `gyroid tape @ 0.25mm (${suffix} entry)`, async () => {
       const session = await make();
       const t0 = now();
@@ -368,7 +368,7 @@ void buildGearMesh;
 pk.dispose();
 fine.dispose();
 
-// ── M11 — RoverWheel Wheel_02 @ 1.0mm (real-world subject, blueprint R10/R11) ──
+// ── M11 — RoverWheel Wheel_02 @ 1.0mm (real-world subject) ──
 // The first production-scale exercise of the ShapeKernel-bound pipeline:
 // mesh tessellation, mesh↔voxel round-trip with per-vertex warp, projectZSlice
 // and pure boolean assembly. Identity = fast-volume hex + STL FNV-1a.
@@ -391,7 +391,7 @@ fine.dispose();
   });
 }
 
-// ── M12 — HelixHeatX @ 1.0mm, single vs multi (real-world subject, blueprint R11) ──
+// ── M12 — HelixHeatX @ 1.0mm, single vs multi (real-world subject) ──
 // The whole flagship Task headless: 1,197,460 lattice beams over 37 lattices
 // (counted in SK-0.2; the long-standing "~10^5" figure was an order of magnitude
 // low), boolean assembly, the full finishing family, meshing and STL bytes —
@@ -408,10 +408,10 @@ fine.dispose();
 {
   const { task: heatXTask } = await import('../examples/helixheatx/run.ts');
   const { createPico: createMulti } = await import('../src/multi.ts');
-  for (const [suffix, make] of [
+  for (const [suffix, make] of /** @type {const} */ ([
     ['single', () => createPico({ voxelSize: 1.0 })],
     ['multi', () => createMulti({ voxelSize: 1.0 })],
-  ]) {
+  ])) {
     await metric(`M12-v2@${suffix}`, `HelixHeatX @ 1.0mm (${suffix} entry)`, async () => {
       const session = await make();
       const { voxels, authorMs, constructMs, kernelTimings, unattributedMs } = heatXTask(session);
@@ -513,10 +513,12 @@ if (UPDATE) {
   );
   lines.push('>');
   lines.push(
-    "> Native-comparison figures (the ~1.95× PicoGK wasm tax, R20's 3–9% SDF callback overhead, R11's ~150×",
+    '> Native-comparison figures (the ~1.95× PicoGK wasm cost, the 3–9% SDF callback overhead, the ~150×',
   );
-  lines.push('> bulk-readback win) are imported by reference from the measured records in the research docs');
-  lines.push("> (picovoxel-wasm-kernel-blueprint) — native builds live outside this repo's toolchain.");
+  lines.push(
+    '> bulk-readback win) come from earlier measured runs, not from this harness; native builds live outside',
+  );
+  lines.push("> this repository's toolchain.");
   lines.push('');
   lines.push('| Metric | Description | Phase | Median | Min | Max |');
   lines.push('| --- | --- | --- | ---: | ---: | ---: |');
@@ -539,16 +541,16 @@ if (UPDATE) {
   );
   lines.push('');
   lines.push(
-    "**Sanity anchors** (vs the research-doc records): M6's bulk-vs-per-element ratio grows with mesh size —",
+    "**Sanity anchors** (vs earlier measured runs): M6's bulk-vs-per-element ratio grows with mesh size —",
   );
   lines.push(
-    "~50× here on a ~40k-vertex gyroid, consistent with R11's ~150× record at 174k vertices; M3's render phase",
+    "~50× here on a ~40k-vertex gyroid, consistent with the earlier ~150× measurement at 174k vertices; M3's render phase",
   );
   lines.push(
-    "(~130 ns/sample at 0.25 mm including voxel work) is consistent with R20's 3–9% JS-SDF callback overhead;",
+    '(~130 ns/sample at 0.25 mm including voxel work) is consistent with the earlier 3–9% JS-SDF callback overhead measurement;',
   );
   lines.push(
-    "M9's raw10k is a deliberately retained emscripten ccall (SK-0.2) and the facade now runs on direct exports; the rows " +
+    "M9's raw10k is a deliberately retained emscripten ccall and the facade now runs on direct exports; the rows " +
       'sit within a few percent because bIsEmpty on a real sphere field is ~1.6 µs of C++ against a ~65 ns boundary delta — ' +
       'the isolated per-call cost is measured by `bench/abi-call-cost.mjs`, not here.',
   );

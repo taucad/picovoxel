@@ -206,9 +206,13 @@ function typecheckConsumers(directory) {
         `import * as m${index} from '${specifier}';\nexport const k${index}: string[] = Object.keys(m${index});\n`,
     )
     .join('');
-  for (const [name, options, file] of [
-    ['esm-nodenext', { module: 'nodenext', moduleResolution: 'nodenext' }, 'index.mts'],
-    ['esm-bundler', { module: 'esnext', moduleResolution: 'bundler' }, 'index.ts'],
+  for (const { name, options, file } of [
+    {
+      name: 'esm-nodenext',
+      options: { module: 'nodenext', moduleResolution: 'nodenext' },
+      file: 'index.mts',
+    },
+    { name: 'esm-bundler', options: { module: 'esnext', moduleResolution: 'bundler' }, file: 'index.ts' },
   ]) {
     const result = fixture(name, options, file, esm);
     if (!result.ok) throw new Error(`the ${name} TypeScript consumer failed to compile:\n${result.output}`);

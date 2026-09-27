@@ -104,6 +104,7 @@ for (const [variant, fn] of [
     ]),
   ],
   ['direct', module._Lattice_AddBeam],
+  // oxlint-disable-next-line typescript/unbound-method -- raw bindings are free functions that never read this; a wrapper would add a call to the measured path
   ['bound', raw.Lattice_AddBeam],
 ]) {
   let lattice = 0n;
@@ -124,6 +125,7 @@ record(
     [
       ['ccall', module.cwrap('Lattice_bIsValid', 'boolean', ['bigint', 'bigint'])],
       ['direct', module._Lattice_bIsValid],
+      // oxlint-disable-next-line typescript/unbound-method -- raw bindings are free functions that never read this; a wrapper would add a call to the measured path
       ['bound', raw.Lattice_bIsValid],
     ].map(([variant, fn]) => [
       variant,
@@ -143,6 +145,7 @@ record(
     [
       ['ccall', module.cwrap('Voxels_bIsEmpty', 'boolean', ['bigint', 'bigint'])],
       ['direct', module._Voxels_bIsEmpty],
+      // oxlint-disable-next-line typescript/unbound-method -- raw bindings are free functions that never read this; a wrapper would add a call to the measured path
       ['bound', raw.Voxels_bIsEmpty],
     ].map(([variant, fn]) => [
       variant,

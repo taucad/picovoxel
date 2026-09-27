@@ -1,4 +1,4 @@
-# SKv2-0 V0.2 — the nightly G0 identity shape (NON-DETERMINISM.md §14.3):
+# SKv2-0 V0.2 — the nightly G0 identity shape:
 # an 11-run identity spike on a rotating fixture, multi lane (the race-prone
 # one; the single lane is exercised per-commit by the byte pins and the
 # lane-invariant G0 reference in test/g0-gate.test.ts).
@@ -101,4 +101,4 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --label claude \
             --title "G0 nightly identity failure: $SUBJECT" \
-            --body "The G0 nightly run failed ($SUBJECT). If the 11-run identity spike diverged or the oracles disagreed, the records are in the run's artifact: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID — treat a divergence as a race until attributed (NON-DETERMINISM.md §14.3; first suspect list in the SKv2-0 charter watch items)."
+            --body "The G0 nightly run failed ($SUBJECT). If the 11-run identity spike diverged or the oracles disagreed, the records are in the run's artifact: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID — treat a divergence as a race until attributed."

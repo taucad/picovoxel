@@ -73,6 +73,7 @@ export class ComputePipelineCache {
     }
     const validationError = await this.#device.popErrorScope();
     if (validationError !== null) throw new Error(validationError.message);
+    // eslint-disable-next-line @typescript-eslint/only-throw-error -- rethrows the value createComputePipelineAsync rejected with, unchanged
     if (creationFailure !== undefined) throw creationFailure;
     if (pipeline === undefined) throw new Error('WebGPU pipeline creation returned no pipeline');
     return pipeline;

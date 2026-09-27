@@ -1,10 +1,13 @@
-// Involute spur gear, ported from PicoGK's own models/02_Gears/InvoluteGear.cs so
-// the wasm port is exercised through the same construction the C# example uses:
-// profile in JS -> Mesh_hCreate / nAddVertex / nAddTriangle across the ABI.
+// Involute spur gear built as a mesh: the tooth profile is computed in JS and
+// crosses the ABI through Mesh_hCreate / nAddVertex / nAddTriangle.
+// Port of LEAP 71 PicoGK example code; the original C# source file is not
+// identified.
+// Copyright (c) LEAP 71 and the picovoxel contributors
+// SPDX-License-Identifier: Apache-2.0
 //
-// Note this model touches ZERO Voxels — that is exactly why it cannot be the
-// acceptance gate for the port (conformance-suite Finding 1). It proves the ABI
-// boundary, handle lifetime, and mesh transfer, and nothing about OpenVDB.
+// This model touches no Voxels, so it cannot serve as an acceptance gate for
+// the voxel kernel. It exercises the ABI boundary, handle lifetime and mesh
+// transfer, and nothing about OpenVDB.
 
 export interface GearOptions {
   teeth: number;

@@ -97,14 +97,14 @@ interface GpuTapeRun {
 }
 
 const gpuConstants = (): GpuConstants => {
-  const buffer = Reflect.get(globalThis, 'GPUBufferUsage');
-  const mapMode = Reflect.get(globalThis, 'GPUMapMode');
+  const buffer: unknown = Reflect.get(globalThis, 'GPUBufferUsage');
+  const mapMode: unknown = Reflect.get(globalThis, 'GPUMapMode');
   if (typeof buffer !== 'object' || typeof mapMode !== 'object') {
     throw new Error('WebGPU runtime constants are unavailable');
   }
   return {
     buffer: buffer as GpuConstants['buffer'],
-    mapRead: Reflect.get(mapMode, 'READ') as number,
+    mapRead: Reflect.get(mapMode as object, 'READ') as number,
   };
 };
 

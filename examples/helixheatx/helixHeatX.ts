@@ -2,14 +2,14 @@
 // class merged into one module, out-params → returned objects)
 // Copyright (c) 2023-2026 LEAP 71 — https://leap71.com
 // SPDX-License-Identifier: Apache-2.0
-// Ported to TypeScript for picovoxel (blueprint R11); see NOTICE.
+// Ported to TypeScript for picovoxel; see NOTICE.
 //
 // The flagship benchmark subject: ~10^5 lattice beams (20,000 z-samples with
 // fin bursts), boolean assembly, and the full finishing family (offset,
 // fillet, smoothen, projectZSlice). Viewer previews/screenshots are dropped;
 // C# mutating voxel calls map to the pure copy-first facade. The `authorMs`
 // stopwatch accumulates pure-JS authoring time (lattice/point loops) so the
-// benchmark can report the Finding 8 authoring-vs-kernel phase split.
+// benchmark can report the authoring-vs-kernel phase split.
 
 import type { Lattice, Pico, Vec3, Voxels } from 'picovoxel';
 import { vec3 } from 'picovoxel/numerics';

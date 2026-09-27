@@ -135,7 +135,7 @@ export const BULK_FUNCTIONS = [
     ],
   },
   // The hash TU (src/pico-hash.cpp) — the G0 canonical grid hash + its self-test
-  // densifier (NON-DETERMINISM.md §14.5).
+  // densifier.
   {
     name: 'Voxels_GetGridHash',
     cwrapReturn: null,

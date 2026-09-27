@@ -1,11 +1,13 @@
 const sorted = (values) => [...values].sort((a, b) => a - b);
 
+/** @type {(values: readonly number[]) => number} */
 const median = (values) => {
   const ordered = sorted(values);
   const middle = Math.floor(ordered.length / 2);
   return ordered.length % 2 === 0 ? (ordered[middle - 1] + ordered[middle]) / 2 : ordered[middle];
 };
 
+/** @type {(values: readonly number[], percentile: number) => number} */
 const nearestRank = (values, percentile) => {
   const ordered = sorted(values);
   return ordered[Math.max(0, Math.ceil(percentile * ordered.length) - 1)];

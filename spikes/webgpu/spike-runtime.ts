@@ -83,6 +83,7 @@ type NanoCreateC = (
 ) => number;
 
 const bindSpikeAbi = (module: SpikePicoModule): WebGpuSpikeAbi => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- the caller names the cwrap signature it expects back
   const wrap = <FunctionType>(
     name: string,
     returnType: string | null,
@@ -258,12 +259,12 @@ export const loadPicoSpikeRuntime = async (): Promise<PicoSpikeRuntime> => {
     abi: bindSpikeAbi(module),
     createSession: (options = {}) => {
       if (disposed) throw new Error('PicoGK WebGPU spike runtime is disposed');
-      return createPicoSession(async () => module, options);
+      return createPicoSession(() => Promise.resolve(module), options);
     },
     dispose: () => {
       if (disposed) return;
       disposed = true;
-      module.PThread?.terminateAllThreads?.();
+      module.PThread?.terminateAllThreads();
     },
     module,
     raw,

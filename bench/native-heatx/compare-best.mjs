@@ -22,8 +22,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const DIR = join(HERE, '../results/native');
 const ARMS = ['published', 'pristine-ourbuild', 'patched', 'mimalloc', 'tbbproxy', 'u5', 'best'];
 const SIZES = ['1', '0.9', '0.8', '0.7', '0.6', '0.5'];
-// Finding 7 of docs/research/picovoxel-u5-tubecomplex-upstream-patch.md,
-// pre-registered before the sweep ran.
+// Per-size predictions of the u5 arm's wall time from a constant
+// accelerated-share model, recorded before the sweep ran.
 const PREDICTED_U5 = { 1: 7.03, 0.9: 7.8, 0.8: 8.9, 0.7: 10.6, 0.6: 13.6, 0.5: 18.7 };
 
 const load = (label) => {
@@ -51,7 +51,7 @@ const load = (label) => {
 // pre-run value is always the LAST line of the field.
 const busyOf = (r) => Number(String(r.hostBusyPercentBefore).trim().split('\n').at(-1));
 
-const data = new Map(ARMS.map((a) => [a, load(a)]).filter(([, d]) => d));
+const data = new Map(ARMS.map((a) => /** @type {const} */ ([a, load(a)])).filter(([, d]) => d));
 const stat = (arm, size) => {
   const runs = data.get(arm)?.bySize.get(size);
   return runs ? summarizeBootstrapMedian(runs.map((r) => r.taskSeconds)) : null;

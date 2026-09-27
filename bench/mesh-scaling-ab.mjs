@@ -44,10 +44,10 @@ const gyroidExpression = [
 
 const out = { label, repeats: REPEATS, load: loadavg(), variants: {} };
 
-for (const [variant, importer] of [
+for (const [variant, importer] of /** @type {const} */ ([
   ['single', () => import('../src/index.ts')],
   ['multi', () => import('../src/multi.ts')],
-]) {
+])) {
   const { createPico } = await importer();
   const session = await createPico({ voxelSize: 0.25 });
   const gyroid = session.createVoxels({
