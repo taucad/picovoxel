@@ -8,10 +8,14 @@
 // Normalization (on a deep copy — the caller's grid is never mutated):
 //   1. voxelizeActiveTiles() — active tiles (pathological for level sets, but
 //      possible) expand to voxels, so the active stream is voxels-only.
-//   2. pruneLevelSet(), serial — uniform inactive leaves collapse to tiles,
-//      bottom-up and maximally, which is a canonical form: two trees with the
-//      same voxel-level content reach the same topology regardless of how they
-//      were built. Serial because an oracle should be boring; prune is O(nodes).
+//   2. Voxels::PruneSignUniform(), serial — the fills' own prune (patch
+//      0002): inactive nodes whose values share one sign collapse to
+//      ±background tiles, bottom-up and maximally, which is a canonical form:
+//      two trees with the same voxel-level content reach the same topology
+//      regardless of how they were built. Serial because an oracle should be
+//      boring; prune is O(nodes). Plain pruneLevelSet would sign a mixed-sign
+//      inactive node by its first value and hash two different inside sets
+//      equal (a fill clipped through solid interior has such nodes).
 //
 // The hash is XXH3-128 (vendor/xxhash, pinned by scripts/fetch-deps.sh) over
 // three tagged, deterministically ordered streams:
@@ -24,9 +28,9 @@
 // Negative-only for the inactive stream: an absent region and a +background
 // tile both mean "outside" — hashing positive tiles would split one geometry
 // into two hashes on a representation detail prune does not canonicalize.
-// Negative inactive voxels in mixed (uncollapsible) leaves DO carry geometry —
-// they are the voxel-granular inside classification — so they are in the
-// stream, not just tiles.
+// Negative inactive voxels in mixed-sign (uncollapsible) nodes DO carry
+// geometry — they are the voxel-granular inside classification — so they are
+// in the stream, not just tiles.
 //
 // Canonicalization (§14.5, both streams): -0.0 -> +0.0, any NaN -> 0x7fc00000.
 // A NaN can never hide behind it: the mesh-side oracle carries
@@ -41,8 +45,6 @@
 #include "PicoGKTypes.h"
 #include "PicoGK.h"
 #include "PicoGKLibraryMgr.h"
-
-#include <openvdb/tools/Prune.h>
 
 #define XXH_INLINE_ALL
 #include "xxhash.h"
@@ -128,7 +130,7 @@ PICOGK_API void Voxels_GetGridHash( PKINSTANCE  hLib,
     // Normalized deep copy; the live grid is untouched.
     openvdb::FloatTree oTree(roVoxels->roVdbGrid()->tree());
     oTree.voxelizeActiveTiles();
-    openvdb::tools::pruneLevelSet(oTree, /* threaded: */ false);
+    PicoGK::Voxels::PruneSignUniform(oTree, /* threaded: */ false);
 
     StreamHasher oHasher;
     oHasher.PutTag("PVGH0001");

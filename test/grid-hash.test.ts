@@ -10,7 +10,7 @@
 
 import assert from 'node:assert/strict';
 import { afterAll, beforeAll, test } from 'vitest';
-import { createPico, type Pico } from '../src/index.ts';
+import { createPico, type Pico, type SdfExpression } from '../src/index.ts';
 
 let pk: Pico;
 beforeAll(async () => {
@@ -89,6 +89,37 @@ test('G0 grid hash — content changes move the hash (mutation test)', () => {
   // does not fully describe.
   const hollowed = a.subtract(sphere(2));
   assert.notEqual(hollowed.gridHash().hash, base.hash, 'a void inside is a different geometry');
+});
+
+test('G0 grid hash — inactive regions of opposite sign in one node stay apart', async () => {
+  // Boxes that clip solid interior leave inactive nodes holding both
+  // -background (the cut interior) and +background (untouched space), with no
+  // band between them. The tape render keeps them dense. Normalizing by
+  // first-value sign collapsed all three grids below to the same single
+  // inside tile, so three different inside sets hashed equal while equals()
+  // told them apart. The canonical form keeps a mixed-sign node as it is.
+  const session = await createPico({ voxelSize: 0.5 });
+  try {
+    const sdf: SdfExpression = ['-', ['sqrt', ['+', ['*', 'x', 'x'], ['*', 'y', 'y'], ['*', 'z', 'z']]], 50];
+    const render = (lo: number, hi: number) =>
+      session.createVoxels({ shape: 'implicit', boundsMin: [lo, lo, lo], boundsMax: [hi, hi, hi], sdf });
+    const clipped = render(-5, 5);
+    const octant = render(0, 5);
+    const leaf = render(1.5, 2);
+    for (const [a, b, what] of [
+      [clipped, octant, 'the clipped box and its positive octant'],
+      [clipped, leaf, 'the clipped box and one inside leaf'],
+      [octant, leaf, 'the octant and one inside leaf'],
+    ] as const) {
+      assert.equal(a.equals(b), false, `${what} are different geometry`);
+      assert.notEqual(a.gridHash().hash, b.gridHash().hash, `${what} must hash apart`);
+    }
+    // The mixed-sign nodes really are there: the inside classification is
+    // voxel-granular, not a handful of tiles.
+    assert.ok(clipped.gridHash().insideOffVoxels > 0, 'the clipped box keeps its mixed-sign leaves');
+  } finally {
+    session.dispose();
+  }
 });
 
 test('G0 grid hash — disposed voxels refuse to hash', () => {

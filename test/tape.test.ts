@@ -8,7 +8,7 @@
 // discipline, no tolerances. The single↔multi bit-identity differential lives
 // in multi.test.ts next to the other cross-variant proofs.
 import { expect, test } from 'vitest';
-import { createPico, PicoError, type SdfExpression } from '../src/index.ts';
+import { createPico, PicoError, type SdfExpression, type Voxels } from '../src/index.ts';
 import { compileSdfExpression } from '../src/tape.ts';
 import { gyroidExpression, gyroidFunction } from './helpers.ts';
 
@@ -390,6 +390,116 @@ test('a malformed expression neither renders nor leaks the target voxels', async
       }),
     ).toThrow(PicoError);
     expect(pk.allocated.voxels).toBe(before);
+  } finally {
+    pk.dispose();
+  }
+});
+
+// ── bounding boxes that clip solid interior ──
+//
+// When the render box cuts through the SDF's interior deeper than the narrow
+// band, -background voxels meet untouched +background with no active band in
+// between. The per-voxel definition (upstream's loop, and the tape) keeps that
+// cut voxel for voxel. The callback fill's terminal prune once signed each such
+// node by its first voxel and flipped whole 8³, 128³ and 4096³ regions: the
+// grid hash, volume and triangle count could not see it, but equals() and
+// every later boolean could.
+
+const clippedSphere = (
+  radius: number,
+): { expression: SdfExpression; callback: (x: number, y: number, z: number) => number } => ({
+  expression: ['-', ['sqrt', ['+', ['*', 'x', 'x'], ['*', 'y', 'y'], ['*', 'z', 'z']]], radius],
+  callback: (x, y, z) => Math.sqrt(x * x + y * y + z * z) - radius,
+});
+
+type Vec3 = [number, number, number];
+test.each<{ label: string; voxelSize: number; boundsMin: Vec3; boundsMax: Vec3; radius: number }>([
+  { label: 'centred box, 0.5 mm', voxelSize: 0.5, boundsMin: [-5, -5, -5], boundsMax: [5, 5, 5], radius: 50 },
+  {
+    label: 'centred box, 1 mm',
+    voxelSize: 1,
+    boundsMin: [-20, -20, -20],
+    boundsMax: [20, 20, 20],
+    radius: 100,
+  },
+  { label: 'offset box, 0.4 mm', voxelSize: 0.4, boundsMin: [-3, -9, 1], boundsMax: [7, 2, 5], radius: 50 },
+  { label: 'one-octant box, 0.3 mm', voxelSize: 0.3, boundsMin: [2, 2, 2], boundsMax: [9, 9, 9], radius: 50 },
+  { label: 'small box, 0.25 mm', voxelSize: 0.25, boundsMin: [-2, -2, -2], boundsMax: [2, 2, 2], radius: 30 },
+  // Surface on one side of the box, clipped interior on the other: the mesh
+  // matches either way, the inside set did not.
+  {
+    label: 'surface on one side, 0.5 mm',
+    voxelSize: 0.5,
+    boundsMin: [-4, -4, -4],
+    boundsMax: [20, 20, 20],
+    radius: 10,
+  },
+])(
+  'a box clipping solid interior renders the same through the callback and the tape ($label)',
+  async ({ voxelSize, boundsMin, boundsMax, radius }) => {
+    const pk = await createPico({ voxelSize });
+    try {
+      const { expression, callback } = clippedSphere(radius);
+      const bounds = { boundsMin, boundsMax };
+      const fromTape = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: expression });
+      const fromCallback = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: callback });
+      expect(fromCallback.equals(fromTape)).toBe(true);
+      expect(fromCallback.gridHash()).toEqual(fromTape.gridHash());
+
+      // The per-voxel definition: the whole box is interior, so each of its
+      // corners is inside, and a point two voxels past the band is outside.
+      const beyond = 5 * voxelSize;
+      for (const [cx, cy, cz] of [0, 1, 2, 3, 4, 5, 6, 7].map((n) => [n & 1, (n >> 1) & 1, (n >> 2) & 1])) {
+        const corner: Vec3 = [
+          cx ? boundsMax[0] : boundsMin[0],
+          cy ? boundsMax[1] : boundsMin[1],
+          cz ? boundsMax[2] : boundsMin[2],
+        ];
+        if (Math.hypot(...corner) >= radius) continue; // the surface side of the last case
+        expect(fromCallback.isInside(corner)).toBe(true);
+        expect(fromCallback.isInside([corner[0] + (cx ? beyond : -beyond), corner[1], corner[2]])).toBe(
+          false,
+        );
+      }
+
+      // The compose path (min(sdf, existing) into live voxels) prunes the same way.
+      const seed = (): Voxels => pk.createVoxels({ shape: 'sphere', radius: 1 });
+      expect(
+        seed()
+          .withImplicit({ ...bounds, sdf: callback })
+          .equals(seed().withImplicit({ ...bounds, sdf: expression })),
+      ).toBe(true);
+    } finally {
+      pk.dispose();
+    }
+  },
+);
+
+test('a clipped callback render carves and unions like the tape render', async () => {
+  const pk = await createPico({ voxelSize: 0.5 });
+  try {
+    const { expression, callback } = clippedSphere(50);
+    const bounds = { boundsMin: [-5, -5, -5] as Vec3, boundsMax: [5, 5, 5] as Vec3 };
+    const fromTape = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: expression });
+    const fromCallback = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: callback });
+    const cavities = pk
+      .createVoxels({ shape: 'sphere', center: [-3, -3, -3], radius: 1.5 })
+      .union(pk.createVoxels({ shape: 'sphere', center: [3, 3, 3], radius: 1.5 }));
+
+    // Both cavities sit in solid interior, so carving leaves both behind.
+    const carvedTape = fromTape.subtract(cavities);
+    const carvedCallback = fromCallback.subtract(cavities);
+    expect(carvedCallback.equals(carvedTape)).toBe(true);
+    expect(carvedCallback.toMesh().triangleCount).toBe(carvedTape.toMesh().triangleCount);
+    expect(carvedCallback.properties().volume).toBe(carvedTape.properties().volume);
+    expect(carvedCallback.isInside([-3, -3, -3])).toBe(false);
+    expect(carvedCallback.isInside([3, 3, 3])).toBe(false);
+    expect(carvedCallback.isInside([0, 0, 0])).toBe(true);
+
+    // And the interior swallows both spheres: the union has no surface at all.
+    const joinedCallback = fromCallback.union(cavities);
+    expect(joinedCallback.equals(fromTape.union(cavities))).toBe(true);
+    expect(joinedCallback.toMesh().triangleCount).toBe(0);
   } finally {
     pk.dispose();
   }
