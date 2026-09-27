@@ -36,12 +36,12 @@
 [12:44:03]   waiting for idle: 9.7% busy (limit 5.0%)
 [12:44:19]   WARN machine still busy (10.8%) after 600s — proceeding, run is flagged
 [12:46:56] === native HeatX sweep: 6 sizes x 5 passes = 30 runs
-[12:46:56]     out:  /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl
+[12:46:56]     out:  <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl
 [12:46:56]     host: Apple M2 Pro / 12 cores / 32 GiB
 [12:46:56]     power:  lowpowermode         0
 [12:46:56]     dotnet 9.0.117 · PicoGK 389d4d9 Update Extensions.cs · runtime PicoGK-v2.2.0
 [12:46:58] pass 1/5  voxel 1.0mm  (host 16.7% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -64,7 +64,7 @@
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 1.0 --run 1 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 1.0 --run 1 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -82,7 +82,7 @@
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     20s   19.3+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     20s   19.3+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      20s    0.0+ Finished Task successfully.
      20s    0.0+ Viewer Window Closed
 Disposing Library
@@ -97,7 +97,7 @@ Done Disposing Library
 voxel=1mm run=1 task=19.3s process=19.6s stl=93721484
 [12:47:17]   ok in 19s 
 [12:47:29] pass 1/5  voxel 0.9mm  (host 13.2% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -120,7 +120,7 @@ voxel=1mm run=1 task=19.3s process=19.6s stl=93721484
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.9 --run 1 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.9 --run 1 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -138,7 +138,7 @@ voxel=1mm run=1 task=19.3s process=19.6s stl=93721484
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     23s   23.0+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     23s   23.0+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      23s    0.0+ Finished Task successfully.
      23s    0.0+ Viewer Window Closed
 Disposing Library
@@ -153,7 +153,7 @@ Done Disposing Library
 voxel=0.9mm run=1 task=23.0s process=23.3s stl=122184884
 [12:47:52]   ok in 23s 
 [12:48:04] pass 1/5  voxel 0.8mm  (host 14.6% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -176,7 +176,7 @@ voxel=0.9mm run=1 task=23.0s process=23.3s stl=122184884
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.8 --run 1 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.8 --run 1 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -194,7 +194,7 @@ voxel=0.9mm run=1 task=23.0s process=23.3s stl=122184884
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     28s   27.4+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     28s   27.4+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      28s    0.0+ Finished Task successfully.
      28s    0.0+ Viewer Window Closed
 Disposing Library
@@ -209,7 +209,7 @@ Done Disposing Library
 voxel=0.8mm run=1 task=27.4s process=27.7s stl=165332484
 [12:48:32]   ok in 28s 
 [12:48:43] pass 1/5  voxel 0.7mm  (host 14.8% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -232,7 +232,7 @@ voxel=0.8mm run=1 task=27.4s process=27.7s stl=165332484
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.7 --run 1 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.7 --run 1 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -250,7 +250,7 @@ voxel=0.8mm run=1 task=27.4s process=27.7s stl=165332484
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     34s   34.2+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     34s   34.2+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      34s    0.0+ Finished Task successfully.
      34s    0.0+ Viewer Window Closed
 Disposing Library
@@ -265,7 +265,7 @@ Done Disposing Library
 voxel=0.7mm run=1 task=34.2s process=34.5s stl=227361084
 [12:49:18]   ok in 35s 
 [12:49:29] pass 1/5  voxel 0.6mm  (host 10.1% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -288,7 +288,7 @@ voxel=0.7mm run=1 task=34.2s process=34.5s stl=227361084
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.6 --run 1 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.6 --run 1 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -306,7 +306,7 @@ voxel=0.7mm run=1 task=34.2s process=34.5s stl=227361084
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     45s   45.1+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     45s   45.1+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      45s    0.0+ Finished Task successfully.
      45s    0.0+ Viewer Window Closed
 Disposing Library
@@ -321,7 +321,7 @@ Done Disposing Library
 voxel=0.6mm run=1 task=45.1s process=45.4s stl=328300684
 [12:50:15]   ok in 46s 
 [12:50:26] pass 1/5  voxel 0.5mm  (host 19.0% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -344,7 +344,7 @@ voxel=0.6mm run=1 task=45.1s process=45.4s stl=328300684
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.5 --run 1 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.5 --run 1 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -362,7 +362,7 @@ voxel=0.6mm run=1 task=45.1s process=45.4s stl=328300684
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     66s   65.4+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     66s   65.4+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      66s    0.0+ Finished Task successfully.
      66s    0.0+ Viewer Window Closed
 Disposing Library
@@ -377,7 +377,7 @@ Done Disposing Library
 voxel=0.5mm run=1 task=65.4s process=65.7s stl=502871684
 [12:51:32]   ok in 66s 
 [12:51:44] pass 2/5  voxel 1.0mm  (host 12.5% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -400,7 +400,7 @@ voxel=0.5mm run=1 task=65.4s process=65.7s stl=502871684
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 1.0 --run 2 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 1.0 --run 2 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -418,7 +418,7 @@ voxel=0.5mm run=1 task=65.4s process=65.7s stl=502871684
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     20s   19.8+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     20s   19.8+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      20s    0.0+ Finished Task successfully.
      20s    0.0+ Viewer Window Closed
 Disposing Library
@@ -433,7 +433,7 @@ Done Disposing Library
 voxel=1mm run=2 task=19.8s process=20.0s stl=93721484
 [12:52:04]   ok in 20s 
 [12:52:15] pass 2/5  voxel 0.9mm  (host 22.2% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -456,7 +456,7 @@ voxel=1mm run=2 task=19.8s process=20.0s stl=93721484
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.9 --run 2 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.9 --run 2 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -474,7 +474,7 @@ voxel=1mm run=2 task=19.8s process=20.0s stl=93721484
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     23s   23.2+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     23s   23.2+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      23s    0.0+ Finished Task successfully.
      23s    0.0+ Viewer Window Closed
 Disposing Library
@@ -489,7 +489,7 @@ Done Disposing Library
 voxel=0.9mm run=2 task=23.2s process=23.4s stl=122184884
 [12:52:39]   ok in 24s 
 [12:52:50] pass 2/5  voxel 0.8mm  (host 11.8% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -512,7 +512,7 @@ voxel=0.9mm run=2 task=23.2s process=23.4s stl=122184884
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.8 --run 2 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.8 --run 2 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -530,7 +530,7 @@ voxel=0.9mm run=2 task=23.2s process=23.4s stl=122184884
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     28s   27.3+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     28s   27.3+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      28s    0.0+ Finished Task successfully.
      28s    0.0+ Viewer Window Closed
 Disposing Library
@@ -545,7 +545,7 @@ Done Disposing Library
 voxel=0.8mm run=2 task=27.3s process=27.6s stl=165332484
 [12:53:18]   ok in 28s 
 [12:53:30] pass 2/5  voxel 0.7mm  (host 11.4% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -568,7 +568,7 @@ voxel=0.8mm run=2 task=27.3s process=27.6s stl=165332484
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.7 --run 2 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.7 --run 2 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -586,7 +586,7 @@ voxel=0.8mm run=2 task=27.3s process=27.6s stl=165332484
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     34s   33.9+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     34s   33.9+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      34s    0.0+ Finished Task successfully.
      34s    0.0+ Viewer Window Closed
 Disposing Library
@@ -601,7 +601,7 @@ Done Disposing Library
 voxel=0.7mm run=2 task=33.9s process=34.2s stl=227361084
 [12:54:04]   ok in 34s 
 [12:54:15] pass 2/5  voxel 0.6mm  (host 11.5% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -624,7 +624,7 @@ voxel=0.7mm run=2 task=33.9s process=34.2s stl=227361084
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.6 --run 2 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.6 --run 2 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -642,7 +642,7 @@ voxel=0.7mm run=2 task=33.9s process=34.2s stl=227361084
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     46s   45.4+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     46s   45.4+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      46s    0.0+ Finished Task successfully.
      46s    0.0+ Viewer Window Closed
 Disposing Library
@@ -657,7 +657,7 @@ Done Disposing Library
 voxel=0.6mm run=2 task=45.4s process=45.6s stl=328300684
 [12:55:01]   ok in 46s 
 [12:55:13] pass 2/5  voxel 0.5mm  (host 9.7% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -680,7 +680,7 @@ voxel=0.6mm run=2 task=45.4s process=45.6s stl=328300684
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.5 --run 2 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.5 --run 2 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -698,7 +698,7 @@ voxel=0.6mm run=2 task=45.4s process=45.6s stl=328300684
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     66s   65.8+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     66s   65.8+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      66s    0.0+ Finished Task successfully.
      66s    0.0+ Viewer Window Closed
 Disposing Library
@@ -713,7 +713,7 @@ Done Disposing Library
 voxel=0.5mm run=2 task=65.8s process=66.1s stl=502871684
 [12:56:19]   ok in 66s 
 [12:56:30] pass 3/5  voxel 1.0mm  (host 10.4% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -736,7 +736,7 @@ voxel=0.5mm run=2 task=65.8s process=66.1s stl=502871684
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 1.0 --run 3 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 1.0 --run 3 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -754,7 +754,7 @@ voxel=0.5mm run=2 task=65.8s process=66.1s stl=502871684
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     20s   19.7+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     20s   19.7+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      20s    0.0+ Finished Task successfully.
      20s    0.0+ Viewer Window Closed
 Disposing Library
@@ -769,7 +769,7 @@ Done Disposing Library
 voxel=1mm run=3 task=19.7s process=19.9s stl=93721484
 [12:56:51]   ok in 21s 
 [12:57:02] pass 3/5  voxel 0.9mm  (host 10.8% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -792,7 +792,7 @@ voxel=1mm run=3 task=19.7s process=19.9s stl=93721484
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.9 --run 3 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.9 --run 3 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -810,7 +810,7 @@ voxel=1mm run=3 task=19.7s process=19.9s stl=93721484
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     23s   23.0+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     23s   23.0+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      23s    0.0+ Finished Task successfully.
      23s    0.0+ Viewer Window Closed
 Disposing Library
@@ -825,7 +825,7 @@ Done Disposing Library
 voxel=0.9mm run=3 task=23.0s process=23.2s stl=122184884
 [12:57:25]   ok in 23s 
 [12:57:37] pass 3/5  voxel 0.8mm  (host 11.8% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -848,7 +848,7 @@ voxel=0.9mm run=3 task=23.0s process=23.2s stl=122184884
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.8 --run 3 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.8 --run 3 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -866,7 +866,7 @@ voxel=0.9mm run=3 task=23.0s process=23.2s stl=122184884
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     28s   27.4+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     28s   27.4+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      28s    0.0+ Finished Task successfully.
      28s    0.0+ Viewer Window Closed
 Disposing Library
@@ -881,7 +881,7 @@ Done Disposing Library
 voxel=0.8mm run=3 task=27.4s process=27.6s stl=165332484
 [12:58:05]   ok in 28s 
 [12:58:16] pass 3/5  voxel 0.7mm  (host 10.4% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -904,7 +904,7 @@ voxel=0.8mm run=3 task=27.4s process=27.6s stl=165332484
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.7 --run 3 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.7 --run 3 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -922,7 +922,7 @@ voxel=0.8mm run=3 task=27.4s process=27.6s stl=165332484
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     34s   33.9+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     34s   33.9+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      34s    0.0+ Finished Task successfully.
      34s    0.0+ Viewer Window Closed
 Disposing Library
@@ -937,7 +937,7 @@ Done Disposing Library
 voxel=0.7mm run=3 task=33.9s process=34.2s stl=227361084
 [12:58:50]   ok in 34s 
 [12:59:02] pass 3/5  voxel 0.6mm  (host 8.8% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -960,7 +960,7 @@ voxel=0.7mm run=3 task=33.9s process=34.2s stl=227361084
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.6 --run 3 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.6 --run 3 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -978,7 +978,7 @@ voxel=0.7mm run=3 task=33.9s process=34.2s stl=227361084
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     45s   44.8+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     45s   44.8+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      45s    0.0+ Finished Task successfully.
      45s    0.0+ Viewer Window Closed
 Disposing Library
@@ -993,7 +993,7 @@ Done Disposing Library
 voxel=0.6mm run=3 task=44.8s process=45.1s stl=328300684
 [12:59:47]   ok in 45s 
 [12:59:59] pass 3/5  voxel 0.5mm  (host 10.5% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1016,7 +1016,7 @@ voxel=0.6mm run=3 task=44.8s process=45.1s stl=328300684
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.5 --run 3 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.5 --run 3 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1034,7 +1034,7 @@ voxel=0.6mm run=3 task=44.8s process=45.1s stl=328300684
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     65s   64.8+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     65s   64.8+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      65s    0.0+ Finished Task successfully.
      65s    0.0+ Viewer Window Closed
 Disposing Library
@@ -1049,7 +1049,7 @@ Done Disposing Library
 voxel=0.5mm run=3 task=64.8s process=65.0s stl=502871684
 [13:01:04]   ok in 65s 
 [13:01:15] pass 4/5  voxel 1.0mm  (host 11.3% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1072,7 +1072,7 @@ voxel=0.5mm run=3 task=64.8s process=65.0s stl=502871684
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 1.0 --run 4 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 1.0 --run 4 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1090,7 +1090,7 @@ voxel=0.5mm run=3 task=64.8s process=65.0s stl=502871684
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     20s   19.8+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     20s   19.8+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      20s    0.0+ Finished Task successfully.
      20s    0.0+ Viewer Window Closed
 Disposing Library
@@ -1105,7 +1105,7 @@ Done Disposing Library
 voxel=1mm run=4 task=19.8s process=20.0s stl=93721484
 [13:01:36]   ok in 21s 
 [13:01:47] pass 4/5  voxel 0.9mm  (host 11.0% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1128,7 +1128,7 @@ voxel=1mm run=4 task=19.8s process=20.0s stl=93721484
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.9 --run 4 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.9 --run 4 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1146,7 +1146,7 @@ voxel=1mm run=4 task=19.8s process=20.0s stl=93721484
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     23s   23.2+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     23s   23.2+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      23s    0.0+ Finished Task successfully.
      23s    0.0+ Viewer Window Closed
 Disposing Library
@@ -1161,7 +1161,7 @@ Done Disposing Library
 voxel=0.9mm run=4 task=23.2s process=23.4s stl=122184884
 [13:02:11]   ok in 24s 
 [13:02:22] pass 4/5  voxel 0.8mm  (host 9.9% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1184,7 +1184,7 @@ voxel=0.9mm run=4 task=23.2s process=23.4s stl=122184884
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.8 --run 4 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.8 --run 4 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1202,7 +1202,7 @@ voxel=0.9mm run=4 task=23.2s process=23.4s stl=122184884
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     28s   27.7+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     28s   27.7+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      28s    0.0+ Finished Task successfully.
      28s    0.0+ Viewer Window Closed
 Disposing Library
@@ -1217,7 +1217,7 @@ Done Disposing Library
 voxel=0.8mm run=4 task=27.7s process=27.9s stl=165332484
 [13:02:50]   ok in 28s 
 [13:03:02] pass 4/5  voxel 0.7mm  (host 9.8% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1240,7 +1240,7 @@ voxel=0.8mm run=4 task=27.7s process=27.9s stl=165332484
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.7 --run 4 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.7 --run 4 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1258,7 +1258,7 @@ voxel=0.8mm run=4 task=27.7s process=27.9s stl=165332484
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     34s   34.0+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     34s   34.0+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      34s    0.0+ Finished Task successfully.
      34s    0.0+ Viewer Window Closed
 Disposing Library
@@ -1273,7 +1273,7 @@ Done Disposing Library
 voxel=0.7mm run=4 task=34.0s process=34.3s stl=227361084
 [13:03:36]   ok in 34s 
 [13:03:48] pass 4/5  voxel 0.6mm  (host 9.7% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1296,7 +1296,7 @@ voxel=0.7mm run=4 task=34.0s process=34.3s stl=227361084
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.6 --run 4 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.6 --run 4 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1314,7 +1314,7 @@ voxel=0.7mm run=4 task=34.0s process=34.3s stl=227361084
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     45s   44.8+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     45s   44.8+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      45s    0.0+ Finished Task successfully.
      45s    0.0+ Viewer Window Closed
 Disposing Library
@@ -1329,7 +1329,7 @@ Done Disposing Library
 voxel=0.6mm run=4 task=44.8s process=45.0s stl=328300684
 [13:04:33]   ok in 45s 
 [13:04:44] pass 4/5  voxel 0.5mm  (host 12.1% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1352,7 +1352,7 @@ voxel=0.6mm run=4 task=44.8s process=45.0s stl=328300684
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.5 --run 4 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.5 --run 4 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1370,7 +1370,7 @@ voxel=0.6mm run=4 task=44.8s process=45.0s stl=328300684
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     65s   65.1+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     65s   65.1+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      65s    0.0+ Finished Task successfully.
      65s    0.0+ Viewer Window Closed
 Disposing Library
@@ -1385,7 +1385,7 @@ Done Disposing Library
 voxel=0.5mm run=4 task=65.1s process=65.4s stl=502871684
 [13:05:50]   ok in 66s 
 [13:06:01] pass 5/5  voxel 1.0mm  (host 11.1% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1408,7 +1408,7 @@ voxel=0.5mm run=4 task=65.1s process=65.4s stl=502871684
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 1.0 --run 5 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 1.0 --run 5 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1426,7 +1426,7 @@ voxel=0.5mm run=4 task=65.1s process=65.4s stl=502871684
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     20s   20.0+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     20s   20.0+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      20s    0.0+ Finished Task successfully.
      20s    0.0+ Viewer Window Closed
 Disposing Library
@@ -1441,7 +1441,7 @@ Done Disposing Library
 voxel=1mm run=5 task=20.0s process=20.3s stl=93721484
 [13:06:22]   ok in 21s 
 [13:06:33] pass 5/5  voxel 0.9mm  (host 10.7% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1464,7 +1464,7 @@ voxel=1mm run=5 task=20.0s process=20.3s stl=93721484
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.9 --run 5 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.9 --run 5 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1482,7 +1482,7 @@ voxel=1mm run=5 task=20.0s process=20.3s stl=93721484
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     23s   23.1+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     23s   23.1+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      23s    0.0+ Finished Task successfully.
      23s    0.0+ Viewer Window Closed
 Disposing Library
@@ -1497,7 +1497,7 @@ Done Disposing Library
 voxel=0.9mm run=5 task=23.1s process=23.3s stl=122184884
 [13:06:57]   ok in 24s 
 [13:07:08] pass 5/5  voxel 0.8mm  (host 11.8% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1520,7 +1520,7 @@ voxel=0.9mm run=5 task=23.1s process=23.3s stl=122184884
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.8 --run 5 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.8 --run 5 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1538,7 +1538,7 @@ voxel=0.9mm run=5 task=23.1s process=23.3s stl=122184884
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     28s   27.5+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     28s   27.5+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      28s    0.0+ Finished Task successfully.
      28s    0.0+ Viewer Window Closed
 Disposing Library
@@ -1553,7 +1553,7 @@ Done Disposing Library
 voxel=0.8mm run=5 task=27.5s process=27.8s stl=165332484
 [13:07:36]   ok in 28s 
 [13:07:48] pass 5/5  voxel 0.7mm  (host 12.2% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1576,7 +1576,7 @@ voxel=0.8mm run=5 task=27.5s process=27.8s stl=165332484
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.7 --run 5 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.7 --run 5 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1594,7 +1594,7 @@ voxel=0.8mm run=5 task=27.5s process=27.8s stl=165332484
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     34s   34.1+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     34s   34.1+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      34s    0.0+ Finished Task successfully.
      34s    0.0+ Viewer Window Closed
 Disposing Library
@@ -1609,7 +1609,7 @@ Done Disposing Library
 voxel=0.7mm run=5 task=34.1s process=34.4s stl=227361084
 [13:08:22]   ok in 34s 
 [13:08:34] pass 5/5  voxel 0.6mm  (host 12.6% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1632,7 +1632,7 @@ voxel=0.7mm run=5 task=34.1s process=34.4s stl=227361084
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.6 --run 5 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.6 --run 5 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1650,7 +1650,7 @@ voxel=0.7mm run=5 task=34.1s process=34.4s stl=227361084
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     45s   44.9+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     45s   44.9+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      45s    0.0+ Finished Task successfully.
      45s    0.0+ Viewer Window Closed
 Disposing Library
@@ -1665,7 +1665,7 @@ Done Disposing Library
 voxel=0.6mm run=5 task=44.9s process=45.2s stl=328300684
 [13:09:19]   ok in 45s 
 [13:09:31] pass 5/5  voxel 0.5mm  (host 10.2% busy)
-      0s    0.0+ Opened /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep/PicoGK.log
+      0s    0.0+ Opened <tmp>//picogk-native-heatx-sweep/PicoGK.log
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1688,7 +1688,7 @@ voxel=0.6mm run=5 task=44.9s process=45.2s stl=328300684
       0s    0.0+ C# Framework:         .NET 9.0.16
       0s    0.0+ C# CLR Version:       9.0.16
       0s    0.0+ PicoGK Path:          picogk.26.2
-      0s    0.0+ Command Line:         /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.5 --run 5 --out /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T//picogk-native-heatx-sweep
+      0s    0.0+ Command Line:         <repo>/bench/native-heatx/bin/Release/net9.0/NativeHeatX.dll --voxel 0.5 --run 5 --out <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl --work <tmp>//picogk-native-heatx-sweep
       0s    0.0+ 
       0s    0.0+ ----------------------------------------
       0s    0.0+ 
@@ -1706,7 +1706,7 @@ voxel=0.6mm run=5 task=44.9s process=45.2s stl=328300684
       0s    0.0+ 
       0s    0.0+ Starting Task.
       0s    0.0+ Loading Lights
-     67s   66.4+ STL Export: /var/folders/c8/shzsp00d249b8mxsjh0x5pqw0000gn/T/picogk-native-heatx-sweep/HelixHeatX.STL exported.
+     67s   66.4+ STL Export: <tmp>/picogk-native-heatx-sweep/HelixHeatX.STL exported.
      67s    0.0+ Finished Task successfully.
      67s    0.0+ Viewer Window Closed
 Disposing Library
@@ -1720,4 +1720,4 @@ Done Disposing Library
      67s    0.0+ Done.
 voxel=0.5mm run=5 task=66.4s process=66.7s stl=502871684
 [13:10:37]   ok in 66s 
-[13:10:47] === sweep complete: 30 records in /Users/rifont/git/tau/repos/picovoxel/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl
+[13:10:47] === sweep complete: 30 records in <repo>/bench/native-heatx/../results/native/native-heatx-2026-08-09.jsonl

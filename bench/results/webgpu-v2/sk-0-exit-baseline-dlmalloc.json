@@ -11,8 +11,8 @@
     "date": "2026-07-26T18:11:48.874Z",
     "startLoad": 2.5,
     "mergedFrom": [
-      "/private/tmp/claude-501/-Users-rifont-git-tau/24247983-3603-4d1f-81c9-43d4b3e33996/scratchpad/a1.json",
-      "/private/tmp/claude-501/-Users-rifont-git-tau/24247983-3603-4d1f-81c9-43d4b3e33996/scratchpad/a2.json"
+      "<scratch>/a1.json",
+      "<scratch>/a2.json"
     ],
     "blockDates": [
       "2026-07-26T18:11:48.874Z",
