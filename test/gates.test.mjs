@@ -58,7 +58,9 @@ test('should only report a slowdown on a class with no A/A calibration', () => {
   const report = compareGated(result(1500, 1000), {});
   assert.equal(report.failed, false);
   assert.match(report.markdown, /report-only: `linux-x64-2cpu` has no A\/A calibration/u);
-  assert.equal(compareGated(result(1500, 1000)).failed, CALIBRATION['linux-x64-2cpu'] !== undefined);
+  assert.equal(compareGated(result(1500, 1000)).failed, false, 'linux-x64-2cpu has no calibration');
+  assert.equal(CALIBRATION['linux-x64-4cpu']?.threshold, 0.1);
+  assert.equal(compareGated(result(1150, 1000, { class: 'linux-x64-4cpu' })).failed, true);
 });
 
 test('should fail closed on a changed G0 tuple even when faster', () => {

@@ -6,9 +6,9 @@
 //
 // A class with no committed baseline has nothing to compare: the check says so
 // and passes, and committing the uploaded record under bench/results/ arms it.
-// That is the state after any runner change, such as the public flip from 2 to
-// 4 vCPU; comparing a runner with the 12-core workstation baselines would
-// report the hardware every month, not drift.
+// That is the state after any change of runner class; comparing a hosted runner
+// with the 12-core workstation baselines would report the hardware every
+// month, not drift.
 //
 // Exit 1 = drift; bench.yml then opens or updates one `claude`-labelled issue.
 //

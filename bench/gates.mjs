@@ -16,9 +16,9 @@ export const THRESHOLD_FLOOR = 0.1;
 
 /**
  * The hardware a threshold or a drift baseline is valid for: platform,
- * architecture and core count. Wall time on a 2-vCPU private runner is roughly
- * twice that on the 4-vCPU public one, while the CPU model inside one hosted
- * class changes from run to run; ABAB pairing on one runner absorbs the model.
+ * architecture and core count. Wall time follows the core count, while the
+ * CPU model inside one hosted class changes from run to run; ABAB pairing on
+ * one runner absorbs the model.
  * @param {{ platform: string, arch?: string, cores: number }} host
  */
 export const hardwareClass = ({ platform, arch, cores }) => `${platform}-${arch ?? 'unknown'}-${cores}cpu`;
@@ -31,11 +31,15 @@ export const thresholdFor = (aaSpread) => Math.max(THRESHOLD_FLOOR, 2 * aaSpread
  * timing verdict is printed but never fails, while a G0 tuple change always
  * fails. An entry is added only from an A/A run on that class (a manual
  * `workflow_dispatch` of ci.yml runs the benchmark with main against itself),
- * with its origin beside it. The public flip (G7) moves CI to 4-vCPU runners,
- * a new class that needs its own A/A run.
+ * with its origin beside it. A runner with another core count is a new class
+ * and needs its own A/A run.
  * @type {Record<string, { threshold: number }>}
  */
-export const CALIBRATION = {};
+export const CALIBRATION = {
+  // A/A: ci.yml run 36350329611 (workflow_dispatch at 4e1cea8, 2026-09-28):
+  // medians 13.93 s and 13.90 s, MADs 0.02 s, spread 0.2%, so the 10% floor.
+  'linux-x64-4cpu': { threshold: 0.1 },
+};
 
 const seconds = (ms) => `${(ms / 1000).toFixed(2)} s`;
 const percent = (ratio) => `${ratio >= 0 ? '+' : ''}${(ratio * 100).toFixed(1)}%`;
@@ -96,7 +100,7 @@ export function compareGated(result, calibration = CALIBRATION) {
 
 /**
  * The newest committed `bench/run.mjs` record measured on the same hardware
- * class as the fresh one, or undefined: comparing a 2-vCPU runner with the
+ * class as the fresh one, or undefined: comparing a hosted runner with the
  * 12-core workstation baseline reports hardware, not drift. Records from
  * before `arch` was recorded match on platform and cores alone.
  * @param {{ file: string, fingerprint: { os: string, arch?: string, cores: number } }[]} committed sorted oldest first
