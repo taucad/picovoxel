@@ -103,7 +103,7 @@ By default each glue finds its files with `new URL('<file>', import.meta.url)`, 
 
 - `locateFile(file)` receives `pico.wasm` or `pico-multi.wasm` and returns its URL (a path also works in Node). It is not consulted when `instantiateWasm` is given.
 - `mainScriptUrlOrBlob` is the pthread worker script, passed to `new Worker(..., { type: 'module' })` for each worker. In Node it must be a filesystem path, because `worker_threads` treats a string as a path.
-- `instantiateWasm(imports, receive)` lets the host supply a compiled `WebAssembly.Module`. Pass the module as the second argument to `receive`: the pthread workers then receive it from the main thread and never fetch the wasm themselves.
+- `instantiateWasm(imports, receive)` lets the host instantiate the module itself. Call `receive(instance, module)` with the compiled `WebAssembly.Module` as the second argument, which is required: on `picovoxel/multi` the main thread posts that module to every pthread worker, and the workers instantiate it rather than fetching the wasm.
 - `wasmBinary` is the wasm file's bytes, compiled in place of fetching the file.
 
 These four keys are the supported overrides. TypeScript types them as `PicoWasmOverrides`, so a misspelt key is a compile error rather than an override the glue ignores.

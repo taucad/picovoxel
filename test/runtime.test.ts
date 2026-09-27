@@ -238,9 +238,9 @@ test('compile once: wasmModule and wasm.instantiateWasm both skip the glue fetch
   let calls = 0;
   const hostRuntime = await serialEntry.createPicoRuntime({
     wasm: {
-      instantiateWasm(imports: WebAssembly.Imports, receive: (instance: WebAssembly.Instance) => void) {
+      instantiateWasm(imports, receive) {
         calls += 1;
-        void WebAssembly.instantiate(compiled, imports).then(receive);
+        void WebAssembly.instantiate(compiled, imports).then((instance) => receive(instance, compiled));
         return {};
       },
     },
@@ -307,14 +307,29 @@ test('wasm overrides are typed: the documented forms compile under strict mode a
     },
   });
   const located: serialEntry.CreatePicoOptions = { wasm: { locateFile: (file) => `/assets/${file}` } };
-  const bytes: serialEntry.PicoWasmOverrides = { wasmBinary: readFileSync(join('src', 'pico.wasm')) };
+  const bytes: serialEntry.PicoWasmOverrides = { wasmBinary: wasmFile('pico.wasm') };
   // @ts-expect-error -- a misspelt override is a type error, not a key the glue silently ignores
   const misspelt: serialEntry.CreatePicoOptions = { wasm: { locatefile: () => 'pico.wasm' } };
   const wrongReturn: multiEntry.CreatePicoRuntimeOptions = {
     // @ts-expect-error -- locateFile returns a URL string or path
     wasm: { locateFile: () => new URL('file:///pico.wasm') },
   };
-  assert.ok([documented, located, bytes, misspelt, wrongReturn].every(Boolean));
+  const noModule: multiEntry.PicoWasmOverrides = {
+    instantiateWasm: (imports, receive) => {
+      const hand = (instance: WebAssembly.Instance) =>
+        // @ts-expect-error -- the module is required: the multi glue posts it to every pthread worker
+        receive(instance);
+      void WebAssembly.instantiate(wasmFile('pico-multi.wasm'), imports).then(({ instance }) =>
+        hand(instance),
+      );
+      return {};
+    },
+  };
+  // @ts-expect-error -- the worker script is a string (a path in Node) or a Blob; the glue rejects a URL object
+  const workerUrl: multiEntry.PicoWasmOverrides = { mainScriptUrlOrBlob: new URL('file:///pico-multi.mjs') };
+  // @ts-expect-error -- wasm bytes are an ArrayBuffer or a Uint8Array; the glue cannot read a DataView
+  const view: serialEntry.PicoWasmOverrides = { wasmBinary: new DataView(new ArrayBuffer(8)) };
+  assert.ok([documented, located, bytes, misspelt, wrongReturn, noModule, workerUrl, view].every(Boolean));
 });
 
 test('compile once: contradictory and non-module inputs are refused before instantiation', async () => {
@@ -552,6 +567,33 @@ test('multi createPico: the standalone session still owns its pool and terminate
   assert.ok(pool.runningWorkers.length > 0);
   pk.dispose();
   assert.equal(pool.runningWorkers.length + pool.unusedWorkers.length, 0);
+});
+
+test('multi runtime through instantiateWasm: the module passed to receive reaches every pthread', async () => {
+  const compiled = await WebAssembly.compile(wasmFile('pico-multi.wasm'));
+  let calls = 0;
+  const runtime = await multiEntry.createPicoRuntime({
+    wasm: {
+      instantiateWasm: (imports, receive) => {
+        calls += 1;
+        void WebAssembly.instantiate(compiled, imports).then((instance) => receive(instance, compiled));
+        return {};
+      },
+    },
+  });
+  const serial = await serialEntry.createPico({ voxelSize: 0.5 });
+  try {
+    const pk = await runtime.createPico({ voxelSize: 0.5 });
+    assert.equal(calls, 1, "the host's instantiateWasm ran once");
+    assert.ok(
+      pk.module.PThread!.runningWorkers.length > 0,
+      'workers instantiated the module passed to receive',
+    );
+    assert.deepEqual(model(pk), model(serial));
+  } finally {
+    serial.dispose();
+    runtime.dispose();
+  }
 });
 
 test('multi runtime from a compiled module: the module reaches every pthread', async () => {

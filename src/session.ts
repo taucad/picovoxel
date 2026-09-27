@@ -119,14 +119,16 @@ export interface PicoWasmOverrides {
   mainScriptUrlOrBlob?: string | Blob;
   /**
    * Instantiates the module yourself: instantiate with `imports`, then call
-   * `receive` with the instance and the compiled module. On `picovoxel/multi`
-   * every pthread worker then instantiates that module instead of fetching the
-   * wasm. The return value is ignored; return `{}`. Cannot be combined with
-   * `wasmModule`.
+   * `receive` with the instance and the compiled module it came from. The
+   * module is required: on `picovoxel/multi` the main thread posts it to every
+   * pthread worker, and the workers instantiate it rather than fetching the
+   * wasm. The return value is ignored; return `{}`. A failure inside this
+   * callback cannot be reported back, so a host that only wants to compile
+   * once should pass `wasmModule` instead. Cannot be combined with `wasmModule`.
    */
   instantiateWasm?: (
     imports: WebAssembly.Imports,
-    receive: (instance: WebAssembly.Instance, module?: WebAssembly.Module) => void,
+    receive: (instance: WebAssembly.Instance, module: WebAssembly.Module) => void,
   ) => unknown;
   /** The wasm file's bytes, compiled in place of fetching the file. */
   wasmBinary?: ArrayBuffer | Uint8Array;

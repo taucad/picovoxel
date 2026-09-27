@@ -2,4 +2,4 @@
 picovoxel: patch
 ---
 
-`createPico({ wasm })` and `createPicoRuntime({ wasm })` type their Emscripten overrides as the exported `PicoWasmOverrides` (`locateFile`, `mainScriptUrlOrBlob`, `instantiateWasm`, `wasmBinary`) instead of `object`, so the documented forms typecheck under strict TypeScript and a misspelt key is a compile error.
+`createPico({ wasm })` and `createPicoRuntime({ wasm })` on both entries accept the exported `PicoWasmOverrides` type (`locateFile`, `mainScriptUrlOrBlob`, `instantiateWasm`, `wasmBinary`), so the documented forms typecheck under strict TypeScript and a misspelt key is a compile error.
