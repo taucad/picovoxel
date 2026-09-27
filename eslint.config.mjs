@@ -21,6 +21,12 @@ export default tseslint.config(
       'spikes/webgpu/picovoxel-dist/**',
       'test/browser/gate-dist/**',
       'test/browser/vendor/**',
+      // The maintainer's working files stay out of lint (and format, see
+      // .oxfmtrc.json) so an edit in progress cannot fail a pull request. tsc
+      // still type-checks them, and vitest still runs the test file.
+      'demo/main.ts',
+      'examples/pico/modular-gyroid-puzzle.ts',
+      'test/examples-pico.test.ts',
     ],
   },
   eslint.configs.recommended,
@@ -54,11 +60,6 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
     },
-  },
-  {
-    // The maintainer's working demo; it is formatted and linted by its owner.
-    files: ['demo/main.ts'],
-    rules: { '@typescript-eslint/no-unnecessary-type-parameters': 'off' },
   },
   {
     files: ['**/*.{cjs,js,mjs,ts,mts}'],

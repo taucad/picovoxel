@@ -9,7 +9,8 @@
 # (WebKit), arm64 native parity is a local harness (bench/), and macOS minutes
 # cost 10x on a private repository.
 #
-# Still to come, by owner: OSV scanning (PR4); ci-release.mjs, the Version Plan
+# OSV scanning is its own workflow (osv-scan.yml: report-only on pull requests,
+# blocking on main). Still to come, by owner: ci-release.mjs, the Version Plan
 # check, publish and registry verification (PR5, T1.6); the C++ coverage job
 # (W3); the benchmark job, the hard wasm byte ceilings and the 2.0 mm candidate
 # G0 pin (W4).
@@ -73,12 +74,9 @@ jobs:
             echo "version=$(node -p "require('./package.json').version")"
           } >> "$GITHUB_OUTPUT"
 
-  # The only place wasm is built. The emsdk cache key hashes the file holding the
-  # toolchain pins; each prefix key hashes every input that shapes it, including
-  # patches/** (the oneTBB and OpenVDB patches), with no restore-keys: a near
-  # miss is a wrong binary. There is no TU-object cache: the module build
-  # compiles all ten TUs every run, in parallel, and the link always runs,
-  # which keeps the export list honest per commit.
+  # The only place a pull request builds wasm. The build steps, and the cache
+  # keys that make a near miss impossible, live in .github/actions/build-wasm,
+  # which the bench and g0-nightly workflows share for their fallback build.
   wasm:
     name: wasm (${{ matrix.variant }})
     needs: preflight
@@ -88,8 +86,6 @@ jobs:
         variant: [serial, multi]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-    env:
-      THREADS: ${{ matrix.variant == 'multi' && '1' || '0' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -97,24 +93,9 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_LATEST }}
-      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      - uses: ./.github/actions/build-wasm
         with:
-          path: vendor/emsdk
-          key: emsdk-${{ runner.os }}-${{ hashFiles('scripts/fetch-deps.sh') }}
-      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        id: prefix
-        with:
-          path: build/wasm-prefix${{ matrix.variant == 'multi' && '-mt' || '' }}
-          key: prefix-${{ runner.os }}-${{ matrix.variant }}-${{ hashFiles('scripts/fetch-deps.sh', 'scripts/build-deps-wasm.sh', 'patches/**') }}
-      - name: Fetch pinned sources and the pinned emsdk
-        run: bash scripts/fetch-deps.sh
-      - name: Build the OpenVDB + oneTBB prefix (cache miss only)
-        if: steps.prefix.outputs.cache-hit != 'true'
-        run: bash scripts/build-deps-wasm.sh
-      # Also writes src/<variant>.exports.ts, the minified export names the glue
-      # reads (createPicoRuntime's wasmModule pre-flight). Generated, never committed.
-      - name: Build the module (asserts the SIMD instruction count)
-        run: bash scripts/build-pico-module.sh
+          variant: ${{ matrix.variant }}
       - name: The committed ABI manifest matches the pinned header
         if: matrix.variant == 'serial'
         run: node scripts/parse-abi.mjs | diff -u src/abi.json -
@@ -154,11 +135,12 @@ jobs:
           path: .
           merge-multiple: 'true'
           expect: src/pico.mjs src/pico.wasm src/pico.exports.ts src/pico-multi.mjs src/pico-multi.wasm src/pico-multi.exports.ts
-      # The fan-in: build (which fails on a runtime import cycle), typecheck
-      # (after build: examples import the package by name), script tests, JS
-      # size budgets, the exact file set, publint and attw, plus every
-      # docs-prose gate. The suite itself runs sharded below (D28), not here.
-      - run: pnpm nx run picovoxel:quality
+      # Build (which fails on a runtime import cycle), typecheck (after build:
+      # examples import the package by name), script tests, JS size budgets, the
+      # exact file set, publint and attw. `quality` is exactly this target plus
+      # `docs-prose`, which runs in its own job, so no gate runs twice. The suite
+      # itself runs sharded below (D28), not here.
+      - run: pnpm nx run picovoxel:package-checks
 
   # Format, type-aware lint, dead code, Vale and the prose tests, actionlint and
   # shellcheck. It downloads the wasm only because lint reads the built dist/
@@ -405,7 +387,8 @@ jobs:
         env:
           BROWSER: ${{ matrix.browser }}
 
-  # pnpm audit until PR4 brings OSV (report-only on pull requests there).
+  # The gating advisory check. osv-scan.yml reports OSV findings on pull
+  # requests without blocking them.
   security:
     needs: preflight
     runs-on: ubuntu-24.04

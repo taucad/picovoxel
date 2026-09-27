@@ -33,6 +33,7 @@ describe('README shape', () => {
 
   it('should contain a runnable public quick start and maintainer link', () => {
     expect(README).toContain("from 'picovoxel'");
-    expect(README).toContain('(MAINTAINER.md)');
+    // Absolute: MAINTAINER.md is not in the tarball (docs-links.test.ts).
+    expect(README).toContain('(https://github.com/taucad/picovoxel/blob/main/MAINTAINER.md)');
   });
 });

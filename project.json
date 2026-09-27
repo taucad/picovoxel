@@ -87,21 +87,13 @@
       "executor": "nx:noop",
       "dependsOn": ["check:dead-code", "format", "lint", "prose", "workflows"]
     },
+    "package-checks": {
+      "executor": "nx:noop",
+      "dependsOn": ["build", "check:size", "pkgcheck", "test:scripts", "typecheck", "validate-pack"]
+    },
     "quality": {
       "executor": "nx:noop",
-      "dependsOn": [
-        "build",
-        "check:dead-code",
-        "check:size",
-        "format",
-        "lint",
-        "pkgcheck",
-        "prose",
-        "test:scripts",
-        "typecheck",
-        "validate-pack",
-        "workflows"
-      ]
+      "dependsOn": ["docs-prose", "package-checks"]
     }
   }
 }

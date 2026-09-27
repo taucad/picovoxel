@@ -1,0 +1,27 @@
+# GitHub Actions and the root npm tree. The native sources (PicoGKRuntime,
+# OpenVDB, oneTBB, xxHash, emsdk) are pinned by commit and SHA-256 in
+# scripts/fetch-deps.sh, where no Dependabot ecosystem reaches; bumping one can
+# move the exact-lane byte pins, so it stays a reviewed pull request.
+version: 2
+updates:
+  # `/` covers .github/workflows and a root action.yml only; the composite
+  # actions each hold their own action.yml, so they are listed by glob.
+  - package-ecosystem: github-actions
+    directories: ['/', '/.github/actions/*']
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ['*']
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      root:
+        patterns: ['*']

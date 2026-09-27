@@ -10,8 +10,9 @@ linkWorkspacePackages: true
 # lives here: `pnpm add` writes 1.2.3, never ^1.2.3.
 saveExact: true
 
-# Dev-only transitive advisories (high) that the CI audit gate fails on,
-# pinned to the patched releases as nanoraster does.
+# Dev-only transitive advisories pinned to the patched releases as nanoraster
+# does: high ones fail the CI audit gate, moderate ones fail OSV on main.
 overrides:
   'brace-expansion@>=5.0.0 <5.0.9': 5.0.9
+  'postcss@<8.5.23': 8.5.23
   'smol-toml@<=1.7.0': 1.7.1
