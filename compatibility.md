@@ -34,9 +34,11 @@ without a check mark is supported by design but not gated by CI; its note says w
 - **One unexplained trap on the pthreads build.** On 2026-07-27, one of two HelixHeatX runs at 0.6 mm on
   the pthreads (mimalloc) build aborted mid-run with "Illegal instruction". Five later runs completed, and
   no cause was found. See [memory and limits](https://github.com/taucad/picovoxel/blob/main/docs/memory-and-limits.md#known-limits).
-- **Closed internal cavities in `properties()`.** The volume and area come from a mesh round trip, which
-  PicoGK users report can fill a closed internal cavity (PicoGK Discussion #118); picovoxel has not
-  reproduced it. Check the results for parts with closed internal voids another way before relying on them.
+- **`properties()` fills sealed cavities.** The volume and area come from a mesh round trip, as in PicoGK's
+  `CalculateProperties`, and the mesh-to-grid step treats every region it cannot reach from outside the
+  part as solid. A sealed cavity, or one whose openings are about two voxels wide or narrower, is filled and
+  its surface is lost; the native PicoGK runtime does the same. Cross-check with `voxels.toMesh().measure()`,
+  which integrates the mesh itself; see [memory and limits](https://github.com/taucad/picovoxel/blob/main/docs/memory-and-limits.md#known-limits).
 - **Deep implicit expressions.** The expression compiler recurses once per nesting level, so a very deep
   expression overflows the JavaScript stack: on Node 24.10.0, about 6,800–6,900 levels for binary chains
   and 4,400–5,200 for unary ones; see [memory and limits](https://github.com/taucad/picovoxel/blob/main/docs/memory-and-limits.md#known-limits).
