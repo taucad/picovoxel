@@ -55,7 +55,7 @@ export function wrapPolyLine(ctx: SessionContext, handle: bigint): PolyLine {
       live();
       ctx.raw.PolyLine_GetColor(ctx.lib, handle, ctx.scratch);
       const f32 = ctx.module.HEAPF32;
-      const i = ctx.scratch >> 2;
+      const i = ctx.scratch >>> 2;
       return [f32[i]!, f32[i + 1]!, f32[i + 2]!, f32[i + 3]!];
     },
     bounds() {
@@ -83,7 +83,7 @@ export function wrapPolyLine(ctx: SessionContext, handle: bigint): PolyLine {
 /** Writes an RGBA color (alpha defaults 1) into scratch as PKColorFloat. */
 export function writeColor(ctx: SessionContext, pointer: number, color: Color): void {
   const [r, g, b, a = 1] = color;
-  const i = pointer >> 2;
+  const i = pointer >>> 2;
   ctx.module.HEAPF32[i] = r;
   ctx.module.HEAPF32[i + 1] = g;
   ctx.module.HEAPF32[i + 2] = b;

@@ -137,7 +137,7 @@
  ],
  "ex-implicit-gyroid-genus": [
   {
-   "volumeHex": "000000e0024fd73f",
+   "volumeHex": "0000002044e5d43f",
    "triangles": 152
   },
   {
@@ -147,7 +147,7 @@
  ],
  "ex-implicit-gyroid-sphere": [
   {
-   "volumeHex": "000000a0254aac40",
+   "volumeHex": "00000000782dac40",
    "triangles": 92964
   },
   {
@@ -189,16 +189,16 @@
    "triangles": 52036
   },
   {
-   "volumeHex": "000000406ff2d540",
-   "triangles": 57004
+   "volumeHex": "000000c06ef2d540",
+   "triangles": 57012
   },
   {
-   "volumeHex": "0000006080b1e040",
-   "triangles": 83376
+   "volumeHex": "000000e080b1e040",
+   "triangles": 83360
   },
   {
-   "volumeHex": "000000605639c040",
-   "triangles": 37832
+   "volumeHex": "000000005639c040",
+   "triangles": 37800
   }
  ],
  "ex-mesh-painter": [

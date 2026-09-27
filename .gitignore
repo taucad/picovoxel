@@ -13,3 +13,13 @@ test/browser/vendor/
 .DS_Store
 coverage/
 test/browser/gate-dist/
+spikes/webgpu/dist/
+spikes/webgpu/emdawn/dist/
+spikes/webgpu/node-compute/dist/
+spikes/webgpu/node-compute/target/
+spikes/webgpu/picovoxel-dist/
+
+# bench/native-heatx — .NET build output and ImGui window state from local runs.
+bench/native-heatx/bin/
+bench/native-heatx/obj/
+imgui.ini

@@ -1,0 +1,107 @@
+PicoGKRuntime 26.2 (0f26321c) — change the level-set renormalization scheme on
+the three offset entry points from HJWENO5_BIAS to SECOND_BIAS.
+
+PROPOSAL, NOT APPLIED LOCALLY. picovoxel ships a tuned offset as a sibling
+translation unit (src/pico-offset.cpp -> Voxels_OffsetTuned, opt-in behind a
+`fastRenorm` flag) so the vendored tree stays pristine and the default path
+stays bit-identical. This file is the DEFAULT-CHANGE half of ledger row U22,
+shaped as a diff for leap71/PicoGKRuntime.
+
+Ask (1) of U22 — expose the scheme and sweep count as an optional settings
+parameter on Voxels_Offset/DoubleOffset/TripleOffset — is deliberately NOT
+diffed here: it changes the C ABI signatures, which has to be coordinated with
+the C# binding in leap71/PicoGK, and the API shape is the maintainers' call.
+This patch is the part that needs no API decision.
+
+Why this is a defect report and not a preference. Offset/DoubleOffset/
+TripleOffset construct their LevelSetFilter locally and never touch the
+tracker's settings, so every offset pays the interface-TRACKING defaults: 3
+sweeps of HJWENO5_BIAS per half-voxel CFL step. An offset moves the surface
+along its own normal by a constant and keeps the distance property by
+construction; upstream's own header says one low-order sweep is often enough
+for the analogous band dilation (LevelSetTracker.h:115-123).
+
+Measured (picovoxel SK-0.8, bench/results/webgpu-v2/SK-0.8.md; 12 paired
+repeats, CI widths <= 0.02x, four fixtures):
+
+  - renormalization is 93.9-97.5% of the offset wall;
+  - one HJWENO5 sweep costs 4.2x a FIRST_BIAS sweep;
+  - SECOND_BIAS at 3 sweeps: 2.1-2.3x faster than the shipped default AND more
+    accurate against the closed form (0.050% vs 0.094% volume error on an
+    analytic sphere offset), with tools::checkLevelSet clean;
+  - FIRST_BIAS at 3 sweeps: 3.49-3.95x, <= 2.14% corrected-volume delta,
+    checkLevelSet clean — the setting picovoxel ships as an opt-in fast path;
+  - the two knobs are NOT interchangeable: dropping the scheme order preserves
+    |grad(phi)| in [0.5, 1.5], dropping normCount breaks it on every fixture
+    tried, so HJWENO5 at 1 sweep is strictly dominated by FIRST_BIAS at 3
+    (slower AND broken AND less accurate);
+  - plain WENO5_BIAS is 5-8% SLOWER than HJWENO5 and breaks the level set — a
+    dead end, not a middle setting.
+
+So on the two axes a default should be chosen on, speed and accuracy, the
+shipped setting loses to SECOND_BIAS on both. That is the whole argument.
+
+What a reviewer should re-measure before taking this: bit-for-bit output
+changes, so any byte-pinned corpus regenerates. The evidence to re-derive is
+geometry-shaped, not byte-shaped — corrected volume and AREA rel deltas (area
+is load-bearing: a volume-only gate passes 9% area drift), bounds within 1
+voxel, narrow-band SDF max <= 1 / mean <= 0.25 voxel, tools::checkLevelSet
+EMPTY as a hard boolean, and analytic cross-scoring where a closed form exists.
+That gate shape rejected 6 of 8 renorm settings that volume tolerances passed.
+
+setSpatialScheme is public LevelSetTracker API that LevelSetFilter inherits,
+and openvdb::math::SECOND_BIAS comes in with the LevelSetFilter header already
+included here — this is three inserted lines and no new dependency.
+
+Applies with `patch -p1` to a pristine PicoGKRuntime 0f26321c tree.
+
+--- a/Source/PicoGKVdbVoxels.h
++++ b/Source/PicoGKVdbVoxels.h
+@@ -283,6 +283,15 @@
+         
+         openvdb::tools::LevelSetFilter<openvdb::FloatGrid> oFilter(*m_roGrid);
+         
++        // Renormalization scheme. The tracker's interface-TRACKING default is
++        // HJWENO5_BIAS, whose stencil dominates the cost of an offset: renormalization
++        // is 93.9-97.5% of the offset wall across four fixtures, and one HJWENO5 sweep
++        // costs 4.2x a first-order sweep. SECOND_BIAS is 2.1-2.3x faster AND more
++        // accurate against a closed-form sphere offset (0.050% vs 0.094% volume error).
++        // The sweep count stays at the default 3: dropping the order preserves
++        // |grad(phi)| in [0.5, 1.5], dropping normCount does not.
++        oFilter.setSpatialScheme(openvdb::math::SECOND_BIAS);
++        
+         // OpenVDB treats offsets as inwards
+         oFilter.offset(-fSize);
+         
+@@ -300,6 +309,15 @@
+         
+         openvdb::tools::LevelSetFilter<openvdb::FloatGrid> oFilter(*m_roGrid);
+         
++        // Renormalization scheme. The tracker's interface-TRACKING default is
++        // HJWENO5_BIAS, whose stencil dominates the cost of an offset: renormalization
++        // is 93.9-97.5% of the offset wall across four fixtures, and one HJWENO5 sweep
++        // costs 4.2x a first-order sweep. SECOND_BIAS is 2.1-2.3x faster AND more
++        // accurate against a closed-form sphere offset (0.050% vs 0.094% volume error).
++        // The sweep count stays at the default 3: dropping the order preserves
++        // |grad(phi)| in [0.5, 1.5], dropping normCount does not.
++        oFilter.setSpatialScheme(openvdb::math::SECOND_BIAS);
++        
+         // OpenVDB treats offsets as inwards
+         oFilter.offset(-fSize1);
+         oFilter.offset(-fSize2);
+@@ -316,6 +334,15 @@
+         
+         openvdb::tools::LevelSetFilter<openvdb::FloatGrid> oFilter(*m_roGrid);
+         
++        // Renormalization scheme. The tracker's interface-TRACKING default is
++        // HJWENO5_BIAS, whose stencil dominates the cost of an offset: renormalization
++        // is 93.9-97.5% of the offset wall across four fixtures, and one HJWENO5 sweep
++        // costs 4.2x a first-order sweep. SECOND_BIAS is 2.1-2.3x faster AND more
++        // accurate against a closed-form sphere offset (0.050% vs 0.094% volume error).
++        // The sweep count stays at the default 3: dropping the order preserves
++        // |grad(phi)| in [0.5, 1.5], dropping normCount does not.
++        oFilter.setSpatialScheme(openvdb::math::SECOND_BIAS);
++        
+         // offset inwards first
+         oFilter.offset(-fSize);
+         

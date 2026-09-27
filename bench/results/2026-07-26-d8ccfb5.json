@@ -1,0 +1,2217 @@
+{
+  "fingerprint": {
+    "cpu": "Apple M2 Pro",
+    "cores": 12,
+    "ramGiB": 32,
+    "os": "darwin 25.5.0",
+    "node": "v26.5.0",
+    "wasmSha256": "70304cfe70a0dc93adf7a4f8c294845cc63af163b8483ecf57697cfcf1794744",
+    "wasmBytes": 5835133,
+    "gitSha": "d8ccfb5",
+    "date": "2026-07-26T01:52:29.188Z",
+    "startLoad": 2.34423828125
+  },
+  "results": {
+    "M1": {
+      "description": "createPico() cold instantiate (5.8 MB module)",
+      "phases": {
+        "instantiate": {
+          "medianMs": 9.347,
+          "minMs": 7.975,
+          "maxMs": 9.485,
+          "madMs": 0.138,
+          "p95Ms": 9.485,
+          "ci95LowMs": 7.975,
+          "ci95HighMs": 9.485,
+          "samplesMs": [
+            9.485,
+            9.361,
+            8.198,
+            7.975,
+            9.347
+          ]
+        }
+      },
+      "identity": null,
+      "loadBefore": 2.34423828125,
+      "loadAfter": 2.34423828125
+    },
+    "M2@0.5": {
+      "description": "sphere r=10 @ 0.5mm",
+      "phases": {
+        "build": {
+          "medianMs": 0.989,
+          "minMs": 0.955,
+          "maxMs": 1.355,
+          "madMs": 0.012,
+          "p95Ms": 1.355,
+          "ci95LowMs": 0.955,
+          "ci95HighMs": 1.355,
+          "samplesMs": [
+            1.355,
+            0.989,
+            0.993,
+            0.977,
+            0.955
+          ]
+        },
+        "volume": {
+          "medianMs": 0.847,
+          "minMs": 0.782,
+          "maxMs": 0.882,
+          "madMs": 0.031,
+          "p95Ms": 0.882,
+          "ci95LowMs": 0.782,
+          "ci95HighMs": 0.882,
+          "samplesMs": [
+            0.849,
+            0.847,
+            0.882,
+            0.816,
+            0.782
+          ]
+        }
+      },
+      "identity": {
+        "volume": "40b062d220000000"
+      },
+      "loadBefore": 2.34423828125,
+      "loadAfter": 2.34423828125
+    },
+    "M2@0.25": {
+      "description": "sphere r=10 @ 0.25mm",
+      "phases": {
+        "build": {
+          "medianMs": 3.015,
+          "minMs": 2.858,
+          "maxMs": 3.308,
+          "madMs": 0.1,
+          "p95Ms": 3.308,
+          "ci95LowMs": 2.858,
+          "ci95HighMs": 3.308,
+          "samplesMs": [
+            3.015,
+            3.116,
+            3.308,
+            2.858,
+            2.999
+          ]
+        },
+        "volume": {
+          "medianMs": 3.072,
+          "minMs": 2.868,
+          "maxMs": 3.238,
+          "madMs": 0.024,
+          "p95Ms": 3.238,
+          "ci95LowMs": 2.868,
+          "ci95HighMs": 3.238,
+          "samplesMs": [
+            3.072,
+            3.048,
+            3.081,
+            3.238,
+            2.868
+          ]
+        }
+      },
+      "identity": {
+        "volume": "40b05e9fa0000000"
+      },
+      "loadBefore": 2.34423828125,
+      "loadAfter": 2.34423828125
+    },
+    "M3@0.5": {
+      "description": "gyroid implicit @ 0.5mm (JS SDF)",
+      "phases": {
+        "render": {
+          "medianMs": 16.297,
+          "minMs": 16.219,
+          "maxMs": 16.904,
+          "madMs": 0.077,
+          "p95Ms": 16.904,
+          "ci95LowMs": 16.219,
+          "ci95HighMs": 16.904,
+          "samplesMs": [
+            16.904,
+            16.219,
+            16.283,
+            16.407,
+            16.297
+          ]
+        },
+        "mesh": {
+          "medianMs": 12.42,
+          "minMs": 12.382,
+          "maxMs": 12.846,
+          "madMs": 0.039,
+          "p95Ms": 12.846,
+          "ci95LowMs": 12.382,
+          "ci95HighMs": 12.846,
+          "samplesMs": [
+            12.726,
+            12.846,
+            12.42,
+            12.382,
+            12.397
+          ]
+        }
+      },
+      "identity": {
+        "volume": "40c1773220000000",
+        "triangles": 162636
+      },
+      "loadBefore": 2.34423828125,
+      "loadAfter": 2.34423828125
+    },
+    "M3@0.25": {
+      "description": "gyroid implicit @ 0.25mm (JS SDF)",
+      "phases": {
+        "render": {
+          "medianMs": 105.197,
+          "minMs": 104.729,
+          "maxMs": 105.867,
+          "madMs": 0.42,
+          "p95Ms": 105.867,
+          "ci95LowMs": 104.729,
+          "ci95HighMs": 105.867,
+          "samplesMs": [
+            104.729,
+            105.128,
+            105.617,
+            105.197,
+            105.867
+          ]
+        },
+        "mesh": {
+          "medianMs": 46.229,
+          "minMs": 45.781,
+          "maxMs": 47.317,
+          "madMs": 0.305,
+          "p95Ms": 47.317,
+          "ci95LowMs": 45.781,
+          "ci95HighMs": 47.317,
+          "samplesMs": [
+            45.923,
+            47.317,
+            46.229,
+            45.781,
+            46.503
+          ]
+        }
+      },
+      "identity": {
+        "volume": "40b0937560000000",
+        "triangles": 538668
+      },
+      "loadBefore": 2.34423828125,
+      "loadAfter": 2.34423828125
+    },
+    "M4": {
+      "description": "union + subtract + intersect chain (differential shapes)",
+      "phases": {
+        "chain": {
+          "medianMs": 6.587,
+          "minMs": 6.502,
+          "maxMs": 6.743,
+          "madMs": 0.085,
+          "p95Ms": 6.743,
+          "ci95LowMs": 6.502,
+          "ci95HighMs": 6.743,
+          "samplesMs": [
+            6.743,
+            6.506,
+            6.587,
+            6.71,
+            6.502
+          ]
+        }
+      },
+      "identity": {
+        "volume": "40ac7355a0000000"
+      },
+      "loadBefore": 2.34423828125,
+      "loadAfter": 2.34423828125
+    },
+    "M5": {
+      "description": "offset +2 and smoothen(1) on a CSG body",
+      "phases": {
+        "offset": {
+          "medianMs": 228.91,
+          "minMs": 228.265,
+          "maxMs": 229.482,
+          "madMs": 0.438,
+          "p95Ms": 229.482,
+          "ci95LowMs": 228.265,
+          "ci95HighMs": 229.482,
+          "samplesMs": [
+            228.472,
+            229.322,
+            229.482,
+            228.91,
+            228.265
+          ]
+        },
+        "smoothen": {
+          "medianMs": 389.502,
+          "minMs": 389.144,
+          "maxMs": 391.827,
+          "madMs": 0.348,
+          "p95Ms": 391.827,
+          "ci95LowMs": 389.144,
+          "ci95HighMs": 391.827,
+          "samplesMs": [
+            389.153,
+            389.551,
+            389.144,
+            391.827,
+            389.502
+          ]
+        }
+      },
+      "identity": {
+        "grown": "40c197d680000000",
+        "smooth": "40b399d160000000"
+      },
+      "loadBefore": 2.34423828125,
+      "loadAfter": 2.31640625
+    },
+    "M6": {
+      "description": "mesh readback bulk vs per-element (0.25mm gyroid)",
+      "phases": {
+        "bulk": {
+          "medianMs": 0.402,
+          "minMs": 0.352,
+          "maxMs": 0.591,
+          "madMs": 0.049,
+          "p95Ms": 0.591,
+          "ci95LowMs": 0.352,
+          "ci95HighMs": 0.591,
+          "samplesMs": [
+            0.395,
+            0.591,
+            0.352,
+            0.402,
+            0.502
+          ]
+        },
+        "perElement": {
+          "medianMs": 14.094,
+          "minMs": 13.908,
+          "maxMs": 15.897,
+          "madMs": 0.185,
+          "p95Ms": 15.897,
+          "ci95LowMs": 13.908,
+          "ci95HighMs": 15.897,
+          "samplesMs": [
+            14.607,
+            15.897,
+            13.953,
+            14.094,
+            13.908
+          ]
+        }
+      },
+      "identity": {
+        "vertices": "ccc61ca1",
+        "count": 114156
+      },
+      "loadBefore": 2.31640625,
+      "loadAfter": 2.31640625
+    },
+    "M7": {
+      "description": "100k-triangle synthetic bulk import",
+      "phases": {
+        "import": {
+          "medianMs": 1.638,
+          "minMs": 1.513,
+          "maxMs": 3.708,
+          "madMs": 0.034,
+          "p95Ms": 3.708,
+          "ci95LowMs": 1.513,
+          "ci95HighMs": 3.708,
+          "samplesMs": [
+            1.608,
+            1.513,
+            1.672,
+            1.638,
+            3.708
+          ]
+        }
+      },
+      "identity": {
+        "vertexCount": 100000,
+        "triangleCount": 99998
+      },
+      "loadBefore": 2.31640625,
+      "loadAfter": 2.31640625
+    },
+    "M8": {
+      "description": "full interpolated slice sweep + vectorize (sphere r=8)",
+      "phases": {
+        "sweep": {
+          "medianMs": 4.029,
+          "minMs": 3.828,
+          "maxMs": 4.482,
+          "madMs": 0.128,
+          "p95Ms": 4.482,
+          "ci95LowMs": 3.828,
+          "ci95HighMs": 4.482,
+          "samplesMs": [
+            3.901,
+            4.482,
+            4.029,
+            3.828,
+            4.053
+          ]
+        }
+      },
+      "identity": {
+        "layers": 31,
+        "contours": 31
+      },
+      "loadBefore": 2.31640625,
+      "loadAfter": 2.31640625
+    },
+    "M9": {
+      "description": "facade vs raw: 10k isEmpty calls",
+      "phases": {
+        "raw10k": {
+          "medianMs": 15.609,
+          "minMs": 15.545,
+          "maxMs": 15.982,
+          "madMs": 0.064,
+          "p95Ms": 15.982,
+          "ci95LowMs": 15.545,
+          "ci95HighMs": 15.982,
+          "samplesMs": [
+            15.982,
+            15.545,
+            15.869,
+            15.609,
+            15.572
+          ]
+        },
+        "facade10k": {
+          "medianMs": 14.997,
+          "minMs": 14.715,
+          "maxMs": 15.229,
+          "madMs": 0.138,
+          "p95Ms": 15.229,
+          "ci95LowMs": 14.715,
+          "ci95HighMs": 15.229,
+          "samplesMs": [
+            15.229,
+            14.715,
+            14.864,
+            15.135,
+            14.997
+          ]
+        }
+      },
+      "identity": null,
+      "loadBefore": 2.31640625,
+      "loadAfter": 2.31640625
+    },
+    "M10@single": {
+      "description": "gyroid tape @ 0.25mm (single entry)",
+      "phases": {
+        "render": {
+          "medianMs": 51.147,
+          "minMs": 50.779,
+          "maxMs": 51.938,
+          "madMs": 0.341,
+          "p95Ms": 51.938,
+          "ci95LowMs": 50.779,
+          "ci95HighMs": 51.938,
+          "samplesMs": [
+            50.779,
+            51.147,
+            51.337,
+            51.938,
+            50.806
+          ]
+        },
+        "mesh": {
+          "medianMs": 49.032,
+          "minMs": 48.285,
+          "maxMs": 49.502,
+          "madMs": 0.451,
+          "p95Ms": 49.502,
+          "ci95LowMs": 48.285,
+          "ci95HighMs": 49.502,
+          "samplesMs": [
+            48.285,
+            49.032,
+            49.483,
+            48.619,
+            49.502
+          ]
+        }
+      },
+      "identity": {
+        "volume": "40b0937560000000",
+        "triangles": 538668,
+        "threads": 1
+      },
+      "loadBefore": 2.31640625,
+      "loadAfter": 2.31640625
+    },
+    "M10@multi": {
+      "description": "gyroid tape @ 0.25mm (multi entry)",
+      "phases": {
+        "render": {
+          "medianMs": 12.885,
+          "minMs": 12.329,
+          "maxMs": 13.959,
+          "madMs": 0.464,
+          "p95Ms": 13.959,
+          "ci95LowMs": 12.329,
+          "ci95HighMs": 13.959,
+          "samplesMs": [
+            12.885,
+            12.595,
+            13.959,
+            13.349,
+            12.329
+          ]
+        },
+        "mesh": {
+          "medianMs": 43.37,
+          "minMs": 40.375,
+          "maxMs": 48.307,
+          "madMs": 2.995,
+          "p95Ms": 48.307,
+          "ci95LowMs": 40.375,
+          "ci95HighMs": 48.307,
+          "samplesMs": [
+            47.019,
+            48.307,
+            42.825,
+            43.37,
+            40.375
+          ]
+        }
+      },
+      "identity": {
+        "volume": "40b0937560000000",
+        "triangles": 538668,
+        "threads": 12
+      },
+      "loadBefore": 2.31640625,
+      "loadAfter": 2.31640625
+    },
+    "M11": {
+      "description": "RoverWheel Wheel_02 @ 1.0mm (subject)",
+      "phases": {
+        "construct": {
+          "medianMs": 26230.64,
+          "minMs": 26202.371,
+          "maxMs": 26294.316,
+          "madMs": 28.269,
+          "p95Ms": 26294.316,
+          "ci95LowMs": 26202.371,
+          "ci95HighMs": 26294.316,
+          "samplesMs": [
+            26294.316,
+            26218.357,
+            26230.64,
+            26202.371,
+            26269.255
+          ]
+        },
+        "mesh": {
+          "medianMs": 252.46,
+          "minMs": 251.504,
+          "maxMs": 253.746,
+          "madMs": 0.415,
+          "p95Ms": 253.746,
+          "ci95LowMs": 251.504,
+          "ci95HighMs": 253.746,
+          "samplesMs": [
+            252.46,
+            252.177,
+            252.875,
+            251.504,
+            253.746
+          ]
+        },
+        "stl": {
+          "medianMs": 192.882,
+          "minMs": 122.569,
+          "maxMs": 1034.341,
+          "madMs": 65.799,
+          "p95Ms": 1034.341,
+          "ci95LowMs": 122.569,
+          "ci95HighMs": 1034.341,
+          "samplesMs": [
+            122.569,
+            127.083,
+            1034.341,
+            193.129,
+            192.882
+          ]
+        }
+      },
+      "identity": {
+        "volume": "413cacc660000000",
+        "stl": "12637709",
+        "triangles": 3310844
+      },
+      "loadBefore": 2.130859375,
+      "loadAfter": 2.94189453125
+    },
+    "M12@single": {
+      "description": "HelixHeatX @ 1.0mm (single entry)",
+      "phases": {
+        "construct": {
+          "medianMs": 55054.722,
+          "minMs": 54999.23,
+          "maxMs": 55177.733,
+          "madMs": 55.491,
+          "p95Ms": 55177.733,
+          "ci95LowMs": 54999.23,
+          "ci95HighMs": 55177.733,
+          "samplesMs": [
+            55177.733,
+            54999.23,
+            55054.722,
+            55031.166,
+            55144.258
+          ]
+        },
+        "author": {
+          "medianMs": 298.069,
+          "minMs": 287.922,
+          "maxMs": 304.338,
+          "madMs": 3.326,
+          "p95Ms": 304.338,
+          "ci95LowMs": 287.922,
+          "ci95HighMs": 304.338,
+          "samplesMs": [
+            301.395,
+            298.069,
+            304.338,
+            297.193,
+            287.922
+          ]
+        },
+        "kernel:bounding.create": {
+          "medianMs": 222.575,
+          "minMs": 221.677,
+          "maxMs": 223.376,
+          "madMs": 0.426,
+          "p95Ms": 223.376,
+          "ci95LowMs": 221.677,
+          "ci95HighMs": 223.376,
+          "samplesMs": [
+            222.324,
+            223.376,
+            222.575,
+            221.677,
+            223.001
+          ]
+        },
+        "kernel:turning-fins.hot": {
+          "medianMs": 3762.441,
+          "minMs": 3755.736,
+          "maxMs": 3783.95,
+          "madMs": 5.098,
+          "p95Ms": 3783.95,
+          "ci95LowMs": 3755.736,
+          "ci95HighMs": 3783.95,
+          "samplesMs": [
+            3783.95,
+            3758.288,
+            3767.539,
+            3762.441,
+            3755.736
+          ]
+        },
+        "kernel:turning-fins.cool": {
+          "medianMs": 3785.753,
+          "minMs": 3756.643,
+          "maxMs": 3838.46,
+          "madMs": 5.657,
+          "p95Ms": 3838.46,
+          "ci95LowMs": 3756.643,
+          "ci95HighMs": 3838.46,
+          "samplesMs": [
+            3838.46,
+            3756.643,
+            3791.41,
+            3785.753,
+            3784.906
+          ]
+        },
+        "kernel:corner-fins.union": {
+          "medianMs": 4.418,
+          "minMs": 4.134,
+          "maxMs": 4.612,
+          "madMs": 0.071,
+          "p95Ms": 4.612,
+          "ci95LowMs": 4.134,
+          "ci95HighMs": 4.612,
+          "samplesMs": [
+            4.612,
+            4.395,
+            4.134,
+            4.49,
+            4.418
+          ]
+        },
+        "kernel:straight-fins.hot": {
+          "medianMs": 1217.721,
+          "minMs": 1213.872,
+          "maxMs": 1226.381,
+          "madMs": 3.455,
+          "p95Ms": 1226.381,
+          "ci95LowMs": 1213.872,
+          "ci95HighMs": 1226.381,
+          "samplesMs": [
+            1226.381,
+            1216.614,
+            1213.872,
+            1217.721,
+            1221.176
+          ]
+        },
+        "kernel:straight-fins.cool": {
+          "medianMs": 1217.577,
+          "minMs": 1215.399,
+          "maxMs": 1224.768,
+          "madMs": 0.531,
+          "p95Ms": 1224.768,
+          "ci95LowMs": 1215.399,
+          "ci95HighMs": 1224.768,
+          "samplesMs": [
+            1224.768,
+            1217.106,
+            1215.399,
+            1218.108,
+            1217.577
+          ]
+        },
+        "kernel:straight-fins.union": {
+          "medianMs": 3.659,
+          "minMs": 3.406,
+          "maxMs": 3.69,
+          "madMs": 0.031,
+          "p95Ms": 3.69,
+          "ci95LowMs": 3.406,
+          "ci95HighMs": 3.69,
+          "samplesMs": [
+            3.685,
+            3.659,
+            3.69,
+            3.595,
+            3.406
+          ]
+        },
+        "kernel:fins.union": {
+          "medianMs": 3.113,
+          "minMs": 2.938,
+          "maxMs": 3.2,
+          "madMs": 0.087,
+          "p95Ms": 3.2,
+          "ci95LowMs": 2.938,
+          "ci95HighMs": 3.2,
+          "samplesMs": [
+            3.2,
+            3.12,
+            3.113,
+            2.938,
+            2.971
+          ]
+        },
+        "kernel:outer-structure.create": {
+          "medianMs": 13696.526,
+          "minMs": 13655.805,
+          "maxMs": 13756.783,
+          "madMs": 40.721,
+          "p95Ms": 13756.783,
+          "ci95LowMs": 13655.805,
+          "ci95HighMs": 13756.783,
+          "samplesMs": [
+            13746.95,
+            13671.365,
+            13696.526,
+            13655.805,
+            13756.783
+          ]
+        },
+        "kernel:helical-void.hot": {
+          "medianMs": 5110.989,
+          "minMs": 5109.075,
+          "maxMs": 5132.191,
+          "madMs": 1.913,
+          "p95Ms": 5132.191,
+          "ci95LowMs": 5109.075,
+          "ci95HighMs": 5132.191,
+          "samplesMs": [
+            5131.715,
+            5132.191,
+            5109.075,
+            5110.56,
+            5110.989
+          ]
+        },
+        "kernel:helical-void.cool": {
+          "medianMs": 5113.467,
+          "minMs": 5102.578,
+          "maxMs": 5140.743,
+          "madMs": 10.89,
+          "p95Ms": 5140.743,
+          "ci95LowMs": 5102.578,
+          "ci95HighMs": 5140.743,
+          "samplesMs": [
+            5108.601,
+            5102.578,
+            5140.743,
+            5136.832,
+            5113.467
+          ]
+        },
+        "kernel:cool-inner.offset": {
+          "medianMs": 993.448,
+          "minMs": 989.456,
+          "maxMs": 995.674,
+          "madMs": 1.304,
+          "p95Ms": 995.674,
+          "ci95LowMs": 989.456,
+          "ci95HighMs": 995.674,
+          "samplesMs": [
+            992.144,
+            993.884,
+            993.448,
+            989.456,
+            995.674
+          ]
+        },
+        "kernel:hot-fluid-void.subtract": {
+          "medianMs": 4.192,
+          "minMs": 4.118,
+          "maxMs": 4.409,
+          "madMs": 0.074,
+          "p95Ms": 4.409,
+          "ci95LowMs": 4.118,
+          "ci95HighMs": 4.409,
+          "samplesMs": [
+            4.192,
+            4.409,
+            4.271,
+            4.118,
+            4.158
+          ]
+        },
+        "kernel:hot-inner.offset": {
+          "medianMs": 989.072,
+          "minMs": 984.358,
+          "maxMs": 1017.457,
+          "madMs": 3.392,
+          "p95Ms": 1017.457,
+          "ci95LowMs": 984.358,
+          "ci95HighMs": 1017.457,
+          "samplesMs": [
+            985.679,
+            991.437,
+            989.072,
+            984.358,
+            1017.457
+          ]
+        },
+        "kernel:cool-fluid-void.subtract": {
+          "medianMs": 4.528,
+          "minMs": 4.179,
+          "maxMs": 4.772,
+          "madMs": 0.244,
+          "p95Ms": 4.772,
+          "ci95LowMs": 4.179,
+          "ci95HighMs": 4.772,
+          "samplesMs": [
+            4.528,
+            4.243,
+            4.534,
+            4.179,
+            4.772
+          ]
+        },
+        "kernel:inner-volume.union": {
+          "medianMs": 5.775,
+          "minMs": 5.573,
+          "maxMs": 5.991,
+          "madMs": 0.202,
+          "p95Ms": 5.991,
+          "ci95LowMs": 5.573,
+          "ci95HighMs": 5.991,
+          "samplesMs": [
+            5.991,
+            5.573,
+            5.981,
+            5.705,
+            5.775
+          ]
+        },
+        "kernel:splitters.union": {
+          "medianMs": 2.21,
+          "minMs": 2.173,
+          "maxMs": 2.323,
+          "madMs": 0.038,
+          "p95Ms": 2.323,
+          "ci95LowMs": 2.173,
+          "ci95HighMs": 2.323,
+          "samplesMs": [
+            2.173,
+            2.298,
+            2.178,
+            2.21,
+            2.323
+          ]
+        },
+        "kernel:outer-volume.offset": {
+          "medianMs": 1078.024,
+          "minMs": 1076.609,
+          "maxMs": 1086.837,
+          "madMs": 0.265,
+          "p95Ms": 1086.837,
+          "ci95LowMs": 1076.609,
+          "ci95HighMs": 1086.837,
+          "samplesMs": [
+            1078.289,
+            1076.609,
+            1077.855,
+            1078.024,
+            1086.837
+          ]
+        },
+        "kernel:flange.create": {
+          "medianMs": 2586.515,
+          "minMs": 2585.588,
+          "maxMs": 2589.528,
+          "madMs": 0.926,
+          "p95Ms": 2589.528,
+          "ci95LowMs": 2585.588,
+          "ci95HighMs": 2589.528,
+          "samplesMs": [
+            2588.437,
+            2586.515,
+            2589.528,
+            2585.665,
+            2585.588
+          ]
+        },
+        "kernel:finished-flange.fillet": {
+          "medianMs": 999.464,
+          "minMs": 996.15,
+          "maxMs": 1003.436,
+          "madMs": 2.801,
+          "p95Ms": 1003.436,
+          "ci95LowMs": 996.15,
+          "ci95HighMs": 1003.436,
+          "samplesMs": [
+            996.663,
+            1000.101,
+            996.15,
+            999.464,
+            1003.436
+          ]
+        },
+        "kernel:finished-flange.smoothen": {
+          "medianMs": 130.214,
+          "minMs": 130.084,
+          "maxMs": 130.849,
+          "madMs": 0.13,
+          "p95Ms": 130.849,
+          "ci95LowMs": 130.084,
+          "ci95HighMs": 130.849,
+          "samplesMs": [
+            130.214,
+            130.084,
+            130.193,
+            130.849,
+            130.471
+          ]
+        },
+        "kernel:outer-volume.union-flange": {
+          "medianMs": 3.794,
+          "minMs": 3.645,
+          "maxMs": 3.943,
+          "madMs": 0.067,
+          "p95Ms": 3.943,
+          "ci95LowMs": 3.645,
+          "ci95HighMs": 3.943,
+          "samplesMs": [
+            3.727,
+            3.943,
+            3.807,
+            3.645,
+            3.794
+          ]
+        },
+        "kernel:io-supports.create": {
+          "medianMs": 174.622,
+          "minMs": 171.648,
+          "maxMs": 198.32,
+          "madMs": 2.974,
+          "p95Ms": 198.32,
+          "ci95LowMs": 171.648,
+          "ci95HighMs": 198.32,
+          "samplesMs": [
+            197.062,
+            198.32,
+            171.648,
+            174.622,
+            171.8
+          ]
+        },
+        "kernel:outer-volume.union-supports": {
+          "medianMs": 4.933,
+          "minMs": 4.645,
+          "maxMs": 5.176,
+          "madMs": 0.082,
+          "p95Ms": 5.176,
+          "ci95LowMs": 4.645,
+          "ci95HighMs": 5.176,
+          "samplesMs": [
+            4.933,
+            5.176,
+            5.016,
+            4.891,
+            4.645
+          ]
+        },
+        "kernel:outer-volume.fillet": {
+          "medianMs": 6875.423,
+          "minMs": 6865.966,
+          "maxMs": 6888.504,
+          "madMs": 9.457,
+          "p95Ms": 6888.504,
+          "ci95LowMs": 6865.966,
+          "ci95HighMs": 6888.504,
+          "samplesMs": [
+            6867.586,
+            6865.966,
+            6875.423,
+            6888.504,
+            6887.355
+          ]
+        },
+        "kernel:outer-volume.smoothen": {
+          "medianMs": 1139.704,
+          "minMs": 1136.216,
+          "maxMs": 1161.176,
+          "madMs": 3.488,
+          "p95Ms": 1161.176,
+          "ci95LowMs": 1136.216,
+          "ci95HighMs": 1161.176,
+          "samplesMs": [
+            1137.356,
+            1161.176,
+            1136.216,
+            1145.986,
+            1139.704
+          ]
+        },
+        "kernel:centre-piece.add": {
+          "medianMs": 19.549,
+          "minMs": 19.371,
+          "maxMs": 20.106,
+          "madMs": 0.178,
+          "p95Ms": 20.106,
+          "ci95LowMs": 19.371,
+          "ci95HighMs": 20.106,
+          "samplesMs": [
+            19.495,
+            20.106,
+            19.371,
+            20.055,
+            19.549
+          ]
+        },
+        "kernel:outer-volume.union-structure": {
+          "medianMs": 5.228,
+          "minMs": 5.18,
+          "maxMs": 5.369,
+          "madMs": 0.048,
+          "p95Ms": 5.369,
+          "ci95LowMs": 5.18,
+          "ci95HighMs": 5.369,
+          "samplesMs": [
+            5.219,
+            5.18,
+            5.369,
+            5.346,
+            5.228
+          ]
+        },
+        "kernel:outer-volume.subtract-screw-holes": {
+          "medianMs": 2.756,
+          "minMs": 2.591,
+          "maxMs": 2.795,
+          "madMs": 0.039,
+          "p95Ms": 2.795,
+          "ci95LowMs": 2.591,
+          "ci95HighMs": 2.795,
+          "samplesMs": [
+            2.591,
+            2.67,
+            2.792,
+            2.795,
+            2.756
+          ]
+        },
+        "kernel:outer-volume.project-z-slice": {
+          "medianMs": 4.555,
+          "minMs": 4.524,
+          "maxMs": 4.923,
+          "madMs": 0.03,
+          "p95Ms": 4.923,
+          "ci95LowMs": 4.524,
+          "ci95HighMs": 4.923,
+          "samplesMs": [
+            4.923,
+            4.524,
+            4.555,
+            4.543,
+            4.674
+          ]
+        },
+        "kernel:print-web.create": {
+          "medianMs": 2.938,
+          "minMs": 2.813,
+          "maxMs": 3.085,
+          "madMs": 0.091,
+          "p95Ms": 3.085,
+          "ci95LowMs": 2.813,
+          "ci95HighMs": 3.085,
+          "samplesMs": [
+            2.813,
+            2.938,
+            2.866,
+            3.085,
+            3.029
+          ]
+        },
+        "kernel:outer-volume.subtract-print-web": {
+          "medianMs": 3.609,
+          "minMs": 3.361,
+          "maxMs": 3.68,
+          "madMs": 0.071,
+          "p95Ms": 3.68,
+          "ci95LowMs": 3.361,
+          "ci95HighMs": 3.68,
+          "samplesMs": [
+            3.68,
+            3.361,
+            3.609,
+            3.67,
+            3.462
+          ]
+        },
+        "kernel:result.subtract-inner-volume": {
+          "medianMs": 5.288,
+          "minMs": 5.253,
+          "maxMs": 5.499,
+          "madMs": 0.026,
+          "p95Ms": 5.499,
+          "ci95LowMs": 5.253,
+          "ci95HighMs": 5.499,
+          "samplesMs": [
+            5.288,
+            5.29,
+            5.262,
+            5.499,
+            5.253
+          ]
+        },
+        "kernel:result.union-fins": {
+          "medianMs": 6.049,
+          "minMs": 6.032,
+          "maxMs": 6.242,
+          "madMs": 0.018,
+          "p95Ms": 6.242,
+          "ci95LowMs": 6.032,
+          "ci95HighMs": 6.242,
+          "samplesMs": [
+            6.114,
+            6.035,
+            6.049,
+            6.032,
+            6.242
+          ]
+        },
+        "kernel:result.union-splitters": {
+          "medianMs": 3.635,
+          "minMs": 3.401,
+          "maxMs": 3.963,
+          "madMs": 0.234,
+          "p95Ms": 3.963,
+          "ci95LowMs": 3.401,
+          "ci95HighMs": 3.963,
+          "samplesMs": [
+            3.635,
+            3.963,
+            3.455,
+            3.892,
+            3.401
+          ]
+        },
+        "kernel:result.intersect-bounding": {
+          "medianMs": 4.166,
+          "minMs": 4.131,
+          "maxMs": 4.47,
+          "madMs": 0.035,
+          "p95Ms": 4.47,
+          "ci95LowMs": 4.131,
+          "ci95HighMs": 4.47,
+          "samplesMs": [
+            4.166,
+            4.265,
+            4.131,
+            4.162,
+            4.47
+          ]
+        },
+        "kernel:io-threads.create": {
+          "medianMs": 5510.887,
+          "minMs": 5494.848,
+          "maxMs": 5531.038,
+          "madMs": 15.963,
+          "p95Ms": 5531.038,
+          "ci95LowMs": 5494.848,
+          "ci95HighMs": 5531.038,
+          "samplesMs": [
+            5494.925,
+            5494.848,
+            5510.887,
+            5523.782,
+            5531.038
+          ]
+        },
+        "kernel:result.union-threads": {
+          "medianMs": 2.787,
+          "minMs": 2.685,
+          "maxMs": 3.022,
+          "madMs": 0.102,
+          "p95Ms": 3.022,
+          "ci95LowMs": 2.685,
+          "ci95HighMs": 3.022,
+          "samplesMs": [
+            2.787,
+            2.685,
+            2.779,
+            2.937,
+            3.022
+          ]
+        },
+        "kernel:io-cuts.create": {
+          "medianMs": 24.062,
+          "minMs": 23.755,
+          "maxMs": 24.842,
+          "madMs": 0.269,
+          "p95Ms": 24.842,
+          "ci95LowMs": 23.755,
+          "ci95HighMs": 24.842,
+          "samplesMs": [
+            24.842,
+            24.062,
+            23.755,
+            24.33,
+            23.828
+          ]
+        },
+        "kernel:result.subtract-io-cuts": {
+          "medianMs": 1.813,
+          "minMs": 1.726,
+          "maxMs": 1.982,
+          "madMs": 0.072,
+          "p95Ms": 1.982,
+          "ci95LowMs": 1.726,
+          "ci95HighMs": 1.982,
+          "samplesMs": [
+            1.806,
+            1.813,
+            1.726,
+            1.885,
+            1.982
+          ]
+        },
+        "unattributed": {
+          "medianMs": 0.364,
+          "minMs": 0.185,
+          "maxMs": 0.433,
+          "madMs": 0.015,
+          "p95Ms": 0.433,
+          "ci95LowMs": 0.185,
+          "ci95HighMs": 0.433,
+          "samplesMs": [
+            0.433,
+            0.353,
+            0.379,
+            0.364,
+            0.185
+          ]
+        },
+        "mesh": {
+          "medianMs": 127.423,
+          "minMs": 126.443,
+          "maxMs": 128.267,
+          "madMs": 0.532,
+          "p95Ms": 128.267,
+          "ci95LowMs": 126.443,
+          "ci95HighMs": 128.267,
+          "samplesMs": [
+            127.423,
+            127.955,
+            126.443,
+            128.267,
+            126.92
+          ]
+        },
+        "stl": {
+          "medianMs": 110.651,
+          "minMs": 108.217,
+          "maxMs": 135.178,
+          "madMs": 0.211,
+          "p95Ms": 135.178,
+          "ci95LowMs": 108.217,
+          "ci95HighMs": 135.178,
+          "samplesMs": [
+            135.178,
+            110.687,
+            108.217,
+            110.651,
+            110.44
+          ]
+        }
+      },
+      "identity": {
+        "volume": "41220895e0000000",
+        "stl": "3fc21445",
+        "stlBytes": 93667084,
+        "threads": 1,
+        "kernelStages": [
+          "bounding.create",
+          "turning-fins.hot",
+          "turning-fins.cool",
+          "corner-fins.union",
+          "straight-fins.hot",
+          "straight-fins.cool",
+          "straight-fins.union",
+          "fins.union",
+          "outer-structure.create",
+          "helical-void.hot",
+          "helical-void.cool",
+          "cool-inner.offset",
+          "hot-fluid-void.subtract",
+          "hot-inner.offset",
+          "cool-fluid-void.subtract",
+          "inner-volume.union",
+          "splitters.union",
+          "outer-volume.offset",
+          "flange.create",
+          "finished-flange.fillet",
+          "finished-flange.smoothen",
+          "outer-volume.union-flange",
+          "io-supports.create",
+          "outer-volume.union-supports",
+          "outer-volume.fillet",
+          "outer-volume.smoothen",
+          "centre-piece.add",
+          "outer-volume.union-structure",
+          "outer-volume.subtract-screw-holes",
+          "outer-volume.project-z-slice",
+          "print-web.create",
+          "outer-volume.subtract-print-web",
+          "result.subtract-inner-volume",
+          "result.union-fins",
+          "result.union-splitters",
+          "result.intersect-bounding",
+          "io-threads.create",
+          "result.union-threads",
+          "io-cuts.create",
+          "result.subtract-io-cuts"
+        ]
+      },
+      "loadBefore": 2.94189453125,
+      "loadAfter": 3.22998046875
+    },
+    "M12@multi": {
+      "description": "HelixHeatX @ 1.0mm (multi entry)",
+      "phases": {
+        "construct": {
+          "medianMs": 34525.107,
+          "minMs": 34322,
+          "maxMs": 34697.864,
+          "madMs": 125.372,
+          "p95Ms": 34697.864,
+          "ci95LowMs": 34322,
+          "ci95HighMs": 34697.864,
+          "samplesMs": [
+            34322,
+            34399.735,
+            34525.107,
+            34620.397,
+            34697.864
+          ]
+        },
+        "author": {
+          "medianMs": 339.772,
+          "minMs": 332.9,
+          "maxMs": 342.138,
+          "madMs": 1.526,
+          "p95Ms": 342.138,
+          "ci95LowMs": 332.9,
+          "ci95HighMs": 342.138,
+          "samplesMs": [
+            332.9,
+            341.298,
+            339.156,
+            339.772,
+            342.138
+          ]
+        },
+        "kernel:bounding.create": {
+          "medianMs": 93.272,
+          "minMs": 92.167,
+          "maxMs": 94.636,
+          "madMs": 1.032,
+          "p95Ms": 94.636,
+          "ci95LowMs": 92.167,
+          "ci95HighMs": 94.636,
+          "samplesMs": [
+            92.24,
+            93.583,
+            92.167,
+            94.636,
+            93.272
+          ]
+        },
+        "kernel:turning-fins.hot": {
+          "medianMs": 3842.556,
+          "minMs": 3837.846,
+          "maxMs": 3858.791,
+          "madMs": 4.71,
+          "p95Ms": 3858.791,
+          "ci95LowMs": 3837.846,
+          "ci95HighMs": 3858.791,
+          "samplesMs": [
+            3837.846,
+            3841.131,
+            3842.556,
+            3854.031,
+            3858.791
+          ]
+        },
+        "kernel:turning-fins.cool": {
+          "medianMs": 3847.575,
+          "minMs": 3806.107,
+          "maxMs": 3852.1,
+          "madMs": 3.305,
+          "p95Ms": 3852.1,
+          "ci95LowMs": 3806.107,
+          "ci95HighMs": 3852.1,
+          "samplesMs": [
+            3806.107,
+            3850.88,
+            3852.1,
+            3847.575,
+            3845.547
+          ]
+        },
+        "kernel:corner-fins.union": {
+          "medianMs": 9.978,
+          "minMs": 9.121,
+          "maxMs": 11.586,
+          "madMs": 0.857,
+          "p95Ms": 11.586,
+          "ci95LowMs": 9.121,
+          "ci95HighMs": 11.586,
+          "samplesMs": [
+            9.121,
+            9.978,
+            11.586,
+            11.015,
+            9.823
+          ]
+        },
+        "kernel:straight-fins.hot": {
+          "medianMs": 1250.312,
+          "minMs": 1239.053,
+          "maxMs": 1260.332,
+          "madMs": 0.474,
+          "p95Ms": 1260.332,
+          "ci95LowMs": 1239.053,
+          "ci95HighMs": 1260.332,
+          "samplesMs": [
+            1239.053,
+            1250.312,
+            1250.787,
+            1260.332,
+            1250.26
+          ]
+        },
+        "kernel:straight-fins.cool": {
+          "medianMs": 1249.531,
+          "minMs": 1236.548,
+          "maxMs": 1255.13,
+          "madMs": 1.658,
+          "p95Ms": 1255.13,
+          "ci95LowMs": 1236.548,
+          "ci95HighMs": 1255.13,
+          "samplesMs": [
+            1236.548,
+            1247.873,
+            1249.531,
+            1250.785,
+            1255.13
+          ]
+        },
+        "kernel:straight-fins.union": {
+          "medianMs": 8.622,
+          "minMs": 7.604,
+          "maxMs": 10.375,
+          "madMs": 0.751,
+          "p95Ms": 10.375,
+          "ci95LowMs": 7.604,
+          "ci95HighMs": 10.375,
+          "samplesMs": [
+            7.879,
+            7.604,
+            10.375,
+            8.622,
+            9.373
+          ]
+        },
+        "kernel:fins.union": {
+          "medianMs": 7.12,
+          "minMs": 6.293,
+          "maxMs": 7.598,
+          "madMs": 0.277,
+          "p95Ms": 7.598,
+          "ci95LowMs": 6.293,
+          "ci95HighMs": 7.598,
+          "samplesMs": [
+            7.391,
+            7.12,
+            6.293,
+            6.843,
+            7.598
+          ]
+        },
+        "kernel:outer-structure.create": {
+          "medianMs": 2209.693,
+          "minMs": 2198.256,
+          "maxMs": 2270.33,
+          "madMs": 11.437,
+          "p95Ms": 2270.33,
+          "ci95LowMs": 2198.256,
+          "ci95HighMs": 2270.33,
+          "samplesMs": [
+            2201.875,
+            2198.256,
+            2209.693,
+            2270.33,
+            2264.857
+          ]
+        },
+        "kernel:helical-void.hot": {
+          "medianMs": 5228.037,
+          "minMs": 5208.394,
+          "maxMs": 5237.991,
+          "madMs": 9.954,
+          "p95Ms": 5237.991,
+          "ci95LowMs": 5208.394,
+          "ci95HighMs": 5237.991,
+          "samplesMs": [
+            5214.405,
+            5208.394,
+            5228.037,
+            5237.991,
+            5234.823
+          ]
+        },
+        "kernel:helical-void.cool": {
+          "medianMs": 5237.287,
+          "minMs": 5185.429,
+          "maxMs": 5248.707,
+          "madMs": 6.579,
+          "p95Ms": 5248.707,
+          "ci95LowMs": 5185.429,
+          "ci95HighMs": 5248.707,
+          "samplesMs": [
+            5185.429,
+            5233.328,
+            5243.866,
+            5248.707,
+            5237.287
+          ]
+        },
+        "kernel:cool-inner.offset": {
+          "medianMs": 144.317,
+          "minMs": 142.584,
+          "maxMs": 149.822,
+          "madMs": 1.261,
+          "p95Ms": 149.822,
+          "ci95LowMs": 142.584,
+          "ci95HighMs": 149.822,
+          "samplesMs": [
+            142.584,
+            144.317,
+            144.909,
+            143.056,
+            149.822
+          ]
+        },
+        "kernel:hot-fluid-void.subtract": {
+          "medianMs": 11.342,
+          "minMs": 10.22,
+          "maxMs": 12.111,
+          "madMs": 0.769,
+          "p95Ms": 12.111,
+          "ci95LowMs": 10.22,
+          "ci95HighMs": 12.111,
+          "samplesMs": [
+            11.342,
+            11.343,
+            10.22,
+            10.372,
+            12.111
+          ]
+        },
+        "kernel:hot-inner.offset": {
+          "medianMs": 141.52,
+          "minMs": 137.488,
+          "maxMs": 180.864,
+          "madMs": 3.493,
+          "p95Ms": 180.864,
+          "ci95LowMs": 137.488,
+          "ci95HighMs": 180.864,
+          "samplesMs": [
+            138.027,
+            137.488,
+            141.52,
+            141.808,
+            180.864
+          ]
+        },
+        "kernel:cool-fluid-void.subtract": {
+          "medianMs": 10.544,
+          "minMs": 9.956,
+          "maxMs": 11.928,
+          "madMs": 0.427,
+          "p95Ms": 11.928,
+          "ci95LowMs": 9.956,
+          "ci95HighMs": 11.928,
+          "samplesMs": [
+            10.971,
+            9.956,
+            10.169,
+            10.544,
+            11.928
+          ]
+        },
+        "kernel:inner-volume.union": {
+          "medianMs": 11.208,
+          "minMs": 10.237,
+          "maxMs": 11.988,
+          "madMs": 0.547,
+          "p95Ms": 11.988,
+          "ci95LowMs": 10.237,
+          "ci95HighMs": 11.988,
+          "samplesMs": [
+            11.755,
+            11.988,
+            11.208,
+            10.237,
+            11.164
+          ]
+        },
+        "kernel:splitters.union": {
+          "medianMs": 2.275,
+          "minMs": 1.241,
+          "maxMs": 2.581,
+          "madMs": 0.305,
+          "p95Ms": 2.581,
+          "ci95LowMs": 1.241,
+          "ci95HighMs": 2.581,
+          "samplesMs": [
+            1.241,
+            2.581,
+            1.432,
+            2.275,
+            2.3
+          ]
+        },
+        "kernel:outer-volume.offset": {
+          "medianMs": 158.313,
+          "minMs": 153.598,
+          "maxMs": 159.053,
+          "madMs": 0.536,
+          "p95Ms": 159.053,
+          "ci95LowMs": 153.598,
+          "ci95HighMs": 159.053,
+          "samplesMs": [
+            159.053,
+            158.22,
+            158.313,
+            153.598,
+            158.849
+          ]
+        },
+        "kernel:flange.create": {
+          "medianMs": 2516.802,
+          "minMs": 2476.838,
+          "maxMs": 2529.057,
+          "madMs": 12.255,
+          "p95Ms": 2529.057,
+          "ci95LowMs": 2476.838,
+          "ci95HighMs": 2529.057,
+          "samplesMs": [
+            2476.838,
+            2493.768,
+            2516.802,
+            2529.057,
+            2521.479
+          ]
+        },
+        "kernel:finished-flange.fillet": {
+          "medianMs": 210.43,
+          "minMs": 208.467,
+          "maxMs": 224.528,
+          "madMs": 1.533,
+          "p95Ms": 224.528,
+          "ci95LowMs": 208.467,
+          "ci95HighMs": 224.528,
+          "samplesMs": [
+            210.43,
+            208.467,
+            224.528,
+            209.302,
+            211.963
+          ]
+        },
+        "kernel:finished-flange.smoothen": {
+          "medianMs": 32.8,
+          "minMs": 31.496,
+          "maxMs": 35.109,
+          "madMs": 1.304,
+          "p95Ms": 35.109,
+          "ci95LowMs": 31.496,
+          "ci95HighMs": 35.109,
+          "samplesMs": [
+            35.109,
+            35.052,
+            31.496,
+            31.627,
+            32.8
+          ]
+        },
+        "kernel:outer-volume.union-flange": {
+          "medianMs": 6.637,
+          "minMs": 5.3,
+          "maxMs": 7.116,
+          "madMs": 0.478,
+          "p95Ms": 7.116,
+          "ci95LowMs": 5.3,
+          "ci95HighMs": 7.116,
+          "samplesMs": [
+            6.769,
+            5.3,
+            5.549,
+            7.116,
+            6.637
+          ]
+        },
+        "kernel:io-supports.create": {
+          "medianMs": 176.561,
+          "minMs": 175.618,
+          "maxMs": 176.806,
+          "madMs": 0.245,
+          "p95Ms": 176.806,
+          "ci95LowMs": 175.618,
+          "ci95HighMs": 176.806,
+          "samplesMs": [
+            175.618,
+            176.085,
+            176.806,
+            176.561,
+            176.702
+          ]
+        },
+        "kernel:outer-volume.union-supports": {
+          "medianMs": 13.765,
+          "minMs": 12.479,
+          "maxMs": 19.306,
+          "madMs": 1.286,
+          "p95Ms": 19.306,
+          "ci95LowMs": 12.479,
+          "ci95HighMs": 19.306,
+          "samplesMs": [
+            17.532,
+            12.479,
+            19.306,
+            13.765,
+            12.66
+          ]
+        },
+        "kernel:outer-volume.fillet": {
+          "medianMs": 1034.69,
+          "minMs": 1020.87,
+          "maxMs": 1070.082,
+          "madMs": 13.821,
+          "p95Ms": 1070.082,
+          "ci95LowMs": 1020.87,
+          "ci95HighMs": 1070.082,
+          "samplesMs": [
+            1063.007,
+            1020.87,
+            1031.508,
+            1034.69,
+            1070.082
+          ]
+        },
+        "kernel:outer-volume.smoothen": {
+          "medianMs": 176.715,
+          "minMs": 175.16,
+          "maxMs": 177.751,
+          "madMs": 0.721,
+          "p95Ms": 177.751,
+          "ci95LowMs": 175.16,
+          "ci95HighMs": 177.751,
+          "samplesMs": [
+            176.715,
+            175.16,
+            177.427,
+            175.994,
+            177.751
+          ]
+        },
+        "kernel:centre-piece.add": {
+          "medianMs": 31.354,
+          "minMs": 27.794,
+          "maxMs": 36.75,
+          "madMs": 2.659,
+          "p95Ms": 36.75,
+          "ci95LowMs": 27.794,
+          "ci95HighMs": 36.75,
+          "samplesMs": [
+            36.75,
+            27.794,
+            29.345,
+            31.354,
+            34.014
+          ]
+        },
+        "kernel:outer-volume.union-structure": {
+          "medianMs": 9.932,
+          "minMs": 9.707,
+          "maxMs": 11.039,
+          "madMs": 0.224,
+          "p95Ms": 11.039,
+          "ci95LowMs": 9.707,
+          "ci95HighMs": 11.039,
+          "samplesMs": [
+            11.039,
+            10.863,
+            9.932,
+            9.827,
+            9.707
+          ]
+        },
+        "kernel:outer-volume.subtract-screw-holes": {
+          "medianMs": 6.056,
+          "minMs": 4.879,
+          "maxMs": 6.54,
+          "madMs": 0.112,
+          "p95Ms": 6.54,
+          "ci95LowMs": 4.879,
+          "ci95HighMs": 6.54,
+          "samplesMs": [
+            6.54,
+            4.879,
+            6.056,
+            6.1,
+            5.944
+          ]
+        },
+        "kernel:outer-volume.project-z-slice": {
+          "medianMs": 7.612,
+          "minMs": 7.21,
+          "maxMs": 8.767,
+          "madMs": 0.402,
+          "p95Ms": 8.767,
+          "ci95LowMs": 7.21,
+          "ci95HighMs": 8.767,
+          "samplesMs": [
+            7.21,
+            8.08,
+            7.612,
+            7.431,
+            8.767
+          ]
+        },
+        "kernel:print-web.create": {
+          "medianMs": 3.043,
+          "minMs": 3.015,
+          "maxMs": 3.179,
+          "madMs": 0.013,
+          "p95Ms": 3.179,
+          "ci95LowMs": 3.015,
+          "ci95HighMs": 3.179,
+          "samplesMs": [
+            3.179,
+            3.015,
+            3.031,
+            3.043,
+            3.056
+          ]
+        },
+        "kernel:outer-volume.subtract-print-web": {
+          "medianMs": 9.852,
+          "minMs": 9.243,
+          "maxMs": 10.44,
+          "madMs": 0.404,
+          "p95Ms": 10.44,
+          "ci95LowMs": 9.243,
+          "ci95HighMs": 10.44,
+          "samplesMs": [
+            9.661,
+            10.256,
+            9.243,
+            10.44,
+            9.852
+          ]
+        },
+        "kernel:result.subtract-inner-volume": {
+          "medianMs": 12.537,
+          "minMs": 11.917,
+          "maxMs": 14.9,
+          "madMs": 0.62,
+          "p95Ms": 14.9,
+          "ci95LowMs": 11.917,
+          "ci95HighMs": 14.9,
+          "samplesMs": [
+            14.9,
+            13.539,
+            12.537,
+            11.917,
+            12.329
+          ]
+        },
+        "kernel:result.union-fins": {
+          "medianMs": 13.227,
+          "minMs": 12.461,
+          "maxMs": 14.162,
+          "madMs": 0.766,
+          "p95Ms": 14.162,
+          "ci95LowMs": 12.461,
+          "ci95HighMs": 14.162,
+          "samplesMs": [
+            14.162,
+            14.156,
+            12.461,
+            12.727,
+            13.227
+          ]
+        },
+        "kernel:result.union-splitters": {
+          "medianMs": 9.222,
+          "minMs": 7.272,
+          "maxMs": 9.542,
+          "madMs": 0.223,
+          "p95Ms": 9.542,
+          "ci95LowMs": 7.272,
+          "ci95HighMs": 9.542,
+          "samplesMs": [
+            9.261,
+            8.999,
+            9.222,
+            7.272,
+            9.542
+          ]
+        },
+        "kernel:result.intersect-bounding": {
+          "medianMs": 14.526,
+          "minMs": 14.17,
+          "maxMs": 16.187,
+          "madMs": 0.355,
+          "p95Ms": 16.187,
+          "ci95LowMs": 14.17,
+          "ci95HighMs": 16.187,
+          "samplesMs": [
+            15.274,
+            14.526,
+            14.522,
+            16.187,
+            14.17
+          ]
+        },
+        "kernel:io-threads.create": {
+          "medianMs": 6369.231,
+          "minMs": 6342.413,
+          "maxMs": 6385.708,
+          "madMs": 16.477,
+          "p95Ms": 6385.708,
+          "ci95LowMs": 6342.413,
+          "ci95HighMs": 6385.708,
+          "samplesMs": [
+            6342.413,
+            6344.79,
+            6369.231,
+            6379.416,
+            6385.708
+          ]
+        },
+        "kernel:result.union-threads": {
+          "medianMs": 5.779,
+          "minMs": 5.186,
+          "maxMs": 6.724,
+          "madMs": 0.593,
+          "p95Ms": 6.724,
+          "ci95LowMs": 5.186,
+          "ci95HighMs": 6.724,
+          "samplesMs": [
+            5.186,
+            6.724,
+            5.718,
+            5.779,
+            6.647
+          ]
+        },
+        "kernel:io-cuts.create": {
+          "medianMs": 32.547,
+          "minMs": 31.832,
+          "maxMs": 32.886,
+          "madMs": 0.235,
+          "p95Ms": 32.886,
+          "ci95LowMs": 31.832,
+          "ci95HighMs": 32.886,
+          "samplesMs": [
+            32.886,
+            32.547,
+            32.593,
+            32.312,
+            31.832
+          ]
+        },
+        "kernel:result.subtract-io-cuts": {
+          "medianMs": 5.768,
+          "minMs": 5.293,
+          "maxMs": 6.563,
+          "madMs": 0.475,
+          "p95Ms": 6.563,
+          "ci95LowMs": 5.293,
+          "ci95HighMs": 6.563,
+          "samplesMs": [
+            5.293,
+            6.261,
+            5.768,
+            5.447,
+            6.563
+          ]
+        },
+        "unattributed": {
+          "medianMs": 0.492,
+          "minMs": 0.459,
+          "maxMs": 0.5,
+          "madMs": 0.008,
+          "p95Ms": 0.5,
+          "ci95LowMs": 0.459,
+          "ci95HighMs": 0.5,
+          "samplesMs": [
+            0.459,
+            0.476,
+            0.498,
+            0.5,
+            0.492
+          ]
+        },
+        "mesh": {
+          "medianMs": 55.082,
+          "minMs": 52.729,
+          "maxMs": 57.807,
+          "madMs": 0.571,
+          "p95Ms": 57.807,
+          "ci95LowMs": 52.729,
+          "ci95HighMs": 57.807,
+          "samplesMs": [
+            55.082,
+            52.729,
+            57.807,
+            54.875,
+            55.654
+          ]
+        },
+        "stl": {
+          "medianMs": 114.396,
+          "minMs": 112.174,
+          "maxMs": 137.281,
+          "madMs": 0.087,
+          "p95Ms": 137.281,
+          "ci95LowMs": 112.174,
+          "ci95HighMs": 137.281,
+          "samplesMs": [
+            114.396,
+            114.309,
+            137.281,
+            114.419,
+            112.174
+          ]
+        }
+      },
+      "identity": {
+        "volume": "41220895e0000000",
+        "stl": "3fc21445",
+        "stlBytes": 93667084,
+        "threads": 12,
+        "kernelStages": [
+          "bounding.create",
+          "turning-fins.hot",
+          "turning-fins.cool",
+          "corner-fins.union",
+          "straight-fins.hot",
+          "straight-fins.cool",
+          "straight-fins.union",
+          "fins.union",
+          "outer-structure.create",
+          "helical-void.hot",
+          "helical-void.cool",
+          "cool-inner.offset",
+          "hot-fluid-void.subtract",
+          "hot-inner.offset",
+          "cool-fluid-void.subtract",
+          "inner-volume.union",
+          "splitters.union",
+          "outer-volume.offset",
+          "flange.create",
+          "finished-flange.fillet",
+          "finished-flange.smoothen",
+          "outer-volume.union-flange",
+          "io-supports.create",
+          "outer-volume.union-supports",
+          "outer-volume.fillet",
+          "outer-volume.smoothen",
+          "centre-piece.add",
+          "outer-volume.union-structure",
+          "outer-volume.subtract-screw-holes",
+          "outer-volume.project-z-slice",
+          "print-web.create",
+          "outer-volume.subtract-print-web",
+          "result.subtract-inner-volume",
+          "result.union-fins",
+          "result.union-splitters",
+          "result.intersect-bounding",
+          "io-threads.create",
+          "result.union-threads",
+          "io-cuts.create",
+          "result.subtract-io-cuts"
+        ]
+      },
+      "loadBefore": 3.22998046875,
+      "loadAfter": 5.5625
+    },
+    "M13": {
+      "description": "SchwarzDiamond preset @ 0.5mm, [-15,15]³: callback vs tape",
+      "phases": {
+        "callback": {
+          "medianMs": 36.174,
+          "minMs": 35.9,
+          "maxMs": 36.711,
+          "madMs": 0.041,
+          "p95Ms": 36.711,
+          "ci95LowMs": 35.9,
+          "ci95HighMs": 36.711,
+          "samplesMs": [
+            36.174,
+            36.134,
+            36.711,
+            35.9,
+            36.195
+          ]
+        },
+        "tape": {
+          "medianMs": 13.409,
+          "minMs": 13.236,
+          "maxMs": 13.517,
+          "madMs": 0.108,
+          "p95Ms": 13.517,
+          "ci95LowMs": 13.236,
+          "ci95HighMs": 13.517,
+          "samplesMs": [
+            13.236,
+            13.299,
+            13.517,
+            13.442,
+            13.409
+          ]
+        }
+      },
+      "identity": {
+        "callbackVolume": "40d77ef000000000",
+        "tapeVolume": "40d77ef000000000"
+      },
+      "loadBefore": 5.75732421875,
+      "loadAfter": 5.75732421875
+    },
+    "M14": {
+      "description": "QuasiCrystal wireframe gens 0/1/2 @ 2.0mm, QuasiTile_02 seed",
+      "phases": {
+        "gen0": {
+          "medianMs": 4.609,
+          "minMs": 4.466,
+          "maxMs": 4.613,
+          "madMs": 0.005,
+          "p95Ms": 4.613,
+          "ci95LowMs": 4.466,
+          "ci95HighMs": 4.613,
+          "samplesMs": [
+            4.609,
+            4.609,
+            4.593,
+            4.613,
+            4.466
+          ]
+        },
+        "gen1": {
+          "medianMs": 135.648,
+          "minMs": 134.019,
+          "maxMs": 136.456,
+          "madMs": 0.207,
+          "p95Ms": 136.456,
+          "ci95LowMs": 134.019,
+          "ci95HighMs": 136.456,
+          "samplesMs": [
+            136.456,
+            134.019,
+            135.648,
+            135.734,
+            135.442
+          ]
+        },
+        "gen2": {
+          "medianMs": 5858.603,
+          "minMs": 5806.405,
+          "maxMs": 5878.116,
+          "madMs": 19.513,
+          "p95Ms": 5878.116,
+          "ci95LowMs": 5806.405,
+          "ci95HighMs": 5878.116,
+          "samplesMs": [
+            5878.116,
+            5858.603,
+            5811.157,
+            5864.034,
+            5806.405
+          ]
+        }
+      },
+      "identity": {
+        "gen0Volume": "40bb6bb560000000",
+        "gen1Volume": "40f6baace0000000",
+        "gen2Volume": "411a377d00000000"
+      },
+      "loadBefore": 5.75732421875,
+      "loadAfter": 5.2607421875
+    }
+  }
+}

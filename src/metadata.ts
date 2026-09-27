@@ -43,11 +43,13 @@ export function assertWritableMetadataName(name: string): void {
   const lower = name.toLowerCase();
   const reason = lower.startsWith('picogk.')
     ? `'PicoGK.*' names are PicoGK-internal`
-    : lower === 'class' || lower === 'name'
-      ? `'class' and 'name' are OpenVDB-internal`
-      : lower.startsWith('file_')
-        ? `'file_*' names are OpenVDB-internal`
-        : null;
+    : lower.startsWith('picovoxel.')
+      ? `'PicoVoxel.*' names are picovoxel-internal (lane provenance)`
+      : lower === 'class' || lower === 'name'
+        ? `'class' and 'name' are OpenVDB-internal`
+        : lower.startsWith('file_')
+          ? `'file_*' names are OpenVDB-internal`
+          : null;
   if (reason) {
     throw new PicoError('PICO_RESERVED_METADATA', `Cannot set metadata '${name}': ${reason}. Choose another name.`);
   }
@@ -76,6 +78,47 @@ export function tagFieldClass(
   }
 }
 
+/**
+ * SKv2-0 V0.5 — lane provenance (§14.1). The tag rides the field's grid like
+ * `PicoGK.Class` does, so it survives copies, `.vdb` interchange and container
+ * round-trips with no serializer changes. Only `'fast'` is ever written:
+ * absence of the tag IS the exact/L0 claim, which keeps every byte-locked
+ * exact fixture untouched. Bypasses the SG3-style guard exactly as
+ * `tagFieldClass` does (users cannot write `PicoVoxel.*` — provenance must
+ * not be forgeable through the public surface).
+ */
+export const LANE_METADATA_NAME = 'PicoVoxel.Lane';
+
+export function tagLaneFast(
+  ctx: SessionContext,
+  metaFrom: (lib: bigint, field: bigint) => bigint,
+  fieldHandle: bigint,
+): void {
+  const meta = expectHandle('Metadata_hFrom*', metaFrom(ctx.lib, fieldHandle));
+  try {
+    withStrings(ctx, [LANE_METADATA_NAME, 'fast'], (namePtr, valuePtr) =>
+      ctx.raw.Metadata_SetStringValue(ctx.lib, meta, namePtr, valuePtr),
+    );
+  } finally {
+    ctx.raw.Metadata_Destroy(ctx.lib, meta);
+  }
+}
+
+/** Reads the persisted lane tag off a field's grid; null = untagged = exact. */
+export function readLaneTag(
+  ctx: SessionContext,
+  metaFrom: (lib: bigint, field: bigint) => bigint,
+  fieldHandle: bigint,
+): 'fast' | null {
+  const meta = expectHandle('Metadata_hFrom*', metaFrom(ctx.lib, fieldHandle));
+  try {
+    const type = withStrings(ctx, [LANE_METADATA_NAME], (n) => ctx.raw.Metadata_nTypeAt(ctx.lib, meta, n));
+    return type === 0 ? 'fast' : null; // 0 = string; the only value ever written is 'fast'
+  } finally {
+    ctx.raw.Metadata_Destroy(ctx.lib, meta);
+  }
+}
+
 export function wrapMetadata(ctx: SessionContext, handle: bigint): Metadata {
   let disposed = false;
   const live = () => {
@@ -99,7 +142,7 @@ export function wrapMetadata(ctx: SessionContext, handle: bigint): Metadata {
     }
     if (type === 'float') {
       withStrings(ctx, [name], (n) => ctx.raw.Metadata_bGetFloatAt(ctx.lib, handle, n, ctx.scratch));
-      return ctx.module.HEAPF32[ctx.scratch >> 2]!;
+      return ctx.module.HEAPF32[ctx.scratch >>> 2]!;
     }
     if (type === 'vector') {
       withStrings(ctx, [name], (n) => ctx.raw.Metadata_bGetVectorAt(ctx.lib, handle, n, ctx.scratch));

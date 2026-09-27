@@ -1,0 +1,33 @@
+{
+ "fingerprint": {
+  "spike": "SK-0.4",
+  "cpu": "Apple M2 Pro",
+  "cores": 12,
+  "ramGiB": 32,
+  "os": "darwin 25.5.0",
+  "node": "v26.5.0",
+  "variant": "pico",
+  "threads": 0,
+  "wasmSha256": "acb2773959ee53925fe988ae3ed790b5bf03b6c789efc60b984d3a36ee4f7c6a",
+  "wasmBytes": 5875598,
+  "voxelSizeMm": 0.25,
+  "repeats": 12,
+  "date": "2026-07-26T10:22:09.061Z",
+  "startLoad": 4.5458984375,
+  "startPower": "-InternalBattery-0 (id=32702563)\t93%; charging; 0:44 remaining present: true",
+  "endLoad": 5.0625,
+  "endPower": "-InternalBattery-0 (id=32702563)\t93%; charging; 0:44 remaining present: true"
+ },
+ "memory": {
+  "lane": "tubes",
+  "variant": "pico",
+  "fixture": "beams-1e5",
+  "beamCount": 104544,
+  "latticeMemUsage": 7864368,
+  "heapBeforeBytes": 268435456,
+  "heapAfterBytes": 386662400,
+  "heapGrowthBytes": 118226944,
+  "renderMs": 1917.28475,
+  "volumeHex": "000000e06bb10841"
+ }
+}

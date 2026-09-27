@@ -115,3 +115,42 @@ test('SG10 — cross-session operands throw PICO_SESSION_MISMATCH', async () => 
   }
   other.dispose();
 });
+
+// SK-0.5's operand-copy guard lived here and is GONE with the change it guarded.
+// U-SK05-a (merge-based CSG, which removed the eager whole-operand deep copy) was
+// reverted for nondeterministic fine-cell geometry loss on the multi build — see
+// bench/results/webgpu-v2/SK-0-P0-finecell.md. Booleans deep-copy the operand again,
+// so an assertion that they don't is simply false. The measurement shape it used
+// (heap high-water on a contained-operand union, clone arm as the control) is
+// written up in SK-0.5.md §1 and is what a re-attempt should re-run — but not as a
+// committed test until the race question in the P0 doc is answered.
+
+// SK-0.5 — the dense per-voxel fills prune before they hand the grid on.
+//
+// `union(empty)` is a clone plus csgUnion, and csgUnion ends in pruneLevelSet, so
+// it yields the pruned form of any field. A fill that already pruned has nothing
+// left to give. Before the change these paths carried 5.5% (lattice), 36%
+// (projectZSlice) and 68% (implicit callback) of prunable tree.
+test('per-voxel fills leave no prunable tree behind', () => {
+  const empty = pk.createVoxels({ shape: 'empty' });
+  const lattice = pk.createLattice();
+  for (let i = 0; i < 8; i++) lattice.addBeam({ start: [-15, 0, i * 3 - 12], end: [15, 0, i * 3 - 12], radius: 2 });
+
+  const cases: Array<[string, Voxels]> = [
+    ['RenderLattice', lattice.toVoxels()],
+    [
+      'RenderImplicit',
+      pk.createVoxels({
+        shape: 'implicit',
+        boundsMin: [-15, -15, -15],
+        boundsMax: [15, 15, 15],
+        sdf: (x, y, z) => Math.sqrt(x * x + y * y + z * z) - 12,
+      }),
+    ],
+    ['ProjectZSlice', sphere(12).projectZSlice({ startZ: 0, endZ: 8 })],
+  ];
+
+  for (const [name, filled] of cases) {
+    assert.equal(filled.memUsage, filled.union(empty).memUsage, `${name} still ships prunable tree`);
+  }
+});

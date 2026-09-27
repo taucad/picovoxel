@@ -1,0 +1,64 @@
+<!--
+  Native PicoGK reference harness for the HelixHeatX fixture.
+
+  Purpose: measure the SAME fixture upstream published a voxel-size/time table
+  for (LEAP71_HelixHeatX/Documentation/table.png, "on a MacBook Air"), on THIS
+  machine, so picovoxel's wasm numbers have a same-hardware native denominator
+  instead of a cross-machine published one.
+
+  Sources are the upstream repos verbatim — nothing is patched or ported:
+    PicoGK             @ 389d4d9  (v2.2.0, = origin/main)
+    PicoGKRuntime      @ 0f26321  (tag PicoGK-v2.2.0) — the PUBLISHED prebuilt
+                                   dylib shipped in PicoGK/native/osx-arm64 is
+                                   what loads, not our own build
+    LEAP71_ShapeKernel @ 5460806
+    LEAP71_HelixHeatX  @ a0a0234
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <AssemblyName>NativeHeatX</AssemblyName>
+    <RootNamespace>NativeHeatX</RootNamespace>
+    <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
+    <Optimize>true</Optimize>
+    <!-- Upstream sources carry their own warning profile; do not fail on it. -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);CS0168;CS0219;CS0414;CS1591;CS8600;CS8602;CS8603;CS8604;CS8618;CS8625</NoWarn>
+    <UpstreamRoot>$(MSBuildThisFileDirectory)../../../</UpstreamRoot>
+  </PropertyGroup>
+
+  <!-- PicoGK is compiled from source rather than ProjectReference'd, so this
+       harness never writes a build artifact into the upstream checkout. (It
+       also sidesteps a local hazard: PicoGK/models/ is a nested clone whose
+       generated obj/ files get swept into PicoGK.csproj's default source glob,
+       which breaks that project's build for reasons unrelated to this bench.)
+       Sources, embedded resources and the SkiaSharp reference below mirror
+       PicoGK.csproj exactly — same code, same version, same inputs. -->
+  <ItemGroup>
+    <Compile Include="$(UpstreamRoot)PicoGK/**/*.cs"
+             Exclude="$(UpstreamRoot)PicoGK/models/**/*.cs;$(UpstreamRoot)PicoGK/obj/**/*.cs;$(UpstreamRoot)PicoGK/bin/**/*.cs" />
+    <EmbeddedResource Include="$(UpstreamRoot)PicoGK/assets/ViewerEnvironment.zip" LogicalName="PicoGK.Resources.Environment.zip" />
+    <EmbeddedResource Include="$(UpstreamRoot)PicoGK/assets/Jost.ttf" LogicalName="PicoGK.Resources.Font.ttf" />
+    <PackageReference Include="SkiaSharp" Version="3.119.0" />
+  </ItemGroup>
+
+  <!-- ShapeKernel and HeatX ship as source folders, not packages (upstream's
+       own tutorial has you copy them into your project). -->
+  <ItemGroup>
+    <Compile Include="$(UpstreamRoot)LEAP71_ShapeKernel/ShapeKernel/**/*.cs" />
+    <Compile Include="$(UpstreamRoot)LEAP71_HelixHeatX/src/**/*.cs" />
+  </ItemGroup>
+
+  <!-- The published osx-arm64 runtime + its dependencies. PicoGK resolves
+       "picogk.26.2" from the app directory (Internals/Config.cs). -->
+  <ItemGroup>
+    <None Include="$(UpstreamRoot)PicoGK/native/osx-arm64/*.dylib"
+          Link="%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

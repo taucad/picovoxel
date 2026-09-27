@@ -1,0 +1,2817 @@
+{
+  "fingerprint": {
+    "cpu": "Apple M2 Pro",
+    "cores": 12,
+    "ramGiB": 32,
+    "os": "darwin 25.5.0",
+    "node": "v26.5.0",
+    "wasmSha256": "9c11cd01caaf5f6beb4d8038e34a7b3284664840c6ff0ec19ec1df8b3f163fbb",
+    "wasmBytes": 5901065,
+    "gitSha": "4e59091",
+    "date": "2026-07-27T03:06:42.919Z",
+    "startLoad": 3.5908203125
+  },
+  "results": {
+    "M1": {
+      "description": "createPico() cold instantiate (5.8 MB module)",
+      "phases": {
+        "instantiate": {
+          "medianMs": 8.313,
+          "minMs": 7.308,
+          "maxMs": 8.818,
+          "madMs": 0.412,
+          "p95Ms": 8.818,
+          "ci95LowMs": 7.512,
+          "ci95HighMs": 8.598,
+          "samplesMs": [
+            8.598,
+            8.818,
+            7.585,
+            7.512,
+            8.632,
+            8.436,
+            7.484,
+            8.332,
+            8.294,
+            7.308
+          ]
+        }
+      },
+      "identity": null,
+      "loadBefore": 3.5908203125,
+      "loadAfter": 3.5908203125
+    },
+    "M2@0.5": {
+      "description": "sphere r=10 @ 0.5mm",
+      "phases": {
+        "build": {
+          "medianMs": 0.922,
+          "minMs": 0.909,
+          "maxMs": 1.299,
+          "madMs": 0.005,
+          "p95Ms": 1.299,
+          "ci95LowMs": 0.92,
+          "ci95HighMs": 0.966,
+          "samplesMs": [
+            1.299,
+            0.966,
+            0.97,
+            0.922,
+            0.931,
+            0.92,
+            0.921,
+            0.92,
+            0.922,
+            0.909
+          ]
+        },
+        "volume": {
+          "medianMs": 0.797,
+          "minMs": 0.787,
+          "maxMs": 0.854,
+          "madMs": 0.008,
+          "p95Ms": 0.854,
+          "ci95LowMs": 0.789,
+          "ci95HighMs": 0.807,
+          "samplesMs": [
+            0.854,
+            0.797,
+            0.815,
+            0.805,
+            0.799,
+            0.791,
+            0.787,
+            0.797,
+            0.788,
+            0.789
+          ]
+        }
+      },
+      "identity": {
+        "volume": "40b062d220000000"
+      },
+      "loadBefore": 3.5908203125,
+      "loadAfter": 3.5908203125
+    },
+    "M2@0.25": {
+      "description": "sphere r=10 @ 0.25mm",
+      "phases": {
+        "build": {
+          "medianMs": 2.914,
+          "minMs": 2.891,
+          "maxMs": 2.951,
+          "madMs": 0.014,
+          "p95Ms": 2.951,
+          "ci95LowMs": 2.902,
+          "ci95HighMs": 2.944,
+          "samplesMs": [
+            2.951,
+            2.908,
+            2.9,
+            2.944,
+            2.903,
+            2.951,
+            2.921,
+            2.902,
+            2.921,
+            2.891
+          ]
+        },
+        "volume": {
+          "medianMs": 2.934,
+          "minMs": 2.909,
+          "maxMs": 3.01,
+          "madMs": 0.012,
+          "p95Ms": 3.01,
+          "ci95LowMs": 2.923,
+          "ci95HighMs": 2.963,
+          "samplesMs": [
+            2.939,
+            3.01,
+            2.958,
+            2.923,
+            2.987,
+            2.909,
+            2.924,
+            2.933,
+            2.936,
+            2.921
+          ]
+        }
+      },
+      "identity": {
+        "volume": "40b05e9fa0000000"
+      },
+      "loadBefore": 3.5908203125,
+      "loadAfter": 3.5908203125
+    },
+    "M3@0.5": {
+      "description": "gyroid implicit @ 0.5mm (JS SDF)",
+      "phases": {
+        "render": {
+          "medianMs": 15.93,
+          "minMs": 15.876,
+          "maxMs": 16.295,
+          "madMs": 0.052,
+          "p95Ms": 16.295,
+          "ci95LowMs": 15.89,
+          "ci95HighMs": 16.119,
+          "samplesMs": [
+            16.295,
+            15.902,
+            15.907,
+            16.006,
+            15.891,
+            15.878,
+            15.953,
+            15.876,
+            16.119,
+            16.196
+          ]
+        },
+        "mesh": {
+          "medianMs": 10.722,
+          "minMs": 10.453,
+          "maxMs": 11.024,
+          "madMs": 0.062,
+          "p95Ms": 11.024,
+          "ci95LowMs": 10.661,
+          "ci95HighMs": 10.964,
+          "samplesMs": [
+            10.964,
+            10.972,
+            10.728,
+            10.739,
+            10.698,
+            10.717,
+            10.622,
+            10.7,
+            11.024,
+            10.453
+          ]
+        }
+      },
+      "identity": {
+        "volume": "40c1773220000000",
+        "triangles": 162636
+      },
+      "loadBefore": 3.5908203125,
+      "loadAfter": 3.5908203125
+    },
+    "M3@0.25": {
+      "description": "gyroid implicit @ 0.25mm (JS SDF)",
+      "phases": {
+        "render": {
+          "medianMs": 104.205,
+          "minMs": 104.084,
+          "maxMs": 104.541,
+          "madMs": 0.065,
+          "p95Ms": 104.541,
+          "ci95LowMs": 104.146,
+          "ci95HighMs": 104.314,
+          "samplesMs": [
+            104.209,
+            104.084,
+            104.199,
+            104.146,
+            104.541,
+            104.108,
+            104.2,
+            104.248,
+            104.277,
+            104.381
+          ]
+        },
+        "mesh": {
+          "medianMs": 38.789,
+          "minMs": 38.54,
+          "maxMs": 38.946,
+          "madMs": 0.056,
+          "p95Ms": 38.946,
+          "ci95LowMs": 38.748,
+          "ci95HighMs": 38.87,
+          "samplesMs": [
+            38.946,
+            38.79,
+            38.787,
+            38.877,
+            38.54,
+            38.746,
+            38.87,
+            38.748,
+            38.77,
+            38.859
+          ]
+        }
+      },
+      "identity": {
+        "volume": "40b0937560000000",
+        "triangles": 538668
+      },
+      "loadBefore": 3.5908203125,
+      "loadAfter": 3.46337890625
+    },
+    "M4": {
+      "description": "union + subtract + intersect chain (differential shapes)",
+      "phases": {
+        "chain": {
+          "medianMs": 6.321,
+          "minMs": 6.272,
+          "maxMs": 6.529,
+          "madMs": 0.015,
+          "p95Ms": 6.529,
+          "ci95LowMs": 6.293,
+          "ci95HighMs": 6.348,
+          "samplesMs": [
+            6.529,
+            6.375,
+            6.272,
+            6.312,
+            6.329,
+            6.323,
+            6.299,
+            6.321,
+            6.32,
+            6.274
+          ]
+        }
+      },
+      "identity": {
+        "volume": "40ac7355a0000000"
+      },
+      "loadBefore": 3.46337890625,
+      "loadAfter": 3.46337890625
+    },
+    "M5": {
+      "description": "offset +2 and smoothen(1) on a CSG body",
+      "phases": {
+        "offset": {
+          "medianMs": 226.015,
+          "minMs": 224.987,
+          "maxMs": 227.727,
+          "madMs": 0.85,
+          "p95Ms": 227.727,
+          "ci95LowMs": 225.412,
+          "ci95HighMs": 227.394,
+          "samplesMs": [
+            225.481,
+            226.401,
+            224.987,
+            225.455,
+            227.266,
+            225.629,
+            227.583,
+            225.343,
+            227.727,
+            227.205
+          ]
+        },
+        "smoothen": {
+          "medianMs": 391.031,
+          "minMs": 389.357,
+          "maxMs": 393.51,
+          "madMs": 1.35,
+          "p95Ms": 393.51,
+          "ci95LowMs": 390.162,
+          "ci95HighMs": 393.015,
+          "samplesMs": [
+            389.357,
+            390.953,
+            391.109,
+            393.51,
+            392.794,
+            390.319,
+            390.006,
+            390.24,
+            393.015,
+            393.036
+          ]
+        }
+      },
+      "identity": {
+        "grown": "40c197d680000000",
+        "smooth": "40b399d160000000"
+      },
+      "loadBefore": 3.46337890625,
+      "loadAfter": 3.26611328125
+    },
+    "M6": {
+      "description": "mesh readback bulk vs per-element (0.25mm gyroid)",
+      "phases": {
+        "bulk": {
+          "medianMs": 0.4,
+          "minMs": 0.227,
+          "maxMs": 0.517,
+          "madMs": 0.083,
+          "p95Ms": 0.517,
+          "ci95LowMs": 0.234,
+          "ci95HighMs": 0.442,
+          "samplesMs": [
+            0.43,
+            0.517,
+            0.379,
+            0.245,
+            0.442,
+            0.42,
+            0.449,
+            0.234,
+            0.232,
+            0.227
+          ]
+        },
+        "perElement": {
+          "medianMs": 12.688,
+          "minMs": 12.44,
+          "maxMs": 14.765,
+          "madMs": 0.168,
+          "p95Ms": 14.765,
+          "ci95LowMs": 12.522,
+          "ci95HighMs": 13.498,
+          "samplesMs": [
+            13.077,
+            14.162,
+            12.697,
+            12.638,
+            12.834,
+            12.679,
+            14.765,
+            12.518,
+            12.522,
+            12.44
+          ]
+        }
+      },
+      "identity": {
+        "vertices": "ccc61ca1",
+        "count": 114156
+      },
+      "loadBefore": 3.26611328125,
+      "loadAfter": 3.26611328125
+    },
+    "M7": {
+      "description": "100k-triangle synthetic bulk import",
+      "phases": {
+        "import": {
+          "medianMs": 1.557,
+          "minMs": 1.519,
+          "maxMs": 1.728,
+          "madMs": 0.009,
+          "p95Ms": 1.728,
+          "ci95LowMs": 1.553,
+          "ci95HighMs": 1.571,
+          "samplesMs": [
+            1.557,
+            1.55,
+            1.554,
+            1.573,
+            1.555,
+            1.728,
+            1.519,
+            1.556,
+            1.571,
+            1.569
+          ]
+        }
+      },
+      "identity": {
+        "vertexCount": 100000,
+        "triangleCount": 99998
+      },
+      "loadBefore": 3.26611328125,
+      "loadAfter": 3.26611328125
+    },
+    "M8": {
+      "description": "full interpolated slice sweep + vectorize (sphere r=8)",
+      "phases": {
+        "sweep": {
+          "medianMs": 3.695,
+          "minMs": 3.536,
+          "maxMs": 4.008,
+          "madMs": 0.117,
+          "p95Ms": 4.008,
+          "ci95LowMs": 3.57,
+          "ci95HighMs": 3.824,
+          "samplesMs": [
+            4.008,
+            3.873,
+            3.8,
+            3.776,
+            3.818,
+            3.583,
+            3.596,
+            3.536,
+            3.545,
+            3.613
+          ]
+        }
+      },
+      "identity": {
+        "layers": 31,
+        "contours": 31
+      },
+      "loadBefore": 3.26611328125,
+      "loadAfter": 3.26611328125
+    },
+    "M9": {
+      "description": "facade vs raw: 10k isEmpty calls",
+      "phases": {
+        "raw10k": {
+          "medianMs": 15.494,
+          "minMs": 15.437,
+          "maxMs": 15.861,
+          "madMs": 0.053,
+          "p95Ms": 15.861,
+          "ci95LowMs": 15.447,
+          "ci95HighMs": 15.574,
+          "samplesMs": [
+            15.861,
+            15.45,
+            15.593,
+            15.445,
+            15.532,
+            15.457,
+            15.555,
+            15.449,
+            15.562,
+            15.437
+          ]
+        },
+        "facade10k": {
+          "medianMs": 14.569,
+          "minMs": 14.511,
+          "maxMs": 14.795,
+          "madMs": 0.026,
+          "p95Ms": 14.795,
+          "ci95LowMs": 14.545,
+          "ci95HighMs": 14.628,
+          "samplesMs": [
+            14.795,
+            14.667,
+            14.511,
+            14.56,
+            14.56,
+            14.562,
+            14.582,
+            14.576,
+            14.628,
+            14.531
+          ]
+        }
+      },
+      "identity": null,
+      "loadBefore": 3.26611328125,
+      "loadAfter": 3.26611328125
+    },
+    "M10@single": {
+      "description": "gyroid tape @ 0.25mm (single entry)",
+      "phases": {
+        "render": {
+          "medianMs": 50.288,
+          "minMs": 50.095,
+          "maxMs": 50.592,
+          "madMs": 0.099,
+          "p95Ms": 50.592,
+          "ci95LowMs": 50.167,
+          "ci95HighMs": 50.388,
+          "samplesMs": [
+            50.417,
+            50.318,
+            50.388,
+            50.095,
+            50.592,
+            50.214,
+            50.313,
+            50.121,
+            50.19,
+            50.263
+          ]
+        },
+        "mesh": {
+          "medianMs": 40.05,
+          "minMs": 39.948,
+          "maxMs": 41.41,
+          "madMs": 0.059,
+          "p95Ms": 41.41,
+          "ci95LowMs": 39.994,
+          "ci95HighMs": 40.149,
+          "samplesMs": [
+            40.202,
+            39.994,
+            40.015,
+            40.044,
+            41.41,
+            40.121,
+            40.096,
+            39.948,
+            40.057,
+            39.988
+          ]
+        }
+      },
+      "identity": {
+        "volume": "40b0937560000000",
+        "triangles": 538668,
+        "threads": 1
+      },
+      "loadBefore": 3.26611328125,
+      "loadAfter": 3.26611328125
+    },
+    "M10@multi": {
+      "description": "gyroid tape @ 0.25mm (multi entry)",
+      "phases": {
+        "render": {
+          "medianMs": 14.826,
+          "minMs": 9.588,
+          "maxMs": 18.202,
+          "madMs": 3.109,
+          "p95Ms": 18.202,
+          "ci95LowMs": 10.784,
+          "ci95HighMs": 17.928,
+          "samplesMs": [
+            12.093,
+            17.941,
+            17.376,
+            17.325,
+            9.695,
+            10.784,
+            17.928,
+            18.202,
+            9.588,
+            12.327
+          ]
+        },
+        "mesh": {
+          "medianMs": 12.858,
+          "minMs": 12.293,
+          "maxMs": 18.624,
+          "madMs": 0.411,
+          "p95Ms": 18.624,
+          "ci95LowMs": 12.509,
+          "ci95HighMs": 13.783,
+          "samplesMs": [
+            18.624,
+            13.222,
+            12.293,
+            12.509,
+            12.4,
+            12.766,
+            12.826,
+            13.783,
+            12.891,
+            14.221
+          ]
+        }
+      },
+      "identity": {
+        "volume": "40b0937560000000",
+        "triangles": 538668,
+        "threads": 12
+      },
+      "loadBefore": 3.26611328125,
+      "loadAfter": 4.28564453125
+    },
+    "M11": {
+      "description": "RoverWheel Wheel_02 @ 1.0mm (subject)",
+      "phases": {
+        "construct": {
+          "medianMs": 25352.539,
+          "minMs": 25272.09,
+          "maxMs": 25619.724,
+          "madMs": 72.699,
+          "p95Ms": 25619.724,
+          "ci95LowMs": 25290.015,
+          "ci95HighMs": 25548.11,
+          "samplesMs": [
+            25619.724,
+            25619.559,
+            25548.11,
+            25462.5,
+            25391.68,
+            25310.03,
+            25290.015,
+            25287.589,
+            25313.398,
+            25272.09
+          ]
+        },
+        "mesh": {
+          "medianMs": 208.901,
+          "minMs": 206.623,
+          "maxMs": 210.13,
+          "madMs": 0.812,
+          "p95Ms": 210.13,
+          "ci95LowMs": 207.031,
+          "ci95HighMs": 209.5,
+          "samplesMs": [
+            210.13,
+            208.873,
+            209.943,
+            208.93,
+            207.031,
+            208.319,
+            209.056,
+            206.623,
+            206.889,
+            209.446
+          ]
+        },
+        "stl": {
+          "medianMs": 187.768,
+          "minMs": 114.563,
+          "maxMs": 1013.481,
+          "madMs": 0.806,
+          "p95Ms": 1013.481,
+          "ci95LowMs": 156.43,
+          "ci95HighMs": 190.352,
+          "samplesMs": [
+            114.563,
+            125.115,
+            1013.481,
+            187.973,
+            187.792,
+            192.911,
+            187.744,
+            187.337,
+            188.95,
+            187.609
+          ]
+        }
+      },
+      "identity": {
+        "volume": "413cacc500000000",
+        "stl": "3811df3f",
+        "triangles": 3310844
+      },
+      "loadBefore": 4.28564453125,
+      "loadAfter": 2.2021484375
+    },
+    "M12@single": {
+      "description": "HelixHeatX @ 1.0mm (single entry)",
+      "phases": {
+        "construct": {
+          "medianMs": 41651.656,
+          "minMs": 41498.65,
+          "maxMs": 41923.576,
+          "madMs": 98.025,
+          "p95Ms": 41923.576,
+          "ci95LowMs": 41559.185,
+          "ci95HighMs": 41817.159,
+          "samplesMs": [
+            41659.261,
+            41817.159,
+            41919.425,
+            41923.576,
+            41498.65,
+            41578.508,
+            41539.863,
+            41567.398,
+            41672.768,
+            41644.051
+          ]
+        },
+        "author": {
+          "medianMs": 165.505,
+          "minMs": 160.859,
+          "maxMs": 173.903,
+          "madMs": 3.595,
+          "p95Ms": 173.903,
+          "ci95LowMs": 162.642,
+          "ci95HighMs": 171.198,
+          "samplesMs": [
+            164.668,
+            171.154,
+            162.642,
+            173.903,
+            166.219,
+            162.167,
+            164.791,
+            173.04,
+            169.357,
+            160.859
+          ]
+        },
+        "kernel:bounding.create": {
+          "medianMs": 225.231,
+          "minMs": 219.597,
+          "maxMs": 230.282,
+          "madMs": 1.267,
+          "p95Ms": 230.282,
+          "ci95LowMs": 223.631,
+          "ci95HighMs": 226.76,
+          "samplesMs": [
+            219.597,
+            226.237,
+            230.282,
+            226.76,
+            224.763,
+            222.5,
+            226.98,
+            224.275,
+            224.29,
+            225.699
+          ]
+        },
+        "kernel:turning-fins.hot": {
+          "medianMs": 1513.468,
+          "minMs": 1497.111,
+          "maxMs": 1543.166,
+          "madMs": 3.743,
+          "p95Ms": 1543.166,
+          "ci95LowMs": 1508.305,
+          "ci95HighMs": 1517.122,
+          "samplesMs": [
+            1497.111,
+            1504.808,
+            1513.397,
+            1508.305,
+            1513.539,
+            1543.166,
+            1513.198,
+            1516.465,
+            1516.288,
+            1517.955
+          ]
+        },
+        "kernel:turning-fins.cool": {
+          "medianMs": 1509.83,
+          "minMs": 1481.828,
+          "maxMs": 1566.92,
+          "madMs": 3.489,
+          "p95Ms": 1566.92,
+          "ci95LowMs": 1501.35,
+          "ci95HighMs": 1512.495,
+          "samplesMs": [
+            1481.828,
+            1511.155,
+            1495.456,
+            1507.244,
+            1510.767,
+            1510.077,
+            1509.583,
+            1566.92,
+            1514.223,
+            1502.866
+          ]
+        },
+        "kernel:corner-fins.union": {
+          "medianMs": 3.666,
+          "minMs": 3.439,
+          "maxMs": 4.002,
+          "madMs": 0.089,
+          "p95Ms": 4.002,
+          "ci95LowMs": 3.593,
+          "ci95HighMs": 3.802,
+          "samplesMs": [
+            3.694,
+            3.654,
+            3.556,
+            3.439,
+            3.859,
+            4.002,
+            3.629,
+            3.802,
+            3.678,
+            3.598
+          ]
+        },
+        "kernel:straight-fins.hot": {
+          "medianMs": 462.056,
+          "minMs": 455.728,
+          "maxMs": 463.055,
+          "madMs": 0.968,
+          "p95Ms": 463.055,
+          "ci95LowMs": 457.656,
+          "ci95HighMs": 462.619,
+          "samplesMs": [
+            455.728,
+            457.59,
+            457.656,
+            459.837,
+            462.063,
+            462.36,
+            462.049,
+            462.243,
+            463.055,
+            462.994
+          ]
+        },
+        "kernel:straight-fins.cool": {
+          "medianMs": 460.538,
+          "minMs": 452.274,
+          "maxMs": 478.299,
+          "madMs": 0.564,
+          "p95Ms": 478.299,
+          "ci95LowMs": 458.963,
+          "ci95HighMs": 462.033,
+          "samplesMs": [
+            452.274,
+            478.299,
+            457.835,
+            460.836,
+            459.973,
+            460.422,
+            461.101,
+            460.654,
+            463.413,
+            460.092
+          ]
+        },
+        "kernel:straight-fins.union": {
+          "medianMs": 3.06,
+          "minMs": 2.964,
+          "maxMs": 3.352,
+          "madMs": 0.068,
+          "p95Ms": 3.352,
+          "ci95LowMs": 2.994,
+          "ci95HighMs": 3.181,
+          "samplesMs": [
+            2.997,
+            2.994,
+            3.265,
+            3.057,
+            3.098,
+            2.964,
+            3.352,
+            3.063,
+            3.131,
+            2.965
+          ]
+        },
+        "kernel:fins.union": {
+          "medianMs": 3.13,
+          "minMs": 3.064,
+          "maxMs": 3.62,
+          "madMs": 0.052,
+          "p95Ms": 3.62,
+          "ci95LowMs": 3.09,
+          "ci95HighMs": 3.328,
+          "samplesMs": [
+            3.064,
+            3.068,
+            3.13,
+            3.142,
+            3.09,
+            3.09,
+            3.514,
+            3.62,
+            3.205,
+            3.13
+          ]
+        },
+        "kernel:outer-structure.create": {
+          "medianMs": 13644.99,
+          "minMs": 13574.324,
+          "maxMs": 13806.677,
+          "madMs": 59.89,
+          "p95Ms": 13806.677,
+          "ci95LowMs": 13609.708,
+          "ci95HighMs": 13735.709,
+          "samplesMs": [
+            13574.324,
+            13735.709,
+            13779.46,
+            13806.677,
+            13643.407,
+            13646.573,
+            13621.805,
+            13595.875,
+            13722.91,
+            13623.54
+          ]
+        },
+        "kernel:helical-void.hot": {
+          "medianMs": 1289.297,
+          "minMs": 1274.457,
+          "maxMs": 1308.302,
+          "madMs": 2.818,
+          "p95Ms": 1308.302,
+          "ci95LowMs": 1281.543,
+          "ci95HighMs": 1292.279,
+          "samplesMs": [
+            1274.457,
+            1276.38,
+            1293.079,
+            1286.707,
+            1286.643,
+            1308.302,
+            1291.325,
+            1288.777,
+            1289.816,
+            1292.279
+          ]
+        },
+        "kernel:helical-void.cool": {
+          "medianMs": 1295.705,
+          "minMs": 1273.717,
+          "maxMs": 1351.777,
+          "madMs": 2.727,
+          "p95Ms": 1351.777,
+          "ci95LowMs": 1285.746,
+          "ci95HighMs": 1306.37,
+          "samplesMs": [
+            1277.148,
+            1351.777,
+            1273.717,
+            1315.012,
+            1294.344,
+            1296.767,
+            1292.415,
+            1297.869,
+            1297.728,
+            1294.644
+          ]
+        },
+        "kernel:cool-inner.offset": {
+          "medianMs": 1008.316,
+          "minMs": 1003.679,
+          "maxMs": 1034.788,
+          "madMs": 2.171,
+          "p95Ms": 1034.788,
+          "ci95LowMs": 1006.192,
+          "ci95HighMs": 1020.731,
+          "samplesMs": [
+            1031.427,
+            1019.177,
+            1007.685,
+            1034.788,
+            1008.562,
+            1006.192,
+            1003.679,
+            1008.07,
+            1010.034,
+            1006.098
+          ]
+        },
+        "kernel:hot-fluid-void.subtract": {
+          "medianMs": 4.438,
+          "minMs": 4.148,
+          "maxMs": 4.58,
+          "madMs": 0.119,
+          "p95Ms": 4.58,
+          "ci95LowMs": 4.271,
+          "ci95HighMs": 4.542,
+          "samplesMs": [
+            4.466,
+            4.58,
+            4.148,
+            4.542,
+            4.503,
+            4.271,
+            4.411,
+            4.407,
+            4.165,
+            4.572
+          ]
+        },
+        "kernel:hot-inner.offset": {
+          "medianMs": 1003.19,
+          "minMs": 987.063,
+          "maxMs": 1045.146,
+          "madMs": 2.668,
+          "p95Ms": 1045.146,
+          "ci95LowMs": 1001.719,
+          "ci95HighMs": 1017.175,
+          "samplesMs": [
+            987.063,
+            1045.146,
+            1017.175,
+            1022.904,
+            1003.38,
+            1001.155,
+            1002.591,
+            1002.999,
+            1006.491,
+            1001.719
+          ]
+        },
+        "kernel:cool-fluid-void.subtract": {
+          "medianMs": 4.371,
+          "minMs": 4.159,
+          "maxMs": 4.8,
+          "madMs": 0.193,
+          "p95Ms": 4.8,
+          "ci95LowMs": 4.188,
+          "ci95HighMs": 4.574,
+          "samplesMs": [
+            4.8,
+            4.574,
+            4.374,
+            4.159,
+            4.323,
+            4.367,
+            4.453,
+            4.159,
+            4.578,
+            4.188
+          ]
+        },
+        "kernel:inner-volume.union": {
+          "medianMs": 5.989,
+          "minMs": 5.762,
+          "maxMs": 6.294,
+          "madMs": 0.158,
+          "p95Ms": 6.294,
+          "ci95LowMs": 5.855,
+          "ci95HighMs": 6.171,
+          "samplesMs": [
+            5.8,
+            5.762,
+            6.003,
+            6.171,
+            5.882,
+            6.294,
+            5.855,
+            5.999,
+            6.217,
+            5.978
+          ]
+        },
+        "kernel:splitters.union": {
+          "medianMs": 2.168,
+          "minMs": 1.994,
+          "maxMs": 2.279,
+          "madMs": 0.055,
+          "p95Ms": 2.279,
+          "ci95LowMs": 2.114,
+          "ci95HighMs": 2.224,
+          "samplesMs": [
+            2.279,
+            2.172,
+            2.259,
+            2.114,
+            2.224,
+            1.994,
+            2.165,
+            2.174,
+            2.083,
+            2.148
+          ]
+        },
+        "kernel:outer-volume.offset": {
+          "medianMs": 1098.828,
+          "minMs": 1095.349,
+          "maxMs": 1172.721,
+          "madMs": 3.103,
+          "p95Ms": 1172.721,
+          "ci95LowMs": 1097.389,
+          "ci95HighMs": 1126.909,
+          "samplesMs": [
+            1095.957,
+            1107.655,
+            1172.721,
+            1154.982,
+            1098.836,
+            1095.349,
+            1097.82,
+            1098.821,
+            1102.163,
+            1098.332
+          ]
+        },
+        "kernel:flange.create": {
+          "medianMs": 2656.012,
+          "minMs": 2626.549,
+          "maxMs": 2705.045,
+          "madMs": 19.179,
+          "p95Ms": 2705.045,
+          "ci95LowMs": 2644.131,
+          "ci95HighMs": 2684.634,
+          "samplesMs": [
+            2626.549,
+            2663.077,
+            2705.045,
+            2640.912,
+            2645.342,
+            2681.105,
+            2647.349,
+            2679.27,
+            2689.999,
+            2648.948
+          ]
+        },
+        "kernel:finished-flange.fillet": {
+          "medianMs": 1023.388,
+          "minMs": 1006.955,
+          "maxMs": 1054.059,
+          "madMs": 7.167,
+          "p95Ms": 1054.059,
+          "ci95LowMs": 1019.924,
+          "ci95HighMs": 1034.788,
+          "samplesMs": [
+            1006.955,
+            1034.788,
+            1032.462,
+            1035.095,
+            1018.128,
+            1054.059,
+            1020.978,
+            1020.735,
+            1021.719,
+            1025.058
+          ]
+        },
+        "kernel:finished-flange.smoothen": {
+          "medianMs": 133.653,
+          "minMs": 131.944,
+          "maxMs": 135.499,
+          "madMs": 0.502,
+          "p95Ms": 135.499,
+          "ci95LowMs": 133.199,
+          "ci95HighMs": 134.29,
+          "samplesMs": [
+            131.944,
+            134.686,
+            133.085,
+            135.499,
+            134.29,
+            133.892,
+            133.71,
+            133.218,
+            133.312,
+            133.596
+          ]
+        },
+        "kernel:outer-volume.union-flange": {
+          "medianMs": 3.922,
+          "minMs": 3.705,
+          "maxMs": 4.114,
+          "madMs": 0.086,
+          "p95Ms": 4.114,
+          "ci95LowMs": 3.807,
+          "ci95HighMs": 3.98,
+          "samplesMs": [
+            3.785,
+            4.114,
+            3.908,
+            3.705,
+            3.98,
+            3.812,
+            3.988,
+            3.936,
+            3.816,
+            3.942
+          ]
+        },
+        "kernel:io-supports.create": {
+          "medianMs": 29.823,
+          "minMs": 29.421,
+          "maxMs": 29.931,
+          "madMs": 0.09,
+          "p95Ms": 29.931,
+          "ci95LowMs": 29.638,
+          "ci95HighMs": 29.919,
+          "samplesMs": [
+            29.474,
+            29.842,
+            29.911,
+            29.748,
+            29.804,
+            29.421,
+            29.931,
+            29.802,
+            29.915,
+            29.928
+          ]
+        },
+        "kernel:outer-volume.union-supports": {
+          "medianMs": 4.396,
+          "minMs": 4.063,
+          "maxMs": 4.649,
+          "madMs": 0.121,
+          "p95Ms": 4.649,
+          "ci95LowMs": 4.183,
+          "ci95HighMs": 4.498,
+          "samplesMs": [
+            4.498,
+            4.535,
+            4.316,
+            4.063,
+            4.181,
+            4.347,
+            4.49,
+            4.649,
+            4.444,
+            4.183
+          ]
+        },
+        "kernel:outer-volume.fillet": {
+          "medianMs": 7052.621,
+          "minMs": 6969.922,
+          "maxMs": 7154.585,
+          "madMs": 18.999,
+          "p95Ms": 7154.585,
+          "ci95LowMs": 7038.833,
+          "ci95HighMs": 7144.199,
+          "samplesMs": [
+            6969.922,
+            7062.194,
+            7154.585,
+            7144.199,
+            7072.617,
+            7034.618,
+            7038.964,
+            7041.613,
+            7043.048,
+            7151.972
+          ]
+        },
+        "kernel:outer-volume.smoothen": {
+          "medianMs": 1160.397,
+          "minMs": 1148.821,
+          "maxMs": 1176.294,
+          "madMs": 2.804,
+          "p95Ms": 1176.294,
+          "ci95LowMs": 1156.72,
+          "ci95HighMs": 1163.587,
+          "samplesMs": [
+            1163.587,
+            1153.398,
+            1148.821,
+            1176.294,
+            1163.961,
+            1160.292,
+            1158.406,
+            1160.501,
+            1162.815,
+            1160.041
+          ]
+        },
+        "kernel:centre-piece.add": {
+          "medianMs": 20.499,
+          "minMs": 20.158,
+          "maxMs": 21.995,
+          "madMs": 0.273,
+          "p95Ms": 21.995,
+          "ci95LowMs": 20.24,
+          "ci95HighMs": 21.183,
+          "samplesMs": [
+            20.952,
+            21.669,
+            21.995,
+            20.174,
+            20.696,
+            20.279,
+            20.306,
+            20.158,
+            20.68,
+            20.318
+          ]
+        },
+        "kernel:outer-volume.union-structure": {
+          "medianMs": 5.47,
+          "minMs": 5.268,
+          "maxMs": 5.772,
+          "madMs": 0.09,
+          "p95Ms": 5.772,
+          "ci95LowMs": 5.333,
+          "ci95HighMs": 5.551,
+          "samplesMs": [
+            5.519,
+            5.284,
+            5.536,
+            5.58,
+            5.378,
+            5.382,
+            5.268,
+            5.421,
+            5.522,
+            5.772
+          ]
+        },
+        "kernel:outer-volume.subtract-screw-holes": {
+          "medianMs": 2.668,
+          "minMs": 2.52,
+          "maxMs": 3.011,
+          "madMs": 0.13,
+          "p95Ms": 3.011,
+          "ci95LowMs": 2.544,
+          "ci95HighMs": 2.849,
+          "samplesMs": [
+            2.629,
+            2.545,
+            2.539,
+            2.798,
+            3.011,
+            2.55,
+            2.52,
+            2.807,
+            2.707,
+            2.901
+          ]
+        },
+        "kernel:outer-volume.project-z-slice": {
+          "medianMs": 4.852,
+          "minMs": 4.611,
+          "maxMs": 4.945,
+          "madMs": 0.055,
+          "p95Ms": 4.945,
+          "ci95LowMs": 4.741,
+          "ci95HighMs": 4.904,
+          "samplesMs": [
+            4.896,
+            4.611,
+            4.816,
+            4.761,
+            4.945,
+            4.848,
+            4.855,
+            4.634,
+            4.891,
+            4.917
+          ]
+        },
+        "kernel:print-web.create": {
+          "medianMs": 7.904,
+          "minMs": 7.513,
+          "maxMs": 8.117,
+          "madMs": 0.071,
+          "p95Ms": 8.117,
+          "ci95LowMs": 7.762,
+          "ci95HighMs": 7.966,
+          "samplesMs": [
+            7.946,
+            7.513,
+            7.966,
+            7.762,
+            7.88,
+            7.753,
+            7.983,
+            7.897,
+            7.912,
+            8.117
+          ]
+        },
+        "kernel:outer-volume.subtract-print-web": {
+          "medianMs": 2.354,
+          "minMs": 2.238,
+          "maxMs": 2.499,
+          "madMs": 0.063,
+          "p95Ms": 2.499,
+          "ci95LowMs": 2.311,
+          "ci95HighMs": 2.472,
+          "samplesMs": [
+            2.271,
+            2.238,
+            2.312,
+            2.323,
+            2.472,
+            2.38,
+            2.357,
+            2.499,
+            2.351,
+            2.49
+          ]
+        },
+        "kernel:result.subtract-inner-volume": {
+          "medianMs": 5.538,
+          "minMs": 5.441,
+          "maxMs": 5.741,
+          "madMs": 0.07,
+          "p95Ms": 5.741,
+          "ci95LowMs": 5.478,
+          "ci95HighMs": 5.702,
+          "samplesMs": [
+            5.741,
+            5.482,
+            5.549,
+            5.502,
+            5.702,
+            5.593,
+            5.441,
+            5.454,
+            5.709,
+            5.527
+          ]
+        },
+        "kernel:result.union-fins": {
+          "medianMs": 6.261,
+          "minMs": 6.008,
+          "maxMs": 6.546,
+          "madMs": 0.106,
+          "p95Ms": 6.546,
+          "ci95LowMs": 6.194,
+          "ci95HighMs": 6.397,
+          "samplesMs": [
+            6.405,
+            6.008,
+            6.353,
+            6.397,
+            6.275,
+            6.546,
+            6.247,
+            6.24,
+            6.141,
+            6.23
+          ]
+        },
+        "kernel:result.union-splitters": {
+          "medianMs": 3.701,
+          "minMs": 3.389,
+          "maxMs": 3.879,
+          "madMs": 0.055,
+          "p95Ms": 3.879,
+          "ci95LowMs": 3.634,
+          "ci95HighMs": 3.787,
+          "samplesMs": [
+            3.389,
+            3.741,
+            3.66,
+            3.634,
+            3.873,
+            3.879,
+            3.702,
+            3.701,
+            3.584,
+            3.722
+          ]
+        },
+        "kernel:result.intersect-bounding": {
+          "medianMs": 4.598,
+          "minMs": 4.419,
+          "maxMs": 4.912,
+          "madMs": 0.062,
+          "p95Ms": 4.912,
+          "ci95LowMs": 4.552,
+          "ci95HighMs": 4.708,
+          "samplesMs": [
+            4.912,
+            4.419,
+            4.688,
+            4.595,
+            4.67,
+            4.814,
+            4.545,
+            4.552,
+            4.601,
+            4.575
+          ]
+        },
+        "kernel:io-threads.create": {
+          "medianMs": 5704.941,
+          "minMs": 5636.299,
+          "maxMs": 6093.785,
+          "madMs": 24.455,
+          "p95Ms": 6093.785,
+          "ci95LowMs": 5666.32,
+          "ci95HighMs": 5733.24,
+          "samplesMs": [
+            6093.785,
+            5728.96,
+            5728.171,
+            5680.05,
+            5636.299,
+            5645.475,
+            5738.309,
+            5681.737,
+            5687.164,
+            5722.718
+          ]
+        },
+        "kernel:result.union-threads": {
+          "medianMs": 2.933,
+          "minMs": 2.742,
+          "maxMs": 3.106,
+          "madMs": 0.054,
+          "p95Ms": 3.106,
+          "ci95LowMs": 2.871,
+          "ci95HighMs": 3.006,
+          "samplesMs": [
+            2.931,
+            2.916,
+            2.862,
+            2.943,
+            2.978,
+            3.106,
+            3.069,
+            2.742,
+            2.871,
+            2.935
+          ]
+        },
+        "kernel:io-cuts.create": {
+          "medianMs": 20.404,
+          "minMs": 20.242,
+          "maxMs": 20.712,
+          "madMs": 0.086,
+          "p95Ms": 20.712,
+          "ci95LowMs": 20.321,
+          "ci95HighMs": 20.574,
+          "samplesMs": [
+            20.295,
+            20.689,
+            20.712,
+            20.55,
+            20.344,
+            20.242,
+            20.459,
+            20.347,
+            20.466,
+            20.349
+          ]
+        },
+        "kernel:result.subtract-io-cuts": {
+          "medianMs": 1.897,
+          "minMs": 1.753,
+          "maxMs": 2.167,
+          "madMs": 0.099,
+          "p95Ms": 2.167,
+          "ci95LowMs": 1.798,
+          "ci95HighMs": 1.996,
+          "samplesMs": [
+            1.792,
+            2.167,
+            1.941,
+            2.047,
+            1.996,
+            1.753,
+            1.898,
+            1.896,
+            1.878,
+            1.798
+          ]
+        },
+        "unattributed": {
+          "medianMs": 0.363,
+          "minMs": 0.35,
+          "maxMs": 0.402,
+          "madMs": 0.01,
+          "p95Ms": 0.402,
+          "ci95LowMs": 0.353,
+          "ci95HighMs": 0.391,
+          "samplesMs": [
+            0.402,
+            0.391,
+            0.353,
+            0.366,
+            0.352,
+            0.35,
+            0.372,
+            0.359,
+            0.399,
+            0.357
+          ]
+        },
+        "mesh": {
+          "medianMs": 111.199,
+          "minMs": 109.891,
+          "maxMs": 114.104,
+          "madMs": 0.951,
+          "p95Ms": 114.104,
+          "ci95LowMs": 110.406,
+          "ci95HighMs": 112.871,
+          "samplesMs": [
+            110.529,
+            112.871,
+            111.212,
+            114.104,
+            109.967,
+            110.846,
+            113.43,
+            111.186,
+            109.891,
+            111.486
+          ]
+        },
+        "stl": {
+          "medianMs": 111.114,
+          "minMs": 110.538,
+          "maxMs": 112.739,
+          "madMs": 0.402,
+          "p95Ms": 112.739,
+          "ci95LowMs": 110.745,
+          "ci95HighMs": 112.171,
+          "samplesMs": [
+            110.835,
+            111.33,
+            110.898,
+            112.171,
+            110.655,
+            111.408,
+            112.451,
+            110.769,
+            112.739,
+            110.538
+          ]
+        }
+      },
+      "identity": {
+        "volume": "41220895e0000000",
+        "stl": "b57def4",
+        "stlBytes": 93667084,
+        "threads": 1,
+        "kernelStages": [
+          "bounding.create",
+          "turning-fins.hot",
+          "turning-fins.cool",
+          "corner-fins.union",
+          "straight-fins.hot",
+          "straight-fins.cool",
+          "straight-fins.union",
+          "fins.union",
+          "outer-structure.create",
+          "helical-void.hot",
+          "helical-void.cool",
+          "cool-inner.offset",
+          "hot-fluid-void.subtract",
+          "hot-inner.offset",
+          "cool-fluid-void.subtract",
+          "inner-volume.union",
+          "splitters.union",
+          "outer-volume.offset",
+          "flange.create",
+          "finished-flange.fillet",
+          "finished-flange.smoothen",
+          "outer-volume.union-flange",
+          "io-supports.create",
+          "outer-volume.union-supports",
+          "outer-volume.fillet",
+          "outer-volume.smoothen",
+          "centre-piece.add",
+          "outer-volume.union-structure",
+          "outer-volume.subtract-screw-holes",
+          "outer-volume.project-z-slice",
+          "print-web.create",
+          "outer-volume.subtract-print-web",
+          "result.subtract-inner-volume",
+          "result.union-fins",
+          "result.union-splitters",
+          "result.intersect-bounding",
+          "io-threads.create",
+          "result.union-threads",
+          "io-cuts.create",
+          "result.subtract-io-cuts"
+        ]
+      },
+      "loadBefore": 2.2021484375,
+      "loadAfter": 2.66259765625
+    },
+    "M12@multi": {
+      "description": "HelixHeatX @ 1.0mm (multi entry)",
+      "phases": {
+        "construct": {
+          "medianMs": 8389.319,
+          "minMs": 8345.91,
+          "maxMs": 8566.046,
+          "madMs": 25.526,
+          "p95Ms": 8566.046,
+          "ci95LowMs": 8365.976,
+          "ci95HighMs": 8448.753,
+          "samplesMs": [
+            8400.741,
+            8377.897,
+            8368.984,
+            8345.91,
+            8566.046,
+            8492.24,
+            8405.266,
+            8373.35,
+            8442.328,
+            8358.603
+          ]
+        },
+        "author": {
+          "medianMs": 156.653,
+          "minMs": 152.645,
+          "maxMs": 160.615,
+          "madMs": 2.213,
+          "p95Ms": 160.615,
+          "ci95LowMs": 153.853,
+          "ci95HighMs": 158.779,
+          "samplesMs": [
+            158.779,
+            152.645,
+            157.549,
+            157.558,
+            160.615,
+            152.758,
+            158.953,
+            155.757,
+            155.375,
+            153.853
+          ]
+        },
+        "kernel:bounding.create": {
+          "medianMs": 54.403,
+          "minMs": 46.701,
+          "maxMs": 66.277,
+          "madMs": 3.396,
+          "p95Ms": 66.277,
+          "ci95LowMs": 49.964,
+          "ci95HighMs": 58.439,
+          "samplesMs": [
+            51.647,
+            66.277,
+            58.813,
+            56.082,
+            55.907,
+            46.701,
+            52.898,
+            51.878,
+            48.05,
+            58.439
+          ]
+        },
+        "kernel:turning-fins.hot": {
+          "medianMs": 246.794,
+          "minMs": 235.149,
+          "maxMs": 259.129,
+          "madMs": 7.771,
+          "p95Ms": 259.129,
+          "ci95LowMs": 241.382,
+          "ci95HighMs": 256.086,
+          "samplesMs": [
+            241.652,
+            237.286,
+            241.382,
+            253.044,
+            247.36,
+            259.129,
+            256.086,
+            258.779,
+            235.149,
+            246.228
+          ]
+        },
+        "kernel:turning-fins.cool": {
+          "medianMs": 242.612,
+          "minMs": 224.143,
+          "maxMs": 256.462,
+          "madMs": 4.1,
+          "p95Ms": 256.462,
+          "ci95LowMs": 237.002,
+          "ci95HighMs": 248.956,
+          "samplesMs": [
+            234.736,
+            256.462,
+            241.547,
+            242.35,
+            245.203,
+            243.34,
+            254.571,
+            237.002,
+            242.875,
+            224.143
+          ]
+        },
+        "kernel:corner-fins.union": {
+          "medianMs": 1.807,
+          "minMs": 1.241,
+          "maxMs": 3.658,
+          "madMs": 0.309,
+          "p95Ms": 3.658,
+          "ci95LowMs": 1.52,
+          "ci95HighMs": 2.972,
+          "samplesMs": [
+            3.658,
+            1.667,
+            3.131,
+            1.947,
+            2.036,
+            1.555,
+            2.972,
+            1.441,
+            1.6,
+            1.241
+          ]
+        },
+        "kernel:straight-fins.hot": {
+          "medianMs": 74.476,
+          "minMs": 72.495,
+          "maxMs": 86.437,
+          "madMs": 1.713,
+          "p95Ms": 86.437,
+          "ci95LowMs": 73.187,
+          "ci95HighMs": 76.657,
+          "samplesMs": [
+            78.392,
+            86.437,
+            73.552,
+            72.495,
+            76.248,
+            73.421,
+            74.031,
+            74.922,
+            72.823,
+            76.649
+          ]
+        },
+        "kernel:straight-fins.cool": {
+          "medianMs": 75.528,
+          "minMs": 69.086,
+          "maxMs": 81.154,
+          "madMs": 1.66,
+          "p95Ms": 81.154,
+          "ci95LowMs": 73.43,
+          "ci95HighMs": 76.654,
+          "samplesMs": [
+            75.838,
+            81.154,
+            69.086,
+            72.825,
+            75.786,
+            77.522,
+            75.645,
+            73.704,
+            74.034,
+            75.412
+          ]
+        },
+        "kernel:straight-fins.union": {
+          "medianMs": 1.692,
+          "minMs": 1.024,
+          "maxMs": 2.667,
+          "madMs": 0.371,
+          "p95Ms": 2.667,
+          "ci95LowMs": 1.346,
+          "ci95HighMs": 2.25,
+          "samplesMs": [
+            2.667,
+            2.25,
+            1.512,
+            1.921,
+            1.461,
+            1.873,
+            2.313,
+            1.024,
+            1.412,
+            1.232
+          ]
+        },
+        "kernel:fins.union": {
+          "medianMs": 1.306,
+          "minMs": 1.009,
+          "maxMs": 2.922,
+          "madMs": 0.185,
+          "p95Ms": 2.922,
+          "ci95LowMs": 1.144,
+          "ci95HighMs": 1.661,
+          "samplesMs": [
+            1.009,
+            2.922,
+            1.399,
+            1.377,
+            1.591,
+            1.19,
+            1.235,
+            1.202,
+            1.945,
+            1.053
+          ]
+        },
+        "kernel:outer-structure.create": {
+          "medianMs": 1715.644,
+          "minMs": 1691.24,
+          "maxMs": 1766.26,
+          "madMs": 14.743,
+          "p95Ms": 1766.26,
+          "ci95LowMs": 1701.077,
+          "ci95HighMs": 1733.215,
+          "samplesMs": [
+            1716.277,
+            1724.343,
+            1733.179,
+            1704.745,
+            1697.409,
+            1742.087,
+            1715.01,
+            1703.694,
+            1766.26,
+            1691.24
+          ]
+        },
+        "kernel:helical-void.hot": {
+          "medianMs": 217.033,
+          "minMs": 198.981,
+          "maxMs": 225.917,
+          "madMs": 5.641,
+          "p95Ms": 225.917,
+          "ci95LowMs": 208.638,
+          "ci95HighMs": 222.132,
+          "samplesMs": [
+            224.287,
+            204.56,
+            219.977,
+            218.359,
+            220.403,
+            212.716,
+            225.917,
+            210.067,
+            215.707,
+            198.981
+          ]
+        },
+        "kernel:helical-void.cool": {
+          "medianMs": 210.16,
+          "minMs": 205.561,
+          "maxMs": 249.566,
+          "madMs": 4.317,
+          "p95Ms": 249.566,
+          "ci95LowMs": 206.612,
+          "ci95HighMs": 218.504,
+          "samplesMs": [
+            205.561,
+            221.444,
+            217.292,
+            207.332,
+            206.612,
+            215.564,
+            207.711,
+            206.127,
+            212.61,
+            249.566
+          ]
+        },
+        "kernel:cool-inner.offset": {
+          "medianMs": 126.467,
+          "minMs": 124.447,
+          "maxMs": 129.141,
+          "madMs": 1.606,
+          "p95Ms": 129.141,
+          "ci95LowMs": 124.853,
+          "ci95HighMs": 128.064,
+          "samplesMs": [
+            124.729,
+            124.447,
+            128.064,
+            125.31,
+            128.612,
+            129.141,
+            127.286,
+            127.521,
+            124.853,
+            125.649
+          ]
+        },
+        "kernel:hot-fluid-void.subtract": {
+          "medianMs": 2.7,
+          "minMs": 1.89,
+          "maxMs": 3.052,
+          "madMs": 0.222,
+          "p95Ms": 3.052,
+          "ci95LowMs": 2.281,
+          "ci95HighMs": 2.908,
+          "samplesMs": [
+            3.052,
+            2.908,
+            2.935,
+            2.508,
+            2.858,
+            2.567,
+            2.832,
+            1.89,
+            2.182,
+            2.281
+          ]
+        },
+        "kernel:hot-inner.offset": {
+          "medianMs": 126.31,
+          "minMs": 123.547,
+          "maxMs": 130.009,
+          "madMs": 0.987,
+          "p95Ms": 130.009,
+          "ci95LowMs": 125.211,
+          "ci95HighMs": 127.393,
+          "samplesMs": [
+            126.538,
+            126.082,
+            127.743,
+            125.42,
+            127.393,
+            130.009,
+            124.402,
+            123.547,
+            127.033,
+            126.021
+          ]
+        },
+        "kernel:cool-fluid-void.subtract": {
+          "medianMs": 2.9,
+          "minMs": 1.774,
+          "maxMs": 4.649,
+          "madMs": 0.349,
+          "p95Ms": 4.649,
+          "ci95LowMs": 2.483,
+          "ci95HighMs": 3.299,
+          "samplesMs": [
+            2.981,
+            2.606,
+            2.6,
+            3.299,
+            2.359,
+            2.82,
+            3.099,
+            1.774,
+            4.649,
+            3.333
+          ]
+        },
+        "kernel:inner-volume.union": {
+          "medianMs": 2.48,
+          "minMs": 1.978,
+          "maxMs": 4.548,
+          "madMs": 0.436,
+          "p95Ms": 4.548,
+          "ci95LowMs": 2.187,
+          "ci95HighMs": 3.595,
+          "samplesMs": [
+            2.387,
+            3.32,
+            2.573,
+            2.277,
+            2.187,
+            2.111,
+            4.548,
+            1.978,
+            3.595,
+            3.602
+          ]
+        },
+        "kernel:splitters.union": {
+          "medianMs": 1.297,
+          "minMs": 0.751,
+          "maxMs": 1.668,
+          "madMs": 0.156,
+          "p95Ms": 1.668,
+          "ci95LowMs": 1.049,
+          "ci95HighMs": 1.535,
+          "samplesMs": [
+            1.228,
+            0.851,
+            1.248,
+            0.751,
+            1.594,
+            1.535,
+            1.267,
+            1.668,
+            1.371,
+            1.327
+          ]
+        },
+        "kernel:outer-volume.offset": {
+          "medianMs": 136.903,
+          "minMs": 133.927,
+          "maxMs": 182.43,
+          "madMs": 1.748,
+          "p95Ms": 182.43,
+          "ci95LowMs": 135.623,
+          "ci95HighMs": 140.38,
+          "samplesMs": [
+            134.873,
+            136.374,
+            138.37,
+            133.927,
+            182.43,
+            138.965,
+            137.326,
+            136.273,
+            142.391,
+            136.479
+          ]
+        },
+        "kernel:flange.create": {
+          "medianMs": 2165.751,
+          "minMs": 2149.877,
+          "maxMs": 2305.428,
+          "madMs": 9.738,
+          "p95Ms": 2305.428,
+          "ci95LowMs": 2156.831,
+          "ci95HighMs": 2205.778,
+          "samplesMs": [
+            2205.778,
+            2164.865,
+            2149.877,
+            2164.477,
+            2305.428,
+            2213.189,
+            2171.81,
+            2155.194,
+            2166.636,
+            2156.831
+          ]
+        },
+        "kernel:finished-flange.fillet": {
+          "medianMs": 180.148,
+          "minMs": 174.544,
+          "maxMs": 215.471,
+          "madMs": 4.277,
+          "p95Ms": 215.471,
+          "ci95LowMs": 176.943,
+          "ci95HighMs": 188.205,
+          "samplesMs": [
+            177.037,
+            177.801,
+            184.957,
+            176.403,
+            174.544,
+            191.454,
+            215.471,
+            187.527,
+            177.484,
+            182.496
+          ]
+        },
+        "kernel:finished-flange.smoothen": {
+          "medianMs": 26.776,
+          "minMs": 24.694,
+          "maxMs": 32.188,
+          "madMs": 1.255,
+          "p95Ms": 32.188,
+          "ci95LowMs": 25.597,
+          "ci95HighMs": 29.624,
+          "samplesMs": [
+            29.624,
+            25.358,
+            30.842,
+            24.694,
+            26.449,
+            27.103,
+            27.868,
+            32.188,
+            25.792,
+            25.836
+          ]
+        },
+        "kernel:outer-volume.union-flange": {
+          "medianMs": 1.935,
+          "minMs": 1.493,
+          "maxMs": 4.913,
+          "madMs": 0.241,
+          "p95Ms": 4.913,
+          "ci95LowMs": 1.698,
+          "ci95HighMs": 2.433,
+          "samplesMs": [
+            1.744,
+            1.652,
+            2.203,
+            1.493,
+            1.92,
+            1.722,
+            1.951,
+            4.913,
+            2.916,
+            1.95
+          ]
+        },
+        "kernel:io-supports.create": {
+          "medianMs": 7.835,
+          "minMs": 5.969,
+          "maxMs": 10.761,
+          "madMs": 0.875,
+          "p95Ms": 10.761,
+          "ci95LowMs": 6.906,
+          "ci95HighMs": 9.009,
+          "samplesMs": [
+            8.262,
+            6.612,
+            7.2,
+            8.684,
+            6.933,
+            7.687,
+            9.755,
+            10.761,
+            7.983,
+            5.969
+          ]
+        },
+        "kernel:outer-volume.union-supports": {
+          "medianMs": 2.152,
+          "minMs": 1.689,
+          "maxMs": 3.044,
+          "madMs": 0.328,
+          "p95Ms": 3.044,
+          "ci95LowMs": 1.81,
+          "ci95HighMs": 2.597,
+          "samplesMs": [
+            2.802,
+            1.689,
+            2.101,
+            1.725,
+            2.203,
+            2.392,
+            1.81,
+            3.044,
+            1.927,
+            2.466
+          ]
+        },
+        "kernel:outer-volume.fillet": {
+          "medianMs": 906.884,
+          "minMs": 895.895,
+          "maxMs": 932.617,
+          "madMs": 4.809,
+          "p95Ms": 932.617,
+          "ci95LowMs": 903.762,
+          "ci95HighMs": 917.415,
+          "samplesMs": [
+            906.724,
+            907.045,
+            911.52,
+            895.895,
+            923.311,
+            932.617,
+            901.903,
+            906.442,
+            903.762,
+            914.703
+          ]
+        },
+        "kernel:outer-volume.smoothen": {
+          "medianMs": 153.081,
+          "minMs": 148.517,
+          "maxMs": 164.602,
+          "madMs": 0.853,
+          "p95Ms": 164.602,
+          "ci95LowMs": 151.794,
+          "ci95HighMs": 156.258,
+          "samplesMs": [
+            150.605,
+            148.517,
+            153.756,
+            153.336,
+            152.399,
+            159.337,
+            152.983,
+            152.057,
+            153.179,
+            164.602
+          ]
+        },
+        "kernel:centre-piece.add": {
+          "medianMs": 12.151,
+          "minMs": 11.557,
+          "maxMs": 14.184,
+          "madMs": 0.511,
+          "p95Ms": 14.184,
+          "ci95LowMs": 11.731,
+          "ci95HighMs": 14,
+          "samplesMs": [
+            11.557,
+            13.361,
+            11.731,
+            14,
+            11.993,
+            14.141,
+            11.828,
+            11.723,
+            14.184,
+            12.308
+          ]
+        },
+        "kernel:outer-volume.union-structure": {
+          "medianMs": 2.897,
+          "minMs": 1.579,
+          "maxMs": 6.929,
+          "madMs": 0.486,
+          "p95Ms": 6.929,
+          "ci95LowMs": 2.195,
+          "ci95HighMs": 3.279,
+          "samplesMs": [
+            2.559,
+            3.279,
+            2.195,
+            1.579,
+            6.929,
+            2.958,
+            3.016,
+            2.836,
+            1.878,
+            3.488
+          ]
+        },
+        "kernel:outer-volume.subtract-screw-holes": {
+          "medianMs": 1.596,
+          "minMs": 1.26,
+          "maxMs": 3.078,
+          "madMs": 0.151,
+          "p95Ms": 3.078,
+          "ci95LowMs": 1.494,
+          "ci95HighMs": 2.045,
+          "samplesMs": [
+            1.551,
+            1.607,
+            2.193,
+            1.584,
+            3.078,
+            1.438,
+            1.498,
+            1.26,
+            2.045,
+            1.74
+          ]
+        },
+        "kernel:outer-volume.project-z-slice": {
+          "medianMs": 4.949,
+          "minMs": 4.241,
+          "maxMs": 5.88,
+          "madMs": 0.239,
+          "p95Ms": 5.88,
+          "ci95LowMs": 4.579,
+          "ci95HighMs": 5.151,
+          "samplesMs": [
+            5.142,
+            4.892,
+            4.241,
+            5.007,
+            5.88,
+            5.234,
+            4.779,
+            4.379,
+            4.587,
+            5.068
+          ]
+        },
+        "kernel:print-web.create": {
+          "medianMs": 3.103,
+          "minMs": 2.078,
+          "maxMs": 4.308,
+          "madMs": 0.285,
+          "p95Ms": 4.308,
+          "ci95LowMs": 2.783,
+          "ci95HighMs": 3.695,
+          "samplesMs": [
+            2.783,
+            4.308,
+            3.077,
+            2.573,
+            2.078,
+            4.159,
+            3.354,
+            3.129,
+            3.061,
+            3.231
+          ]
+        },
+        "kernel:outer-volume.subtract-print-web": {
+          "medianMs": 1.657,
+          "minMs": 1.133,
+          "maxMs": 3.061,
+          "madMs": 0.149,
+          "p95Ms": 3.061,
+          "ci95LowMs": 1.499,
+          "ci95HighMs": 1.915,
+          "samplesMs": [
+            1.133,
+            1.798,
+            1.655,
+            3.061,
+            1.499,
+            1.693,
+            1.66,
+            1.604,
+            2.136,
+            1.368
+          ]
+        },
+        "kernel:result.subtract-inner-volume": {
+          "medianMs": 4.382,
+          "minMs": 2.019,
+          "maxMs": 6.315,
+          "madMs": 1.276,
+          "p95Ms": 6.315,
+          "ci95LowMs": 3.017,
+          "ci95HighMs": 5.604,
+          "samplesMs": [
+            2.546,
+            4.537,
+            4.228,
+            5.711,
+            4.713,
+            6.315,
+            5.604,
+            3.038,
+            3.489,
+            2.019
+          ]
+        },
+        "kernel:result.union-fins": {
+          "medianMs": 2.883,
+          "minMs": 1.921,
+          "maxMs": 8.741,
+          "madMs": 0.457,
+          "p95Ms": 8.741,
+          "ci95LowMs": 2.494,
+          "ci95HighMs": 3.947,
+          "samplesMs": [
+            3.595,
+            2.719,
+            1.921,
+            3.046,
+            8.741,
+            2.558,
+            3.191,
+            4.703,
+            2.695,
+            2.293
+          ]
+        },
+        "kernel:result.union-splitters": {
+          "medianMs": 2.713,
+          "minMs": 1.761,
+          "maxMs": 8.472,
+          "madMs": 0.525,
+          "p95Ms": 8.472,
+          "ci95LowMs": 2.066,
+          "ci95HighMs": 3.251,
+          "samplesMs": [
+            1.925,
+            3.541,
+            2.961,
+            2.168,
+            3.205,
+            2.207,
+            1.761,
+            3.074,
+            8.472,
+            2.465
+          ]
+        },
+        "kernel:result.intersect-bounding": {
+          "medianMs": 3.728,
+          "minMs": 2.453,
+          "maxMs": 9.45,
+          "madMs": 0.996,
+          "p95Ms": 9.45,
+          "ci95LowMs": 2.772,
+          "ci95HighMs": 4.992,
+          "samplesMs": [
+            4.992,
+            5.449,
+            4.112,
+            3.071,
+            9.45,
+            2.453,
+            3.344,
+            4.239,
+            2.992,
+            2.472
+          ]
+        },
+        "kernel:io-threads.create": {
+          "medianMs": 1461.089,
+          "minMs": 1432.388,
+          "maxMs": 1502.032,
+          "madMs": 13.574,
+          "p95Ms": 1502.032,
+          "ci95LowMs": 1443.629,
+          "ci95HighMs": 1480.311,
+          "samplesMs": [
+            1471.557,
+            1435.344,
+            1444.41,
+            1471.471,
+            1451.914,
+            1453.85,
+            1432.388,
+            1489.152,
+            1502.032,
+            1468.328
+          ]
+        },
+        "kernel:result.union-threads": {
+          "medianMs": 1.612,
+          "minMs": 1.075,
+          "maxMs": 3.486,
+          "madMs": 0.374,
+          "p95Ms": 3.486,
+          "ci95LowMs": 1.324,
+          "ci95HighMs": 2.341,
+          "samplesMs": [
+            1.075,
+            2.017,
+            2.008,
+            1.389,
+            3.486,
+            2.902,
+            1.26,
+            1.444,
+            1.374,
+            1.78
+          ]
+        },
+        "kernel:io-cuts.create": {
+          "medianMs": 18.039,
+          "minMs": 16.172,
+          "maxMs": 23.814,
+          "madMs": 0.895,
+          "p95Ms": 23.814,
+          "ci95LowMs": 17.438,
+          "ci95HighMs": 19.488,
+          "samplesMs": [
+            16.172,
+            23.814,
+            18.223,
+            19.106,
+            18.921,
+            20.055,
+            17.13,
+            17.854,
+            17.474,
+            17.746
+          ]
+        },
+        "kernel:result.subtract-io-cuts": {
+          "medianMs": 1.89,
+          "minMs": 0.8,
+          "maxMs": 3.154,
+          "madMs": 0.454,
+          "p95Ms": 3.154,
+          "ci95LowMs": 1.07,
+          "ci95HighMs": 2.203,
+          "samplesMs": [
+            0.8,
+            3.154,
+            0.907,
+            1.407,
+            1.941,
+            1.07,
+            2.314,
+            2.041,
+            1.838,
+            2.203
+          ]
+        },
+        "unattributed": {
+          "medianMs": 0.504,
+          "minMs": 0.479,
+          "maxMs": 0.967,
+          "madMs": 0.016,
+          "p95Ms": 0.967,
+          "ci95LowMs": 0.489,
+          "ci95HighMs": 0.7,
+          "samplesMs": [
+            0.489,
+            0.504,
+            0.712,
+            0.505,
+            0.967,
+            0.7,
+            0.488,
+            0.5,
+            0.479,
+            0.512
+          ]
+        },
+        "mesh": {
+          "medianMs": 20.282,
+          "minMs": 17.532,
+          "maxMs": 53.425,
+          "madMs": 1.391,
+          "p95Ms": 53.425,
+          "ci95LowMs": 18.918,
+          "ci95HighMs": 26.518,
+          "samplesMs": [
+            32.57,
+            53.425,
+            20.537,
+            17.532,
+            18.918,
+            19.956,
+            24.398,
+            18.863,
+            20.466,
+            20.098
+          ]
+        },
+        "stl": {
+          "medianMs": 116.581,
+          "minMs": 113.983,
+          "maxMs": 125.993,
+          "madMs": 1.904,
+          "p95Ms": 125.993,
+          "ci95LowMs": 114.912,
+          "ci95HighMs": 121.007,
+          "samplesMs": [
+            113.983,
+            123.788,
+            118.225,
+            115.92,
+            125.993,
+            114.194,
+            118.746,
+            117.242,
+            115.629,
+            115.571
+          ]
+        }
+      },
+      "identity": {
+        "volume": "41220895e0000000",
+        "stl": "b57def4",
+        "stlBytes": 93667084,
+        "threads": 12,
+        "kernelStages": [
+          "bounding.create",
+          "turning-fins.hot",
+          "turning-fins.cool",
+          "corner-fins.union",
+          "straight-fins.hot",
+          "straight-fins.cool",
+          "straight-fins.union",
+          "fins.union",
+          "outer-structure.create",
+          "helical-void.hot",
+          "helical-void.cool",
+          "cool-inner.offset",
+          "hot-fluid-void.subtract",
+          "hot-inner.offset",
+          "cool-fluid-void.subtract",
+          "inner-volume.union",
+          "splitters.union",
+          "outer-volume.offset",
+          "flange.create",
+          "finished-flange.fillet",
+          "finished-flange.smoothen",
+          "outer-volume.union-flange",
+          "io-supports.create",
+          "outer-volume.union-supports",
+          "outer-volume.fillet",
+          "outer-volume.smoothen",
+          "centre-piece.add",
+          "outer-volume.union-structure",
+          "outer-volume.subtract-screw-holes",
+          "outer-volume.project-z-slice",
+          "print-web.create",
+          "outer-volume.subtract-print-web",
+          "result.subtract-inner-volume",
+          "result.union-fins",
+          "result.union-splitters",
+          "result.intersect-bounding",
+          "io-threads.create",
+          "result.union-threads",
+          "io-cuts.create",
+          "result.subtract-io-cuts"
+        ]
+      },
+      "loadBefore": 2.66259765625,
+      "loadAfter": 10.16845703125
+    },
+    "M13": {
+      "description": "SchwarzDiamond preset @ 0.5mm, [-15,15]³: callback vs tape",
+      "phases": {
+        "callback": {
+          "medianMs": 35.804,
+          "minMs": 35.181,
+          "maxMs": 37.102,
+          "madMs": 0.35,
+          "p95Ms": 37.102,
+          "ci95LowMs": 35.356,
+          "ci95HighMs": 35.988,
+          "samplesMs": [
+            35.453,
+            35.933,
+            37.102,
+            35.181,
+            35.258,
+            36.153,
+            35.784,
+            35.823,
+            35.851,
+            35.438
+          ]
+        },
+        "tape": {
+          "medianMs": 13.477,
+          "minMs": 13.249,
+          "maxMs": 13.618,
+          "madMs": 0.135,
+          "p95Ms": 13.618,
+          "ci95LowMs": 13.288,
+          "ci95HighMs": 13.584,
+          "samplesMs": [
+            13.584,
+            13.516,
+            13.504,
+            13.271,
+            13.33,
+            13.249,
+            13.606,
+            13.45,
+            13.618,
+            13.288
+          ]
+        }
+      },
+      "identity": {
+        "callbackVolume": "40d77ef000000000",
+        "tapeVolume": "40d77ef000000000"
+      },
+      "loadBefore": 10.16845703125,
+      "loadAfter": 10.16845703125
+    },
+    "M14": {
+      "description": "QuasiCrystal wireframe gens 0/1/2 @ 2.0mm, QuasiTile_02 seed",
+      "phases": {
+        "gen0": {
+          "medianMs": 20.611,
+          "minMs": 20.391,
+          "maxMs": 20.958,
+          "madMs": 0.139,
+          "p95Ms": 20.958,
+          "ci95LowMs": 20.449,
+          "ci95HighMs": 20.731,
+          "samplesMs": [
+            20.635,
+            20.612,
+            20.77,
+            20.444,
+            20.492,
+            20.611,
+            20.958,
+            20.391,
+            20.449,
+            20.731
+          ]
+        },
+        "gen1": {
+          "medianMs": 81.962,
+          "minMs": 77.316,
+          "maxMs": 87.816,
+          "madMs": 0.774,
+          "p95Ms": 87.816,
+          "ci95LowMs": 81.126,
+          "ci95HighMs": 82.69,
+          "samplesMs": [
+            77.316,
+            82.078,
+            81.246,
+            83.201,
+            81.846,
+            87.816,
+            81.006,
+            82.179,
+            81.13,
+            82.52
+          ]
+        },
+        "gen2": {
+          "medianMs": 3364.924,
+          "minMs": 3325.105,
+          "maxMs": 3408.431,
+          "madMs": 31.271,
+          "p95Ms": 3408.431,
+          "ci95LowMs": 3335.821,
+          "ci95HighMs": 3398.363,
+          "samplesMs": [
+            3365.234,
+            3402.489,
+            3364.613,
+            3363.951,
+            3398.363,
+            3408.431,
+            3328.687,
+            3325.105,
+            3372.483,
+            3335.821
+          ]
+        }
+      },
+      "identity": {
+        "gen0Volume": "40bb6bb540000000",
+        "gen1Volume": "40f6baace0000000",
+        "gen2Volume": "411a377d00000000"
+      },
+      "loadBefore": 10.16845703125,
+      "loadAfter": 6.81787109375
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+ "heatx@1mm": {
+  "gridHash": "d62d8a54aa9cf7f4a44b6d80d1c71ab5",
+  "activeVoxels": 1447517,
+  "insideTiles": 0,
+  "insideOffVoxels": 9451,
+  "volumeHex": "41220895e0000000",
+  "triangles": 1873340,
+  "vertices": 928632,
+  "multiset": "2d4f19b600d4afa16ad2f6a9ff8fb3e18d5565574ab2f20958a74059c02c26c0"
+ },
+ "heatx@0.7mm": {
+  "gridHash": "cb75cf9fdbe4ee0617a64fa9144c7280",
+  "activeVoxels": 3935498,
+  "insideTiles": 0,
+  "insideOffVoxels": 106223,
+  "volumeHex": "4121ffe5a0000000",
+  "triangles": 4542744,
+  "vertices": 2238080,
+  "multiset": "4f2a102033402c3075f2158a5322ebd29378cfe4fd8ed9642696773fa955195d"
+ }
+}

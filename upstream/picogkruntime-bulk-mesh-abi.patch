@@ -1,0 +1,178 @@
+PicoGKRuntime 26.2 (0f26321c) — bulk mesh transfer in the C ABI.
+
+PROPOSAL, NOT APPLIED LOCALLY. picovoxel ships this as a sibling translation
+unit (src/pico-bulk.cpp) so the vendored tree stays pristine; this file is the
+same code shaped as a diff against upstream, for leap71/PicoGKRuntime. Ledger
+row U4. Companion PR text: upstream/pr-bulk-mesh-transfer.md.
+
+REPO SPLIT: this patch is the C ABI half only. The C# binding half —
+Mesh.vVertices()/vTriangles() reading through the four new exports instead of
+looping Mesh_GetVertex/Mesh_GetTriangle — targets a DIFFERENT repository
+(leap71/PicoGK) and is described in the PR text rather than diffed here.
+
+Why: the ABI moves mesh data one element per call. Reading a 174k-vertex mesh
+costs ~522k crossings; on managed and wasm hosts the crossing dominates
+everything else. Measured in the picovoxel WebAssembly port: 522k crossings
+become 2, ~150x faster on readback. The same shape serves C#, Python and any
+other binding.
+
+Signatures follow the existing caller-supplied-buffer precedent
+(Voxels_GetZSlice, PicoGK.h:341). Reads clamp to the caller's buffer and return
+the count written; writes return the index of the first appended element, or -1
+on bad input, and go through Mesh::nAddVertex/nAddTriangle so the bounding box
+and nMemUsage bookkeeping stay correct.
+
+Layout note: Vector3 and Triangle are 12-byte #pragma pack(1) types identical
+in layout to PKVector3/PKTriangle. Vector3 has a user-provided copy constructor
+(PicoGKTypes.h:146), so std::copy and not memcpy — clang lowers it to the same
+vectorised move at -O3.
+
+Differentially tested byte-identical against the per-element path (100k-vertex
+FNV-1a comparison) in the picovoxel suite. Evidence: the R11 measurement in
+MIGRATING-FROM-CSHARP.md U4; the shipped implementation in src/pico-bulk.cpp.
+
+Applies with `patch -p1` to a pristine PicoGKRuntime 0f26321c tree.
+
+--- a/API/PicoGK.h
++++ b/API/PicoGK.h
+@@ -172,7 +172,33 @@
+ PICOGK_API void             Mesh_GetBoundingBox(            PKINSTANCE          hInstance,
+                                                             PKMESH              hThis,
+                                                             PKBBox3*            poBox);
++
++// Bulk mesh transfer. Same caller-supplied-buffer convention as
++// Voxels_GetZSlice: the caller sizes the buffer from Mesh_nVertexCount /
++// Mesh_nTriangleCount. Reads return the number of elements written (clamped to
++// the buffer); writes return the index of the FIRST appended element, or -1 on
++// bad input.
++
++PICOGK_API int32_t          Mesh_GetVertices(               PKINSTANCE          hInstance,
++                                                            PKMESH              hThis,
++                                                            PKVector3*          pvecBuffer,
++                                                            int32_t             nBufferCount);
++
++PICOGK_API int32_t          Mesh_GetTriangles(              PKINSTANCE          hInstance,
++                                                            PKMESH              hThis,
++                                                            PKTriangle*         psBuffer,
++                                                            int32_t             nBufferCount);
++
++PICOGK_API int32_t          Mesh_AddVertices(               PKINSTANCE          hInstance,
++                                                            PKMESH              hThis,
++                                                            const PKVector3*    pvecBuffer,
++                                                            int32_t             nCount);
+ 
++PICOGK_API int32_t          Mesh_AddTriangles(              PKINSTANCE          hInstance,
++                                                            PKMESH              hThis,
++                                                            const PKTriangle*   psBuffer,
++                                                            int32_t             nCount);
++
+ // LATTICE
+ 
+ PICOGK_API PKLATTICE        Lattice_hCreate(                PKINSTANCE          hInstance);
+--- a/Source/PicoGKLibrary.cpp
++++ b/Source/PicoGKLibrary.cpp
+@@ -42,6 +42,8 @@
+ #include "PicoGKGLViewerManager.h"
+ 
+ #include "PicoGKTrace.h"
++
++#include <algorithm>
+ 
+ using namespace PicoGK;
+ 
+@@ -329,8 +331,95 @@
+ {
+     Library::Instance::Ptr roLib = Library::oLib().roGetInstance(hLib);
+     return roLib->m_oMeshes.roGet(hThis)->nTriangleCount();
++}
++
++// Bulk mesh transfer.
++//
++// Vertices and triangles already live in contiguous std::vectors of 12-byte
++// #pragma pack(1) types that are layout-identical to PKVector3 / PKTriangle, so
++// reads are one std::copy. (Vector3 has a user-provided copy constructor, so
++// std::copy and not memcpy — clang lowers it to the same vectorised move at -O3.)
++//
++// Writes route through nAddVertex / nAddTriangle per element so the bounding box
++// and the memory bookkeeping stay correct; the win was never the loop, it was not
++// crossing the ABI once per element.
++
++PICOGK_API int32_t Mesh_GetVertices(    PKINSTANCE hLib,
++                                        PKMESH hThis,
++                                        PKVector3* pvecBuffer,
++                                        int32_t nBufferCount)
++{
++    if (pvecBuffer == nullptr || nBufferCount <= 0)
++        return 0;
++
++    Library::Instance::Ptr roLib = Library::oLib().roGetInstance(hLib);
++    const std::vector<Vector3>& oVertices
++        = roLib->m_oMeshes.roGet(hThis)->vVertices();
++
++    const int32_t nCount = std::min(   nBufferCount,
++                                        (int32_t) oVertices.size());
++
++    std::copy(oVertices.begin(), oVertices.begin() + nCount, pvecBuffer);
++    return nCount;
+ }
+ 
++PICOGK_API int32_t Mesh_GetTriangles(   PKINSTANCE hLib,
++                                        PKMESH hThis,
++                                        PKTriangle* psBuffer,
++                                        int32_t nBufferCount)
++{
++    if (psBuffer == nullptr || nBufferCount <= 0)
++        return 0;
++
++    Library::Instance::Ptr roLib = Library::oLib().roGetInstance(hLib);
++    const std::vector<Triangle>& oTriangles
++        = roLib->m_oMeshes.roGet(hThis)->vTriangles();
++
++    const int32_t nCount = std::min(   nBufferCount,
++                                        (int32_t) oTriangles.size());
++
++    std::copy(oTriangles.begin(), oTriangles.begin() + nCount, psBuffer);
++    return nCount;
++}
++
++PICOGK_API int32_t Mesh_AddVertices(    PKINSTANCE hLib,
++                                        PKMESH hThis,
++                                        const PKVector3* pvecBuffer,
++                                        int32_t nCount)
++{
++    if (pvecBuffer == nullptr || nCount <= 0)
++        return -1;
++
++    Library::Instance::Ptr roLib = Library::oLib().roGetInstance(hLib);
++    Mesh::Ptr roMesh = roLib->m_oMeshes.roGet(hThis);
++
++    const int32_t nFirst = roMesh->nAddVertex(pvecBuffer[0]);
++
++    for (int32_t n = 1; n < nCount; n++)
++        roMesh->nAddVertex(pvecBuffer[n]);
++
++    return nFirst;
++}
++
++PICOGK_API int32_t Mesh_AddTriangles(   PKINSTANCE hLib,
++                                        PKMESH hThis,
++                                        const PKTriangle* psBuffer,
++                                        int32_t nCount)
++{
++    if (psBuffer == nullptr || nCount <= 0)
++        return -1;
++
++    Library::Instance::Ptr roLib = Library::oLib().roGetInstance(hLib);
++    Mesh::Ptr roMesh = roLib->m_oMeshes.roGet(hThis);
++
++    const int32_t nFirst = roMesh->nAddTriangle(psBuffer[0]);
++
++    for (int32_t n = 1; n < nCount; n++)
++        roMesh->nAddTriangle(psBuffer[n]);
++
++    return nFirst;
++}
++
+ PICOGK_API PKLATTICE Lattice_hCreate(PKINSTANCE hLib)
+ {
+     PKTRACE(Lattice_hCreate);

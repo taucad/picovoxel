@@ -1,0 +1,43 @@
+{
+  "capturedAt": "2026-07-23",
+  "command": "npm run spike:node-webgpu",
+  "environment": {
+    "cpu": "Apple M2 Pro",
+    "node": "v26.5.0",
+    "os": "darwin 25.5.0",
+    "rustc": "rustc 1.88.0 (6b00bc388 2025-06-23)",
+    "wgpu": "30.0.0"
+  },
+  "napi": {
+    "acceleratedPathEngaged": true,
+    "adapterName": "Apple M2 Pro",
+    "backend": "Metal",
+    "deviceType": "IntegratedGpu",
+    "values": [
+      12,
+      24,
+      36,
+      48
+    ]
+  },
+  "native": {
+    "acceleratedPathEngaged": true,
+    "adapterName": "Apple M2 Pro",
+    "backend": "Metal",
+    "deviceType": "IntegratedGpu",
+    "values": [
+      12,
+      24,
+      36,
+      48
+    ]
+  },
+  "softwareAdapterProbe": {
+    "available": false,
+    "requested": {
+      "adapterName": "llvmpipe",
+      "backend": "vulkan"
+    },
+    "reason": "request_adapter: no Backends(VULKAN) adapter matched WGPU_ADAPTER_NAME=llvmpipe"
+  }
+}

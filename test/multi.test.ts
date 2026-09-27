@@ -81,3 +81,48 @@ test('multi session: shared heap, engaged worker pool, serial-identical geometry
     serial.dispose();
   }
 });
+
+// SKv2-0 V0.4 — the fast lane's offset family: a fastRenorm session on the MT
+// artifact must be G0-identical to the same session on the serial artifact
+// (thread-count AND allocator independent — multi links mimalloc since V0.3),
+// and the SK-0.8 hard health boolean must hold on the fast-lane output.
+test('fastRenorm session on the MT artifact: single≡multi G0 identity, healthy level set', async () => {
+  const multi = await multiEntry.createPico({ voxelSize: 0.4, fastRenorm: true });
+  const serial = await serialEntry.createPico({ voxelSize: 0.4, fastRenorm: true });
+  try {
+    const body = (pk: typeof multi) =>
+      pk
+        .createVoxels({ shape: 'sphere', radius: 8 })
+        .union(pk.createVoxels({ shape: 'beam', start: [-2, -2, -2], end: [12, 2, 2], radius: 2 }));
+    const diagnose = (pk: typeof multi, handle: bigint): string => {
+      const bDiagnose = pk.module.cwrap('Voxels_bDiagnose', 'boolean', ['bigint', 'bigint', 'number']) as (
+        l: bigint, h: bigint, p: number) => boolean;
+      const p = pk.module._malloc(255);
+      try {
+        bDiagnose(pk.handle, handle, p);
+        return pk.module.UTF8ToString(p);
+      } finally {
+        pk.module._free(p);
+      }
+    };
+    const ops: [string, (v: ReturnType<typeof body>) => ReturnType<typeof body>][] = [
+      ['offset', (v) => v.offset({ distance: 2 })],
+      ['doubleOffset', (v) => v.doubleOffset({ first: 2, second: -2 })],
+      ['smoothen', (v) => v.smoothen({ distance: 1 })],
+      ['fillet', (v) => v.fillet({ rounding: 2 })],
+      ['shell', (v) => v.shell({ inner: -1, outer: 1 })],
+    ];
+    for (const [label, run] of ops) {
+      const m = run(body(multi));
+      const s = run(body(serial));
+      // Full G0 record equality: hash + active/inside counts, not just the digest.
+      expect(m.gridHash(), `${label}: fast-lane multi drifted from serial`).toEqual(s.gridHash());
+      expect(diagnose(multi, m.handle), `${label}: fast-lane level set unhealthy`).toBe('');
+      m.dispose();
+      s.dispose();
+    }
+  } finally {
+    multi.dispose();
+    serial.dispose();
+  }
+});

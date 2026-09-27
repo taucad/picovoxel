@@ -1,0 +1,302 @@
+OpenVDB 13.0 (7c03e1f0) — opt-in flat quad output for VolumeToMesh's uniform
+path, upstreamable to AcademySoftwareFoundation/openvdb (extends U10).
+
+Applied to vendor/PicoGKRuntime/openvdb by scripts/fetch-deps.sh. After
+changing this patch, re-run scripts/build-deps-wasm.sh (both variants) so the
+dependency prefixes reinstall the header.
+
+tools/VolumeToMesh.h — the uniform (non-adaptive) polygon pass allocates two
+arrays per leaf (PolygonPool quads + flags) and trims each afterwards; under a
+12-thread run those per-leaf allocations serialize on the allocator lock.
+enableFlatQuadOutput() routes the same emission (identical per-leaf loop,
+identical order, same reverse swizzle) through per-leaf upper-bound slot
+ranges of ONE shared array: parallel upper-bound count (the same edge count
+the pools were sized with) -> serial prefix sum -> parallel emission recording
+exact per-leaf counts. Consumers read flatQuads() +
+flatQuadLeafOffsets()/flatQuadLeafCounts(). Off by default; pool path and
+adaptive/reference meshing unchanged. Measured on picovoxel SK-0.6 (M2 Pro,
+wasm, 12T): polygon phase 3.5 -> 2.1-3.4 ms and allocation-free; the
+remaining extraction wall is tree lifecycle (identify/auxdata/clear ~19 of
+24 ms), recorded in bench/results/webgpu-v2/SK-0.6.md.
+
+Evidence: docs/research/gpu-surface-extraction-survey.md (disjoint-slot
+polygon discipline, OCCT L1/L4), bench/results/webgpu-v2/SK-0.6.md.
+--- a/openvdb/openvdb/tools/VolumeToMesh.h	2025-11-04 12:04:25
++++ b/openvdb/openvdb/tools/VolumeToMesh.h	2026-07-26 16:48:24
+@@ -189,6 +189,26 @@
+     PolygonPoolList& polygonPoolList() { return mPolygons; }
+     const PolygonPoolList& polygonPoolList() const { return mPolygons; }
+ 
++    /// @{
++    /// @brief  Opt-in flat quad output for the uniform (non-adaptive,
++    ///         non-reference) path: quads are written into one shared array at
++    ///         per-leaf upper-bound offsets instead of per-leaf PolygonPool
++    ///         allocations — two heap allocations per leaf otherwise, which
++    ///         serialize on the allocator lock under thread contention.
++    ///         Emission order per leaf and across leaves is unchanged. When
++    ///         active (and the call is uniform, without a reference grid), the
++    ///         PolygonPoolList is left empty; consume flatQuads() with
++    ///         flatQuadLeafOffsets()/flatQuadLeafCounts() — leaf n's quads are
++    ///         the first flatQuadLeafCounts()[n] entries at
++    ///         flatQuads() + flatQuadLeafOffsets()[n]. Flags are not produced
++    ///         (the uniform path only tags reference-meshing seams).
++    void enableFlatQuadOutput() { mFlatQuadsEnabled = true; }
++    bool flatQuadOutputActive() const { return mFlatQuadsActive; }
++    const Vec4I* flatQuads() const { return mFlatQuads.get(); }
++    const std::vector<size_t>& flatQuadLeafOffsets() const { return mFlatQuadOffsets; }
++    const std::vector<size_t>& flatQuadLeafCounts() const { return mFlatQuadCounts; }
++    /// @}
++
+     std::vector<uint8_t>& pointFlags() { return mPointFlags; }
+     const std::vector<uint8_t>& pointFlags() const { return mPointFlags; }
+     /// @}
+@@ -265,6 +285,11 @@
+ 
+     std::unique_ptr<uint32_t[]> mQuantizedSeamPoints;
+     std::vector<uint8_t> mPointFlags;
++
++    // Flat quad output (see enableFlatQuadOutput)
++    bool mFlatQuadsEnabled = false, mFlatQuadsActive = false;
++    std::unique_ptr<Vec4I[]> mFlatQuads;
++    std::vector<size_t> mFlatQuadOffsets, mFlatQuadCounts;
+ }; // struct VolumeToMesh
+ 
+ 
+@@ -2385,6 +2410,44 @@
+ };
+ 
+ 
++// UniformPrimBuilder writing into a caller-provided slot range of one shared
++// flat array instead of a per-leaf PolygonPool — no per-leaf allocations, no
++// trim. Same addPrim semantics (including the reverse swizzle); flags are
++// dropped (the uniform path only produces them under reference meshing, which
++// the flat mode excludes).
++struct FlatUniformPrimBuilder
++{
++    FlatUniformPrimBuilder(): mIdx(0), mQuads(nullptr) {}
++
++    void init(const size_t /*upperBound*/, Vec4I* slotBase)
++    {
++        mQuads = slotBase;
++        mIdx = 0;
++    }
++
++    template<typename IndexType>
++    void addPrim(const math::Vec4<IndexType>& verts, bool reverse, char /*flags*/ = 0)
++    {
++        if (!reverse) {
++            mQuads[mIdx] = verts;
++        } else {
++            Vec4I& quad = mQuads[mIdx];
++            quad[0] = verts[3];
++            quad[1] = verts[2];
++            quad[2] = verts[1];
++            quad[3] = verts[0];
++        }
++        ++mIdx;
++    }
++
++    size_t done() { return mIdx; }
++
++private:
++    size_t mIdx;
++    Vec4I* mQuads;
++};
++
++
+ // Constructs qudas and triangles
+ struct AdaptivePrimBuilder
+ {
+@@ -4114,8 +4177,148 @@
+     }
+ 
+ } // ComputePolygons::operator()
++
++
++// Flat-mode uniform polygon pipeline (see VolumeToMesh::enableFlatQuadOutput).
++// Pass 1: per-leaf quad upper bound = the same edge count ComputePolygons uses
++// to size each PolygonPool. Pass 2: emission through FlatUniformPrimBuilder
++// into per-leaf slot ranges of one shared array — the loop body mirrors
++// ComputePolygons::operator() exactly, so per-leaf emission order (and thus
++// final output order after compaction) is unchanged.
++
++template<typename TreeType>
++struct CountUniformQuadBounds
++{
++    using Int16TreeType = typename TreeType::template ValueConverter<Int16>::Type;
++    using Int16LeafNodeType = typename Int16TreeType::LeafNodeType;
++
++    CountUniformQuadBounds(
++        const std::vector<Int16LeafNodeType*>& signFlagsLeafNodes,
++        size_t * const upperBounds)
++        : mSignFlagsLeafNodes(signFlagsLeafNodes.data())
++        , mUpperBounds(upperBounds)
++    {
++    }
++
++    void operator()(const tbb::blocked_range<size_t>& range) const
++    {
++        for (size_t n = range.begin(); n != range.end(); ++n) {
++            size_t edgeCount = 0;
++            typename Int16LeafNodeType::ValueOnCIter iter =
++                mSignFlagsLeafNodes[n]->cbeginValueOn();
++            for (; iter; ++iter) {
++                if (iter.getValue() & XEDGE) ++edgeCount;
++                if (iter.getValue() & YEDGE) ++edgeCount;
++                if (iter.getValue() & ZEDGE) ++edgeCount;
++            }
++            mUpperBounds[n] = edgeCount;
++        }
++    }
++
++private:
++    Int16LeafNodeType * const * const mSignFlagsLeafNodes;
++    size_t              * const       mUpperBounds;
++}; // struct CountUniformQuadBounds
++
++
++template<typename TreeType>
++struct ComputeFlatQuads
++{
++    using Int16TreeType = typename TreeType::template ValueConverter<Int16>::Type;
++    using Int16LeafNodeType = typename Int16TreeType::LeafNodeType;
++
++    using Index32TreeType = typename TreeType::template ValueConverter<Index32>::Type;
++    using Index32LeafNodeType = typename Index32TreeType::LeafNodeType;
++
++    ComputeFlatQuads(
++        const std::vector<Int16LeafNodeType*>& signFlagsLeafNodes,
++        const Int16TreeType& signFlagsTree,
++        const Index32TreeType& idxTree,
++        Vec4I * const quads,
++        const size_t * const slotOffsets,
++        size_t * const counts,
++        bool invertSurfaceOrientation)
++        : mSignFlagsLeafNodes(signFlagsLeafNodes.data())
++        , mSignFlagsTree(&signFlagsTree)
++        , mIndexTree(&idxTree)
++        , mQuads(quads)
++        , mSlotOffsets(slotOffsets)
++        , mCounts(counts)
++        , mInvertSurfaceOrientation(invertSurfaceOrientation)
++    {
++    }
++
++    void operator()(const tbb::blocked_range<size_t>& range) const
++    {
++        using Int16ValueAccessor = tree::ValueAccessor<const Int16TreeType>;
++        Int16ValueAccessor signAcc(*mSignFlagsTree);
++
++        tree::ValueAccessor<const Index32TreeType> idxAcc(*mIndexTree);
++
++        const bool invertSurfaceOrientation = mInvertSurfaceOrientation;
++
++        FlatUniformPrimBuilder mesher;
++        Coord ijk, origin;
++
++        for (size_t n = range.begin(); n != range.end(); ++n) {
++
++            mCounts[n] = 0;
++
++            const Int16LeafNodeType& node = *mSignFlagsLeafNodes[n];
++            origin = node.origin();
++
++            mesher.init(0, mQuads + mSlotOffsets[n]);
++
++            const Int16LeafNodeType *signleafPt = signAcc.probeConstLeaf(origin);
++            const Index32LeafNodeType *idxLeafPt = idxAcc.probeConstLeaf(origin);
++
++            if (!signleafPt || !idxLeafPt) continue;
++
++            Vec3i offsets;
++
++            for (typename Int16LeafNodeType::ValueOnCIter iter = node.cbeginValueOn();
++                iter; ++iter)
++            {
++                ijk = iter.getCoord();
++
++                const Int16 flags = iter.getValue();
++                if (!(flags & 0xE00)) continue;
++
++                const uint8_t cell = uint8_t(SIGNS & flags);
++
++                if (sEdgeGroupTable[cell][0] > 1) {
++                    offsets[0] = (sEdgeGroupTable[cell][1] - 1);
++                    offsets[1] = (sEdgeGroupTable[cell][9] - 1);
++                    offsets[2] = (sEdgeGroupTable[cell][4] - 1);
++                }
++                else {
++                    offsets.setZero();
++                }
+ 
++                if (ijk[0] > origin[0] && ijk[1] > origin[1] && ijk[2] > origin[2]) {
++                    constructPolygons(invertSurfaceOrientation,
++                        flags, Int16(0), offsets, ijk, *signleafPt, *idxLeafPt, mesher);
++                } else {
++                    constructPolygons(invertSurfaceOrientation,
++                        flags, Int16(0), offsets, ijk, signAcc, idxAcc, mesher);
++                }
++            }
+ 
++            mCounts[n] = mesher.done();
++        }
++    }
++
++private:
++    Int16LeafNodeType * const * const mSignFlagsLeafNodes;
++    Int16TreeType       const * const mSignFlagsTree;
++    Index32TreeType     const * const mIndexTree;
++    Vec4I                     * const mQuads;
++    size_t              const * const mSlotOffsets;
++    size_t                    * const mCounts;
++    bool                        const mInvertSurfaceOrientation;
++}; // struct ComputeFlatQuads
++
++
+ ////////////////////////////////////////
+ 
+ 
+@@ -5139,8 +5342,43 @@
+ 
+         if (referenceMeshing) {
+             op.setRefSignTree(refSignFlagsTree);
++        }
++
++        tbb::parallel_for(auxiliaryLeafNodeRange, op);
++
++    } else if (mFlatQuadsEnabled && !referenceMeshing) {
++
++        // Flat mode: shared quad array with per-leaf upper-bound slots — the
++        // two per-leaf PolygonPool allocations (which serialize on the
++        // allocator lock under thread contention) disappear. Emission order
++        // is identical to the pool path; the pool list stays empty.
++        mFlatQuadsActive = true;
++
++        const size_t numLeaves = signFlagsLeafNodes.size();
++        mFlatQuadOffsets.resize(numLeaves + 1);
++        mFlatQuadCounts.assign(numLeaves, 0);
++
++        {
++            std::unique_ptr<size_t[]> upperBounds(new size_t[numLeaves]);
++
++            volume_to_mesh_internal::CountUniformQuadBounds<Int16TreeType>
++                countOp(signFlagsLeafNodes, upperBounds.get());
++            tbb::parallel_for(auxiliaryLeafNodeRange, countOp);
++
++            size_t sum = 0;
++            for (size_t n = 0; n < numLeaves; ++n) {
++                mFlatQuadOffsets[n] = sum;
++                sum += upperBounds[n];
++            }
++            mFlatQuadOffsets[numLeaves] = sum;
++            mFlatQuads.reset(new Vec4I[sum]);
+         }
+ 
++        volume_to_mesh_internal::ComputeFlatQuads<Int16TreeType>
++            op(signFlagsLeafNodes, signFlagsTree, pointIndexTree,
++                mFlatQuads.get(), mFlatQuadOffsets.data(), mFlatQuadCounts.data(),
++                invertSurfaceOrientation);
++
+         tbb::parallel_for(auxiliaryLeafNodeRange, op);
+ 
+     } else {

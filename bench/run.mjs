@@ -7,9 +7,17 @@
 // fingerprint. The project was burned twice by load-skewed numbers ("flat 2.6x",
 // "506x"); this file is why that cannot happen silently again.
 //
+// Some canonical metrics intentionally occupy every wasm pthread, so their own
+// work contaminates post-metric load averages. Eligibility is therefore decided
+// once, before sampling; per-metric load values remain in the evidence alongside
+// raw samples and confidence statistics.
+//
 // Usage: node bench/run.mjs [--allow-loaded] [--update]
 //   --allow-loaded  skip the loadavg guard (CI drift canaries only, never baselines)
 //   --update        regenerate bench/BENCHMARKS.md from this run (R28)
+//   BENCH_REPEATS=N measured repeats per metric (default 5). SK-0.1 runs at 10+:
+//                   a bootstrap CI over 5 samples resolves only gross differences,
+//                   and allocator deltas are expected in the tens of percent.
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -20,17 +28,28 @@ import { fileURLToPath } from 'node:url';
 import { createPico } from '../src/index.ts';
 import { buildGearMesh } from '../examples/pico/gear.ts';
 import { sliceVoxels } from '../src/slicing.ts';
+import { preserveAppendix, summarizeBootstrapMedian } from './stats.mjs';
 
 const HERE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ALLOW_LOADED = process.argv.includes('--allow-loaded');
 const UPDATE = process.argv.includes('--update');
+if (ALLOW_LOADED && UPDATE) {
+  console.error('REFUSED: --allow-loaded cannot be combined with --update; loaded runs are never baselines.');
+  process.exit(1);
+}
 
 // ── Guards and fingerprint ──
 const cores = cpus().length;
+// Project benchmark policy for this spike: tolerate up to half-core-count
+// background load on the shared reference workstation. Statistical confidence
+// intervals and paired ratios remain mandatory.
+const quietLoadCeiling = cores / 2;
 const startLoad = loadavg()[0];
-if (!ALLOW_LOADED && startLoad > cores / 4) {
-  console.error(`REFUSED: 1-min loadavg ${startLoad.toFixed(2)} > cores/4 (${(cores / 4).toFixed(2)}). ` +
-    'Benchmark on a quiet machine, or pass --allow-loaded for non-baseline runs.');
+if (!ALLOW_LOADED && startLoad > quietLoadCeiling) {
+  console.error(
+    `REFUSED: 1-min loadavg ${startLoad.toFixed(2)} > cores/2 (${quietLoadCeiling.toFixed(2)}). ` +
+      'Benchmark on a quiet machine, or pass --allow-loaded for non-baseline runs.',
+  );
   process.exit(1);
 }
 
@@ -63,10 +82,12 @@ const fnv1a = (typedArray) => {
   }
   return (hash >>> 0).toString(16);
 };
-const median = (values) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
-
 // ── Runner: 1 warmup + 5 measured; identity must be bit-stable across repeats ──
-const REPEATS = 5;
+const REPEATS = Number(process.env.BENCH_REPEATS ?? 5);
+if (!Number.isInteger(REPEATS) || REPEATS < 1) {
+  console.error(`REFUSED: BENCH_REPEATS must be a positive integer, got ${process.env.BENCH_REPEATS}`);
+  process.exit(1);
+}
 const results = {};
 async function metric(id, description, body) {
   const phaseSamples = {};
@@ -89,22 +110,43 @@ async function metric(id, description, body) {
   }
   const loadAfter = loadavg()[0];
   const phases = Object.fromEntries(
-    Object.entries(phaseSamples).map(([phase, samples]) => [
-      phase,
-      { medianMs: +median(samples).toFixed(3), minMs: +Math.min(...samples).toFixed(3), maxMs: +Math.max(...samples).toFixed(3) },
-    ]),
+    Object.entries(phaseSamples).map(([phase, samples]) => {
+      const summary = summarizeBootstrapMedian(samples);
+      return [
+        phase,
+        {
+          medianMs: +summary.median.toFixed(3),
+          minMs: +summary.min.toFixed(3),
+          maxMs: +summary.max.toFixed(3),
+          madMs: +summary.mad.toFixed(3),
+          p95Ms: +summary.p95.toFixed(3),
+          ci95LowMs: +summary.ci95.low.toFixed(3),
+          ci95HighMs: +summary.ci95.high.toFixed(3),
+          samplesMs: summary.samples.map((sample) => +sample.toFixed(3)),
+        },
+      ];
+    }),
   );
-  // The bench itself is single-threaded and legitimately adds ~1 to the 1-min
-  // loadavg; the flag is for OTHER load appearing mid-run.
-  const flagged = !ALLOW_LOADED && loadAfter > cores / 4 + 1;
-  results[id] = { description, phases, identity: identity ? JSON.parse(identity) : null, loadBefore, loadAfter, flagged };
-  const summary = Object.entries(phases).map(([phase, s]) => `${phase} ${s.medianMs}ms`).join(', ');
-  console.log(`${id}: ${summary}${flagged ? '  [LOAD-FLAGGED]' : ''}`);
+  results[id] = {
+    description,
+    phases,
+    identity: identity ? JSON.parse(identity) : null,
+    loadBefore,
+    loadAfter,
+  };
+  const summary = Object.entries(phases)
+    .map(([phase, s]) => `${phase} ${s.medianMs}ms`)
+    .join(', ');
+  console.log(`${id}: ${summary}`);
 }
 
 const now = () => performance.now();
 const gyroidSdf = (scale) => (x, y, z) =>
-  Math.abs(Math.sin(x * scale) * Math.cos(y * scale) + Math.sin(y * scale) * Math.cos(z * scale) + Math.sin(z * scale) * Math.cos(x * scale)) - 0.4;
+  Math.abs(
+    Math.sin(x * scale) * Math.cos(y * scale) +
+      Math.sin(y * scale) * Math.cos(z * scale) +
+      Math.sin(z * scale) * Math.cos(x * scale),
+  ) - 0.4;
 
 // ── M1 — cold instantiate ──
 await metric('M1', 'createPico() cold instantiate (5.8 MB module)', async () => {
@@ -120,7 +162,10 @@ const pk = await createPico({ voxelSize: 0.5 });
 const fine = await createPico({ voxelSize: 0.25 });
 
 // ── M2 — sphere build ──
-for (const [suffix, session] of [['0.5', pk], ['0.25', fine]]) {
+for (const [suffix, session] of [
+  ['0.5', pk],
+  ['0.25', fine],
+]) {
   await metric(`M2@${suffix}`, `sphere r=10 @ ${suffix}mm`, () => {
     const t0 = now();
     const sphere = session.createVoxels({ shape: 'sphere', radius: 10 });
@@ -134,7 +179,10 @@ for (const [suffix, session] of [['0.5', pk], ['0.25', fine]]) {
 }
 
 // ── M3 — gyroid implicit (the R20 headline: JS SDF callback path) ──
-for (const [suffix, session] of [['0.5', pk], ['0.25', fine]]) {
+for (const [suffix, session] of [
+  ['0.5', pk],
+  ['0.25', fine],
+]) {
   await metric(`M3@${suffix}`, `gyroid implicit @ ${suffix}mm (JS SDF)`, () => {
     const t0 = now();
     const gyroid = session.createVoxels({
@@ -169,9 +217,9 @@ await metric('M4', 'union + subtract + intersect chain (differential shapes)', (
 
 // ── M5 — offsets ──
 await metric('M5', 'offset +2 and smoothen(1) on a CSG body', () => {
-  const base = pk.createVoxels({ shape: 'sphere', radius: 10 }).union(
-    pk.createVoxels({ shape: 'beam', start: [0, -15, 0], end: [0, 15, 0], radius: 4 }),
-  );
+  const base = pk
+    .createVoxels({ shape: 'sphere', radius: 10 })
+    .union(pk.createVoxels({ shape: 'beam', start: [0, -15, 0], end: [0, 15, 0], radius: 4 }));
   const t0 = now();
   const grown = base.offset({ distance: 2 });
   const offsetMs = now() - t0;
@@ -208,7 +256,7 @@ await metric('M6', 'mesh readback bulk vs per-element (0.25mm gyroid)', () => {
   const identity = { vertices: fnv1a(vertices), count };
   mesh.dispose();
   gyroid.dispose();
-  return { phases: { bulk: bulkMs, perElement: perElementMs } , identity };
+  return { phases: { bulk: bulkMs, perElement: perElementMs }, identity };
 });
 
 // ── M7 — bulk import (STL import proxy) ──
@@ -245,7 +293,13 @@ await metric('M8', 'full interpolated slice sweep + vectorize (sphere r=8)', () 
   return { phases: { sweep: sweepMs }, identity };
 });
 
-// ── M9 — facade overhead vs raw cwrap (A1's 33.6 ns/call baseline) ──
+// ── M9 — facade vs the legacy ccall path (A1's 33.6 ns/call baseline).
+// `rawIsEmpty` is deliberately a hand-built cwrap: with a bigint argType it falls
+// back to ccall, the path SK-0.2 removed from the generated bindings. Holding it
+// fixed keeps the metric comparable across history. Expect only a few percent
+// between the two rows, not SK-0.2's 3× — `bIsEmpty` on a REAL sphere field costs
+// ~1.6 µs of C++, so the ~65 ns boundary delta is noise against it. The per-call
+// number itself is measured in isolation by bench/abi-call-cost.mjs. ──
 await metric('M9', 'facade vs raw: 10k isEmpty calls', () => {
   const sphere = pk.createVoxels({ shape: 'sphere', radius: 5 });
   const rawIsEmpty = pk.module.cwrap('Voxels_bIsEmpty', 'boolean', ['bigint', 'bigint']);
@@ -266,10 +320,19 @@ await metric('M9', 'facade vs raw: 10k isEmpty calls', () => {
 // reachable from pthread workers.
 {
   const s = (2 * Math.PI) / 10;
-  const gyroidExpression = ['-', ['abs', ['+',
-    ['*', ['sin', ['*', 'x', s]], ['cos', ['*', 'y', s]]],
-    ['*', ['sin', ['*', 'y', s]], ['cos', ['*', 'z', s]]],
-    ['*', ['sin', ['*', 'z', s]], ['cos', ['*', 'x', s]]]]], 0.4];
+  const gyroidExpression = [
+    '-',
+    [
+      'abs',
+      [
+        '+',
+        ['*', ['sin', ['*', 'x', s]], ['cos', ['*', 'y', s]]],
+        ['*', ['sin', ['*', 'y', s]], ['cos', ['*', 'z', s]]],
+        ['*', ['sin', ['*', 'z', s]], ['cos', ['*', 'x', s]]],
+      ],
+    ],
+    0.4,
+  ];
   const { createPico: createMulti } = await import('../src/multi.ts');
   for (const [suffix, make] of [
     ['single', () => createPico({ voxelSize: 0.25 })],
@@ -326,10 +389,12 @@ fine.dispose();
 }
 
 // ── M12 — HelixHeatX @ 1.0mm, single vs multi (real-world subject, blueprint R11) ──
-// The whole flagship Task headless: ~10^5 beams, boolean assembly, the full
-// finishing family, meshing and STL bytes — previews excluded (a delta in the
+// The whole flagship Task headless: 1,197,460 lattice beams over 37 lattices
+// (counted in SK-0.2; the long-standing "~10^5" figure was an order of magnitude
+// low), boolean assembly, the full finishing family, meshing and STL bytes —
+// previews excluded (a delta in the
 // published table's favour). The author phase is the pure-JS lattice-loop
-// share (Finding 8's promotion trigger); kernel = the rest of construction.
+// share (Finding 8's promotion trigger); each kernel stage is timed separately.
 // The full 1.0→0.5mm voxel sweep lives in bench/heatx-sweep.mjs (its own
 // repeat policy — six repeats of the fine cells would take hours).
 {
@@ -341,9 +406,7 @@ fine.dispose();
   ]) {
     await metric(`M12@${suffix}`, `HelixHeatX @ 1.0mm (${suffix} entry)`, async () => {
       const session = await make();
-      const t0 = now();
-      const { voxels, authorMs } = heatXTask(session);
-      const constructMs = now() - t0;
+      const { voxels, authorMs, constructMs, kernelTimings, unattributedMs } = heatXTask(session);
       const t1 = now();
       const mesh = voxels.toMesh();
       const meshMs = now() - t1;
@@ -351,10 +414,23 @@ fine.dispose();
       const stl = mesh.toStl();
       const stlMs = now() - t2;
       const threads = (session.module.PThread?.runningWorkers.length ?? 0) + 1;
-      const identity = { volume: hexFloat(voxels.volume), stl: fnv1a(stl), stlBytes: stl.length, threads };
+      const identity = {
+        volume: hexFloat(voxels.volume),
+        stl: fnv1a(stl),
+        stlBytes: stl.length,
+        threads,
+        kernelStages: kernelTimings.map(({ stage }) => stage),
+      };
       session.dispose();
       return {
-        phases: { author: authorMs, kernel: constructMs - authorMs, mesh: meshMs, stl: stlMs },
+        phases: {
+          construct: constructMs,
+          author: authorMs,
+          ...Object.fromEntries(kernelTimings.map(({ stage, ms }) => [`kernel:${stage}`, ms])),
+          unattributed: unattributedMs,
+          mesh: meshMs,
+          stl: stlMs,
+        },
         identity,
       };
     });
@@ -416,43 +492,61 @@ if (UPDATE) {
   const lines = [];
   lines.push('# picovoxel benchmarks');
   lines.push('');
-  lines.push(`> Measured on ${fingerprint.cpu} (${fingerprint.cores} cores, ${fingerprint.ramGiB} GiB), ` +
-    `${fingerprint.os}, node ${fingerprint.node}, wasm ${fingerprint.wasmSha256.slice(0, 12)} ` +
-    `(${fingerprint.wasmBytes.toLocaleString('en-US')} B), commit ${fingerprint.gitSha}, ${fingerprint.date.slice(0, 10)}.`);
+  lines.push(
+    `> Measured on ${fingerprint.cpu} (${fingerprint.cores} cores, ${fingerprint.ramGiB} GiB), ` +
+      `${fingerprint.os}, node ${fingerprint.node}, wasm ${fingerprint.wasmSha256.slice(0, 12)} ` +
+      `(${fingerprint.wasmBytes.toLocaleString('en-US')} B), commit ${fingerprint.gitSha}, ${fingerprint.date.slice(0, 10)}.`,
+  );
   lines.push('> **Absolute numbers are device-specific; treat ratios and phase splits as the portable signal.**');
-  lines.push(`> Reproduce with \`npm run bench\` (the harness refuses loaded machines). Source: \`bench/results/${fileName}\`.`);
+  lines.push(
+    `> Reproduce with \`npm run bench\` (the harness refuses loaded machines). Source: \`bench/results/${fileName}\`.`,
+  );
   lines.push('>');
-  lines.push('> Native-comparison figures (the ~1.95× PicoGK wasm tax, R20\'s 3–9% SDF callback overhead, R11\'s ~150×');
+  lines.push("> Native-comparison figures (the ~1.95× PicoGK wasm tax, R20's 3–9% SDF callback overhead, R11's ~150×");
   lines.push('> bulk-readback win) are imported by reference from the measured records in the research docs');
-  lines.push('> (picovoxel-wasm-kernel-blueprint) — native builds live outside this repo\'s toolchain.');
+  lines.push("> (picovoxel-wasm-kernel-blueprint) — native builds live outside this repo's toolchain.");
   lines.push('');
   lines.push('| Metric | Description | Phase | Median | Min | Max |');
   lines.push('| --- | --- | --- | ---: | ---: | ---: |');
   for (const [id, entry] of Object.entries(results)) {
     const phases = Object.entries(entry.phases);
     phases.forEach(([phase, s], index) => {
-      lines.push(`| ${index === 0 ? id : ''} | ${index === 0 ? entry.description : ''} | ${phase} | ${s.medianMs} ms | ${s.minMs} | ${s.maxMs} |`);
+      lines.push(
+        `| ${index === 0 ? id : ''} | ${index === 0 ? entry.description : ''} | ${phase} | ${s.medianMs} ms | ${s.minMs} | ${s.maxMs} |`,
+      );
     });
   }
   lines.push('');
-  lines.push('Identity oracles (hex-float volumes, FNV-1a mesh hashes) are bit-stable across the 5 repeats of every metric — enforced by the harness, not reviewed by eye.');
+  lines.push(
+    'Identity oracles (hex-float volumes, FNV-1a mesh hashes) are bit-stable across the 5 repeats of every metric — enforced by the harness, not reviewed by eye.',
+  );
   lines.push('');
   lines.push('**Repeatability**: consecutive quiet-machine runs agree within ±10% on every phase ≥ 1 ms;');
-  lines.push('sub-millisecond phases (e.g. M6 bulk readback) are timer-noise-dominated and may vary up to ±20% — their RATIO to the paired phase is the signal.');
+  lines.push(
+    'sub-millisecond phases (e.g. M6 bulk readback) are timer-noise-dominated and may vary up to ±20% — their RATIO to the paired phase is the signal.',
+  );
   lines.push('');
-  lines.push('**Sanity anchors** (vs the research-doc records): M6\'s bulk-vs-per-element ratio grows with mesh size —');
-  lines.push('~50× here on a ~40k-vertex gyroid, consistent with R11\'s ~150× record at 174k vertices; M3\'s render phase');
-  lines.push('(~130 ns/sample at 0.25 mm including voxel work) is consistent with R20\'s 3–9% JS-SDF callback overhead;');
-  lines.push('M9 shows the facade adds no measurable cost over raw cwraps at 10k calls (within run-to-run noise).');
+  lines.push("**Sanity anchors** (vs the research-doc records): M6's bulk-vs-per-element ratio grows with mesh size —");
+  lines.push(
+    "~50× here on a ~40k-vertex gyroid, consistent with R11's ~150× record at 174k vertices; M3's render phase",
+  );
+  lines.push(
+    "(~130 ns/sample at 0.25 mm including voxel work) is consistent with R20's 3–9% JS-SDF callback overhead;",
+  );
+  lines.push(
+    "M9's raw10k is a deliberately retained emscripten ccall (SK-0.2) and the facade now runs on direct exports; the rows " +
+      'sit within a few percent because bIsEmpty on a real sphere field is ~1.6 µs of C++ against a ~65 ns boundary delta — ' +
+      'the isolated per-call cost is measured by `bench/abi-call-cost.mjs`, not here.',
+  );
   lines.push('');
   // The hand-written appendix (per-change program log) survives regeneration.
   const target = join(HERE, 'bench/BENCHMARKS.md');
-  let appendix = '';
+  let existing = '';
   try {
-    const existing = readFileSync(target, 'utf8');
-    const at = existing.indexOf('## Appendix');
-    if (at !== -1) appendix = existing.slice(at);
-  } catch { /* first generation: no file yet */ }
-  writeFileSync(target, lines.join('\n') + appendix);
+    existing = readFileSync(target, 'utf8');
+  } catch {
+    /* first generation: no file yet */
+  }
+  writeFileSync(target, preserveAppendix(lines.join('\n'), existing));
   console.log('updated bench/BENCHMARKS.md');
 }

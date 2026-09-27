@@ -21,6 +21,7 @@ import {
   withSdfPointer,
   withSdfTape,
   withStrings,
+  type ResolvedLane,
   type SessionContext,
 } from './context.ts';
 import { PicoError, assertLive, guard } from './errors.ts';
@@ -82,6 +83,38 @@ export interface CreatePicoOptions {
   wasm?: object;
   /** Native-memory warning threshold in bytes (default 1 GiB); 0 disables. */
   memoryWarningBytes?: number;
+  /**
+   * SKv2-0 V0.5 (§14.1) — the named lane bundle.
+   * - `'exact'`: the byte-locked numerics policy, LOCKED — session-level or
+   *   per-op loosening (e.g. `fastRenorm: true`) throws `PICO_LANE_LOOSENED`.
+   *   One Class-2 op would destroy the session's structural exactness claim.
+   *   (The L0 *oracle* is specifically this lane on the serial artifact.)
+   * - `'fast'`: Class-2 accelerations default on (`fastRenorm` today; T1/T2
+   *   when they land). Per-op/session-level *tightening* is allowed.
+   * - `'auto'`: resolves to the strongest lane available at construction —
+   *   `'fast'` today, adapter-qualified GPU lanes later. `session.lane`
+   *   always reports the RESOLUTION, never `'auto'` (an unresolved `'auto'`
+   *   is the value that keys identically while resolving differently).
+   * Omitted = no claim: library defaults with per-op freedom both ways (the
+   * pre-lane behavior; `session.lane` reports `'open'`).
+   */
+  lane?: 'exact' | 'fast' | 'auto';
+  /**
+   * Session-wide default for the offset family's `fastRenorm` (SK-0.8
+   * first-order renormalization — 3.5–3.9× on offsets, output bounded and
+   * gated, see `offset()`). Default false = the byte-locked upstream path
+   * (`lane: 'fast'` flips this default to true). Precedence: an explicit
+   * per-op `fastRenorm` always wins over this.
+   */
+  fastRenorm?: boolean;
+  /**
+   * SKv2-0 V0.6 — routes lattice rendering down the serial C#-identical
+   * `Voxels::RenderLattice` loop instead of the parallel tube-complex lane
+   * (both deterministic; they differ at byte level, which is why this is a
+   * keyed init option and not ambient state). Replaces the deleted
+   * `PICOVOXEL_SERIAL_LATTICE` env read.
+   */
+  serialLattice?: boolean;
   /** @internal test seam — fake disposal registry. */
   registry?: HandleRegistry;
   /** @internal test seam — clock for the warning throttle. */
@@ -90,6 +123,8 @@ export interface CreatePicoOptions {
 
 export interface Pico {
   readonly voxelSize: number;
+  /** SKv2-0 V0.5 — the RESOLVED session lane (never `'auto'`; see `CreatePicoOptions.lane`). */
+  readonly lane: 'exact' | 'fast' | 'open';
   readonly name: string;
   readonly version: string;
   readonly buildInfo: string;
@@ -136,7 +171,20 @@ export interface Pico {
  * which bind their variant's glue here.
  */
 export async function createPicoSession(glue: PicoGlueFactory, options: CreatePicoOptions = {}): Promise<Pico> {
-  const { voxelSize = 0.5, wasm, memoryWarningBytes = 2 ** 30, registry, now } = options;
+  const { voxelSize = 0.5, wasm, memoryWarningBytes = 2 ** 30, serialLattice = false, registry, now } = options;
+
+  // §14.1 lane resolution — 'auto' resolves NOW (the resolved value is what
+  // sessions report and what cache keys must see); 'exact' rejects loosening
+  // at construction; 'fast' flips the fastRenorm default on.
+  const lane: ResolvedLane = options.lane === 'auto' ? 'fast' : (options.lane ?? 'open');
+  if (lane === 'exact' && options.fastRenorm === true) {
+    throw new PicoError(
+      'PICO_LANE_LOOSENED',
+      "createPico({ lane: 'exact', fastRenorm: true }) is contradictory: 'exact' claims the byte-locked " +
+        "numerics policy and fastRenorm is a Class-2 acceleration. Use lane: 'fast' (or omit the lane) instead.",
+    );
+  }
+  const fastRenorm = options.fastRenorm ?? (lane === 'fast');
 
   if (!(voxelSize > 0) || !Number.isFinite(voxelSize)) {
     throw new PicoError(
@@ -166,17 +214,20 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
     module,
     lib,
     voxelSize,
+    fastRenorm,
+    lane,
+    renderLatticeExport: serialLattice ? 'Voxels_RenderLattice' : 'Voxels_RenderLatticeTubes',
     raw,
     registry: registry ?? createHandleRegistry(),
     dead: { value: false },
     scratch,
     writeVec3(pointer, [x, y, z]) {
-      module.HEAPF32[(pointer >> 2) + 0] = x;
-      module.HEAPF32[(pointer >> 2) + 1] = y;
-      module.HEAPF32[(pointer >> 2) + 2] = z;
+      module.HEAPF32[(pointer >>> 2) + 0] = x;
+      module.HEAPF32[(pointer >>> 2) + 1] = y;
+      module.HEAPF32[(pointer >>> 2) + 2] = z;
     },
     readVec3(pointer) {
-      return [module.HEAPF32[pointer >> 2]!, module.HEAPF32[(pointer >> 2) + 1]!, module.HEAPF32[(pointer >> 2) + 2]!];
+      return [module.HEAPF32[pointer >>> 2]!, module.HEAPF32[(pointer >>> 2) + 1]!, module.HEAPF32[(pointer >>> 2) + 2]!];
     },
     maybeWarnMemory: createMemoryWarning({
       memoryWarningBytes,
@@ -205,6 +256,9 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
   const session = {
     get voxelSize() {
       return voxelSize;
+    },
+    get lane() {
+      return lane;
     },
     get name() {
       return readInfo('Library_GetName');
@@ -345,11 +399,13 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
               'ScalarField_hBuildFromVoxels',
               guard('ScalarField_hBuildFromVoxels', () => raw.ScalarField_hBuildFromVoxels(lib, from, options.value!, options.sdThreshold ?? 0.5))(),
             ),
+            options.from.lane,
           );
         }
         return wrapScalarField(
           ctx,
           expectHandle('ScalarField_hCreateFromVoxels', guard('ScalarField_hCreateFromVoxels', () => raw.ScalarField_hCreateFromVoxels(lib, from))()),
+          options.from.lane,
         );
       }
       return wrapScalarField(ctx, expectHandle('ScalarField_hCreate', raw.ScalarField_hCreate(lib)));
@@ -368,11 +424,13 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
               'VectorField_hBuildFromVoxels',
               guard('VectorField_hBuildFromVoxels', () => raw.VectorField_hBuildFromVoxels(lib, from, scratch, options.sdThreshold ?? 0.5))(),
             ),
+            options.from.lane,
           );
         }
         return wrapVectorField(
           ctx,
           expectHandle('VectorField_hCreateFromVoxels', guard('VectorField_hCreateFromVoxels', () => raw.VectorField_hCreateFromVoxels(lib, from))()),
+          options.from.lane,
         );
       }
       return wrapVectorField(ctx, expectHandle('VectorField_hCreate', raw.VectorField_hCreate(lib)));
@@ -429,7 +487,7 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
             const found = withStrings(ctx, ['PicoGK.VoxelSize'], (namePtr) =>
               raw.Metadata_bGetFloatAt(scratchLib, meta, namePtr, scratch),
             );
-            const size = found ? module.HEAPF32[scratch >> 2]! : 0;
+            const size = found ? module.HEAPF32[scratch >>> 2]! : 0;
             return size > 0 ? size * 1000 : 0; // stored in metres
           } finally {
             raw.VdbFile_Destroy(scratchLib, file);
@@ -469,8 +527,8 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
     meshFromStl(bytes: Uint8Array, options: FromStlOptions = {}): Mesh {
       liveSession();
       ctx.maybeWarnMemory();
-      const { vertices, triangles } = meshFromStlBytes(bytes, options);
-      return wrapMesh(ctx, bulkCreateMesh(ctx, vertices, triangles));
+      const { vertices, triangles, lane: stlLane } = meshFromStlBytes(bytes, options);
+      return wrapMesh(ctx, bulkCreateMesh(ctx, vertices, triangles), stlLane);
     },
 
     get memory(): MemoryUsage {
@@ -516,6 +574,14 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
       ctx.registry.unregister(session); // D2
       module._free(scratch);
       raw.Library_DestroyInstance(lib);
+      // Join the module's pthread pool (multi glue only — absent on the serial glue).
+      // Nothing ever joined the em-pthread workers, so they outlive every JS reference
+      // to this module, and at process teardown V8 can free the wasm backing store
+      // while a worker is still executing in it — SIGILL, timing-dependent (observed
+      // as vitest fork crashes; crash reports show an em-pthread faulting under a
+      // main-thread BackingStore free. SK-0.4.md §10). Each session instantiates its
+      // own module, so its pool dies with it and no other session is affected.
+      module.PThread?.terminateAllThreads();
     },
   };
   adoptHandle(ctx, session, lib, raw.Library_DestroyInstance);

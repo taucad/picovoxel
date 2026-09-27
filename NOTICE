@@ -28,3 +28,7 @@ PicoGK_SimulationExample (CC0-1.0).
 
 The PicoGKRuntime WebAssembly build links OpenVDB, oneTBB, Blosc, zlib and
 supporting libraries; see their respective licenses in the upstream projects.
+
+The geometry-identity oracle (src/pico-hash.cpp) includes xxHash
+(BSD 2-Clause License, Copyright (c) 2012-2023 Yann Collet) —
+https://github.com/Cyan4973/xxHash

@@ -1,7 +1,7 @@
 // Session internals shared by every wrapper module. Not exported from the package.
 //
 // The context owns the wasm module, the Library handle, the scratch buffer, the
-// disposal registry, and the raw cwrap table. Wrapper files (voxels/mesh/…) receive
+// disposal registry, and the raw export table. Wrapper files (voxels/mesh/…) receive
 // it and never touch the module directly.
 
 import { DISPOSE } from './dispose.ts';
@@ -11,6 +11,27 @@ import type { HandleRegistry } from './registry.ts';
 import { compileSdfExpression } from './tape.ts';
 import type { SdfExpression } from './tape.ts';
 import type { PicoWasmModule, SdfFunction, Vec3 } from './types.ts';
+
+/**
+ * SK-0.4 / SKv2-0 V0.5-V0.6 — which export renders a lattice into voxels.
+ * Default: the parallel tube-complex lane (`src/pico-lattice.cpp`,
+ * deterministic by construction). `createPico({ serialLattice: true })`
+ * routes the facade down the serial C#-identical `Voxels::RenderLattice`
+ * loop instead — the escape hatch, and the arm the pre-SK-0.4 byte pins
+ * certify. This was `PICOVOXEL_SERIAL_LATTICE=1`, a module-load env read —
+ * deleted per §14.1: geometry-relevant selection must be a keyed,
+ * constructor-explicit init option (ambient state that changes geometry is a
+ * cache-key bug by definition), and a module-scoped read could not even
+ * differ between two sessions in one process. Both exports share one
+ * signature; the arm choice is per-session on `SessionContext`.
+ */
+export type RenderLatticeExport = 'Voxels_RenderLattice' | 'Voxels_RenderLatticeTubes';
+
+/** Resolved session lane (§14.1). `'open'` = no lane requested: library
+ * defaults with per-op freedom in both directions — the pre-lane behavior. */
+export type ResolvedLane = 'exact' | 'fast' | 'open';
+/** Value-class provenance a handle can carry. */
+export type PicoLane = 'exact' | 'fast';
 
 export const VEC3_BYTES = 12;
 export const TRI_BYTES = 12;
@@ -24,6 +45,22 @@ export interface SessionContext {
   module: PicoWasmModule;
   lib: bigint;
   voxelSize: number;
+  /**
+   * SKv2-0 V0.4 — session default for the offset family's `fastRenorm`
+   * (§14.1 precedence: explicit per-op > session default > library default
+   * false). The `'fast'` lane bundle (V0.5) is what sets this true.
+   */
+  fastRenorm: boolean;
+  /**
+   * SKv2-0 V0.5 — the resolved session lane. `'exact'` locks the byte-locked
+   * numerics policy (per-op loosening throws); `'fast'` defaults Class-2
+   * accelerations on (tighten-only per-op overrides allowed); `'open'` is the
+   * no-claim legacy behavior. `'auto'` never appears here — it resolves at
+   * construction and `session.lane` reports the resolution.
+   */
+  lane: ResolvedLane;
+  /** SKv2-0 V0.6 — the keyed lattice-arm selection (see RenderLatticeExport). */
+  renderLatticeExport: RenderLatticeExport;
   raw: PicoRaw;
   registry: HandleRegistry;
   /** D4 — session teardown wins races; wrappers consult this before freeing. */
@@ -71,6 +108,12 @@ export function assertSameSession(ctx: SessionContext, other: object, what: stri
  * malloc returns 0, and unchecked writes then surface as bare RangeErrors
  * from `HEAP*.set` (found by the R12 fine-voxel probe at 0.3 mm). A
  * zero-byte request may legitimately return 0.
+ *
+ * Pointers this returns routinely exceed 2 GiB on fine-cell work (a 0.5 mm
+ * HeatX mesh stages 120 MB at ~2.5 GiB). Index every heap view with `>>>`, never
+ * `>>`: a signed shift turns such a pointer into a negative index, and
+ * `subarray` *clamps* negatives instead of throwing, so the read silently
+ * returns a window 1–2 GiB away (SK-0.10).
  */
 export function checkedMalloc(module: PicoWasmModule, bytes: number, what: string): number {
   const pointer = module._malloc(bytes);
@@ -138,7 +181,7 @@ export function withSdfPointer<T>(ctx: SessionContext, sdf: unknown, body: (sdfP
   }
   const trampoline = (coordinatePointer: number): number => {
     const f32 = ctx.module.HEAPF32; // re-read per call: memory growth swaps the view
-    const i = coordinatePointer >> 2;
+    const i = coordinatePointer >>> 2;
     return (sdf as SdfFunction)(f32[i]!, f32[i + 1]!, f32[i + 2]!);
   };
   const pointer = ctx.module.addFunction(trampoline, 'fi'); // float (i32)
@@ -165,8 +208,8 @@ export function withSdfTape<T>(
   // Never malloc(0): a constant-free tape still needs a valid pointer.
   const constantPointer = checkedMalloc(module, Math.max(constants.byteLength, 8), 'the SDF tape constants');
   try {
-    module.HEAPU32.set(instructions, instructionPointer >> 2);
-    module.HEAPF64.set(constants, constantPointer >> 3);
+    module.HEAPU32.set(instructions, instructionPointer >>> 2);
+    module.HEAPF64.set(constants, constantPointer >>> 3);
     return body(instructionPointer, instructions.length / 2, constantPointer, constants.length);
   } finally {
     module._free(constantPointer);

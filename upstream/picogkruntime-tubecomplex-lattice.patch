@@ -1,0 +1,373 @@
+PicoGKRuntime 26.2 (0f26321c) — render lattices through openvdb's parallel
+tube-complex voxelizer instead of the serial dense-accessor loop.
+
+PROPOSAL, NOT APPLIED LOCALLY. picovoxel ships this as a sibling translation
+unit (src/pico-lattice.cpp -> Voxels_RenderLatticeTubes, the facade default
+since SK-0.4, with `createPico({ serialLattice: true })` as the escape hatch)
+so the vendored tree stays pristine and the old export stays reachable
+byte-for-byte. This file is the same algorithm shaped as a diff for
+leap71/PicoGKRuntime, where it belongs behind the existing entry point. Ledger
+row U5.
+
+PREREQUISITE — patches/PicoGKRuntime/0003-lattice-parameter-accessors.patch
+(seven `inline ... const` getters on LatticeSphere/LatticeBeam: vecCenter,
+fRadius, vecStart, vecEnd, fRadStart, fRadEnd, bRoundCap). That patch is a pure
+insertion, adds no member and changes no declaration, and is the other half of
+the same U5 ask. This diff APPLIES to a pristine tree but only COMPILES with
+those accessors present: without them `fSdValue()` is the only readable surface
+on a beam, which forces every renderer into exactly the per-sample shape being
+replaced here.
+
+WHY. Voxels::RenderLattice walks every sphere and every beam in turn and, for
+each, walks its padded bounding box voxel by voxel through ONE
+FloatGrid::Accessor, taking min(element SDF, existing value). One thread, one
+accessor, one element at a time — and a lattice is authored in the hundreds of
+thousands of elements (one picovoxel fixture, LEAP71_HelixHeatX, renders
+1,197,460 beams across 37 lattices). openvdb has shipped the parallel
+replacement since 12.1: tools::createLevelSetTubeComplex (LevelSetTubes.h —
+already #included by this very file, line 49, unused) takes vertex, segment and
+radius ARRAYS and voxelizes them with a tbb reduce over spatially bucketed
+segments, each bucket driving ConvexVoxelizer's scanline walk over only the
+voxels the shape actually touches; per-thread trees are combined with a
+node-stealing csg union.
+
+The mapping is exact rather than approximate, which is the point: a round-capped
+PicoGK beam IS the convex hull of its two end spheres, and so is a tapered
+capsule. The full case table, including the two cases that do not map, is in the
+doc comment on bRenderLatticeTubes() below.
+
+MEASURED (picovoxel SK-0.4, bench/results/webgpu-v2/SK-0.4.md; wasm/12T, paired
+and order-alternated, 12 repeats, bootstrap CI on the median log ratio):
+
+  - HelixHeatX's two largest creation stages together (turning-fins 355.6k beams
+    + helical-void 65k beams): 8380.4 -> 1384.9 ms = 6.05x at 1.0 mm, and
+    13.2x at 0.5 mm. Per fixture at 1.0 mm: turning-fins 3.24x [3.18, 3.29],
+    straight-fins 3.38x, helical-void 19.11x [18.88, 19.23], a quasicrystal
+    wireframe 7.14x. At 0.5 mm: 5.55x / 6.03x / 34.97x / 14.26x;
+  - SINGLE-THREADED, the algorithmic delta alone is 2.57-4.23x — the scanline
+    voxelizer beats the dense bounding-box walk before any thread is added;
+  - flat-capped lattices (the serial fallback) time at 1.00x [0.995, 0.997] —
+    the fallback costs nothing;
+  - memory is the price: +61.6 MiB peak at 10^5 beams (112.8 vs 51.2 MiB heap
+    growth at 0.25 mm), for the complex's own grid plus the per-thread trees and
+    the combine staging. That growth is identical single-vs-multi, because the
+    deterministic split tree fixes the number of intermediate trees regardless
+    of worker count.
+
+DETERMINISM IS BY CONSTRUCTION, NOT BY LUCK — and this is the one place the
+patch deliberately departs from upstream's own entry point. createLevelSetTube-
+Complex drives the voxelizer under tbb::parallel_reduce with the auto
+partitioner, so the number of body splits, and therefore the shape of the csg
+join tree, depends on how many workers turn up. csg union is a min, and min is
+exactly associative and commutative in IEEE, so the VALUES are order-free either
+way; the tree TOPOLOGY is not. This patch drives the same voxelizer under
+tbb::parallel_deterministic_reduce with a grain size derived only from the
+bucket count, so the split tree is a pure function of the input — identical at 1
+thread and at 12. Measured: 3/3 run-to-run stable AND single == multi identical
+(raw level-set volume as hex double, mesh vertex/triangle counts, FNV-1a over
+the vertex and triangle byte arrays) on all five fixtures at 0.5 mm. It costs
+nothing; the timings above are all on the deterministic driver.
+
+DIVERGENCE CLASS (picovoxel's taxonomy, NON-DETERMINISM.md §1: 0 = byte
+identical, 1 = same geometry / permuted bytes, 2 = bounded numeric drift,
+X = wrong geometry):
+
+  - run-to-run, and single-thread vs multi-thread: CLASS 0, byte-identical, by
+    the construction above and measured 3/3 at 0.5 mm;
+  - versus the serial lane it replaces: CLASS 2. The two lanes compute the same
+    shapes through different narrow-band constructions, so the fields are close
+    but not identical. Across 17 equivalence fixtures at 0.5 mm (SK-0.8 gate
+    shape: vol/area rel <= 3%, bounds <= 1 voxel, band SDF max <= 1 voxel /
+    mean <= 0.25 voxel, tools::checkLevelSet, mesh validity) every gate passes,
+    with max narrow-band SDF delta 9.8e-6 mm, mean 1.3e-7 mm, bounds delta 0,
+    and volume moves on picovoxel's byte-locked corpus of at most 2.3e-5
+    relative. Several cases (sphere, tapered r 3->1, zero-length round beam,
+    every flat-capped fixture) are bit-exact. A reviewer should expect a
+    byte-pinned corpus to move by that much, and to move once.
+  - tools::checkLevelSet, read correctly for lattices: the SERIAL reference is
+    not clean — the per-element min-splat leaves |grad(phi)| violations wherever
+    two elements overlap (turning-fins reference: 458,402 voxels). On every
+    fixture the tube complex's diagnosis is byte-identical to the reference's,
+    except on nested end spheres where the complex is EMPTY and the reference has
+    160 violations. The lane never makes the field worse, and once makes it
+    strictly better.
+
+ONE CORRECTNESS FIX RIDES ALONG (picovoxel ledger row U23), and it is not
+drift: when a beam's end spheres nest, (p0-p1)^2 <= (r0-r1)^2, fSdvRoundCone
+computes a2 = l^2 - (r0-r1)^2 as a negative number and takes sqrtf of a negative
+product. Against the closed form for r 6->1 the serial lane renders -90.7% of
+the true volume; the tube complex renders -0.37% and is checkLevelSet-clean.
+Where the two lanes disagree materially, the new one is the correct one.
+
+WHAT DOES NOT CHANGE. The exported C ABI is untouched: Voxels_RenderLattice
+keeps its signature and its semantics (union into the existing grid), so the
+PicoGK C# binding is a drop-in. No new dependency: LevelSetTubes.h is already
+included by this file, and Prune.h / the two tbb headers already arrive
+transitively through Composite.h — they are spelled out only so the file states
+what it uses.
+
+SHAPE OF THE CHANGE. RenderLattice gains a five-line dispatch at its head and
+keeps its serial body verbatim as the fallback; the new work is one private
+method. The recursion in that dispatch terminates at depth one by construction:
+the flat-capped remainder is authored with bRoundCap = false and contains no
+spheres, so the second call finds nothing the complex can express and takes the
+false branch. The remainder is rendered by exactly the loop that renders it
+today.
+
+COMPOSITION with the rest of the picovoxel series (all verified by
+`patch -p1 --fuzz=0` dry-run plus a full Release build of the composed tree):
+
+  - 0003 lattice parameter accessors — REQUIRED (see PREREQUISITE above);
+  - 0004 lattice beam value storage (std::vector<LatticeBeam::Ptr> becomes
+    std::vector<LatticeBeam>) — OPTIONAL, and deliberately so. This patch reads
+    the beam array through two `oBeamRef` overloads, one for the value form and
+    one for the shared_ptr form, so it compiles unchanged on either storage and
+    neither patch has to land before the other;
+  - 0001 parallel disjoint mesh flatten, 0002 post-fill prune — no interaction.
+    0002 appends PruneFill() to the end of the serial RenderLattice body; the
+    tube path returns before it and does not need it, because the complex is
+    pruned on construction and csgUnion prunes on exit. In the mixed
+    flat-capped case the recursive serial call reaches 0002's PruneFill()
+    normally.
+
+Applies with `patch -p1 --fuzz=0` to a pristine PicoGKRuntime 0f26321c tree, and
+onto that tree with picovoxel's patches/PicoGKRuntime/0001-0004 already applied.
+
+--- a/Source/PicoGKVdbVoxels.h
++++ b/Source/PicoGKVdbVoxels.h
+@@ -48,6 +48,10 @@
+ #include <openvdb/tools/LevelSetSphere.h>
+ #include <openvdb/tools/LevelSetTubes.h>
+ #include <openvdb/tools/LevelSetDilatedMesh.h>
++#include <openvdb/tools/Prune.h>
++
++#include <tbb/blocked_range.h>
++#include <tbb/parallel_reduce.h>
+ 
+ #include "PicoGKMesh.h"
+ #include "PicoGKTrace.h"
+@@ -343,7 +347,31 @@
+     void RenderLattice(const Lattice& oLattice)
+     {
+         PKTRACE(Voxels_RenderLattice);
++        
++        // [picovoxel U5] The parallel lane. Every sphere, and every round-capped beam,
++        // is exactly the convex hull of two spheres -- which is what openvdb's tube
++        // complex voxelizes: a scanline walk over only the voxels each shape actually
++        // touches, spread across every core, instead of one thread taking one accessor
++        // over every element's padded bounding box in turn.
++        //
++        // bRenderLatticeTubes() returns false when the lane does not apply -- nothing
++        // sphere-capped in the lattice, or a grid whose narrow band the complex cannot
++        // reproduce bit-for-bit -- and has then written NOTHING, so the loops below still
++        // render the whole lattice. Otherwise it has rendered everything except the flat
++        // cones, and hands those back as a lattice of their own. That lattice has no
++        // spheres and no round caps, so the recursive call takes the false branch and the
++        // recursion ends exactly one level down.
+         
++        Lattice oFlatCapped;
++        
++        if (bRenderLatticeTubes(oLattice, &oFlatCapped))
++        {
++            if (!oFlatCapped.oBeams().empty())
++                RenderLattice(oFlatCapped);
++            
++            return;
++        }
++        
+         auto oAccess = m_roGrid->getAccessor();
+         
+         for (auto roSphere : oLattice.oSpheres())
+@@ -825,7 +853,192 @@
+             SetSdValue(poAccess, xyz, fBackground, fValue);
+         }
+     }
++    
++    /// [picovoxel U5] Upstream stores beams as std::vector<LatticeBeam::Ptr>; with the
++    /// U18 value-storage change applied it is std::vector<LatticeBeam>. This renderer
++    /// does not care which, and these two overloads are the whole of not caring.
+     
++    static const LatticeBeam& oBeamRef(const LatticeBeam& oBeam)        {return oBeam;}
++    
++    static const LatticeBeam& oBeamRef(const LatticeBeam::Ptr& roBeam)  {return *roBeam;}
++    
++    /// [picovoxel U5] Renders the sphere-capped part of a lattice -- every sphere and
++    /// every round-capped beam -- through openvdb's parallel tube-complex voxelizer, and
++    /// unions the result into this grid.
++    ///
++    /// Returns true when the complex was built and unioned in; *poFlatCapped then holds
++    /// exactly the beams this lane cannot express and the caller must still render those.
++    /// Returns false when the lane does not apply at all -- NOTHING has been written to
++    /// the grid in that case, and the caller must render the whole lattice itself.
++    ///
++    /// The case table, and why each case lands where it does:
++    ///
++    ///   round cap, r0 != r1    tapered capsule. fSdvRoundCone and openvdb's
++    ///                          TaperedCapsuleVoxelizer are both the exact SDF of the
++    ///                          convex hull of the two end spheres: same shape, same
++    ///                          definition.
++    ///   round cap, r0 == r1    capsule. openvdb dispatches this itself once
++    ///                          |r0-r1| < 0.001 voxel, avoiding the tapered form's
++    ///                          degenerate algebra; fSdvRoundCone handles it analytically.
++    ///                          Same shape.
++    ///   nested end spheres     the larger ball -- which IS the convex hull in that case.
++    ///                          ((p0-p1)^2 <= (r0-r1)^2.) Note fSdvRoundCone is WRONG
++    ///                          here: a2 = l^2 - (r0-r1)^2 goes negative and it takes
++    ///                          sqrtf of a negative product. Against the closed form the
++    ///                          serial lane renders -90.7% of the true volume and the tube
++    ///                          complex -0.37%, and only the complex is checkLevelSet
++    ///                          clean.
++    ///   zero-length round beam never arrives: Lattice::AddBeam turns it into a sphere.
++    ///   sphere                 a zero-length segment with equal end radii, which lands in
++    ///                          the same ball branch. Spheres therefore ride in the SAME
++    ///                          complex as the beams; there is no second pass.
++    ///   FLAT cap               no tube-complex expression. fSdvFlatCone is a conical
++    ///                          frustum with planar ends, and the complex is built
++    ///                          exclusively from sphere-capped convex hulls -- there is no
++    ///                          open/flat variant in the API. Handed back to the caller.
++    bool bRenderLatticeTubes(   const Lattice&  oLattice,
++                                Lattice*        poFlatCapped)
++    {
++        // The complex builds its own grid, so that grid's voxel size AND background have
++        // to match this one bit-for-bit, or the csgUnion below would splice two different
++        // narrow bands together. Both are the same float product -- PicoGK spells the
++        // background nNarrowBand * m_fVoxelSizeMM (VoxelSize::fToMM), openvdb spells it
++        // voxelSize * halfWidth in double and rounds once (Grid.h createLevelSet) -- and
++        // for float operands those agree exactly, because a float x float product is
++        // always exact in double. VERIFY it rather than assume it: m_nSdfNarrowBand is an
++        // int32 a caller can desynchronize from the grid it describes (IntersectImplicit
++        // hands fBackgroundMM() straight to the int narrow-band constructor), so a grid
++        // whose band is not an integer number of voxels is reachable. Such a grid goes
++        // down the serial lane, unchanged.
++        const float fVoxelSize = (float) m_roGrid->voxelSize().x();
++        const float fHalfWidth = (float) m_nSdfNarrowBand;
++        
++        if (    (fVoxelSize <= 0.0f)
++            ||  (fHalfWidth < 1.0f)
++            ||  (fVoxelSize * fHalfWidth != m_roGrid->background()))
++        {
++            return false;
++        }
++        
++        std::vector<openvdb::Vec3s> oVertices;
++        std::vector<openvdb::Vec2I> oSegments;
++        std::vector<float>          oRadii;
++        
++        const size_t nSpheres   = oLattice.oSpheres().size();
++        const size_t nBeams     = oLattice.oBeams().size();
++        
++        oVertices.reserve(  nSpheres + 2 * nBeams);
++        oRadii.reserve(     nSpheres + 2 * nBeams);
++        oSegments.reserve(  nSpheres + nBeams);
++        
++        // A sphere is a zero-length segment with equal end radii: the per-vertex-radii
++        // dispatch sends (p1-p2)^2 <= (r1-r2)^2 to its ball branch, which is that sphere.
++        // Reusing the one vertex for both segment ends keeps the radius array in step.
++        for (const LatticeSphere::Ptr& roSphere : oLattice.oSpheres())
++        {
++            const Vector3& vecCenter = roSphere->vecCenter();
++            const openvdb::Index32 nAt = (openvdb::Index32) oVertices.size();
++            
++            oVertices.push_back(openvdb::Vec3s( vecCenter.X,
++                                                vecCenter.Y,
++                                                vecCenter.Z));
++            
++            oRadii.push_back(roSphere->fRadius());
++            oSegments.push_back(openvdb::Vec2I(nAt, nAt));
++        }
++        
++        for (const auto& oEntry : oLattice.oBeams())
++        {
++            const LatticeBeam& oBeam = oBeamRef(oEntry);
++            
++            if (!oBeam.bRoundCap())
++            {
++                // Re-authored as a lattice of its own, so the serial lane can render
++                // exactly these beams and nothing else. AddBeam is given
++                // bRoundCap = false, so its zero-length-beam-becomes-a-sphere rule
++                // cannot fire and the subset stays a subset.
++                poFlatCapped->AddBeam(  oBeam.vecStart(),
++                                        oBeam.vecEnd(),
++                                        oBeam.fRadStart(),
++                                        oBeam.fRadEnd(),
++                                        false);
++                
++                continue;
++            }
++            
++            const Vector3& vecStart = oBeam.vecStart();
++            const Vector3& vecEnd   = oBeam.vecEnd();
++            const openvdb::Index32 nAt = (openvdb::Index32) oVertices.size();
++            
++            oVertices.push_back(openvdb::Vec3s( vecStart.X,
++                                                vecStart.Y,
++                                                vecStart.Z));
++            
++            oVertices.push_back(openvdb::Vec3s( vecEnd.X,
++                                                vecEnd.Y,
++                                                vecEnd.Z));
++            
++            oRadii.push_back(oBeam.fRadStart());
++            oRadii.push_back(oBeam.fRadEnd());
++            oSegments.push_back(openvdb::Vec2I(nAt, nAt + 1));
++        }
++        
++        if (oSegments.empty())
++            return false; // nothing this lane can express -- the caller renders it all
++        
++        // Per-VERTEX radii: a PicoGK beam tapers between its two endpoint radii, which is
++        // openvdb's TUBE_VERTEX_RADII policy -- a complex of tapered capsules.
++        typedef openvdb::tools::lvlset::TubeComplexVoxelizer<
++                    openvdb::FloatGrid,
++                    float,
++                    openvdb::util::NullInterrupter,
++                    /* PerSegmentRadii = */ false>          TubeVoxelizer;
++        
++        TubeVoxelizer oOp(  oVertices,
++                            oSegments,
++                            oRadii,
++                            fVoxelSize,
++                            fHalfWidth,
++                            nullptr);
++        
++        // Determinism by construction, not by luck. tools::createLevelSetTubeComplex
++        // drives this same voxelizer under tbb::parallel_reduce with the auto partitioner,
++        // so the number of body splits -- and hence the shape of the csg join tree --
++        // depends on how many workers turn up. csg union is a min, and min is exactly
++        // associative and commutative in IEEE, so the VALUES are order-free either way;
++        // the resulting tree TOPOLOGY is not, and a 1-thread and a 12-thread run would not
++        // even take the same split tree. parallel_deterministic_reduce with a grain size
++        // derived only from the bucket count makes the split tree a pure function of the
++        // input -- identical at 1 thread and at 12. Measured bit-exact single == multi on
++        // every fixture tried, at no cost.
++        //
++        // nSplitTarget is the number of leaf tasks that split tree is cut into. Only its
++        // being a CONSTANT is load-bearing for determinism; 16 was chosen by sweeping
++        // 16/32/64 at 12 threads -- it wins the beam-count-heavy stages and keeps every
++        // core fed without paying for a deeper join tree.
++        const size_t nBuckets = (size_t) oOp.bucketSize();
++        
++        if (nBuckets > 0)
++        {
++            const size_t nSplitTarget   = 16;
++            const size_t nGrain         = nBuckets <= nSplitTarget
++                                            ? 1
++                                            : (nBuckets + nSplitTarget - 1) / nSplitTarget;
++            
++            tbb::parallel_deterministic_reduce(
++                tbb::blocked_range<size_t>(0, nBuckets, nGrain), oOp);
++        }
++        
++        FloatGrid::Ptr roTubes = oOp.getGrid();
++        openvdb::tools::pruneLevelSet(roTubes->tree());
++        
++        // Boolean-add into the target, exactly as RenderMesh does. csgUnion prunes on
++        // exit, which is the pruning the serial dense fill never does.
++        openvdb::tools::csgUnion(*m_roGrid, *roTubes);
++        
++        return true;
++    }
++    
+     static FloatGrid::Ptr roFloatGridFromMesh(  const Mesh& oMesh,
+                                                 VoxelSize oVoxelSize,
+                                                 int32_t nHalfWidth)

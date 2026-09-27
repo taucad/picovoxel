@@ -1,0 +1,51 @@
+{
+  "capturedAt": "2026-07-23",
+  "command": "npm run spike:emdawnwebgpu",
+  "emscripten": "5.0.1",
+  "port": "emdawnwebgpu",
+  "flags": {
+    "callback": "--use-port=emdawnwebgpu --closure=1",
+    "blocking": "--use-port=emdawnwebgpu --closure=1 -sASYNCIFY=1",
+    "legacyUseWebGpu": false
+  },
+  "sizes": {
+    "baseline": {
+      "js": 2921,
+      "jsGzip": 1390,
+      "wasm": 70,
+      "wasmGzip": 79
+    },
+    "callback": {
+      "js": 33029,
+      "jsGzip": 13342,
+      "wasm": 155445,
+      "wasmGzip": 59433
+    },
+    "blocking": {
+      "js": 34692,
+      "jsGzip": 14086,
+      "wasm": 270467,
+      "wasmGzip": 83546
+    }
+  },
+  "deltas": {
+    "callbackVsBaseline": {
+      "js": 30108,
+      "wasm": 155375
+    },
+    "asyncifyVsCallback": {
+      "js": 1663,
+      "wasm": 115022
+    }
+  },
+  "variants": {
+    "callback": {
+      "ok": true,
+      "variant": "callback"
+    },
+    "blocking": {
+      "ok": true,
+      "variant": "blocking"
+    }
+  }
+}

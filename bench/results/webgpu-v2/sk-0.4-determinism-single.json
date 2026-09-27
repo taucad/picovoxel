@@ -1,0 +1,153 @@
+{
+ "fingerprint": {
+  "spike": "SK-0.4",
+  "cpu": "Apple M2 Pro",
+  "cores": 12,
+  "ramGiB": 32,
+  "os": "darwin 25.5.0",
+  "node": "v26.5.0",
+  "variant": "pico",
+  "threads": 0,
+  "wasmSha256": "acb2773959ee53925fe988ae3ed790b5bf03b6c789efc60b984d3a36ee4f7c6a",
+  "wasmBytes": 5875598,
+  "voxelSizeMm": 0.5,
+  "repeats": 12,
+  "date": "2026-07-26T10:05:09.491Z",
+  "startLoad": 1.64208984375,
+  "startPower": "-InternalBattery-0 (id=32702563)\t86%; charging; 0:54 remaining present: true",
+  "endLoad": 1.43017578125,
+  "endPower": "-InternalBattery-0 (id=32702563)\t86%; charging; 0:54 remaining present: true"
+ },
+ "determinism": {
+  "heatx:turning-fins.hot": {
+   "runs": [
+    {
+     "volumeHex": "00000000a50dec40",
+     "vertices": 1280162,
+     "triangles": 2623344,
+     "vertexFnv": "d24d1f9e",
+     "triangleFnv": "56a7f647"
+    },
+    {
+     "volumeHex": "00000000a50dec40",
+     "vertices": 1280162,
+     "triangles": 2623344,
+     "vertexFnv": "d24d1f9e",
+     "triangleFnv": "56a7f647"
+    },
+    {
+     "volumeHex": "00000000a50dec40",
+     "vertices": 1280162,
+     "triangles": 2623344,
+     "vertexFnv": "d24d1f9e",
+     "triangleFnv": "56a7f647"
+    }
+   ],
+   "stable": true
+  },
+  "heatx:straight-fins.hot": {
+   "runs": [
+    {
+     "volumeHex": "0000006036b3cc40",
+     "vertices": 366710,
+     "triangles": 741960,
+     "vertexFnv": "a08ac04a",
+     "triangleFnv": "2514a024"
+    },
+    {
+     "volumeHex": "0000006036b3cc40",
+     "vertices": 366710,
+     "triangles": 741960,
+     "vertexFnv": "a08ac04a",
+     "triangleFnv": "2514a024"
+    },
+    {
+     "volumeHex": "0000006036b3cc40",
+     "vertices": 366710,
+     "triangles": 741960,
+     "vertexFnv": "a08ac04a",
+     "triangleFnv": "2514a024"
+    }
+   ],
+   "stable": true
+  },
+  "heatx:helical-void.hot": {
+   "runs": [
+    {
+     "volumeHex": "000000c068681441",
+     "vertices": 894454,
+     "triangles": 1788904,
+     "vertexFnv": "da65ed52",
+     "triangleFnv": "2938224b"
+    },
+    {
+     "volumeHex": "000000c068681441",
+     "vertices": 894454,
+     "triangles": 1788904,
+     "vertexFnv": "da65ed52",
+     "triangleFnv": "2938224b"
+    },
+    {
+     "volumeHex": "000000c068681441",
+     "vertices": 894454,
+     "triangles": 1788904,
+     "vertexFnv": "da65ed52",
+     "triangleFnv": "2938224b"
+    }
+   ],
+   "stable": true
+  },
+  "heatx:io-threads (flat caps)": {
+   "runs": [
+    {
+     "volumeHex": "000000a0b1148240",
+     "vertices": 9826,
+     "triangles": 20524,
+     "vertexFnv": "fe548608",
+     "triangleFnv": "464d92a1"
+    },
+    {
+     "volumeHex": "000000a0b1148240",
+     "vertices": 9826,
+     "triangles": 20524,
+     "vertexFnv": "fe548608",
+     "triangleFnv": "464d92a1"
+    },
+    {
+     "volumeHex": "000000a0b1148240",
+     "vertices": 9826,
+     "triangles": 20524,
+     "vertexFnv": "fe548608",
+     "triangleFnv": "464d92a1"
+    }
+   ],
+   "stable": true
+  },
+  "quasicrystal:wireframe gen-1": {
+   "runs": [
+    {
+     "volumeHex": "00000080fb32ea40",
+     "vertices": 573432,
+     "triangles": 1150352,
+     "vertexFnv": "c6a49d0a",
+     "triangleFnv": "1ef5abea"
+    },
+    {
+     "volumeHex": "00000080fb32ea40",
+     "vertices": 573432,
+     "triangles": 1150352,
+     "vertexFnv": "c6a49d0a",
+     "triangleFnv": "1ef5abea"
+    },
+    {
+     "volumeHex": "00000080fb32ea40",
+     "vertices": 573432,
+     "triangles": 1150352,
+     "vertexFnv": "c6a49d0a",
+     "triangleFnv": "1ef5abea"
+    }
+   ],
+   "stable": true
+  }
+ }
+}
