@@ -21,7 +21,7 @@
   // COVERAGE=1 builds of scripts/build-pico-module.sh); nothing imports it.
   "ignore": ["tools/eslint-plugin/prose-rules.d.ts", "scripts/coverage-post.js"],
   // System tools the benchmark and spike scripts shell out to.
-  "ignoreBinaries": ["gh", "pmset", "rustc"],
+  "ignoreBinaries": ["pmset", "rustc"],
   // Nx loads @nx/js by name.
   "ignoreDependencies": ["@nx/js"]
 }

@@ -1,14 +1,18 @@
 # Monthly benchmark drift canary (create-repo bench template). It never gates:
 # CI runner load violates the measurement discipline, and the committed
-# baseline comes from a controlled machine. It catches order-of-magnitude
-# regressions: a failed run, or any phase slower than 2x the committed
-# baseline median, opens a `claude`-labelled issue.
+# baselines are per hardware class. It catches order-of-magnitude regressions:
+# a failed run, or any phase slower than 2x the median of the newest committed
+# record from the same class (platform, architecture and core count;
+# bench/check-drift.mjs), opens one `claude`-labelled issue, or comments on the
+# one still open. A class with no committed record passes with a notice; the
+# run's uploaded record, committed under bench/results/, arms it.
 #
 # It measures the bytes that ship: the wasm-serial and wasm-multi artifacts of
 # the latest green ci.yml push run on main, at that run's head. Both are needed
 # because M12 runs the multi entry. When no such run still holds both
 # artifacts (they expire after 90 days), it builds both from pinned sources at
-# the head of main with the build steps and cache keys ci.yml uses.
+# the head of main with the build steps and cache keys ci.yml uses. A manual
+# run on another branch builds that branch's head the same way.
 name: Benchmark drift
 
 on:
@@ -34,9 +38,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          read -r run_id sha < <(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch main \
-            --event push --status success --limit 1 --json databaseId,headSha --jq '.[] | "\(.databaseId) \(.headSha)"') || true
           live=0
+          if [[ "$GITHUB_REF" == refs/heads/main ]]; then
+            read -r run_id sha < <(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch main \
+              --event push --status success --limit 1 --json databaseId,headSha --jq '.[] | "\(.databaseId) \(.headSha)"') || true
+          fi
           if [[ -n "${run_id:-}" ]]; then
             live="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts?per_page=100" \
               --jq '[.artifacts[] | select((.expired | not) and (.name == "wasm-serial" or .name == "wasm-multi"))] | length')"
@@ -45,7 +51,7 @@ jobs:
             echo "measuring the wasm of ci.yml run $run_id at $sha"
             { echo "source=download"; echo "run-id=$run_id"; echo "sha=$sha"; } >> "$GITHUB_OUTPUT"
           else
-            echo "::notice::no green main run holds both wasm artifacts; building them at $GITHUB_SHA"
+            echo "::notice::no green main run holds both wasm artifacts for $GITHUB_REF; building them at $GITHUB_SHA"
             { echo "source=build"; echo "sha=$GITHUB_SHA"; } >> "$GITHUB_OUTPUT"
           fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -86,18 +92,27 @@ jobs:
           name: monthly-benchmark
           path: bench/results/
           if-no-files-found: warn
-      - if: steps.benchmark.outcome == 'failure'
+      # Only main's drift is maintenance work; a manual branch run reports in its summary.
+      - if: steps.benchmark.outcome == 'failure' && github.ref == 'refs/heads/main'
         env:
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
         run: |
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          title='Benchmark drift detected'
+          open="$(gh issue list --state open --label claude --search "\"$title\" in:title" --json number,title \
+            --jq "[.[] | select(.title == \"$title\")][0].number // empty")"
+          if [[ -n "$open" ]]; then
+            gh issue comment "$open" --body "Drift again in $run_url (see its summary)."
+            exit 0
+          fi
           gh label create claude \
             --color 5319E7 \
             --description 'Picked up by Claude automation' \
             --force
           gh issue create \
-            --title 'Benchmark drift detected' \
-            --body "Monthly benchmark drift failed in ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}. The run summary lists each phase over 2x the committed baseline; a crash before the comparison means the benchmark itself failed. CI numbers are canaries: reproduce on a quiet machine with \`pnpm run bench\` before acting." \
+            --title "$title" \
+            --body "Monthly benchmark drift failed in $run_url. The run summary lists each phase over 2x the newest committed record from the same hardware class; a crash before the comparison means the benchmark itself failed. CI numbers are canaries: reproduce on a quiet machine with \`pnpm run bench\` before acting. Later failures comment here while this issue is open." \
             --label claude
       - if: steps.benchmark.outcome == 'failure'
         run: exit 1

@@ -79,9 +79,17 @@ Scheduled and event-driven maintenance:
   and fails on `main` and in its weekly run. Suppressions in `osv-scanner.toml`
   carry a `reason` and an `ignoreUntil` timestamp. Its code-scanning upload runs
   only on a public repository.
-- `bench.yml` runs monthly as a drift canary and never gates. `g0-nightly.yml`
-  is manual while the repository is private; the public flip restores its
-  nightly schedule (the cron line is in the file's header comment).
+- `bench.yml` runs monthly as a drift canary and never gates. It compares each
+  run with the newest committed record from the same hardware class, and a
+  repeat failure comments on the open issue instead of opening another.
+  `g0-nightly.yml` is manual while the repository is private; the public flip
+  restores its nightly schedule (the cron line is in the file's header
+  comment).
+- A new runner class, such as the 4-vCPU runners after the public flip, needs
+  two things: its first `bench.yml` record committed under `bench/results/`,
+  and an A/A run of the `benchmark` job (`gh workflow run ci.yml`) whose
+  threshold goes into `CALIBRATION` in `bench/gates.mjs`. Until then the
+  pull request benchmark only reports.
 - `cache-cleanup.yml` deletes a pull request's Actions caches when it closes.
 
 Scheduled failures open issues labelled `claude`. An issue opened by a workflow
