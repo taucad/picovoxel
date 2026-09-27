@@ -218,11 +218,15 @@ nil for the distance fixtures.
 **Measured — NEGATIVE RESULT, REVERTED**: gyroid single 561 → 603 ms (**0.93×**), union64
 192 → 202 ms (0.95× — union64 has no trig, so that loss is pure partner-bookkeeping overhead
 in the hot evaluator loops), sphere flat, multi flat; identity stayed exact and the suite
-green, so the fusion itself was correct, but slower. Root cause: musl `sincos` returns
+green, so the fusion itself was correct, but slower.
+
+Root cause: musl `sincos` returns
 through memory out-params (two linear-memory stores + loads per call on wasm) and still runs
 both kernels, so the one shared `__rem_pio2` it saves is eaten by the call shape; the added
 per-instruction partner checks then push the balance negative even on the fixture the stage
-targeted. The implementation was verified bit-identical before removal, then reverted to the
+targeted.
+
+The implementation was verified bit-identical before removal, then reverted to the
 TP7b build (snapshot-restored byte-exact). Lesson recorded: on wasm32, fusing paired libm
 calls is not worth a memory-out-param ABI — revisit only if a register-returning sincos
 becomes available.
@@ -242,12 +246,16 @@ measurement: kept only if a net win on the gyroid with no regression elsewhere.
 **Measured — NEGATIVE RESULT, REVERTED**: gyroid single 537 → 538 ms (**1.00× — the affine
 retry reclassified essentially nothing**), sphere 90 → 93 ms (−3%), union64 182 → **220 ms
 (−17%)** — its 144 IA-ambiguous columns each paid a 1,343-instruction affine sweep that never
-fired. Identity exact, suite green: the AF1 rules were sound but useless here. Structural
+fired. Identity exact, suite green: the AF1 rules were sound but useless here.
+
+Structural
 diagnosis, not an implementation artifact: the gyroid's `abs(Σ sin·cos) − 0.4` needs the
 affine sum to clear **±0.7** (background 0.3 + iso offset 0.4), and the unavoidable slack —
 mul cross-terms rad·rad ≈ 0.06 per product at 0.5 rad/block, plus the abs-straddle collapse
 to a degenerate form — consumes the very margin correlation tracking recovers at 8³
-granularity. Reverted to the TP7b build (snapshot-restored byte-exact). Revisit only with
+granularity.
+
+Reverted to the TP7b build (snapshot-restored byte-exact). Revisit only with
 finer blocks or a field without an abs-threshold root.
 
 ### Program outcome (cumulative, vs TP6 `80f9a68`)
@@ -261,13 +269,17 @@ pruning's 1.2–13.3×, all bit-identical to the JS-callback path.
 ### HelixHeatX voxel sweep vs LEAP71's published table (2026-07-19)
 
 The flagship real-world subject: the whole HelixHeatX Task
-headless — geometry generation (1,197,460 lattice beams across 37 lattices; the long-standing "~10⁵" figure was an order of magnitude low, counted directly in SK-0.2), the boolean assembly,
+headless — geometry generation (1,197,460 lattice beams across 37 lattices; the long-standing "~10⁵" figure was an order of magnitude low, counted directly), the boolean assembly,
 the full finishing family (offset/fillet/smoothen/projectZSlice), meshing and
-binary-STL bytes. LEAP71's published numbers ("on a MacBook Air", README
+binary-STL bytes.
+
+LEAP71's published numbers ("on a MacBook Air", README
 table.png) time the same Task INCLUDING viewer previews + screenshots, a
 delta in the published numbers' favour. Apple M2 Pro, 12 threads on the multi
 build; start load 4.2 (not a quiet-machine baseline — treat timings as upper
-bounds). One run per cell; integrity = single≡multi identity (volume hex, STL
+bounds).
+
+One run per cell; integrity = single≡multi identity (volume hex, STL
 FNV-1a and byte count) at every size, which held throughout — the entire
 application is thread-count-deterministic. Source:
 `bench/results/heatx-sweep-2026-07-18-85d283b.json`.
@@ -309,7 +321,9 @@ notably during a _small_ flange-cylinder mesh build, i.e. the heap was
 already consumed by long-lived intermediates (the HeatX assembly holds
 fins + voids + structure grids concurrently; at 0.3 mm that is ~4.6× the
 0.5 mm narrow-band footprint, plus the ~1.4 GB STL to come). 0.2 mm
-(published: 1240 s / 3.4 GB STL) fails a fortiori. Mitigation paths, not
+(published: 1240 s / 3.4 GB STL) fails a fortiori.
+
+Mitigation paths, not
 pursued here: explicit `dispose()` of intermediates inside the subject
 (against the port-fidelity goal of keeping the C# structure), a
 memory64 build, or out-of-core STL streaming. The user-priority 0.5–1.0 mm
@@ -342,8 +356,12 @@ Method: `bench/lattice-batch.mjs`. Per-beam rows are min-of-7 over 9×200,000-be
 process. The `author` row is a **paired ABAB ×5** against the real subject, both variants in the
 same process (the "before" variant is a faithful re-creation of the replaced facade, proxied
 over `createLattice`); sample ranges are **disjoint** (batched max 154.79 < per-call min 236.06)
-and both variants produced an identical volume. Crossing counts are read from wrappers installed
-on the wasm exports before the raw table binds, so they are counted, not inferred. Machine: M2
+and both variants produced an identical volume.
+
+Crossing counts are read from wrappers installed
+on the wasm exports before the raw table binds, so they are counted, not inferred.
+
+Machine: M2
 Pro, AC, `lowpowermode 0`, loadavg 2.8→7.6 (two sibling spikes sharing the box — which is why
 the claim rests on the paired in-process A/B and not on a macro suite run).
 
