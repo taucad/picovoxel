@@ -375,3 +375,41 @@ changes together; against the quiet 298.069 ms measured after that change, batch
 
 Residual: 20.9 of the 39.2 ns/beam is C++-side ingest (`make_shared` per beam into upstream's
 `std::vector<LatticeBeam::Ptr>`).
+
+## Appendix — Chromium timing of picovoxel/multi (2026-09-28)
+
+Every other number in this file comes from Node. This section times the pthreads build in a browser.
+
+**Method.** `node bench/browser-timing.mjs --rounds 5` serves the repository with cross-origin isolation
+headers, loads `bench/browser-timing-cases.mjs` from `dist/` in headless Chromium through an import map,
+and runs the same module in a fresh Node process. Each round runs each case once on each host,
+alternating, so both hosts see the same machine load. Every run uses a fresh page or process, so the first
+`createPico()` is a cold start. The gyroid case is the tape gyroid of M10 at 0.25 mm (1 warmup and 5
+measured repeats per run, median). The HeatX case is the HelixHeatX example at 1.0 mm, one build per run.
+
+**Machine.** Apple M2 Pro (12 cores, 32 GiB), darwin 25.5.0, Node v24.10.0, Chromium 149.0.7827.55 (the
+Playwright headless shell), multi wasm `99e4eb5e1298` (6,127,793 B), commit `7ddade2`. The 1-minute load
+average was 17–44 during the run because other work shared the machine, so this is not a quiet baseline.
+Record: `bench/results/browser/2026-09-27-7ddade2.json` (the file name carries the UTC date).
+
+| Case                 | Phase      | Node, median of 5 (range) | Chromium, median of 5 (range) |
+| -------------------- | ---------- | ------------------------: | ----------------------------: |
+| gyroid tape @ 0.25mm | cold start |    117.7 ms (101.2–260.9) |          78.8 ms (68.4–159.1) |
+|                      | render     |       15.7 ms (12.3–19.8) |             9.5 ms (8.6–12.9) |
+|                      | mesh       |       31.0 ms (21.8–48.4) |           16.0 ms (14.6–20.8) |
+| HelixHeatX @ 1.0mm   | cold start |    141.0 ms (101.7–283.6) |          90.6 ms (65.2–175.1) |
+|                      | construct  |     15.14 s (11.29–18.40) |            6.32 s (6.25–6.88) |
+|                      | mesh       |      99.3 ms (76.5–215.4) |           46.5 ms (42.3–50.3) |
+
+Readings:
+
+- **Identity.** Both hosts produced the same volume (hex double) and triangle count on every run: gyroid
+  `40b0937560000000` and 538,668 triangles; HelixHeatX `41220895e0000000` and 1,873,340 triangles.
+- **Chromium was faster on this loaded machine**, by 2.4× on the HelixHeatX construct. The cause was not
+  investigated. One hypothesis is that macOS scheduled the Node child process at a lower priority than
+  Chromium's processes; lifting the Node process's background policy (`taskpolicy -B`) gave 10.9 s against
+  12.7 s in one trial, so that explains part of the gap at most. On a quiet machine, Node built the part in
+  about 8.4 s (README).
+- **One crash.** In an earlier attempt, the fifth Chromium HelixHeatX run crashed the page ("Target
+  crashed") after four clean rounds; no cause was found. The harness now records a crashed page and goes on.
+- Firefox and Safari are not measured.
