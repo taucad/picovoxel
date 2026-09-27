@@ -48,7 +48,14 @@ import { withVdbBytes, wrapVdbFile, type VdbFile } from './vdb.ts';
 import { wrapVoxels, type Voxels } from './voxels.ts';
 
 /** Emscripten module factory — the shape both generated glues export. */
-export type PicoGlueFactory = (overrides?: object) => Promise<PicoWasmModule>;
+export type PicoGlueFactory = ((overrides?: object) => Promise<PicoWasmModule>) & {
+  /**
+   * The export names this glue reads from its module (generated per build into
+   * `src/<variant>.exports.ts`). When present, a caller's `wasmModule` must carry
+   * all of them before it is instantiated.
+   */
+  wasmExports?: readonly string[];
+};
 
 export type CreateVoxelsOptions =
   | { shape: 'empty' }
@@ -277,6 +284,22 @@ async function instantiate(glue: PicoGlueFactory, { wasm, wasmModule }: CreatePi
         'Pass either wasmModule or wasm.instantiateWasm, not both: each one decides how the module is instantiated.',
       );
     }
+    if (!(wasmModule instanceof WebAssembly.Module)) {
+      throw new PicoError('PICO_INVALID_ARGUMENT', 'wasmModule must be a compiled WebAssembly.Module.');
+    }
+    // Pre-flight: a module from another build or variant must fail HERE. Past
+    // instantiation the multi glue defers run() behind its pool, so a missing export
+    // surfaces there as an unhandled rejection and the promise never settles.
+    const present = new Set(WebAssembly.Module.exports(wasmModule).map(({ name }) => name));
+    const missing = (glue.wasmExports ?? []).filter((name) => !present.has(name));
+    if (missing.length > 0) {
+      throw new PicoError(
+        'PICO_WASM_INIT_FAILED',
+        `wasmModule is not this entry's build: it lacks ${missing.length} of the ${glue.wasmExports!.length} exports ` +
+          'its glue reads. Compile the .wasm shipped next to this entry (pico.wasm for picovoxel, pico-multi.wasm ' +
+          'for picovoxel/multi) from the same picovoxel version.',
+      );
+    }
     // The glue never gives instantiateWasm a way to reject (it resolves from the
     // callback only), so a failed instantiation is raced in beside it instead of
     // leaving the returned promise pending forever. The module goes to the
@@ -297,6 +320,11 @@ async function instantiate(glue: PicoGlueFactory, { wasm, wasmModule }: CreatePi
     const loading = glue(overrides);
     return await (failed ? Promise.race([loading, failed]) : loading);
   } catch (cause) {
+    // The multi glue starts its pthread pool (PThread.initMainThread) before the
+    // module is even instantiated and publishes it on the overrides object it was
+    // given. Nothing else will ever terminate those workers, and in Node they hold
+    // the process open, so a failed instantiation joins them here.
+    (overrides['PThread'] as PicoWasmModule['PThread'])?.terminateAllThreads();
     throw new PicoError(
       'PICO_WASM_INIT_FAILED',
       'PicoGK WebAssembly failed to instantiate. Check that the .wasm file is served next to its glue .mjs ' +
@@ -393,8 +421,27 @@ export async function openPicoRuntime(
   options: CreatePicoRuntimeOptions = {},
   warm?: (runtime: PicoRuntime) => Promise<void>,
 ): Promise<PicoRuntime> {
+  const misplaced = Object.keys(options).filter((key) => Object.hasOwn(SESSION_OPTION_KEYS, key));
+  if (misplaced.length > 0) {
+    throw new PicoError(
+      'PICO_INVALID_ARGUMENT',
+      `createPicoRuntime() takes runtime options only (wasm, wasmModule); ${misplaced.join(', ')} ` +
+        'belong to each session: pass them to runtime.createPico(options).',
+    );
+  }
   return (await startRuntime(glue, options, warm)).runtime;
 }
+
+/** Every session option key — a Record so the compiler flags a key added to the interface but not here. */
+const SESSION_OPTION_KEYS: Record<keyof CreatePicoSessionOptions, true> = {
+  voxelSize: true,
+  memoryWarningBytes: true,
+  lane: true,
+  fastRenorm: true,
+  serialLattice: true,
+  registry: true,
+  now: true,
+};
 
 /**
  * Creates a PicoGK session on the given glue: a runtime and a session that

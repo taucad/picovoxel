@@ -14,6 +14,7 @@
 import './dispose.ts';
 
 import createPicoMultiModuleUntyped from './pico-multi.mjs';
+import { WASM_EXPORTS } from './pico-multi.exports.ts';
 import {
   createPicoSession,
   openPicoRuntime,
@@ -25,7 +26,10 @@ import {
   type PicoRuntime,
 } from './session.ts';
 
-const glue = createPicoMultiModuleUntyped as PicoGlueFactory;
+// The glue plus the export names it reads, so a caller's wasmModule is checked first.
+const glue: PicoGlueFactory = Object.assign((overrides?: object) => (createPicoMultiModuleUntyped as PicoGlueFactory)(overrides), {
+  wasmExports: WASM_EXPORTS,
+});
 
 /**
  * Creates a multithreaded (pthreads) PicoGK session. Resolves once the wasm

@@ -6,11 +6,16 @@
 // the PV-W1 voxel-unit warm-up, and pool reuse across sessions.
 
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { test } from 'vitest';
 import * as serialEntry from '../src/index.ts';
 import * as multiEntry from '../src/multi.ts';
+import { WASM_EXPORTS as MULTI_EXPORTS } from '../src/pico-multi.exports.ts';
+import createMultiGlue from '../src/pico-multi.mjs';
+import { WASM_EXPORTS as PICO_EXPORTS } from '../src/pico.exports.ts';
 import createSerialGlue from '../src/pico.mjs';
 import { bindPicoRaw } from '../src/raw.generated.ts';
 import { freeHeld } from '../src/registry.ts';
@@ -220,18 +225,148 @@ test('compile once: wasmModule and wasm.instantiateWasm both skip the glue fetch
   hostRuntime.dispose();
 });
 
-test('compile once: contradictory and wrong modules fail loudly, never hang', async () => {
-  const compiled = await WebAssembly.compile(readFileSync(join(import.meta.dirname, '..', 'src', 'pico.wasm')));
+/** Unsigned LEB128, as the wasm binary format encodes counts and sizes. */
+function leb(value: number): number[] {
+  const bytes: number[] = [];
+  do {
+    let byte = value & 0x7f;
+    value >>>= 7;
+    if (value !== 0) byte |= 0x80;
+    bytes.push(byte);
+  } while (value !== 0);
+  return bytes;
+}
+
+/**
+ * A wasm module exporting `names` (all aliases of one function). With `unlinkable`
+ * the function is an import ("x"."y") no glue provides, so the module passes the
+ * export pre-flight and then fails to instantiate.
+ */
+function moduleExporting(names: readonly string[], unlinkable: boolean): Promise<WebAssembly.Module> {
+  const section = (id: number, body: number[]) => [id, ...leb(body.length), ...body];
+  const text = (value: string) => [...leb(value.length), ...[...value].map((c) => c.charCodeAt(0))];
+  const bytes = [
+    0, 97, 115, 109, 1, 0, 0, 0,
+    ...section(1, [1, 0x60, 0, 0]),
+    ...(unlinkable
+      ? section(2, [1, ...text('x'), ...text('y'), 0, 0])
+      : [...section(3, [1, 0]), ...section(10, [1, 2, 0, 0x0b])]),
+    ...section(7, [...leb(names.length), ...names.flatMap((name) => [...text(name), 0, 0])]),
+  ];
+  return WebAssembly.compile(Uint8Array.from(bytes));
+}
+
+const wasmFile = (name: string) => readFileSync(join(import.meta.dirname, '..', 'src', name));
+
+test('compile once: contradictory and non-module inputs are refused before instantiation', async () => {
+  const compiled = await WebAssembly.compile(wasmFile('pico.wasm'));
   await assert.rejects(
     () => serialEntry.createPicoRuntime({ wasmModule: compiled, wasm: { instantiateWasm: () => ({}) } }),
     isPicoError('PICO_INVALID_ARGUMENT'),
   );
-  // A module whose single import ("x"."y") the glue cannot satisfy: instantiate
-  // rejects inside instantiateWasm, where the glue offers no reject path.
-  const foreign = await WebAssembly.compile(
-    Uint8Array.of(0, 97, 115, 109, 1, 0, 0, 0, 1, 4, 1, 96, 0, 0, 2, 7, 1, 1, 120, 1, 121, 0, 0),
+  await assert.rejects(
+    () => serialEntry.createPicoRuntime({ wasmModule: wasmFile('pico.wasm') as unknown as WebAssembly.Module }),
+    isPicoError('PICO_INVALID_ARGUMENT'),
   );
-  await assert.rejects(() => serialEntry.createPicoRuntime({ wasmModule: foreign }), isPicoError('PICO_WASM_INIT_FAILED'));
+});
+
+test('compile once: a module from another build or variant fails the export pre-flight on both entries', async () => {
+  const empty = await WebAssembly.compile(Uint8Array.of(0, 97, 115, 109, 1, 0, 0, 0));
+  const serialWasm = await WebAssembly.compile(wasmFile('pico.wasm'));
+  const multiWasm = await WebAssembly.compile(wasmFile('pico-multi.wasm'));
+  const notThisBuild = (error: unknown) =>
+    isPicoError('PICO_WASM_INIT_FAILED')(error) && /not this entry's build/.test((error as Error).message);
+  for (const [entry, wasmModule] of [
+    [serialEntry, empty],
+    [multiEntry, empty],
+    [multiEntry, serialWasm],
+    [serialEntry, multiWasm],
+  ] as const) {
+    await assert.rejects(() => entry.createPicoRuntime({ wasmModule }), notThisBuild);
+  }
+  // Pre-flight means the glue never ran: no pthread pool was ever started.
+  let calls = 0;
+  const glue = Object.assign(async () => {
+    calls += 1;
+    throw new Error('unreachable');
+  }, { wasmExports: ['F'] });
+  await assert.rejects(() => openPicoRuntime(glue, { wasmModule: empty }), notThisBuild);
+  assert.equal(calls, 0);
+  // A bare glue with no recorded list (the bench harnesses' counting glues) skips the pre-flight.
+  const bare = await openPicoRuntime(serialGlue, { wasmModule: serialWasm });
+  assert.equal((await bare.createPico()).name, 'PicoGK Core Library');
+  bare.dispose();
+});
+
+test('compile once: an unlinkable module rejects (never hangs) on the serial entry', async () => {
+  const unlinkable = await moduleExporting(PICO_EXPORTS, true);
+  await assert.rejects(() => serialEntry.createPicoRuntime({ wasmModule: unlinkable }), isPicoError('PICO_WASM_INIT_FAILED'));
+});
+
+test('multi: a module that fails to instantiate leaves no pthread pool behind', async () => {
+  let moduleArg: { PThread?: NonNullable<PicoWasmModule['PThread']> } | undefined;
+  const glue = Object.assign(
+    async (overrides?: object) => {
+      moduleArg = overrides as typeof moduleArg;
+      return (createMultiGlue as PicoGlueFactory)(overrides);
+    },
+    { wasmExports: MULTI_EXPORTS },
+  );
+  const unlinkable = await moduleExporting(MULTI_EXPORTS, true);
+  await assert.rejects(() => openPicoRuntime(glue, { wasmModule: unlinkable }), isPicoError('PICO_WASM_INIT_FAILED'));
+  const pool = moduleArg!.PThread!;
+  assert.ok(pool, 'the multi glue had started its pool before instantiating');
+  assert.equal(pool.runningWorkers.length + pool.unusedWorkers.length, 0, 'every worker was terminated');
+});
+
+test('multi: failed instantiations let the process exit (no worker holds it open)', () => {
+  // Each scenario runs in a fresh process: one that leaked its pool would never exit
+  // on its own and is killed at the timeout instead of exiting 0.
+  const entry = pathToFileURL(join(import.meta.dirname, '..', 'src', 'multi.ts')).href;
+  const scenarios = {
+    'unlinkable wasmModule': `
+      const { WASM_EXPORTS } = await import(${JSON.stringify(entry.replace(/multi\.ts$/, 'pico-multi.exports.ts'))});
+      const leb = (v) => { const b = []; do { let x = v & 0x7f; v >>>= 7; if (v) x |= 0x80; b.push(x); } while (v); return b; };
+      const text = (s) => [...leb(s.length), ...[...s].map((c) => c.charCodeAt(0))];
+      const section = (id, body) => [id, ...leb(body.length), ...body];
+      const exports = [...leb(WASM_EXPORTS.length), ...WASM_EXPORTS.flatMap((n) => [...text(n), 0, 0])];
+      const bytes = [0, 97, 115, 109, 1, 0, 0, 0, ...section(1, [1, 0x60, 0, 0]),
+        ...section(2, [1, ...text('x'), ...text('y'), 0, 0]), ...section(7, exports)];
+      return { wasmModule: await WebAssembly.compile(Uint8Array.from(bytes)) };`,
+    'missing wasm file': `return { wasm: { locateFile: () => '/nonexistent/pico-multi.wasm' } };`,
+  };
+  for (const [label, makeOptions] of Object.entries(scenarios)) {
+    const child = spawnSync(
+      process.execPath,
+      [
+        // No --input-type: the pthread workers inherit execArgv and refuse it.
+        '--no-warnings',
+        '-e',
+        `(async () => {
+           const { createPicoRuntime } = await import(${JSON.stringify(entry)});
+           const options = await (async () => { ${makeOptions} })();
+           try { await createPicoRuntime(options); console.log('resolved'); }
+           catch (error) { console.log(error.code); }
+         })();`,
+      ],
+      { encoding: 'utf8', timeout: 60_000 },
+    );
+    assert.equal(child.signal, null, `${label}: the process had to be killed — a leaked pool held it open`);
+    assert.equal(child.status, 0, `${label}: ${child.stderr}`);
+    assert.equal(child.stdout.trim(), 'PICO_WASM_INIT_FAILED', label);
+  }
+});
+
+test('createPicoRuntime refuses session options and names runtime.createPico as the remedy', async () => {
+  for (const entry of [serialEntry, multiEntry]) {
+    await assert.rejects(
+      () => entry.createPicoRuntime({ voxelSize: 0.2, lane: 'exact' } as never),
+      (error: unknown) =>
+        isPicoError('PICO_INVALID_ARGUMENT')(error) &&
+        /voxelSize, lane/.test((error as Error).message) &&
+        /runtime\.createPico\(options\)/.test((error as Error).message),
+    );
+  }
 });
 
 test('a failed warm-up disposes the runtime before rethrowing', async () => {

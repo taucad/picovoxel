@@ -124,6 +124,10 @@ em++ -std=c++20 $WASM_FLAGS $EH_FLAGS "-ffile-prefix-map=$HERE=." \
 
 echo "$VARIANT.wasm: $(wc -c < "$OUT_JS/$VARIANT.wasm" | tr -d ' ') bytes; $VARIANT.mjs: $(wc -c < "$OUT_JS/$VARIANT.mjs" | tr -d ' ') bytes; malloc=$MALLOC"
 
+# The glue reads minified export names; record them so createPicoRuntime({ wasmModule })
+# can refuse a module from another build (test/wasm-exports.test.ts guards drift).
+node "$HERE/scripts/generate-wasm-exports.mjs" "$VARIANT" "$OUT_JS"
+
 N=$("$EMSDK/upstream/bin/wasm-dis" "$OUT_JS/$VARIANT.wasm" | grep -cE '\b(f32x4|i32x4|v128)\.' || true)
 echo "SIMD instructions: $N"
 [ "$N" -gt 0 ] || { echo "FAIL: scalar build (correct but ~26% slow, invisible to functional tests)"; exit 1; }
