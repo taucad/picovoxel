@@ -8,7 +8,14 @@ import { test } from 'vitest';
 import { guard, PicoError } from '../src/errors.ts';
 import { createGearOutline, triangulate } from '../examples/pico/gear.ts';
 import { createPico, type Pico } from '../src/index.ts';
-import { contoursFromSdf, detectWinding, sliceToSvg, sliceVoxels, slicesFromCli, slicesToCli as slicesToCliLocal } from '../src/slicing.ts';
+import {
+  contoursFromSdf,
+  detectWinding,
+  sliceToSvg,
+  sliceVoxels,
+  slicesFromCli,
+  slicesToCli as slicesToCliLocal,
+} from '../src/slicing.ts';
 import { meshFromBufferGeometry, toBufferGeometry } from '../src/three.ts';
 import { emptyBounds, isEmptyBounds } from '../src/types.ts';
 
@@ -36,9 +43,25 @@ const expectInvalid = (fn: () => unknown, pattern?: RegExp) => {
 };
 
 test('guard renders argument detail on every rewrap arm', () => {
-  const oom = grab(guard('Op', () => { throw new WebAssembly.RuntimeError('oob'); }, () => 'radius=9'));
+  const oom = grab(
+    guard(
+      'Op',
+      () => {
+        throw new WebAssembly.RuntimeError('oob');
+      },
+      () => 'radius=9',
+    ),
+  );
   assert.match((oom as Error).message, /\(radius=9\)/);
-  const failed = grab(guard('Op', () => { throw new Error('x'); }, () => 'mode=fast'));
+  const failed = grab(
+    guard(
+      'Op',
+      () => {
+        throw new Error('x');
+      },
+      () => 'mode=fast',
+    ),
+  );
   assert.match((failed as Error).message, /\(mode=fast\)/);
 });
 
@@ -78,8 +101,14 @@ test('validation arms: fields getSlice, mesh triples/matrix/normal/radius, three
   geometry.deleteAttribute('position');
   expectInvalid(() => meshFromBufferGeometry(pk, geometry), /position attribute/);
 
-  expectInvalid(() => pk.createVoxels({ shape: 'beam', start: [0, 0, 0], end: [1, 0, 0], startRadius: 2 }), /radius/);
-  expectInvalid(() => sliceVoxels(pk.createVoxels({ shape: 'sphere', radius: 3 }), { layerHeight: -1 }), /layerHeight/);
+  expectInvalid(
+    () => pk.createVoxels({ shape: 'beam', start: [0, 0, 0], end: [1, 0, 0], startRadius: 2 }),
+    /radius/,
+  );
+  expectInvalid(
+    () => sliceVoxels(pk.createVoxels({ shape: 'sphere', radius: 3 }), { layerHeight: -1 }),
+    /layerHeight/,
+  );
   pk.dispose();
 });
 
@@ -118,8 +147,17 @@ test('vdb: default field name, index getters, unstamped/empty bytes for the hand
   const raw = pk.module;
   const h = 'bigint';
   const create = raw.cwrap('VdbFile_hCreate', h, [h]) as (l: bigint) => bigint;
-  const addVox = raw.cwrap('VdbFile_nAddVoxels', 'number', [h, h, 'number', h]) as (l: bigint, f: bigint, n: number, v: bigint) => number;
-  const save = raw.cwrap('VdbFile_bSaveToFile', 'boolean', [h, h, 'number']) as (l: bigint, f: bigint, p: number) => boolean;
+  const addVox = raw.cwrap('VdbFile_nAddVoxels', 'number', [h, h, 'number', h]) as (
+    l: bigint,
+    f: bigint,
+    n: number,
+    v: bigint,
+  ) => number;
+  const save = raw.cwrap('VdbFile_bSaveToFile', 'boolean', [h, h, 'number']) as (
+    l: bigint,
+    f: bigint,
+    p: number,
+  ) => boolean;
   const writeString = (text: string) => {
     const bytes = raw.lengthBytesUTF8(text) + 1;
     const pointer = raw._malloc(bytes);
@@ -165,10 +203,25 @@ test('gear: high tooth counts (root above base circle) and degenerate triangulat
   assert.ok(fifty.length > 1000, 'outline generated without base-circle root points');
   assert.equal(detectWinding(fifty.flat()), 'ccw', 'outline is CCW without fix-up');
 
-  assert.deepEqual(triangulate([[0, 0], [1, 0], [2, 0], [3, 0]]), [], 'collinear polygon has no ears');
+  assert.deepEqual(
+    triangulate([
+      [0, 0],
+      [1, 0],
+      [2, 0],
+      [3, 0],
+    ]),
+    [],
+    'collinear polygon has no ears',
+  );
 
   // A concave notch forces the point-in-triangle containment rejection branch.
-  const notched: Array<[number, number]> = [[0, 0], [4, 0], [4, 4], [2, 1], [0, 4]];
+  const notched: Array<[number, number]> = [
+    [0, 0],
+    [4, 0],
+    [4, 4],
+    [2, 1],
+    [0, 4],
+  ];
   const tris = triangulate(notched);
   assert.equal(tris.length, 3, 'notched pentagon triangulates into 3 ears');
 });
@@ -199,7 +252,9 @@ test('slicing edges: degenerate winding, tiny images, parser warnings and failur
   assert.deepEqual(contoursFromSdf({ width: 1, height: 5, data: new Float32Array(5) }), []);
 
   const cli = (body: string) =>
-    new TextEncoder().encode(`$$HEADERSTART\n$$ASCII\n$$UNITS/1\n$$LABEL/1,default\n$$HEADEREND\n$$GEOMETRYSTART\n${body}\n$$GEOMETRYEND\n`);
+    new TextEncoder().encode(
+      `$$HEADERSTART\n$$ASCII\n$$UNITS/1\n$$LABEL/1,default\n$$HEADEREND\n$$GEOMETRYSTART\n${body}\n$$GEOMETRYEND\n`,
+    );
 
   // Warnings: degenerate polyline, zero-area polyline, winding mismatch, unknown command.
   const tolerant = slicesFromCli(
@@ -344,7 +399,10 @@ test('cli: absolute-XY stacks write signed dimensions; prose before GEOMETRYSTAR
 });
 
 test('cli: units validation, default date, empty geometry, header variants', () => {
-  const stackLike = { slices: [{ z: 1, contours: [] }], bounds: { min: [0, 0, 0] as const, max: [1, 1, 1] as const } };
+  const stackLike = {
+    slices: [{ z: 1, contours: [] }],
+    bounds: { min: [0, 0, 0] as const, max: [1, 1, 1] as const },
+  };
   assert.throws(() => slicesToCliLocal(stackLike, { units: -5 }), /units must be positive/);
 
   // Default date arm: today's ISO date lands in the header.

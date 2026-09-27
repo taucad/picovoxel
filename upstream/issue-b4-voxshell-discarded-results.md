@@ -11,7 +11,7 @@ voxOuter.voxBoolSubtract(voxInner);             // copy form — result discarde
 return voxOuter;                                // solid outer offset, no void
 ```
 
-`voxTripleOffset` and `voxBoolSubtract` are the *pure copy* forms — they return a
+`voxTripleOffset` and `voxBoolSubtract` are the _pure copy_ forms — they return a
 new Voxels and leave the receiver untouched — so the two-offset shell returns
 the plain outer offset: no inner void is subtracted and `fSmoothInnerMM` has no
 effect. The mutating forms (`TripleOffset`, `BoolSubtract`) appear intended.

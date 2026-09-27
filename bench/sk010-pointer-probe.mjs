@@ -54,7 +54,10 @@ const oob = (indices) => {
   for (let i = 0; i < indices.length; i++) if (indices[i] >= vertexCount) n++;
   return n;
 };
-const unsignedView = module.HEAPU32.subarray(stagingPointer >>> 2, (stagingPointer >>> 2) + triangleCount * 3);
+const unsignedView = module.HEAPU32.subarray(
+  stagingPointer >>> 2,
+  (stagingPointer >>> 2) + triangleCount * 3,
+);
 const signedView = module.HEAPU32.subarray(stagingPointer >> 2, (stagingPointer >> 2) + triangleCount * 3);
 const result = {
   build,

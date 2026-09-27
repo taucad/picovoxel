@@ -39,7 +39,11 @@ test('SimpleFluidSimulation @ 1.0 mm: pinned device, 5-field round-trip, probe-g
       assertPinSource(voxels.lane, 'flow device'); // LANES item 3 — only exact sources pin
       return { volumeHex: hexFloat(voxels.properties().volume), triangles: voxels.toMesh().triangleCount };
     };
-    const recorded = { fluid: pin(written.fluidDomain), solid: pin(written.solidDomain), inlet: pin(written.inletPatch) };
+    const recorded = {
+      fluid: pin(written.fluidDomain),
+      solid: pin(written.solidDomain),
+      inlet: pin(written.inletPatch),
+    };
     if (updatePins) {
       writeFileSync(fixturePath, `${JSON.stringify(recorded, null, 1)}\n`);
     } else {
@@ -81,7 +85,10 @@ test('SimpleFluidSimulation @ 1.0 mm: pinned device, 5-field round-trip, probe-g
         zeroCount += 1;
       } else {
         assert.equal(vz, INLET_VELOCITY_Z, `inlet velocity z is exactly -1.5, got ${vz}`);
-        assert.ok(Math.abs(vx) < 2e-3 && Math.abs(vy) < 2e-3, `lateral inlet components stay tiny: ${vx}, ${vy}`);
+        assert.ok(
+          Math.abs(vx) < 2e-3 && Math.abs(vy) < 2e-3,
+          `lateral inlet components stay tiny: ${vx}, ${vy}`,
+        );
         inletCount += 1;
       }
     });

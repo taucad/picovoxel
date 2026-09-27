@@ -7,14 +7,14 @@ tube-complex arm (`upstream/picogkruntime-tubecomplex-lattice.patch`). It is
 committed so the U5 numbers can be rerun by anyone with the same setup; it is
 not part of the package, the test suite or CI.
 
-| File | Role |
-| --- | --- |
-| `NativeHeatX.csproj` | Compiles PicoGK, ShapeKernel and HelixHeatX from sibling source checkouts and copies the osx-arm64 runtime dylibs beside the app |
-| `Program.cs` | One timed run per process: `Library.Go(voxelSize, HelixHeatX.Task)` as upstream's tutorial runs it, one JSONL record per run |
-| `Cutaway.cs` | `--view`: an interactive cutaway of the fixture; never timed |
-| `run-sweep.sh` | Round-robin sweep, 1.0 → 0.5 mm, 5 passes by default; `LABEL`, `PICOGK_DYLIB`, `ALLOC_DYLIB`, `ALLOC_LABEL`, `IDLE_LIMIT` select the arm |
-| `summarize.mjs`, `compare-arms.mjs`, `compare-best.mjs` | Tables over the recorded JSONL (bootstrap medians from `bench/stats.mjs`) |
-| `compare-stl.mjs` | Streaming binary-STL parity (volume, area, bounds) between two arms |
+| File                                                    | Role                                                                                                                                     |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `NativeHeatX.csproj`                                    | Compiles PicoGK, ShapeKernel and HelixHeatX from sibling source checkouts and copies the osx-arm64 runtime dylibs beside the app         |
+| `Program.cs`                                            | One timed run per process: `Library.Go(voxelSize, HelixHeatX.Task)` as upstream's tutorial runs it, one JSONL record per run             |
+| `Cutaway.cs`                                            | `--view`: an interactive cutaway of the fixture; never timed                                                                             |
+| `run-sweep.sh`                                          | Round-robin sweep, 1.0 → 0.5 mm, 5 passes by default; `LABEL`, `PICOGK_DYLIB`, `ALLOC_DYLIB`, `ALLOC_LABEL`, `IDLE_LIMIT` select the arm |
+| `summarize.mjs`, `compare-arms.mjs`, `compare-best.mjs` | Tables over the recorded JSONL (bootstrap medians from `bench/stats.mjs`)                                                                |
+| `compare-stl.mjs`                                       | Streaming binary-STL parity (volume, area, bounds) between two arms                                                                      |
 
 ## Constraints
 

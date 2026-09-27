@@ -5,7 +5,15 @@
 // write back through the bulk imports, preserving indexing — and fixing upstream B1
 // (mshCreateTransformed scales each triangle corner by a DIFFERENT axis component).
 
-import { adoptHandle, assertSameSession, checkedMalloc, expectHandle, TRI_BYTES, VEC3_BYTES, type SessionContext } from './context.ts';
+import {
+  adoptHandle,
+  assertSameSession,
+  checkedMalloc,
+  expectHandle,
+  TRI_BYTES,
+  VEC3_BYTES,
+  type SessionContext,
+} from './context.ts';
 import { assertLive, guard, PicoError } from './errors.ts';
 import { createGlb } from './glb.ts';
 import { assertLaneExport, EXACT_LANE_SET, laneOf, unionLaneSets, type LaneSet } from './lanes.ts';
@@ -14,9 +22,7 @@ import { writeStlBytes, type ToStlOptions } from './stl.ts';
 import type { Bounds, Mat4, Vec3 } from './types.ts';
 import type { Voxels } from './voxels.ts';
 
-export type TransformOptions =
-  | { matrix: Mat4 }
-  | { scale: number | Vec3; offset?: Vec3 };
+export type TransformOptions = { matrix: Mat4 } | { scale: number | Vec3; offset?: Vec3 };
 
 export interface Mesh {
   /** Vertex positions, xyz triples in mm. A fresh copy; the caller owns it. */
@@ -76,7 +82,11 @@ export interface Mesh {
 }
 
 /** Writes vertex/triangle arrays into a fresh raw mesh via the R8 bulk imports. */
-export function bulkCreateMesh(ctx: SessionContext, vertices: ArrayLike<number>, triangles: ArrayLike<number>): bigint {
+export function bulkCreateMesh(
+  ctx: SessionContext,
+  vertices: ArrayLike<number>,
+  triangles: ArrayLike<number>,
+): bigint {
   const vertexCount = vertices.length / 3;
   const triangleCount = triangles.length / 3;
   if (!Number.isInteger(vertexCount) || !Number.isInteger(triangleCount)) {
@@ -138,8 +148,12 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: LaneSet = EX
       raw.Mesh_GetVertices(lib, handle, vertexPointer, vertexCount);
       raw.Mesh_GetTriangles(lib, handle, trianglePointer, triangleCount);
       return {
-        vertices: new Float32Array(module.HEAPF32.subarray(vertexPointer >>> 2, (vertexPointer >>> 2) + vertexCount * 3)),
-        triangles: new Uint32Array(module.HEAPU32.subarray(trianglePointer >>> 2, (trianglePointer >>> 2) + triangleCount * 3)),
+        vertices: new Float32Array(
+          module.HEAPF32.subarray(vertexPointer >>> 2, (vertexPointer >>> 2) + vertexCount * 3),
+        ),
+        triangles: new Uint32Array(
+          module.HEAPU32.subarray(trianglePointer >>> 2, (trianglePointer >>> 2) + triangleCount * 3),
+        ),
       };
     } finally {
       module._free(vertexPointer);
@@ -148,7 +162,9 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: LaneSet = EX
   });
 
   /** Pure vertex-remap derivation: same triangles, transformed vertex array. */
-  const deriveVertices = (remap: (x: number, y: number, z: number, out: Float32Array, at: number) => void): Mesh => {
+  const deriveVertices = (
+    remap: (x: number, y: number, z: number, out: Float32Array, at: number) => void,
+  ): Mesh => {
     live();
     const source = cached ?? readAll();
     const transformed = new Float32Array(source.vertices.length);
@@ -182,12 +198,17 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: LaneSet = EX
       if ('matrix' in options) {
         const m = options.matrix;
         if (m.length !== 16) {
-          throw new PicoError('PICO_INVALID_ARGUMENT', `transform matrix needs 16 elements, got ${m.length}.`);
+          throw new PicoError(
+            'PICO_INVALID_ARGUMENT',
+            `transform matrix needs 16 elements, got ${m.length}.`,
+          );
         }
         return deriveVertices((x, y, z, out, at) => {
           out[at] = x * (m[0] as number) + y * (m[4] as number) + z * (m[8] as number) + (m[12] as number);
-          out[at + 1] = x * (m[1] as number) + y * (m[5] as number) + z * (m[9] as number) + (m[13] as number);
-          out[at + 2] = x * (m[2] as number) + y * (m[6] as number) + z * (m[10] as number) + (m[14] as number);
+          out[at + 1] =
+            x * (m[1] as number) + y * (m[5] as number) + z * (m[9] as number) + (m[13] as number);
+          out[at + 2] =
+            x * (m[2] as number) + y * (m[6] as number) + z * (m[10] as number) + (m[14] as number);
         });
       }
       const { scale, offset = [0, 0, 0] } = options;
@@ -227,7 +248,8 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: LaneSet = EX
       const offset = a.vertices.length / 3;
       const triangles = new Uint32Array(a.triangles.length + b.triangles.length);
       triangles.set(a.triangles, 0);
-      for (let i = 0; i < b.triangles.length; i++) triangles[a.triangles.length + i] = b.triangles[i]! + offset;
+      for (let i = 0; i < b.triangles.length; i++)
+        triangles[a.triangles.length + i] = b.triangles[i]! + offset;
       return wrapMesh(ctx, bulkCreateMesh(ctx, vertices, triangles), resultLane);
     },
     toVoxels(): Voxels {
@@ -237,10 +259,16 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: LaneSet = EX
     },
     shellVoxels({ radius }: { radius: number }): Voxels {
       if (!(radius > 0)) {
-        throw new PicoError('PICO_INVALID_ARGUMENT', `shellVoxels needs a positive radius in millimetres, got ${radius}.`);
+        throw new PicoError(
+          'PICO_INVALID_ARGUMENT',
+          `shellVoxels needs a positive radius in millimetres, got ${radius}.`,
+        );
       }
       return ctx.wrapVoxels(
-        expectHandle('Voxels_hCreateMeshShell', guard('Voxels_hCreateMeshShell', () => ctx.raw.Voxels_hCreateMeshShell(ctx.lib, live(), radius))()),
+        expectHandle(
+          'Voxels_hCreateMeshShell',
+          guard('Voxels_hCreateMeshShell', () => ctx.raw.Voxels_hCreateMeshShell(ctx.lib, live(), radius))(),
+        ),
         lane,
       );
     },

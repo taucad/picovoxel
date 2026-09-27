@@ -42,10 +42,7 @@ const loadTasks = async () =>
       isEmpty: boolean;
       lane: 'exact' | 'fast';
     };
-    randomWheelTask: (
-      pk: Awaited<ReturnType<typeof createPico>>,
-      seed: number,
-    ) => { isEmpty: boolean };
+    randomWheelTask: (pk: Awaited<ReturnType<typeof createPico>>, seed: number) => { isEmpty: boolean };
   };
 
 test('wheel-02 preset builds headless and matches its byte-locked pins', { timeout: 600_000 }, async () => {
@@ -90,25 +87,31 @@ for (let seed = 1; seed <= 20; seed += 1) {
   });
 }
 
-test('wheel-02 is identical across the single- and multi-threaded engines', { timeout: 600_000 }, async () => {
-  const { presetWheelTask } = await loadTasks();
-  const serial = await createPico({ voxelSize: 2 });
-  const multi = await createPicoMulti({ voxelSize: 2 });
-  try {
-    const serialWheel = presetWheelTask(serial);
-    const multiWheel = presetWheelTask(multi);
-    assert.ok(Object.is(serialWheel.properties().volume, multiWheel.properties().volume));
-    assert.ok(
-      Buffer.from(serialWheel.toMesh().toStl()).equals(Buffer.from(multiWheel.toMesh().toStl())),
-    );
-  } finally {
-    serial.dispose();
-    multi.dispose();
-  }
-});
+test(
+  'wheel-02 is identical across the single- and multi-threaded engines',
+  { timeout: 600_000 },
+  async () => {
+    const { presetWheelTask } = await loadTasks();
+    const serial = await createPico({ voxelSize: 2 });
+    const multi = await createPicoMulti({ voxelSize: 2 });
+    try {
+      const serialWheel = presetWheelTask(serial);
+      const multiWheel = presetWheelTask(multi);
+      assert.ok(Object.is(serialWheel.properties().volume, multiWheel.properties().volume));
+      assert.ok(Buffer.from(serialWheel.toMesh().toStl()).equals(Buffer.from(multiWheel.toMesh().toStl())));
+    } finally {
+      serial.dispose();
+      multi.dispose();
+    }
+  },
+);
 
 function writeFixture(): void {
   const merged = { ...pins, ...regenerated };
-  const ordered = Object.fromEntries(Object.keys(merged).sort().map((k) => [k, merged[k]!]));
+  const ordered = Object.fromEntries(
+    Object.keys(merged)
+      .sort()
+      .map((k) => [k, merged[k]!]),
+  );
   writeFileSync(fixturePath, `${JSON.stringify(ordered, null, 1)}\n`);
 }

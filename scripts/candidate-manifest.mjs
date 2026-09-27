@@ -12,7 +12,9 @@ const packages = readdirSync(candidateDirectory)
   .filter((filename) => filename.endsWith('.tgz'))
   .map((filename) => {
     const tarball = resolve(candidateDirectory, filename);
-    const manifest = JSON.parse(execFileSync('tar', ['-xOf', tarball, 'package/package.json'], { encoding: 'utf8' }));
+    const manifest = JSON.parse(
+      execFileSync('tar', ['-xOf', tarball, 'package/package.json'], { encoding: 'utf8' }),
+    );
     const digest = createHash('sha512').update(readFileSync(tarball)).digest('base64');
     return { name: manifest.name, version: manifest.version, filename, integrity: `sha512-${digest}` };
   })

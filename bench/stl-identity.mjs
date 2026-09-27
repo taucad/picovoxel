@@ -184,9 +184,14 @@ function cmdDiff(fileA, fileB) {
     const needle = record(a, t);
     let found = -1;
     for (let s = 0; s < count; s++) {
-      if (Buffer.compare(record(b, s), needle) === 0) { found = s; break; }
+      if (Buffer.compare(record(b, s), needle) === 0) {
+        found = s;
+        break;
+      }
     }
-    console.log(`  A[${t}] found in B at index ${found}${found < 0 ? ' (ABSENT — content differs)' : ` (shift ${found - t})`}`);
+    console.log(
+      `  A[${t}] found in B at index ${found}${found < 0 ? ' (ABSENT — content differs)' : ` (shift ${found - t})`}`,
+    );
   }
 }
 
@@ -278,7 +283,11 @@ function cmdSelftest() {
     carry = sum > 0xffffffff ? 1 : 0;
   }
   eq('mod-2^256 wraparound', [...wrap].join(), new Array(8).fill(0).join());
-  eq('permuted streams are not byte-identical', stlIdentity(make([1, 2, 3])).sha256 === stlIdentity(make([3, 1, 2])).sha256, false);
+  eq(
+    'permuted streams are not byte-identical',
+    stlIdentity(make([1, 2, 3])).sha256 === stlIdentity(make([3, 1, 2])).sha256,
+    false,
+  );
 
   // §14.5 reconciliation (SK-0.10): the normal is out of the payload, and the
   // two canonicalizations fold. Each claim also asserts the streams really do
@@ -286,12 +295,20 @@ function cmdSelftest() {
   const normalA = makeBits(twelve((f) => (f < 3 ? 0x3f800000 : 0x40000000 + f)));
   const normalB = makeBits(twelve((f) => (f < 3 ? 0xbf800000 : 0x40000000 + f)));
   eq('normal must not enter the hash', stlIdentity(normalA).multiset, stlIdentity(normalB).multiset);
-  eq('normal-only change must still move the bytes', stlIdentity(normalA).sha256 === stlIdentity(normalB).sha256, false);
+  eq(
+    'normal-only change must still move the bytes',
+    stlIdentity(normalA).sha256 === stlIdentity(normalB).sha256,
+    false,
+  );
 
   const posZero = makeBits(twelve(() => 0x00000000));
   const negZero = makeBits(twelve(() => 0x80000000));
   eq('-0.0 canonicalizes to +0.0', stlIdentity(posZero).multiset, stlIdentity(negZero).multiset);
-  eq('signed zero must still move the bytes', stlIdentity(posZero).sha256 === stlIdentity(negZero).sha256, false);
+  eq(
+    'signed zero must still move the bytes',
+    stlIdentity(posZero).sha256 === stlIdentity(negZero).sha256,
+    false,
+  );
 
   const nanA = makeBits(twelve(() => 0x7fc00001));
   const nanB = makeBits(twelve(() => 0xffc12345));
@@ -313,7 +330,9 @@ if (isMain) {
   else if (command === 'diff') cmdDiff(rest[0], rest[1]);
   else if (command === 'hash') cmdHash(rest);
   else {
-    console.error('usage: stl-identity.mjs hash <file>... | diff <a> <b> | run --build B --size S [--label L] [--jsonl F] [--dump FILE]');
+    console.error(
+      'usage: stl-identity.mjs hash <file>... | diff <a> <b> | run --build B --size S [--label L] [--jsonl F] [--dump FILE]',
+    );
     process.exit(2);
   }
 }

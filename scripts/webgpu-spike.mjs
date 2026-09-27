@@ -40,7 +40,10 @@ const MIME = {
   '.wgsl': 'text/plain; charset=utf-8',
 };
 
-execFileSync('./node_modules/.bin/tsdown', ['--config', 'tsdown.webgpu.config.ts'], { cwd: ROOT, stdio: 'inherit' });
+execFileSync('./node_modules/.bin/tsdown', ['--config', 'tsdown.webgpu.config.ts'], {
+  cwd: ROOT,
+  stdio: 'inherit',
+});
 if (RUN_PHASE === 'p0') {
   execFileSync('bash', ['scripts/build-webgpu-cpu-probe.sh'], {
     cwd: ROOT,

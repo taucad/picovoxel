@@ -88,4 +88,16 @@ for (const [variant, importer] of [
 
 const file = `bench/results/webgpu-v2/sk-0.6-mesh-${label}-${Date.now()}.json`;
 writeFileSync(file, JSON.stringify(out, null, 2));
-console.log(JSON.stringify({ file, single: out.variants.single.median, multi: out.variants.multi.median, threads: out.variants.multi.threads, identity: out.variants.multi.identity }, null, 1));
+console.log(
+  JSON.stringify(
+    {
+      file,
+      single: out.variants.single.median,
+      multi: out.variants.multi.median,
+      threads: out.variants.multi.threads,
+      identity: out.variants.multi.identity,
+    },
+    null,
+    1,
+  ),
+);

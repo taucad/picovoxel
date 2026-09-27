@@ -98,7 +98,10 @@ test('HelixHeatX @ 1.0 mm: pinned result, STL-size parity, single↔multi identi
     assert.ok(Object.isFrozen(singleRun.kernelTimings), 'kernel timing collection is immutable');
     for (const timing of singleRun.kernelTimings) {
       assert.ok(Object.isFrozen(timing), `${timing.stage} timing is immutable`);
-      assert.ok(Number.isFinite(timing.ms) && timing.ms >= 0, `${timing.stage} has a finite non-negative duration`);
+      assert.ok(
+        Number.isFinite(timing.ms) && timing.ms >= 0,
+        `${timing.stage} has a finite non-negative duration`,
+      );
     }
     const accountedMs =
       singleRun.authorMs +
@@ -171,24 +174,20 @@ const FINE_CELL_MM = 0.7;
 const FINE_CELL_VOLUME_HEX = '000000a0e5ff2141'; // 589810.8125
 const FINE_CELL_TRIANGLES = 4_542_744;
 
-test(
-  `HelixHeatX @ ${FINE_CELL_MM} mm: multi build reproduces the pinned fine-cell geometry`,
-  async () => {
-    const { task } = await import('../examples/helixheatx/run.ts');
-    const multi = await createMulti({ voxelSize: FINE_CELL_MM });
-    try {
-      const run = task(multi);
-      assert.deepEqual(
-        { volumeHex: hexFloat(run.voxels.volume), triangles: run.voxels.toMesh().triangleCount },
-        { volumeHex: FINE_CELL_VOLUME_HEX, triangles: FINE_CELL_TRIANGLES },
-        'multi build drops geometry on fine cells — see bench/results/webgpu-v2/SK-0-P0-finecell.md',
-      );
-    } finally {
-      multi.dispose();
-    }
-  },
-  600_000,
-);
+test(`HelixHeatX @ ${FINE_CELL_MM} mm: multi build reproduces the pinned fine-cell geometry`, async () => {
+  const { task } = await import('../examples/helixheatx/run.ts');
+  const multi = await createMulti({ voxelSize: FINE_CELL_MM });
+  try {
+    const run = task(multi);
+    assert.deepEqual(
+      { volumeHex: hexFloat(run.voxels.volume), triangles: run.voxels.toMesh().triangleCount },
+      { volumeHex: FINE_CELL_VOLUME_HEX, triangles: FINE_CELL_TRIANGLES },
+      'multi build drops geometry on fine cells — see bench/results/webgpu-v2/SK-0-P0-finecell.md',
+    );
+  } finally {
+    multi.dispose();
+  }
+}, 600_000);
 
 function expectIdentical(actual: number, expected: number): void {
   assert.ok(Object.is(actual, expected), `volumes bit-identical: ${actual} vs ${expected}`);

@@ -18,10 +18,15 @@ const { _malloc, _free, UTF8ToString, stringToUTF8, lengthBytesUTF8 } = module;
 const VEC3 = 12;
 const scratch = _malloc(1024);
 const vec = (p, x, y, z) => {
-  module.HEAPF32[(p >> 2) + 0] = x; module.HEAPF32[(p >> 2) + 1] = y; module.HEAPF32[(p >> 2) + 2] = z;
+  module.HEAPF32[(p >> 2) + 0] = x;
+  module.HEAPF32[(p >> 2) + 1] = y;
+  module.HEAPF32[(p >> 2) + 2] = z;
 };
-const readVec = (p) => [module.HEAPF32[(p >> 2)], module.HEAPF32[(p >> 2) + 1], module.HEAPF32[(p >> 2) + 2]];
-const str = (p, s) => { stringToUTF8(s, p, lengthBytesUTF8(s) + 1); return p; };
+const readVec = (p) => [module.HEAPF32[p >> 2], module.HEAPF32[(p >> 2) + 1], module.HEAPF32[(p >> 2) + 2]];
+const str = (p, s) => {
+  stringToUTF8(s, p, lengthBytesUTF8(s) + 1);
+  return p;
+};
 const i32 = (p) => module.HEAP32[p >> 2];
 
 const withLib = (voxelSize, body) => {
@@ -66,18 +71,27 @@ test('C1 — voxel creation: sphere/capsule/copy/mesh-shell vs analytic volume',
     // the box is the sphere's own extent.
     fns.Voxels_GetProperties(lib, sphere, scratch, scratch + 4, scratch + 8);
     const [propVolume, propArea] = [module.HEAPF32[scratch >> 2], module.HEAPF32[(scratch + 4) >> 2]];
-    assert.ok(Math.abs(propVolume - analytic) / analytic < 0.02, `properties volume ${propVolume} vs ${analytic}`);
+    assert.ok(
+      Math.abs(propVolume - analytic) / analytic < 0.02,
+      `properties volume ${propVolume} vs ${analytic}`,
+    );
     const areaAnalytic = 4 * Math.PI * 100;
-    assert.ok(Math.abs(propArea - areaAnalytic) / areaAnalytic < 0.02, `properties area ${propArea} vs ${areaAnalytic}`);
+    assert.ok(
+      Math.abs(propArea - areaAnalytic) / areaAnalytic < 0.02,
+      `properties area ${propArea} vs ${areaAnalytic}`,
+    );
     assert.deepEqual(readVec(scratch + 8).map(Math.round), [-10, -10, -10], 'properties box min');
     assert.deepEqual(readVec(scratch + 8 + VEC3).map(Math.round), [10, 10, 10], 'properties box max');
 
-    vec(scratch, -10, 0, 0); vec(scratch + VEC3, 10, 0, 0);
+    vec(scratch, -10, 0, 0);
+    vec(scratch + VEC3, 10, 0, 0);
     const capsule = fns.Voxels_hCreateCapsule(lib, scratch, scratch + VEC3, 4, 4);
     const capsuleAnalytic = Math.PI * 16 * 20 + (4 / 3) * Math.PI * 64; // cylinder + 2 hemispheres
     const capsuleVolume = fns.Voxels_fCalculateVolume(lib, capsule);
-    assert.ok(Math.abs(capsuleVolume - capsuleAnalytic) / capsuleAnalytic < 0.03,
-      `capsule ${capsuleVolume} vs ${capsuleAnalytic}`);
+    assert.ok(
+      Math.abs(capsuleVolume - capsuleAnalytic) / capsuleAnalytic < 0.03,
+      `capsule ${capsuleVolume} vs ${capsuleAnalytic}`,
+    );
 
     const empty = fns.Voxels_hCreate(lib);
     assert.ok(fns.Voxels_bIsEmpty(lib, empty), 'fresh Voxels should be empty');
@@ -102,8 +116,10 @@ test('C2 — booleans: analytic volume of known overlaps', () => {
 
     const union = fns.Voxels_hCreateCopy(lib, a);
     fns.Voxels_BoolAdd(lib, union, b);
-    assert.ok(Math.abs(fns.Voxels_fCalculateVolume(lib, union) - 2 * volumeA) / (2 * volumeA) < 0.01,
-      'disjoint union should be exactly twice one sphere');
+    assert.ok(
+      Math.abs(fns.Voxels_fCalculateVolume(lib, union) - 2 * volumeA) / (2 * volumeA) < 0.01,
+      'disjoint union should be exactly twice one sphere',
+    );
 
     const intersect = fns.Voxels_hCreateCopy(lib, a);
     fns.Voxels_BoolIntersect(lib, intersect, b);
@@ -111,8 +127,10 @@ test('C2 — booleans: analytic volume of known overlaps', () => {
 
     const difference = fns.Voxels_hCreateCopy(lib, a);
     fns.Voxels_BoolSubtract(lib, difference, b);
-    assert.ok(Math.abs(fns.Voxels_fCalculateVolume(lib, difference) - volumeA) / volumeA < 0.01,
-      'subtracting a disjoint body should change nothing');
+    assert.ok(
+      Math.abs(fns.Voxels_fCalculateVolume(lib, difference) - volumeA) / volumeA < 0.01,
+      'subtracting a disjoint body should change nothing',
+    );
 
     // MEASURED quirk: a − a is topologically empty (bIsEmpty true) yet
     // fCalculateVolume reports ~5% of the sphere — the SDF narrow band along the
@@ -122,8 +140,10 @@ test('C2 — booleans: analytic volume of known overlaps', () => {
     fns.Voxels_BoolSubtract(lib, self, a);
     assert.ok(fns.Voxels_bIsEmpty(lib, self), 'a − a should be topologically empty');
     const residual = fns.Voxels_fCalculateVolume(lib, self);
-    assert.ok(residual < volumeA * 0.06,
-      `narrow-band residual ${residual} grew past the documented ~5% (${volumeA})`);
+    assert.ok(
+      residual < volumeA * 0.06,
+      `narrow-band residual ${residual} grew past the documented ~5% (${volumeA})`,
+    );
 
     for (const v of [a, b, union, intersect, difference, self]) fns.Voxels_Destroy(lib, v);
   });
@@ -147,7 +167,10 @@ test('C3 — offsets: analytic growth; double/triple offset', () => {
     fns.Voxels_Offset(lib, shrunk, -2);
     const shrunkAnalytic = (4 / 3) * Math.PI * 8 ** 3;
     const v2 = fns.Voxels_fCalculateVolume(lib, shrunk);
-    assert.ok(Math.abs(v2 - shrunkAnalytic) / shrunkAnalytic < 0.03, `inset sphere ${v2} vs ${shrunkAnalytic}`);
+    assert.ok(
+      Math.abs(v2 - shrunkAnalytic) / shrunkAnalytic < 0.03,
+      `inset sphere ${v2} vs ${shrunkAnalytic}`,
+    );
 
     // DoubleOffset(+d, −d) is morphological closing: on a convex body ≈ identity.
     const closed = fns.Voxels_hCreateCopy(lib, base);
@@ -221,12 +244,15 @@ test('C5 — implicit: JS SDF sphere matches the native primitive', () => {
   withLib(0.5, (lib) => {
     const sdf = module.addFunction((p) => {
       const i = p >> 2;
-      const x = module.HEAPF32[i], y = module.HEAPF32[i + 1], z = module.HEAPF32[i + 2];
+      const x = module.HEAPF32[i],
+        y = module.HEAPF32[i + 1],
+        z = module.HEAPF32[i + 2];
       return Math.sqrt(x * x + y * y + z * z) - 10;
     }, 'fi');
     try {
       const implicit = fns.Voxels_hCreate(lib);
-      vec(scratch, -12, -12, -12); vec(scratch + VEC3, 12, 12, 12);
+      vec(scratch, -12, -12, -12);
+      vec(scratch + VEC3, 12, 12, 12);
       fns.Voxels_RenderImplicit(lib, implicit, scratch, sdf);
 
       const native = sphereOf(lib, 10);
@@ -241,25 +267,45 @@ test('C5 — implicit: JS SDF sphere matches the native primitive', () => {
       // hand-rolled SSA tape — sqrt(x*x + y*y + z*z) - 10, same fold order as
       // the JS callback above, so the volumes must be bit-identical.
       const instructions = Uint32Array.from([
-        1, 0,              // 0: X
-        6, 0 | (0 << 16),  // 1: MUL r0,r0
-        2, 0,              // 2: Y
-        6, 2 | (2 << 16),  // 3: MUL r2,r2
-        3, 0,              // 4: Z
-        6, 4 | (4 << 16),  // 5: MUL r4,r4
-        4, 1 | (3 << 16),  // 6: ADD r1,r3
-        4, 6 | (5 << 16),  // 7: ADD r6,r5
-        10, 7,             // 8: SQRT r7
-        0, 0,              // 9: CONST #0 (= 10)
-        5, 8 | (9 << 16),  // 10: SUB r8,r9
+        1,
+        0, // 0: X
+        6,
+        0 | (0 << 16), // 1: MUL r0,r0
+        2,
+        0, // 2: Y
+        6,
+        2 | (2 << 16), // 3: MUL r2,r2
+        3,
+        0, // 4: Z
+        6,
+        4 | (4 << 16), // 5: MUL r4,r4
+        4,
+        1 | (3 << 16), // 6: ADD r1,r3
+        4,
+        6 | (5 << 16), // 7: ADD r6,r5
+        10,
+        7, // 8: SQRT r7
+        0,
+        0, // 9: CONST #0 (= 10)
+        5,
+        8 | (9 << 16), // 10: SUB r8,r9
       ]);
       const instructionPointer = module._malloc(instructions.byteLength);
       const constantPointer = module._malloc(8);
       module.HEAPU32.set(instructions, instructionPointer >> 2);
       module.HEAPF64[constantPointer >> 3] = 10;
       const implicitTape = fns.Voxels_hCreate(lib);
-      vec(scratch, -12, -12, -12); vec(scratch + VEC3, 12, 12, 12); // sphereOf() reused scratch for its center
-      fns.Voxels_RenderImplicitTape(lib, implicitTape, scratch, instructionPointer, instructions.length / 2, constantPointer, 1);
+      vec(scratch, -12, -12, -12);
+      vec(scratch + VEC3, 12, 12, 12); // sphereOf() reused scratch for its center
+      fns.Voxels_RenderImplicitTape(
+        lib,
+        implicitTape,
+        scratch,
+        instructionPointer,
+        instructions.length / 2,
+        constantPointer,
+        1,
+      );
       assert.equal(
         fns.Voxels_fCalculateVolume(lib, implicitTape),
         fns.Voxels_fCalculateVolume(lib, implicit),
@@ -271,15 +317,31 @@ test('C5 — implicit: JS SDF sphere matches the native primitive', () => {
       // sensitive (dense serial loops and csg node-stealing leave allocated
       // inactive values the pruned fill omits) and is not a cross-path signal.
       const composedTape = fns.Voxels_hCreate(lib);
-      vec(scratch, -12, -12, -12); vec(scratch + VEC3, 12, 12, 12);
-      fns.Voxels_RenderImplicitTapeCompose(lib, composedTape, scratch, instructionPointer, instructions.length / 2, constantPointer, 1);
+      vec(scratch, -12, -12, -12);
+      vec(scratch + VEC3, 12, 12, 12);
+      fns.Voxels_RenderImplicitTapeCompose(
+        lib,
+        composedTape,
+        scratch,
+        instructionPointer,
+        instructions.length / 2,
+        constantPointer,
+        1,
+      );
       assert.ok(
         fns.Voxels_bIsEqual(lib, composedTape, implicitTape),
         'compose into an empty grid must equal the fresh tape fill',
       );
 
       const trimmedTape = fns.Voxels_hCreateCopy(lib, native);
-      fns.Voxels_IntersectImplicitTape(lib, trimmedTape, instructionPointer, instructions.length / 2, constantPointer, 1);
+      fns.Voxels_IntersectImplicitTape(
+        lib,
+        trimmedTape,
+        instructionPointer,
+        instructions.length / 2,
+        constantPointer,
+        1,
+      );
       assert.ok(
         fns.Voxels_bIsEqual(lib, trimmedTape, trimmed),
         'tape intersect must equal the callback IntersectImplicit',
@@ -288,7 +350,8 @@ test('C5 — implicit: JS SDF sphere matches the native primitive', () => {
       module._free(constantPointer);
       module._free(instructionPointer);
 
-      for (const v of [implicit, native, trimmed, implicitTape, composedTape, trimmedTape]) fns.Voxels_Destroy(lib, v);
+      for (const v of [implicit, native, trimmed, implicitTape, composedTape, trimmedTape])
+        fns.Voxels_Destroy(lib, v);
     } finally {
       module.removeFunction(sdf);
     }
@@ -301,7 +364,8 @@ test('C6 — lattice: beams and spheres render to voxels', () => {
     const lattice = fns.Lattice_hCreate(lib);
     assert.ok(fns.Lattice_bIsValid(lib, lattice));
 
-    vec(scratch, -10, 0, 0); vec(scratch + VEC3, 10, 0, 0);
+    vec(scratch, -10, 0, 0);
+    vec(scratch + VEC3, 10, 0, 0);
     fns.Lattice_AddBeam(lib, lattice, scratch, scratch + VEC3, 2, 2, true);
     vec(scratch, 0, 10, 0);
     fns.Lattice_AddSphere(lib, lattice, scratch, 3);
@@ -309,7 +373,7 @@ test('C6 — lattice: beams and spheres render to voxels', () => {
     const voxels = fns.Voxels_hCreate(lib);
     fns.Voxels_RenderLattice(lib, voxels, lattice);
     // Beam ≈ capsule(r=2, L=20) plus a disjoint r=3 sphere.
-    const analytic = (Math.PI * 4 * 20 + (4 / 3) * Math.PI * 8) + (4 / 3) * Math.PI * 27;
+    const analytic = Math.PI * 4 * 20 + (4 / 3) * Math.PI * 8 + (4 / 3) * Math.PI * 27;
     const volume = fns.Voxels_fCalculateVolume(lib, voxels);
     assert.ok(Math.abs(volume - analytic) / analytic < 0.05, `lattice ${volume} vs ${analytic}`);
     assert.ok(fns.Lattice_nMemUsage(lib, lattice) > 0);
@@ -402,7 +466,10 @@ test('C6 — nested-radius beam: the tube lane is right and the serial lane is n
       Math.abs(tubes - analytic) / analytic < 0.01,
       `tube lane ${tubes} is not the r=6 sphere ${analytic}`,
     );
-    assert.ok(serial < 0.5 * analytic, `serial lane ${serial} unexpectedly close to ${analytic} — U23 fixed upstream?`);
+    assert.ok(
+      serial < 0.5 * analytic,
+      `serial lane ${serial} unexpectedly close to ${analytic} — U23 fixed upstream?`,
+    );
 
     fns.Lattice_Destroy(lib, lattice);
   });
@@ -415,8 +482,14 @@ test('C6 — bulk lattice authoring reconstructs the per-element lattice exactly
   withLib(0.5, (lib) => {
     const N = 40;
     const beam = (i) => [
-      Math.cos(i) * 10, Math.sin(i) * 10, i * 0.2 - 4, 0.5 + (i % 4) * 0.1,        // x0 y0 z0 r0
-      Math.cos(i + 1) * 10, Math.sin(i + 1) * 10, i * 0.2 - 3.8, 0.5 + (i % 3) * 0.1, // x1 y1 z1 r1
+      Math.cos(i) * 10,
+      Math.sin(i) * 10,
+      i * 0.2 - 4,
+      0.5 + (i % 4) * 0.1, // x0 y0 z0 r0
+      Math.cos(i + 1) * 10,
+      Math.sin(i + 1) * 10,
+      i * 0.2 - 3.8,
+      0.5 + (i % 3) * 0.1, // x1 y1 z1 r1
     ];
     const cap = (i) => (i % 3 === 0 ? 0 : 1);
     const sphere = (i) => [Math.cos(i) * 15, Math.sin(i) * 15, i * 0.1 - 2, 0.7];
@@ -424,7 +497,8 @@ test('C6 — bulk lattice authoring reconstructs the per-element lattice exactly
     const perElement = fns.Lattice_hCreate(lib);
     for (let i = 0; i < N; i++) {
       const b = beam(i);
-      vec(scratch, b[0], b[1], b[2]); vec(scratch + VEC3, b[4], b[5], b[6]);
+      vec(scratch, b[0], b[1], b[2]);
+      vec(scratch + VEC3, b[4], b[5], b[6]);
       fns.Lattice_AddBeam(lib, perElement, scratch, scratch + VEC3, b[3], b[7], cap(i) !== 0);
     }
     for (let i = 0; i < N; i++) {
@@ -439,7 +513,10 @@ test('C6 — bulk lattice authoring reconstructs the per-element lattice exactly
       const beamFloats = [];
       for (let i = 0; i < N; i++) beamFloats.push(...beam(i));
       module.HEAPF32.set(beamFloats, buffer >> 2);
-      module.HEAPU32.set(Array.from({ length: N }, (_, i) => cap(i)), (buffer >> 2) + N * 8);
+      module.HEAPU32.set(
+        Array.from({ length: N }, (_, i) => cap(i)),
+        (buffer >> 2) + N * 8,
+      );
       assert.equal(fns.Lattice_AddBeams(lib, bulk, buffer, buffer + N * 8 * 4, N), N);
 
       const sphereFloats = [];
@@ -455,13 +532,21 @@ test('C6 — bulk lattice authoring reconstructs the per-element lattice exactly
       _free(buffer);
     }
 
-    assert.equal(fns.Lattice_nMemUsage(lib, bulk), fns.Lattice_nMemUsage(lib, perElement), 'same element counts');
+    assert.equal(
+      fns.Lattice_nMemUsage(lib, bulk),
+      fns.Lattice_nMemUsage(lib, perElement),
+      'same element counts',
+    );
 
     const a = fns.Voxels_hCreate(lib);
     const b = fns.Voxels_hCreate(lib);
     fns.Voxels_RenderLattice(lib, a, perElement);
     fns.Voxels_RenderLattice(lib, b, bulk);
-    assert.equal(fns.Voxels_fCalculateVolume(lib, b), fns.Voxels_fCalculateVolume(lib, a), 'bulk lattice differs');
+    assert.equal(
+      fns.Voxels_fCalculateVolume(lib, b),
+      fns.Voxels_fCalculateVolume(lib, a),
+      'bulk lattice differs',
+    );
 
     for (const v of [a, b]) fns.Voxels_Destroy(lib, v);
     for (const l of [perElement, bulk]) fns.Lattice_Destroy(lib, l);
@@ -473,7 +558,8 @@ test('C7 — queries: raycast/closest-point/inside/normal against an analytic sp
   withLib(0.4, (lib) => {
     const sphere = sphereOf(lib, 10);
 
-    vec(scratch, -50, 0, 0); vec(scratch + VEC3, 1, 0, 0);
+    vec(scratch, -50, 0, 0);
+    vec(scratch + VEC3, 1, 0, 0);
     const hit = fns.Voxels_bRayCastToSurface(lib, sphere, scratch, scratch + VEC3, scratch + 2 * VEC3);
     assert.ok(hit, 'ray aimed at the sphere missed');
     const [hx] = readVec(scratch + 2 * VEC3);
@@ -503,7 +589,9 @@ test('C7 — queries: raycast/closest-point/inside/normal against an analytic sp
 test('C8 — slices: cross-sections of a known sphere', () => {
   withLib(0.5, (lib) => {
     const sphere = sphereOf(lib, 10);
-    const { size: [nx, ny, nz] } = voxelDims(lib, sphere);
+    const {
+      size: [nx, ny, nz],
+    } = voxelDims(lib, sphere);
     assert.ok(nx > 0 && ny > 0 && nz > 0, `voxel dims ${nx}x${ny}x${nz}`);
 
     const buffer = _malloc(Math.max(nx * ny, ny * nz, nx * nz) * 4);
@@ -527,7 +615,8 @@ test('C8 — slices: cross-sections of a known sphere', () => {
       fns.Voxels_GetInterpolatedZSlice(lib, sphere, 0.25, buffer, background);
       fns.Voxels_ProjectZSlice(lib, sphere, -2.0, 2.0);
     } finally {
-      _free(buffer); _free(background);
+      _free(buffer);
+      _free(background);
     }
     fns.Voxels_Destroy(lib, sphere);
   });
@@ -539,12 +628,27 @@ test('C9 — manual mesh construction, element access, bulk readback', () => {
     const mesh = fns.Mesh_hCreate(lib);
     assert.ok(fns.Mesh_bIsValid(lib, mesh));
 
-    const corners = [[0, 0, 0], [10, 0, 0], [0, 10, 0], [0, 0, 10]];
-    for (const c of corners) { vec(scratch, ...c); fns.Mesh_nAddVertex(lib, mesh, scratch); }
+    const corners = [
+      [0, 0, 0],
+      [10, 0, 0],
+      [0, 10, 0],
+      [0, 0, 10],
+    ];
+    for (const c of corners) {
+      vec(scratch, ...c);
+      fns.Mesh_nAddVertex(lib, mesh, scratch);
+    }
     assert.equal(fns.Mesh_nVertexCount(lib, mesh), 4);
 
-    for (const [a, b, c] of [[0, 1, 2], [0, 1, 3], [0, 2, 3], [1, 2, 3]]) {
-      module.HEAP32[(scratch >> 2) + 0] = a; module.HEAP32[(scratch >> 2) + 1] = b; module.HEAP32[(scratch >> 2) + 2] = c;
+    for (const [a, b, c] of [
+      [0, 1, 2],
+      [0, 1, 3],
+      [0, 2, 3],
+      [1, 2, 3],
+    ]) {
+      module.HEAP32[(scratch >> 2) + 0] = a;
+      module.HEAP32[(scratch >> 2) + 1] = b;
+      module.HEAP32[(scratch >> 2) + 2] = c;
       fns.Mesh_nAddTriangle(lib, mesh, scratch);
     }
     assert.equal(fns.Mesh_nTriangleCount(lib, mesh), 4);
@@ -594,7 +698,10 @@ test('C10 — polylines: vertices, colour, bbox', () => {
     const line = fns.PolyLine_hCreate(lib, scratch);
     assert.ok(fns.PolyLine_bIsValid(lib, line));
 
-    for (let i = 0; i < 5; i++) { vec(scratch + 64, i, i * 2, 0); fns.PolyLine_nAddVertex(lib, line, scratch + 64); }
+    for (let i = 0; i < 5; i++) {
+      vec(scratch + 64, i, i * 2, 0);
+      fns.PolyLine_nAddVertex(lib, line, scratch + 64);
+    }
     assert.equal(fns.PolyLine_nVertexCount(lib, line), 5);
 
     fns.PolyLine_GetVertex(lib, line, 2, scratch + 64);
@@ -636,24 +743,43 @@ test('C11 — scalar field: build from voxels, get/set, slice, traverse', () => 
       vec(scratch, 0, 0, 0);
       assert.ok(fns.ScalarField_bGetValue(lib, built, scratch, out), 'built field empty at centre');
       assert.equal(module.HEAPF32[out >> 2], 42, 'built field value');
-    } finally { _free(out); }
+    } finally {
+      _free(out);
+    }
 
     const dims = _malloc(24);
     try {
-      fns.ScalarField_GetVoxelDimensions(lib, field, dims, dims + 4, dims + 8, dims + 12, dims + 16, dims + 20);
+      fns.ScalarField_GetVoxelDimensions(
+        lib,
+        field,
+        dims,
+        dims + 4,
+        dims + 8,
+        dims + 12,
+        dims + 16,
+        dims + 20,
+      );
       const [sx, sy] = [i32(dims + 12), i32(dims + 16)];
       assert.ok(sx > 0 && sy > 0, 'scalar field dims');
       const slice = _malloc(sx * sy * 4);
       try {
         fns.ScalarField_GetSlice(lib, field, Math.floor(i32(dims + 20) / 2), slice);
-      } finally { _free(slice); }
-    } finally { _free(dims); }
+      } finally {
+        _free(slice);
+      }
+    } finally {
+      _free(dims);
+    }
 
     let visits = 0;
-    const cb = module.addFunction(() => { visits++; }, 'vif');
+    const cb = module.addFunction(() => {
+      visits++;
+    }, 'vif');
     try {
       fns.ScalarField_TraverseActive(lib, field, cb);
-    } finally { module.removeFunction(cb); }
+    } finally {
+      module.removeFunction(cb);
+    }
     // No nCountActive export exists (first draft invented one); the narrow band of an
     // r=8 sphere at 0.5mm is thousands of voxels, so bound the visit count instead.
     assert.ok(visits > 1000, `TraverseActive visited only ${visits} voxels`);
@@ -681,18 +807,28 @@ test('C12 — vector field: create, set/get, traverse', () => {
     assert.ok(fns.VectorField_bGetValue(lib, field, scratch, scratch + 2 * VEC3), 'vector not readable back');
     assert.deepEqual(readVec(scratch + 2 * VEC3), [1, 2, 3], 'vector round trip');
     fns.VectorField_RemoveValue(lib, field, scratch);
-    assert.ok(!fns.VectorField_bGetValue(lib, field, scratch, scratch + 2 * VEC3), 'removed vector still present');
+    assert.ok(
+      !fns.VectorField_bGetValue(lib, field, scratch, scratch + 2 * VEC3),
+      'removed vector still present',
+    );
 
     // hBuildFromVoxels fills the interior with the given constant vector.
     vec(scratch, 0, 0, 0);
-    assert.ok(fns.VectorField_bGetValue(lib, built, scratch, scratch + 3 * VEC3), 'built field empty at centre');
+    assert.ok(
+      fns.VectorField_bGetValue(lib, built, scratch, scratch + 3 * VEC3),
+      'built field empty at centre',
+    );
     assert.deepEqual(readVec(scratch + 3 * VEC3), [9, 8, 7], 'built field vector');
 
     let visits = 0;
-    const cb = module.addFunction(() => { visits++; }, 'vii');
+    const cb = module.addFunction(() => {
+      visits++;
+    }, 'vii');
     try {
       fns.VectorField_TraverseActive(lib, built, cb);
-    } finally { module.removeFunction(cb); }
+    } finally {
+      module.removeFunction(cb);
+    }
     assert.ok(visits > 0, 'vector TraverseActive never called back');
     assert.ok(fns.VectorField_nMemUsage(lib, field) >= 0);
 
@@ -722,7 +858,9 @@ test('C13 — metadata: string/float/vector round trips (name-keyed, despite the
       try {
         assert.ok(fns.Metadata_bGetNameAt(lib, meta, i, buf, len + 1), `name at ${i} unreadable`);
         names.push(UTF8ToString(buf));
-      } finally { _free(buf); }
+      } finally {
+        _free(buf);
+      }
     }
     for (const expected of ['author', 'density', 'origin']) {
       assert.ok(names.includes(expected), `"${expected}" missing from ${names}`);
@@ -735,14 +873,21 @@ test('C13 — metadata: string/float/vector round trips (name-keyed, despite the
     try {
       assert.ok(fns.Metadata_bGetStringAt(lib, meta, scratch, value, len + 1), 'string not readable');
       assert.equal(UTF8ToString(value), 'picovoxel', 'metadata string round trip');
-    } finally { _free(value); }
+    } finally {
+      _free(value);
+    }
 
     const f = _malloc(4);
     try {
       assert.ok(fns.Metadata_bGetFloatAt(lib, meta, str(scratch, 'density'), f), 'float not readable');
       assert.equal(module.HEAPF32[f >> 2], 7.5, 'metadata float round trip');
-    } finally { _free(f); }
-    assert.ok(fns.Metadata_bGetVectorAt(lib, meta, str(scratch, 'origin'), scratch + 320), 'vector not readable');
+    } finally {
+      _free(f);
+    }
+    assert.ok(
+      fns.Metadata_bGetVectorAt(lib, meta, str(scratch, 'origin'), scratch + 320),
+      'vector not readable',
+    );
     assert.deepEqual(readVec(scratch + 320), [1, 2, 3], 'metadata vector round trip');
 
     fns.MetaData_RemoveValue(lib, meta, str(scratch, 'author')); // capital D: upstream typo
@@ -791,13 +936,17 @@ test('C14 — .vdb round trip through MEMFS (uncompressed: Blosc/zlib are off)',
         fns.VdbFile_GetFieldName(lib, back, i, nameBuffer);
         byName[UTF8ToString(nameBuffer)] = { index: i, type: fns.VdbFile_nFieldType(lib, back, i) };
       }
-    } finally { _free(nameBuffer); }
+    } finally {
+      _free(nameBuffer);
+    }
     assert.deepEqual(Object.keys(byName).sort(), ['body', 'scalar', 'vector'], 'field names survived');
 
     const restored = fns.VdbFile_hGetVoxels(lib, back, byName.body.index);
     const restoredVolume = fns.Voxels_fCalculateVolume(lib, restored);
-    assert.ok(Math.abs(restoredVolume - volume) / volume < 1e-6,
-      `.vdb round trip changed volume: ${restoredVolume} vs ${volume}`);
+    assert.ok(
+      Math.abs(restoredVolume - volume) / volume < 1e-6,
+      `.vdb round trip changed volume: ${restoredVolume} vs ${volume}`,
+    );
     const restoredScalar = fns.VdbFile_hGetScalarField(lib, back, byName.scalar.index);
     assert.ok(fns.ScalarField_bIsValid(lib, restoredScalar), 'restored scalar field invalid');
     const restoredVector = fns.VdbFile_hGetVectorField(lib, back, byName.vector.index);
@@ -813,7 +962,16 @@ test('C14 — .vdb round trip through MEMFS (uncompressed: Blosc/zlib are off)',
 // ── C15 — the leak oracle (R15) ────────────────────────────────────────────────
 test('C15 — every allocation counter returns to zero', () => {
   const lib = fns.Library_hCreateInstance(0.5);
-  const counters = ['Voxels', 'Meshes', 'Lattices', 'PolyLines', 'ScalarFields', 'VectorFields', 'VdbFiles', 'VdbMetas'];
+  const counters = [
+    'Voxels',
+    'Meshes',
+    'Lattices',
+    'PolyLines',
+    'ScalarFields',
+    'VectorFields',
+    'VdbFiles',
+    'VdbMetas',
+  ];
   const read = () => Object.fromEntries(counters.map((c) => [c, Number(fns[`Library_n${c}Allocated`](lib))]));
 
   for (const [name, n] of Object.entries(read())) assert.equal(n, 0, `${name} nonzero on a fresh instance`);
@@ -852,7 +1010,8 @@ test('C17 — grid hash: stable, representation-blind, content-sensitive', () =>
   withLib(0.4, (lib) => {
     const hash = _malloc(48); // 16 B digest + 3 × u64 counts, 8-aligned
     const digest = () => Array.from({ length: 4 }, (_, i) => module.HEAPU32[(hash >> 2) + i]).join('-');
-    const counts = () => Array.from({ length: 6 }, (_, i) => module.HEAPU32[((hash + 16) >> 2) + i]).join('-');
+    const counts = () =>
+      Array.from({ length: 6 }, (_, i) => module.HEAPU32[((hash + 16) >> 2) + i]).join('-');
     const sphere = sphereOf(lib, 8);
 
     fns.Voxels_GetGridHash(lib, sphere, hash, hash + 16, hash + 24, hash + 32);
@@ -1025,7 +1184,10 @@ test('C21 — RayCastBatch/ClosestPointBatch: counts and content sane', () => {
   withLib(0.5, (lib) => {
     const sphere = sphereOf(lib, 8);
     const n = 2;
-    const origins = _malloc(n * 12), dirs = _malloc(n * 12), hits = _malloc(n * 12), mask = _malloc(n);
+    const origins = _malloc(n * 12),
+      dirs = _malloc(n * 12),
+      hits = _malloc(n * 12),
+      mask = _malloc(n);
     // Ray 0: from +x inward (hit). Ray 1: from +x outward (miss).
     module.HEAPF32.set([14, 0, 0, 14, 0, 0], origins >> 2);
     module.HEAPF32.set([-1, 0, 0, 1, 0, 0], dirs >> 2);
@@ -1034,7 +1196,9 @@ test('C21 — RayCastBatch/ClosestPointBatch: counts and content sane', () => {
     const surfaceX = module.HEAPF32[hits >> 2];
     assert.ok(Math.abs(surfaceX - 8) <= 1.0, `hit lands on the +x surface (got ${surfaceX})`);
 
-    const queries = _malloc(12), out = _malloc(12), found = _malloc(4);
+    const queries = _malloc(12),
+      out = _malloc(12),
+      found = _malloc(4);
     module.HEAPF32.set([12, 0, 0], queries >> 2);
     const foundCount = fns.Voxels_ClosestPointBatch(lib, sphere, queries, 1, out, found);
     assert.equal(foundCount, 1);
@@ -1065,13 +1229,19 @@ test('C16 — invalid handles throw and the module survives every one', () => {
 
   for (const [name, call] of cases) {
     let thrown = null;
-    try { call(); } catch (e) { thrown = e; }
+    try {
+      call();
+    } catch (e) {
+      thrown = e;
+    }
     assert.notEqual(thrown, null, `${name} accepted a bogus handle without throwing`);
     // Must be the C++ throw itself (WebAssembly.Exception under -fwasm-exceptions) —
     // a JS TypeError here means the binding is broken, which once let an invented
     // function "pass". (The old JS-EH build surfaced this as a bare Number.)
-    assert.ok(thrown instanceof WebAssembly.Exception,
-      `${name} threw ${thrown?.constructor?.name ?? typeof thrown} — harness bug, not an ABI rejection`);
+    assert.ok(
+      thrown instanceof WebAssembly.Exception,
+      `${name} threw ${thrown?.constructor?.name ?? typeof thrown} — harness bug, not an ABI rejection`,
+    );
 
     // The requirement is not that it throws — it is that the module still works.
     const sphere = sphereOf(lib, 3);
@@ -1116,6 +1286,9 @@ after(() => {
 
 test('R14 GATE — every core export is exercised', () => {
   const { covered, total, missing } = pk.report();
-  assert.equal(missing.length, 0,
-    `${total - covered} of ${total} exports never called:\n  ${missing.join('\n  ')}`);
+  assert.equal(
+    missing.length,
+    0,
+    `${total - covered} of ${total} exports never called:\n  ${missing.join('\n  ')}`,
+  );
 });

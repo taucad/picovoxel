@@ -66,21 +66,32 @@ export class ImplicitLidinoid implements Implicit {
       ) - halfWall;
     this.expression = [
       '-',
-      ['abs', [
-        '-',
-        ['*', 0.5, [
-          '+',
-          ['*', ['sin', ['*', s2, 'x']], ['cos', ['*', s, 'y']], ['sin', ['*', s, 'z']]],
-          ['*', ['sin', ['*', s2, 'y']], ['cos', ['*', s, 'z']], ['sin', ['*', s, 'x']]],
-          ['*', ['sin', ['*', s2, 'z']], ['cos', ['*', s, 'x']], ['sin', ['*', s, 'y']]],
-        ]],
-        ['*', 0.5, [
-          '+',
-          ['*', ['cos', ['*', s2, 'x']], ['cos', ['*', s2, 'y']]],
-          ['*', ['cos', ['*', s2, 'y']], ['cos', ['*', s2, 'z']]],
-          ['*', ['cos', ['*', s2, 'z']], ['cos', ['*', s2, 'x']]],
-        ]],
-      ]],
+      [
+        'abs',
+        [
+          '-',
+          [
+            '*',
+            0.5,
+            [
+              '+',
+              ['*', ['sin', ['*', s2, 'x']], ['cos', ['*', s, 'y']], ['sin', ['*', s, 'z']]],
+              ['*', ['sin', ['*', s2, 'y']], ['cos', ['*', s, 'z']], ['sin', ['*', s, 'x']]],
+              ['*', ['sin', ['*', s2, 'z']], ['cos', ['*', s, 'x']], ['sin', ['*', s, 'y']]],
+            ],
+          ],
+          [
+            '*',
+            0.5,
+            [
+              '+',
+              ['*', ['cos', ['*', s2, 'x']], ['cos', ['*', s2, 'y']]],
+              ['*', ['cos', ['*', s2, 'y']], ['cos', ['*', s2, 'z']]],
+              ['*', ['cos', ['*', s2, 'z']], ['cos', ['*', s2, 'x']]],
+            ],
+          ],
+        ],
+      ],
       halfWall,
     ];
   }
@@ -116,15 +127,19 @@ export class ImplicitSchwarzDiamond implements Implicit {
     const halfWall = 0.5 * wallThickness;
     this.sdf = (x, y, z) =>
       Math.abs(
-        Math.cos(s * x) * Math.cos(s * y) * Math.cos(s * z) - Math.sin(s * x) * Math.sin(s * y) * Math.sin(s * z),
+        Math.cos(s * x) * Math.cos(s * y) * Math.cos(s * z) -
+          Math.sin(s * x) * Math.sin(s * y) * Math.sin(s * z),
       ) - halfWall;
     this.expression = [
       '-',
-      ['abs', [
-        '-',
-        ['*', ['cos', ['*', s, 'x']], ['cos', ['*', s, 'y']], ['cos', ['*', s, 'z']]],
-        ['*', ['sin', ['*', s, 'x']], ['sin', ['*', s, 'y']], ['sin', ['*', s, 'z']]],
-      ]],
+      [
+        'abs',
+        [
+          '-',
+          ['*', ['cos', ['*', s, 'x']], ['cos', ['*', s, 'y']], ['cos', ['*', s, 'z']]],
+          ['*', ['sin', ['*', s, 'x']], ['sin', ['*', s, 'y']], ['sin', ['*', s, 'z']]],
+        ],
+      ],
       halfWall,
     ];
   }
@@ -201,7 +216,9 @@ export class ImplicitRadialGyroid {
       const unitSize = TWO_PI / s;
       const dY = phiIntervals * unitSize;
       const dist =
-        Math.sin(s * radius) * Math.cos(s * dY) + Math.sin(s * dY) * Math.cos(s * z) + Math.sin(s * z) * Math.cos(s * radius);
+        Math.sin(s * radius) * Math.cos(s * dY) +
+        Math.sin(s * dY) * Math.cos(s * z) +
+        Math.sin(s * z) * Math.cos(s * radius);
       return Math.abs(dist) - 0.5 * wallThickness;
     };
   }
@@ -244,7 +261,10 @@ export class ImplicitModular {
     this.sdf = (x, y, z) => {
       const pt: Vec3 = [x, y, z];
       const [tx, ty, tz] = trafo.apply(pt);
-      return splittingLogic.advancedSignedDistance(pattern.signedDistance(tx, ty, tz), wallThickness.beamThickness(pt));
+      return splittingLogic.advancedSignedDistance(
+        pattern.signedDistance(tx, ty, tz),
+        wallThickness.beamThickness(pt),
+      );
     };
   }
 }

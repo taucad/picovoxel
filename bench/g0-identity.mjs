@@ -110,7 +110,8 @@ export function compareG1(fast, exact, voxelSize) {
   if (measureHealthy(exact)) {
     if (rel(fast.propVolume, exact.propVolume) >= 0.03)
       failures.push(`volume ${fast.propVolume} vs ${exact.propVolume}`);
-    if (rel(fast.propArea, exact.propArea) >= 0.03) failures.push(`area ${fast.propArea} vs ${exact.propArea}`);
+    if (rel(fast.propArea, exact.propArea) >= 0.03)
+      failures.push(`area ${fast.propArea} vs ${exact.propArea}`);
   }
   for (let axis = 0; axis < 3; axis++) {
     if (Math.abs(fast.boundsMin[axis] - exact.boundsMin[axis]) >= voxelSize)
@@ -189,7 +190,15 @@ function diagnose(session, voxels) {
  * `lane`/`fastRenorm` thread through to createPico (D-pre.6 fast-lane legs);
  * `g1: true` additionally captures the G1 inputs (SG1 properties +
  * checkLevelSet) — opt-in so the per-commit g0 gate stays lean. */
-export async function g0Record({ fixture, build, size, lane = undefined, fastRenorm = undefined, g1 = false, label = undefined }) {
+export async function g0Record({
+  fixture,
+  build,
+  size,
+  lane = undefined,
+  fastRenorm = undefined,
+  g1 = false,
+  label = undefined,
+}) {
   const { createPico } = await import(build === 'multi' ? '../src/multi.ts' : '../src/index.ts');
   const loadBefore = loadavg()[0];
   const started = performance.now();
@@ -245,12 +254,29 @@ export async function g0Record({ fixture, build, size, lane = undefined, fastRen
 }
 
 /** N-run identity: exit 0 = every pair G0-identical, oracles agreeing, no NaN. */
-export async function runTriple({ fixture, build, size, runs, jsonl, lane = undefined, fastRenorm = undefined, g1 = false }) {
+export async function runTriple({
+  fixture,
+  build,
+  size,
+  runs,
+  jsonl,
+  lane = undefined,
+  fastRenorm = undefined,
+  g1 = false,
+}) {
   const laneTag = lane === undefined ? '' : `:${lane}${fastRenorm === false ? '-tight' : ''}`;
   const records = [];
   let failed = false;
   for (let run = 0; run < runs; run++) {
-    const record = await g0Record({ fixture, build, size, lane, fastRenorm, g1, label: `${fixture}@${size}mm/${build}${laneTag}#${run + 1}` });
+    const record = await g0Record({
+      fixture,
+      build,
+      size,
+      lane,
+      fastRenorm,
+      g1,
+      label: `${fixture}@${size}mm/${build}${laneTag}#${run + 1}`,
+    });
     records.push(record);
     if (jsonl) appendFileSync(jsonl, JSON.stringify(record) + '\n');
     console.log(
@@ -258,7 +284,9 @@ export async function runTriple({ fixture, build, size, runs, jsonl, lane = unde
         `${record.triangles} tris  ${record.wallMs} ms  load ${record.loadBefore.toFixed(1)}`,
     );
     if (record.nonFiniteRecords > 0) {
-      console.error(`  FAIL ${record.label}: ${record.nonFiniteRecords} non-finite records — never legitimate`);
+      console.error(
+        `  FAIL ${record.label}: ${record.nonFiniteRecords} non-finite records — never legitimate`,
+      );
       failed = true;
     }
   }
@@ -335,8 +363,13 @@ export function fastLegVerdict(fast, exact, { fixture, build, size }) {
     return true;
   }
   const coincident = compareG0(fast, exact).length === 0;
-  const dirt = fast.diagnose !== '' ? ` (WARN inherited checkLevelSet dirt: exact "${exact.diagnose}" fast "${fast.diagnose}")` : '';
-  console.log(`  G1 fast/${build} ${fixture}@${size}: gates clean${coincident ? ' (G0-coincident)' : ''}${dirt}`);
+  const dirt =
+    fast.diagnose !== ''
+      ? ` (WARN inherited checkLevelSet dirt: exact "${exact.diagnose}" fast "${fast.diagnose}")`
+      : '';
+  console.log(
+    `  G1 fast/${build} ${fixture}@${size}: gates clean${coincident ? ' (G0-coincident)' : ''}${dirt}`,
+  );
   return false;
 }
 
@@ -390,25 +423,43 @@ function arg(argv, flag, fallback) {
 /** ponytail: assert-based self-check of the comparator — the gate logic itself. */
 function cmdSelftest() {
   const base = Object.fromEntries(G0_FIELDS.map((f) => [f, 'v']));
-  if (compareG0(base, { ...base }).length !== 0) throw new Error('selftest: identical records must compare empty');
+  if (compareG0(base, { ...base }).length !== 0)
+    throw new Error('selftest: identical records must compare empty');
   for (const field of G0_FIELDS) {
     const mutated = { ...base, [field]: 'x' };
-    if (!compareG0(base, mutated).includes(field)) throw new Error(`selftest: mutation of ${field} must be flagged`);
+    if (!compareG0(base, mutated).includes(field))
+      throw new Error(`selftest: mutation of ${field} must be flagged`);
   }
   if (!oraclesAgree(base, { ...base })) throw new Error('selftest: identical records agree');
-  if (!oraclesAgree(base, { ...base, gridHash: 'x', multiset: 'x' })) throw new Error('selftest: both-sides drift agrees');
-  if (oraclesAgree(base, { ...base, gridHash: 'x' })) throw new Error('selftest: field-only drift must disagree');
-  if (oraclesAgree(base, { ...base, multiset: 'x' })) throw new Error('selftest: mesh-only drift must disagree');
+  if (!oraclesAgree(base, { ...base, gridHash: 'x', multiset: 'x' }))
+    throw new Error('selftest: both-sides drift agrees');
+  if (oraclesAgree(base, { ...base, gridHash: 'x' }))
+    throw new Error('selftest: field-only drift must disagree');
+  if (oraclesAgree(base, { ...base, multiset: 'x' }))
+    throw new Error('selftest: mesh-only drift must disagree');
   // compareG1 — the D-pre.6 tolerance comparator. hexFloat(100) makes the
   // live and rebuilt volumes agree (ratio 1 — measure-healthy).
-  const g1 = { volumeHex: hexFloat(100), propVolume: 100, propArea: 50, boundsMin: [0, 0, 0], boundsMax: [10, 10, 10], diagnose: '' };
+  const g1 = {
+    volumeHex: hexFloat(100),
+    propVolume: 100,
+    propArea: 50,
+    boundsMin: [0, 0, 0],
+    boundsMax: [10, 10, 10],
+    diagnose: '',
+  };
   if (compareG1(g1, g1, 0.5).length !== 0) throw new Error('selftest: identical G1 records must pass');
-  if (compareG1({ ...g1, propVolume: 102.9 }, g1, 0.5).length !== 0) throw new Error('selftest: 2.9% volume drift passes');
-  if (compareG1({ ...g1, propVolume: 103.1 }, g1, 0.5).length === 0) throw new Error('selftest: 3.1% volume drift must fail');
-  if (compareG1({ ...g1, propArea: 48.4 }, g1, 0.5).length === 0) throw new Error('selftest: 3.2% area drift must fail');
-  if (compareG1({ ...g1, boundsMax: [10, 10, 10.6] }, g1, 0.5).length === 0) throw new Error('selftest: >1 voxel bounds drift must fail');
-  if (compareG1({ ...g1, boundsMin: [-0.4, 0, 0] }, g1, 0.5).length !== 0) throw new Error('selftest: <1 voxel bounds drift passes');
-  if (compareG1({ ...g1, diagnose: 'dirty' }, g1, 0.5).length === 0) throw new Error('selftest: fast-only checkLevelSet dirt must fail');
+  if (compareG1({ ...g1, propVolume: 102.9 }, g1, 0.5).length !== 0)
+    throw new Error('selftest: 2.9% volume drift passes');
+  if (compareG1({ ...g1, propVolume: 103.1 }, g1, 0.5).length === 0)
+    throw new Error('selftest: 3.1% volume drift must fail');
+  if (compareG1({ ...g1, propArea: 48.4 }, g1, 0.5).length === 0)
+    throw new Error('selftest: 3.2% area drift must fail');
+  if (compareG1({ ...g1, boundsMax: [10, 10, 10.6] }, g1, 0.5).length === 0)
+    throw new Error('selftest: >1 voxel bounds drift must fail');
+  if (compareG1({ ...g1, boundsMin: [-0.4, 0, 0] }, g1, 0.5).length !== 0)
+    throw new Error('selftest: <1 voxel bounds drift passes');
+  if (compareG1({ ...g1, diagnose: 'dirty' }, g1, 0.5).length === 0)
+    throw new Error('selftest: fast-only checkLevelSet dirt must fail');
   if (compareG1({ ...g1, diagnose: 'dirty' }, { ...g1, diagnose: 'dirty' }, 0.5).length !== 0)
     throw new Error('selftest: inherited dirt is a warning, not a lane regression');
   // measureHealthy + the live-volume gate (the 0.7 mm pathology shape).
@@ -462,7 +513,9 @@ if (isMain) {
     const failed = await cmdSweep({ runs: Number(arg(rest, '--runs', '3')), jsonl: arg(rest, '--jsonl') });
     process.exitCode = failed ? 1 : 0;
   } else {
-    console.error('usage: g0-identity.mjs record|triple|sweep|gate|selftest [--fixture heatx|gyroid] [--build single|multi] [--size S] [--runs N] [--lane exact|fast|auto] [--fast-renorm true|false] [--g1] [--jsonl F]');
+    console.error(
+      'usage: g0-identity.mjs record|triple|sweep|gate|selftest [--fixture heatx|gyroid] [--build single|multi] [--size S] [--runs N] [--lane exact|fast|auto] [--fast-renorm true|false] [--g1] [--jsonl F]',
+    );
     process.exitCode = 2;
   }
 }

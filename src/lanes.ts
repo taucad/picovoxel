@@ -34,7 +34,9 @@ function canonicalLaneSet(members: Iterable<string>): LaneSet {
 
 /** Parses a persisted set value; malformed tokens become `unknown`, never dropped. */
 export function parseLaneSet(value: string): LaneSet {
-  return canonicalLaneSet(value.split(',').map((member) => (LANE_MEMBER.test(member) ? member : UNKNOWN_LANE_MEMBER)));
+  return canonicalLaneSet(
+    value.split(',').map((member) => (LANE_MEMBER.test(member) ? member : UNKNOWN_LANE_MEMBER)),
+  );
 }
 
 /** Least upper bound over provenance sets (set union). */

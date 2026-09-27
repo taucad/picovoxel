@@ -33,7 +33,13 @@ import {
 } from './context.ts';
 import { DISPOSE } from './dispose.ts';
 import { PicoError, assertLive, guard } from './errors.ts';
-import { assertVoxelsOperand, wrapScalarField, wrapVectorField, type ScalarField, type VectorField } from './fields.ts';
+import {
+  assertVoxelsOperand,
+  wrapScalarField,
+  wrapVectorField,
+  type ScalarField,
+  type VectorField,
+} from './fields.ts';
 import { EXACT_LANE_SET } from './lanes.ts';
 import { wrapLattice, type Lattice } from './lattice.ts';
 import { bulkCreateMesh, wrapMesh, type Mesh } from './mesh.ts';
@@ -265,7 +271,7 @@ function resolveSessionOptions(options: CreatePicoSessionOptions): ResolvedSessi
         "numerics policy and fastRenorm is a Class-2 acceleration. Use lane: 'fast' (or omit the lane) instead.",
     );
   }
-  const fastRenorm = options.fastRenorm ?? (lane === 'fast');
+  const fastRenorm = options.fastRenorm ?? lane === 'fast';
 
   if (!(voxelSize > 0) || !Number.isFinite(voxelSize)) {
     throw new PicoError(
@@ -278,7 +284,10 @@ function resolveSessionOptions(options: CreatePicoSessionOptions): ResolvedSessi
 }
 
 /** Instantiates the glue, from a caller-compiled module when one is given. */
-async function instantiate(glue: PicoGlueFactory, { wasm, wasmModule }: CreatePicoRuntimeOptions): Promise<PicoWasmModule> {
+async function instantiate(
+  glue: PicoGlueFactory,
+  { wasm, wasmModule }: CreatePicoRuntimeOptions,
+): Promise<PicoWasmModule> {
   const overrides: Record<string, unknown> = typeof wasm === 'object' && wasm !== null ? { ...wasm } : {};
   let failed: Promise<never> | undefined;
   if (wasmModule !== undefined) {
@@ -366,7 +375,12 @@ async function startRuntime(
   warm?: (runtime: PicoRuntime) => Promise<void>,
 ): Promise<StartedRuntime> {
   const module = await instantiate(glue, options);
-  const parts: RuntimeParts = { module, raw: bindPicoRaw(module), registry: createHandleRegistry(), open: new Set() };
+  const parts: RuntimeParts = {
+    module,
+    raw: bindPicoRaw(module),
+    registry: createHandleRegistry(),
+    open: new Set(),
+  };
   let disposed = false;
 
   const dispose = () => {
@@ -477,7 +491,12 @@ export async function createPicoSession(
  * capture `session`. Hence a factory of its own, closing over primitives, the dead
  * flag and the runtime parts only.
  */
-function createSessionRelease(parts: RuntimeParts, dead: { value: boolean }, lib: bigint, scratch: number): () => void {
+function createSessionRelease(
+  parts: RuntimeParts,
+  dead: { value: boolean },
+  lib: bigint,
+  scratch: number,
+): () => void {
   const release = () => {
     if (dead.value) return;
     dead.value = true; // D4: teardown wins — wrappers stop freeing individually
@@ -490,7 +509,11 @@ function createSessionRelease(parts: RuntimeParts, dead: { value: boolean }, lib
 }
 
 /** Opens one Library instance on a runtime's module. */
-function openPicoSession(parts: RuntimeParts, options: ResolvedSessionOptions, disposeRuntime?: () => void): Pico {
+function openPicoSession(
+  parts: RuntimeParts,
+  options: ResolvedSessionOptions,
+  disposeRuntime?: () => void,
+): Pico {
   const { module, raw } = parts;
   const { voxelSize, lane, fastRenorm, memoryWarningBytes, serialLattice, registry, now } = options;
   const lib = expectHandle('Library_hCreateInstance', raw.Library_hCreateInstance(voxelSize));
@@ -519,7 +542,11 @@ function openPicoSession(parts: RuntimeParts, options: ResolvedSessionOptions, d
       module.HEAPF32[(pointer >>> 2) + 2] = z;
     },
     readVec3(pointer) {
-      return [module.HEAPF32[pointer >>> 2]!, module.HEAPF32[(pointer >>> 2) + 1]!, module.HEAPF32[(pointer >>> 2) + 2]!];
+      return [
+        module.HEAPF32[pointer >>> 2]!,
+        module.HEAPF32[(pointer >>> 2) + 1]!,
+        module.HEAPF32[(pointer >>> 2) + 2]!,
+      ];
     },
     maybeWarnMemory: createMemoryWarning({
       memoryWarningBytes,
@@ -536,11 +563,17 @@ function openPicoSession(parts: RuntimeParts, options: ResolvedSessionOptions, d
     return module.UTF8ToString(scratch);
   };
 
-  const beamRadii = (options: { radius?: number; startRadius?: number; endRadius?: number }, where: string): [number, number] => {
+  const beamRadii = (
+    options: { radius?: number; startRadius?: number; endRadius?: number },
+    where: string,
+  ): [number, number] => {
     const start = options.startRadius ?? options.radius;
     const end = options.endRadius ?? options.radius;
     if (!(start! > 0) || !(end! > 0) || !Number.isFinite(start!) || !Number.isFinite(end!)) {
-      throw new PicoError('PICO_INVALID_ARGUMENT', `${where} needs a positive radius (or startRadius/endRadius pair) in millimetres.`);
+      throw new PicoError(
+        'PICO_INVALID_ARGUMENT',
+        `${where} needs a positive radius (or startRadius/endRadius pair) in millimetres.`,
+      );
     }
     return [start!, end!];
   };
@@ -592,12 +625,18 @@ function openPicoSession(parts: RuntimeParts, options: ResolvedSessionOptions, d
         case 'sphere': {
           const { center = [0, 0, 0], radius } = options;
           if (!(radius > 0) || !Number.isFinite(radius)) {
-            throw new PicoError('PICO_INVALID_ARGUMENT', `createVoxels({ shape: "sphere" }) needs a positive radius in millimetres, got ${radius}.`);
+            throw new PicoError(
+              'PICO_INVALID_ARGUMENT',
+              `createVoxels({ shape: "sphere" }) needs a positive radius in millimetres, got ${radius}.`,
+            );
           }
           ctx.writeVec3(scratch, center);
           return wrapVoxels(
             ctx,
-            expectHandle('Voxels_hCreateSphere', guard('Voxels_hCreateSphere', () => raw.Voxels_hCreateSphere(lib, scratch, radius))()),
+            expectHandle(
+              'Voxels_hCreateSphere',
+              guard('Voxels_hCreateSphere', () => raw.Voxels_hCreateSphere(lib, scratch, radius))(),
+            ),
             EXACT_LANE_SET,
           );
         }
@@ -617,7 +656,9 @@ function openPicoSession(parts: RuntimeParts, options: ResolvedSessionOptions, d
             ctx,
             expectHandle(
               'Voxels_hCreateCapsule',
-              guard('Voxels_hCreateCapsule', () => raw.Voxels_hCreateCapsule(lib, scratch, scratch + VEC3_BYTES, startRadius, endRadius))(),
+              guard('Voxels_hCreateCapsule', () =>
+                raw.Voxels_hCreateCapsule(lib, scratch, scratch + VEC3_BYTES, startRadius, endRadius),
+              )(),
             ),
             EXACT_LANE_SET,
           );
@@ -639,16 +680,30 @@ function openPicoSession(parts: RuntimeParts, options: ResolvedSessionOptions, d
               // RenderImplicit is a SERIAL triple-nested loop (PicoGKVdbVoxels.h:370-381),
               // so a JS callback is correct under pthreads — and gains zero from them.
               withSdfPointer(ctx, sdf, (sdfPointer) => {
-                guard('Voxels_RenderImplicit', () => raw.Voxels_RenderImplicit(lib, target, scratch, sdfPointer))();
+                guard('Voxels_RenderImplicit', () =>
+                  raw.Voxels_RenderImplicit(lib, target, scratch, sdfPointer),
+                )();
               });
             } else {
               // Serialized SDF: compiled to a tape, evaluated in-module by the
               // parallel fill (src/pico-tape.cpp) — every pthread worker engages.
-              withSdfTape(ctx, sdf, (instructionPointer, instructionCount, constantPointer, constantCount) => {
-                guard('Voxels_RenderImplicitTape', () =>
-                  raw.Voxels_RenderImplicitTape(lib, target, scratch, instructionPointer, instructionCount, constantPointer, constantCount),
-                )();
-              });
+              withSdfTape(
+                ctx,
+                sdf,
+                (instructionPointer, instructionCount, constantPointer, constantCount) => {
+                  guard('Voxels_RenderImplicitTape', () =>
+                    raw.Voxels_RenderImplicitTape(
+                      lib,
+                      target,
+                      scratch,
+                      instructionPointer,
+                      instructionCount,
+                      constantPointer,
+                      constantCount,
+                    ),
+                  )();
+                },
+              );
             }
           } catch (error) {
             raw.Voxels_Destroy(lib, target); // don't leak the target on a throwing SDF or bad tape
@@ -694,18 +749,27 @@ function openPicoSession(parts: RuntimeParts, options: ResolvedSessionOptions, d
             ctx,
             expectHandle(
               'ScalarField_hBuildFromVoxels',
-              guard('ScalarField_hBuildFromVoxels', () => raw.ScalarField_hBuildFromVoxels(lib, from, options.value!, options.sdThreshold ?? 0.5))(),
+              guard('ScalarField_hBuildFromVoxels', () =>
+                raw.ScalarField_hBuildFromVoxels(lib, from, options.value!, options.sdThreshold ?? 0.5),
+              )(),
             ),
             lane,
           );
         }
         return wrapScalarField(
           ctx,
-          expectHandle('ScalarField_hCreateFromVoxels', guard('ScalarField_hCreateFromVoxels', () => raw.ScalarField_hCreateFromVoxels(lib, from))()),
+          expectHandle(
+            'ScalarField_hCreateFromVoxels',
+            guard('ScalarField_hCreateFromVoxels', () => raw.ScalarField_hCreateFromVoxels(lib, from))(),
+          ),
           lane,
         );
       }
-      return wrapScalarField(ctx, expectHandle('ScalarField_hCreate', raw.ScalarField_hCreate(lib)), EXACT_LANE_SET);
+      return wrapScalarField(
+        ctx,
+        expectHandle('ScalarField_hCreate', raw.ScalarField_hCreate(lib)),
+        EXACT_LANE_SET,
+      );
     },
 
     createVectorField(options: CreateVectorFieldOptions = {}): VectorField {
@@ -720,18 +784,27 @@ function openPicoSession(parts: RuntimeParts, options: ResolvedSessionOptions, d
             ctx,
             expectHandle(
               'VectorField_hBuildFromVoxels',
-              guard('VectorField_hBuildFromVoxels', () => raw.VectorField_hBuildFromVoxels(lib, from, scratch, options.sdThreshold ?? 0.5))(),
+              guard('VectorField_hBuildFromVoxels', () =>
+                raw.VectorField_hBuildFromVoxels(lib, from, scratch, options.sdThreshold ?? 0.5),
+              )(),
             ),
             lane,
           );
         }
         return wrapVectorField(
           ctx,
-          expectHandle('VectorField_hCreateFromVoxels', guard('VectorField_hCreateFromVoxels', () => raw.VectorField_hCreateFromVoxels(lib, from))()),
+          expectHandle(
+            'VectorField_hCreateFromVoxels',
+            guard('VectorField_hCreateFromVoxels', () => raw.VectorField_hCreateFromVoxels(lib, from))(),
+          ),
           lane,
         );
       }
-      return wrapVectorField(ctx, expectHandle('VectorField_hCreate', raw.VectorField_hCreate(lib)), EXACT_LANE_SET);
+      return wrapVectorField(
+        ctx,
+        expectHandle('VectorField_hCreate', raw.VectorField_hCreate(lib)),
+        EXACT_LANE_SET,
+      );
     },
 
     createVdb(): VdbFile {
@@ -746,7 +819,9 @@ function openPicoSession(parts: RuntimeParts, options: ResolvedSessionOptions, d
           ctx,
           expectHandle(
             'VdbFile_hCreateFromFile',
-            withStrings(ctx, [path], (pathPtr) => guard('VdbFile_hCreateFromFile', () => raw.VdbFile_hCreateFromFile(lib, pathPtr))()),
+            withStrings(ctx, [path], (pathPtr) =>
+              guard('VdbFile_hCreateFromFile', () => raw.VdbFile_hCreateFromFile(lib, pathPtr))(),
+            ),
           ),
         ),
       );
@@ -759,7 +834,9 @@ function openPicoSession(parts: RuntimeParts, options: ResolvedSessionOptions, d
       const scratchLib = expectHandle('Library_hCreateInstance', raw.Library_hCreateInstance(10));
       try {
         return withVdbBytes(ctx, bytes, (path) => {
-          const file = withStrings(ctx, [path], (pathPtr) => raw.VdbFile_hCreateFromFile(scratchLib, pathPtr));
+          const file = withStrings(ctx, [path], (pathPtr) =>
+            raw.VdbFile_hCreateFromFile(scratchLib, pathPtr),
+          );
           try {
             if (raw.VdbFile_nFieldCount(scratchLib, file) < 1) return 0;
             const type = raw.VdbFile_nFieldType(scratchLib, file, 0);

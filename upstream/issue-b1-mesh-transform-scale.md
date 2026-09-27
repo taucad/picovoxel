@@ -8,7 +8,7 @@ B *= vecScale.Y;
 C *= vecScale.Z;
 ```
 
-Each triangle corner is multiplied by a *different uniform scalar* (corner A by
+Each triangle corner is multiplied by a _different uniform scalar_ (corner A by
 `scale.X`, B by `scale.Y`, C by `scale.Z`) instead of every vertex being scaled
 component-wise. For uniform scales the bug is invisible (X == Y == Z); for any
 non-uniform scale the mesh is sheared per-triangle and the result depends on

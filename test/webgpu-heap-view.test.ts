@@ -29,8 +29,11 @@ describe('createHeapStager', () => {
     };
     const captured: number[][] = [];
     const queue = {
-      writeBuffer: (_destination: GPUBuffer, _destinationOffset: number, source: ArrayBufferView<ArrayBufferLike>) =>
-        captured.push([...new Uint8Array(source.buffer, source.byteOffset, source.byteLength)]),
+      writeBuffer: (
+        _destination: GPUBuffer,
+        _destinationOffset: number,
+        source: ArrayBufferView<ArrayBufferLike>,
+      ) => captured.push([...new Uint8Array(source.buffer, source.byteOffset, source.byteLength)]),
     } as unknown as GPUQueue;
     const stager = createHeapStager(memory);
 

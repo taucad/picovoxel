@@ -52,7 +52,10 @@ function assertWritableMetadataName(name: string): void {
           ? `'file_*' names are OpenVDB-internal`
           : null;
   if (reason) {
-    throw new PicoError('PICO_RESERVED_METADATA', `Cannot set metadata '${name}': ${reason}. Choose another name.`);
+    throw new PicoError(
+      'PICO_RESERVED_METADATA',
+      `Cannot set metadata '${name}': ${reason}. Choose another name.`,
+    );
   }
 }
 
@@ -155,13 +158,17 @@ function readLaneTag(
 ): LaneSet | null {
   const meta = expectHandle('Metadata_hFrom*', metaFrom(ctx.lib, fieldHandle));
   try {
-    const type = TYPE_NAMES[withStrings(ctx, [LANE_METADATA_NAME], (n) => ctx.raw.Metadata_nTypeAt(ctx.lib, meta, n))];
+    const type =
+      TYPE_NAMES[withStrings(ctx, [LANE_METADATA_NAME], (n) => ctx.raw.Metadata_nTypeAt(ctx.lib, meta, n))];
     if (type === undefined) return null;
     if (type !== 'string') return [UNKNOWN_LANE_MEMBER]; // float/vector: not our format, fast-like
-    const length = withStrings(ctx, [LANE_METADATA_NAME], (n) => ctx.raw.Metadata_nStringLengthAt(ctx.lib, meta, n)) + 1;
+    const length =
+      withStrings(ctx, [LANE_METADATA_NAME], (n) => ctx.raw.Metadata_nStringLengthAt(ctx.lib, meta, n)) + 1;
     const buffer = checkedMalloc(ctx.module, length, 'a metadata string buffer');
     try {
-      withStrings(ctx, [LANE_METADATA_NAME], (n) => ctx.raw.Metadata_bGetStringAt(ctx.lib, meta, n, buffer, length));
+      withStrings(ctx, [LANE_METADATA_NAME], (n) =>
+        ctx.raw.Metadata_bGetStringAt(ctx.lib, meta, n, buffer, length),
+      );
       return parseLaneSet(readCString(ctx, buffer));
     } finally {
       ctx.module._free(buffer);
@@ -230,7 +237,8 @@ export function wrapMetadata(ctx: SessionContext, handle: bigint): Metadata {
   const readValue = (name: string): MetadataValue | undefined => {
     const type = TYPE_NAMES[withStrings(ctx, [name], (n) => ctx.raw.Metadata_nTypeAt(ctx.lib, handle, n))];
     if (type === 'string') {
-      const length = withStrings(ctx, [name], (n) => ctx.raw.Metadata_nStringLengthAt(ctx.lib, handle, n)) + 1;
+      const length =
+        withStrings(ctx, [name], (n) => ctx.raw.Metadata_nStringLengthAt(ctx.lib, handle, n)) + 1;
       const buffer = checkedMalloc(ctx.module, length, 'a metadata string buffer');
       try {
         withStrings(ctx, [name], (n) => ctx.raw.Metadata_bGetStringAt(ctx.lib, handle, n, buffer, length));
@@ -271,7 +279,9 @@ export function wrapMetadata(ctx: SessionContext, handle: bigint): Metadata {
     },
     typeOf(name: string): MetadataType {
       live();
-      return TYPE_NAMES[withStrings(ctx, [name], (n) => ctx.raw.Metadata_nTypeAt(ctx.lib, handle, n))] ?? 'unknown';
+      return (
+        TYPE_NAMES[withStrings(ctx, [name], (n) => ctx.raw.Metadata_nTypeAt(ctx.lib, handle, n))] ?? 'unknown'
+      );
     },
     get(name: string) {
       live();

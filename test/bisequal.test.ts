@@ -13,7 +13,10 @@ let slow: (a: Voxels, b: Voxels) => boolean;
 beforeAll(async () => {
   pk = await createPico({ voxelSize: 0.4 });
   const raw = pk.module.cwrap('Voxels_bIsEqual', 'boolean', ['bigint', 'bigint', 'bigint']) as (
-    l: bigint, a: bigint, b: bigint) => boolean;
+    l: bigint,
+    a: bigint,
+    b: bigint,
+  ) => boolean;
   slow = (a, b) => raw(pk.handle, a.handle, b.handle);
 });
 afterAll(() => pk.dispose());

@@ -3,7 +3,14 @@
 // stable (upstream VoxelsIo.cs:48-52 documents this), which is why "first
 // compatible field wins" is the documented loading semantic.
 
-import { adoptHandle, assertSameSession, expectHandle, withStrings, readCString, type SessionContext } from './context.ts';
+import {
+  adoptHandle,
+  assertSameSession,
+  expectHandle,
+  withStrings,
+  readCString,
+  type SessionContext,
+} from './context.ts';
 import { assertLive, guard, PicoError } from './errors.ts';
 import { wrapScalarField, wrapVectorField, type ScalarField, type VectorField } from './fields.ts';
 import { assertLaneExport, EXACT_LANE_SET, unionLaneSets, type LaneSet } from './lanes.ts';
@@ -74,7 +81,8 @@ export function wrapVdbFile(ctx: SessionContext, handle: bigint): VdbFile {
 
   /* v8 ignore next 2 -- the 'unsupported' arm needs a foreign grid class (e.g. FOG)
      this ABI cannot create; containers we can build only hold types 0/1/2 */
-  const typeAt = (index: number): VdbFieldType => FIELD_TYPES[ctx.raw.VdbFile_nFieldType(ctx.lib, handle, index)] ?? 'unsupported';
+  const typeAt = (index: number): VdbFieldType =>
+    FIELD_TYPES[ctx.raw.VdbFile_nFieldType(ctx.lib, handle, index)] ?? 'unsupported';
 
   const nameAt = (index: number): string => {
     // GetFieldName fills a PKINFOSTRINGLEN buffer; scratch is sized for it.
@@ -87,7 +95,10 @@ export function wrapVdbFile(ctx: SessionContext, handle: bigint): VdbFile {
     let index: number;
     if (typeof indexOrName === 'number') {
       if (!Number.isInteger(indexOrName) || indexOrName < 0 || indexOrName >= count) {
-        throw new PicoError('PICO_INVALID_ARGUMENT', `Field index ${indexOrName} out of range [0, ${count}).`);
+        throw new PicoError(
+          'PICO_INVALID_ARGUMENT',
+          `Field index ${indexOrName} out of range [0, ${count}).`,
+        );
       }
       index = indexOrName;
     } else {
@@ -131,32 +142,47 @@ export function wrapVdbFile(ctx: SessionContext, handle: bigint): VdbFile {
       const kind = fieldKind(ctx, field);
       return withStrings(ctx, [name], (namePtr) => {
         if (kind === 'voxels') return ctx.raw.VdbFile_nAddVoxels(ctx.lib, handle, namePtr, field.handle);
-        if (kind === 'scalarField') return ctx.raw.VdbFile_nAddScalarField(ctx.lib, handle, namePtr, field.handle);
+        if (kind === 'scalarField')
+          return ctx.raw.VdbFile_nAddScalarField(ctx.lib, handle, namePtr, field.handle);
         return ctx.raw.VdbFile_nAddVectorField(ctx.lib, handle, namePtr, field.handle);
       });
     },
     getVoxels(indexOrName: number | string): Voxels {
       const index = resolveIndex(indexOrName, 'voxels');
-      return wrapVoxels(ctx, expectHandle('VdbFile_hGetVoxels', ctx.raw.VdbFile_hGetVoxels(ctx.lib, handle, index)));
+      return wrapVoxels(
+        ctx,
+        expectHandle('VdbFile_hGetVoxels', ctx.raw.VdbFile_hGetVoxels(ctx.lib, handle, index)),
+      );
     },
     getScalarField(indexOrName: number | string): ScalarField {
       const index = resolveIndex(indexOrName, 'scalarField');
-      return wrapScalarField(ctx, expectHandle('VdbFile_hGetScalarField', ctx.raw.VdbFile_hGetScalarField(ctx.lib, handle, index)));
+      return wrapScalarField(
+        ctx,
+        expectHandle('VdbFile_hGetScalarField', ctx.raw.VdbFile_hGetScalarField(ctx.lib, handle, index)),
+      );
     },
     getVectorField(indexOrName: number | string): VectorField {
       const index = resolveIndex(indexOrName, 'vectorField');
-      return wrapVectorField(ctx, expectHandle('VdbFile_hGetVectorField', ctx.raw.VdbFile_hGetVectorField(ctx.lib, handle, index)));
+      return wrapVectorField(
+        ctx,
+        expectHandle('VdbFile_hGetVectorField', ctx.raw.VdbFile_hGetVectorField(ctx.lib, handle, index)),
+      );
     },
     toBytes(options: { acceptLane?: 'fast' } = {}): Uint8Array {
       live();
       assertLaneExport('toBytes', 'a container holding fields', addedSet, ctx.lane, options.acceptLane);
       stampPicoMetadata(ctx, handle);
       const path = temporaryVdbPath();
-      const saved = withStrings(ctx, [path], (pathPtr) => ctx.raw.VdbFile_bSaveToFile(ctx.lib, handle, pathPtr));
+      const saved = withStrings(ctx, [path], (pathPtr) =>
+        ctx.raw.VdbFile_bSaveToFile(ctx.lib, handle, pathPtr),
+      );
       /* v8 ignore next 3 -- defensive: MEMFS writes at / cannot fail short of OOM,
          and the save path is not injectable through the facade */
       if (!saved) {
-        throw new PicoError('PICO_CALL_FAILED', 'VdbFile_bSaveToFile failed — the container could not be serialised.');
+        throw new PicoError(
+          'PICO_CALL_FAILED',
+          'VdbFile_bSaveToFile failed — the container could not be serialised.',
+        );
       }
       try {
         return ctx.module.FS.readFile(path);
@@ -213,12 +239,19 @@ function stampPicoMetadata(ctx: SessionContext, vdbHandle: bigint): void {
           ? raw.Metadata_hFromScalarField(lib, field)
           : raw.Metadata_hFromVectorField(lib, field);
     try {
-      withStrings(ctx, ['PicoGK.Library', libraryName], (n, v) => raw.Metadata_SetStringValue(lib, meta, n, v));
-      withStrings(ctx, ['PicoGK.Version', libraryVersion], (n, v) => raw.Metadata_SetStringValue(lib, meta, n, v));
-      withStrings(ctx, ['PicoGK.VoxelSize'], (n) => raw.Metadata_SetFloatValue(lib, meta, n, ctx.voxelSize / 1000));
+      withStrings(ctx, ['PicoGK.Library', libraryName], (n, v) =>
+        raw.Metadata_SetStringValue(lib, meta, n, v),
+      );
+      withStrings(ctx, ['PicoGK.Version', libraryVersion], (n, v) =>
+        raw.Metadata_SetStringValue(lib, meta, n, v),
+      );
+      withStrings(ctx, ['PicoGK.VoxelSize'], (n) =>
+        raw.Metadata_SetFloatValue(lib, meta, n, ctx.voxelSize / 1000),
+      );
     } finally {
       raw.Metadata_Destroy(lib, meta);
-      const destroyField = type === 0 ? raw.Voxels_Destroy : type === 1 ? raw.ScalarField_Destroy : raw.VectorField_Destroy;
+      const destroyField =
+        type === 0 ? raw.Voxels_Destroy : type === 1 ? raw.ScalarField_Destroy : raw.VectorField_Destroy;
       destroyField(lib, field);
     }
   }

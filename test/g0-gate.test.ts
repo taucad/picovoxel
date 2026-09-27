@@ -28,29 +28,33 @@ for (const size of [1.0, 0.7]) {
   const key = `heatx@${size}mm`;
   // 105 s for both scales on the M2 Pro reference machine (within the ≤5 min
   // charter bar); the generous timeout is for CI-class hardware only.
-  test(`G0 per-commit gate — HeatX @ ${size} mm multi: N=2 identity + reference`, { timeout: 1_800_000 }, async () => {
-    const runs = [
-      await g0Record({ fixture: 'heatx', build: 'multi', size }),
-      await g0Record({ fixture: 'heatx', build: 'multi', size }),
-    ];
-    for (const run of runs) {
-      assert.equal(run.nonFiniteRecords, 0, 'a non-finite coordinate is never legitimate output');
-    }
-    assert.deepEqual(compareG0(runs[0]!, runs[1]!), [], 'run-to-run G0 identity (the race canary)');
-    assert.ok(oraclesAgree(runs[0]!, runs[1]!), 'field and mesh oracles agree');
+  test(
+    `G0 per-commit gate — HeatX @ ${size} mm multi: N=2 identity + reference`,
+    { timeout: 1_800_000 },
+    async () => {
+      const runs = [
+        await g0Record({ fixture: 'heatx', build: 'multi', size }),
+        await g0Record({ fixture: 'heatx', build: 'multi', size }),
+      ];
+      for (const run of runs) {
+        assert.equal(run.nonFiniteRecords, 0, 'a non-finite coordinate is never legitimate output');
+      }
+      assert.deepEqual(compareG0(runs[0]!, runs[1]!), [], 'run-to-run G0 identity (the race canary)');
+      assert.ok(oraclesAgree(runs[0]!, runs[1]!), 'field and mesh oracles agree');
 
-    assertPinSource(runs[0]!.provenance, key); // LANES item 3 — only exact sources pin
-    if (updatePins) {
-      const pins = existsSync(fixturePath) ? JSON.parse(readFileSync(fixturePath, 'utf8')) : {};
-      pins[key] = tuple(runs[0]!);
-      writeFileSync(fixturePath, `${JSON.stringify(pins, null, 1)}\n`);
-    } else {
-      const pins = JSON.parse(readFileSync(fixturePath, 'utf8'));
-      assert.deepEqual(
-        tuple(runs[0]!),
-        pins[key],
-        `${key} drifted from its G0 reference — a geometry change; regenerate deliberately with UPDATE_PINS=1 and name the cause`,
-      );
-    }
-  });
+      assertPinSource(runs[0]!.provenance, key); // LANES item 3 — only exact sources pin
+      if (updatePins) {
+        const pins = existsSync(fixturePath) ? JSON.parse(readFileSync(fixturePath, 'utf8')) : {};
+        pins[key] = tuple(runs[0]!);
+        writeFileSync(fixturePath, `${JSON.stringify(pins, null, 1)}\n`);
+      } else {
+        const pins = JSON.parse(readFileSync(fixturePath, 'utf8'));
+        assert.deepEqual(
+          tuple(runs[0]!),
+          pins[key],
+          `${key} drifted from its G0 reference — a geometry change; regenerate deliberately with UPDATE_PINS=1 and name the cause`,
+        );
+      }
+    },
+  );
 }

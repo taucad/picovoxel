@@ -71,7 +71,9 @@ function lineTrafo(
   // transform onto target line
   const scale = targetLength / currentLength;
   for (const tile of tiles) {
-    tile.applyTrafo((pt) => frame.ptToWorld(targetFrame, vec3.scale(frame.ptFromWorld(currentFrame, pt), scale)));
+    tile.applyTrafo((pt) =>
+      frame.ptToWorld(targetFrame, vec3.scale(frame.ptFromWorld(currentFrame, pt), scale)),
+    );
   }
   return tiles;
 }

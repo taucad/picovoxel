@@ -74,7 +74,9 @@ const lib = pk.handle;
 
 const battery = () => {
   try {
-    return execFileSync('/usr/bin/pmset', ['-g', 'batt'], { encoding: 'utf8' }).split('\n')[1]?.trim() ?? 'unknown';
+    return (
+      execFileSync('/usr/bin/pmset', ['-g', 'batt'], { encoding: 'utf8' }).split('\n')[1]?.trim() ?? 'unknown'
+    );
   } catch {
     return 'unavailable';
   }
@@ -146,7 +148,8 @@ const sdfDelta = (a, b) => {
   const db = readDims(b);
   const lo = [0, 1, 2].map((i) => Math.max(da.origin[i], db.origin[i]));
   const hi = [0, 1, 2].map((i) => Math.min(da.origin[i] + da.size[i], db.origin[i] + db.size[i]));
-  if (hi.some((h, i) => h <= lo[i])) return { maxAbsMM: Infinity, meanAbsMM: Infinity, voxels: 0, bandMismatch: -1 };
+  if (hi.some((h, i) => h <= lo[i]))
+    return { maxAbsMM: Infinity, meanAbsMM: Infinity, voxels: 0, bandMismatch: -1 };
 
   const bufA = module._malloc(da.size[0] * da.size[1] * 4);
   const bufB = module._malloc(db.size[0] * db.size[1] * 4);
@@ -481,7 +484,11 @@ function beams1e5() {
   for (let x = 0; x < N; x++)
     for (let y = 0; y < N; y++)
       for (let z = 0; z < N; z++)
-        for (const [dx, dy, dz] of [[1, 0, 0], [0, 1, 0], [0, 0, 1]]) {
+        for (const [dx, dy, dz] of [
+          [1, 0, 0],
+          [0, 1, 0],
+          [0, 0, 1],
+        ]) {
           if (x + dx >= N || y + dy >= N || z + dz >= N) continue;
           beams.push(at(x), at(y), at(z), 0.5, at(x + dx), at(y + dy), at(z + dz), 0.5);
         }
@@ -496,8 +503,7 @@ function beams1e5() {
 }
 
 async function memoryPass() {
-  const spec =
-    FIXTURE === 'beams-1e5' ? beams1e5() : (await extractedFixtures())['heatx:helical-void.hot'];
+  const spec = FIXTURE === 'beams-1e5' ? beams1e5() : (await extractedFixtures())['heatx:helical-void.hot'];
   if (!spec) throw new Error('memory pass needs the helical-void fixture');
   const before = heapBytes();
   const t0 = performance.now();

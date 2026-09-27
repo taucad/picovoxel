@@ -12,18 +12,14 @@
     },
     "typecheck": {
       "executor": "nx:run-commands",
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "options": {
         "command": "pnpm run typecheck"
       }
     },
     "test": {
       "executor": "nx:run-commands",
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "options": {
         "command": "pnpm run test"
       }
@@ -36,27 +32,21 @@
     },
     "check:size": {
       "executor": "nx:run-commands",
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "options": {
         "command": "pnpm run check:size"
       }
     },
     "validate-pack": {
       "executor": "nx:run-commands",
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "options": {
         "command": "pnpm run validate-pack"
       }
     },
     "pkgcheck": {
       "executor": "nx:run-commands",
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "options": {
         "command": "pnpm run pkgcheck"
       }
@@ -75,9 +65,7 @@
     },
     "lint": {
       "executor": "nx:run-commands",
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "options": {
         "command": "pnpm run lint"
       }
@@ -96,13 +84,7 @@
     },
     "docs-prose": {
       "executor": "nx:noop",
-      "dependsOn": [
-        "check:dead-code",
-        "format",
-        "lint",
-        "prose",
-        "workflows"
-      ]
+      "dependsOn": ["check:dead-code", "format", "lint", "prose", "workflows"]
     },
     "quality": {
       "executor": "nx:noop",

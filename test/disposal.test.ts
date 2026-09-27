@@ -22,7 +22,11 @@ test('D5/D6 — every wrapper registers exactly once and aliases [Symbol.dispose
 
   for (const wrapper of [pk, sphere, mesh] as unknown as Record<symbol, unknown>[]) {
     const viaSymbol = wrapper[Symbol.dispose] ?? wrapper[DISPOSE_SYMBOL];
-    assert.equal(viaSymbol, (wrapper as { dispose?: unknown }).dispose, '[Symbol.dispose] must BE dispose (D6)');
+    assert.equal(
+      viaSymbol,
+      (wrapper as { dispose?: unknown }).dispose,
+      '[Symbol.dispose] must BE dispose (D6)',
+    );
   }
   pk.dispose();
 });
@@ -39,7 +43,11 @@ test('D1 — held values carry only primitives + the free cwrap, never the wrapp
   assert.equal(entry.held.handle, sphere.handle);
   assert.equal(typeof entry.held.free, 'function');
   for (const value of Object.values(entry.held)) {
-    assert.notEqual(value as unknown, sphere, 'held must not reference the wrapper (would never be collected)');
+    assert.notEqual(
+      value as unknown,
+      sphere,
+      'held must not reference the wrapper (would never be collected)',
+    );
   }
   pk.dispose();
 });
@@ -53,7 +61,11 @@ test('D2 — explicit dispose unregisters first; the GC path can never double-fr
   sphere.dispose();
   assert.ok(!fake.entries.has(sphere as object), 'dispose() must unregister its token');
   assert.equal(pk.allocated.voxels, 0, 'the handle must actually be freed');
-  assert.throws(() => fake.collect(sphere as object), /not registered/, 'a late GC callback has nothing to fire');
+  assert.throws(
+    () => fake.collect(sphere as object),
+    /not registered/,
+    'a late GC callback has nothing to fire',
+  );
   pk.dispose();
 });
 
@@ -133,7 +145,11 @@ test('memory warning: threshold, 1/s throttle, fires once, disableable', () => {
     warn(); // already warned -> silent forever
     assert.equal(warns.length, 1);
 
-    const disabled = createMemoryWarning({ memoryWarningBytes: 0, now: () => 1e9, totalMemUsage: () => 10n ** 12n });
+    const disabled = createMemoryWarning({
+      memoryWarningBytes: 0,
+      now: () => 1e9,
+      totalMemUsage: () => 10n ** 12n,
+    });
     disabled();
     assert.equal(warns.length, 1, 'memoryWarningBytes: 0 must disable the warning');
   } finally {

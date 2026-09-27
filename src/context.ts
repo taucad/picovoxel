@@ -140,7 +140,11 @@ export function checkedMalloc(module: PicoWasmModule, bytes: number, what: strin
  * Runs `body` with NUL-terminated UTF-8 copies of `texts` in wasm memory.
  * Buffers are freed on the way out; copy results before returning.
  */
-export function withStrings<T>(ctx: SessionContext, texts: readonly string[], body: (...pointers: number[]) => T): T {
+export function withStrings<T>(
+  ctx: SessionContext,
+  texts: readonly string[],
+  body: (...pointers: number[]) => T,
+): T {
   const { module } = ctx;
   const pointers = texts.map((text) => {
     const bytes = module.lengthBytesUTF8(text) + 1;
@@ -208,7 +212,12 @@ export function withSdfPointer<T>(ctx: SessionContext, sdf: unknown, body: (sdfP
 export function withSdfTape<T>(
   ctx: SessionContext,
   expression: SdfExpression,
-  body: (instructionPointer: number, instructionCount: number, constantPointer: number, constantCount: number) => T,
+  body: (
+    instructionPointer: number,
+    instructionCount: number,
+    constantPointer: number,
+    constantCount: number,
+  ) => T,
 ): T {
   const { instructions, constants } = compileSdfExpression(expression);
   const { module } = ctx;

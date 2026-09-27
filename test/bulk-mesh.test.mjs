@@ -17,7 +17,12 @@ function csgMesh(lib) {
   const hole = pk.sphere(lib, [0, 0, 12], 9);
   pk.boolSubtract(lib, body, hole);
   const mesh = pk.meshFromVoxels(lib, body);
-  return { mesh, dispose: () => { for (const v of [body, rod, hole]) pk.destroyVoxels(lib, v); } };
+  return {
+    mesh,
+    dispose: () => {
+      for (const v of [body, rod, hole]) pk.destroyVoxels(lib, v);
+    },
+  };
 }
 
 test('bulk readback is byte-identical to per-element (voxel mesh)', () => {
@@ -64,15 +69,33 @@ test('bulk exports clamp to the caller buffer and report what they wrote', () =>
   const small = _malloc(10 * 12);
   try {
     // Undersized buffer must be clamped, never overrun.
-    const wrote = pk.module.ccall('Mesh_GetVertices', 'number',
-      ['bigint', 'bigint', 'number', 'number'], [lib, mesh, small, 10]);
+    const wrote = pk.module.ccall(
+      'Mesh_GetVertices',
+      'number',
+      ['bigint', 'bigint', 'number', 'number'],
+      [lib, mesh, small, 10],
+    );
     assert.equal(wrote, 10, `expected clamp to 10, wrote ${wrote}`);
 
     // Zero/negative counts and a null buffer must be refused, not crash the module.
-    assert.equal(pk.module.ccall('Mesh_GetVertices', 'number',
-      ['bigint', 'bigint', 'number', 'number'], [lib, mesh, small, 0]), 0);
-    assert.equal(pk.module.ccall('Mesh_GetVertices', 'number',
-      ['bigint', 'bigint', 'number', 'number'], [lib, mesh, 0, nv]), 0);
+    assert.equal(
+      pk.module.ccall(
+        'Mesh_GetVertices',
+        'number',
+        ['bigint', 'bigint', 'number', 'number'],
+        [lib, mesh, small, 0],
+      ),
+      0,
+    );
+    assert.equal(
+      pk.module.ccall(
+        'Mesh_GetVertices',
+        'number',
+        ['bigint', 'bigint', 'number', 'number'],
+        [lib, mesh, 0, nv],
+      ),
+      0,
+    );
   } finally {
     _free(small);
   }
@@ -181,7 +204,9 @@ test('bulk readback is dramatically faster than per-element', () => {
 
   const crossings = nv + nt;
   console.log(`    ${nv} verts + ${nt} tris = ${crossings} ABI crossings -> 2`);
-  console.log(`    per-element ${slowMs.toFixed(1)}ms | bulk ${fastMs.toFixed(2)}ms | ${(slowMs / fastMs).toFixed(1)}x`);
+  console.log(
+    `    per-element ${slowMs.toFixed(1)}ms | bulk ${fastMs.toFixed(2)}ms | ${(slowMs / fastMs).toFixed(1)}x`,
+  );
 
   assert.ok(fastMs < slowMs, `bulk (${fastMs}ms) should beat per-element (${slowMs}ms)`);
 

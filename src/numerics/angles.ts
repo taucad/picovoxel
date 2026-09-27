@@ -118,7 +118,10 @@ export const rad = {
 } as const;
 
 function overhangOutOfRange(what: string, range: string, value: number): PicoError {
-  return new PicoError('PICO_INVALID_ARGUMENT', `${what} must be finite and in the range ${range}, got ${value}.`);
+  return new PicoError(
+    'PICO_INVALID_ARGUMENT',
+    `${what} must be finite and in the range ${range}, got ${value}.`,
+  );
 }
 
 const asOverhang = (f: number): Overhang => f as Overhang;
@@ -144,7 +147,8 @@ export const overhang = {
 
   /** From radians 0..π/2 (C# `uFromRad`). */
   fromRad(f: number): Overhang {
-    if (!Number.isFinite(f) || f < 0 || f > Math.PI / 2) throw overhangOutOfRange('Overhang angle in rad', '0..π/2', f);
+    if (!Number.isFinite(f) || f < 0 || f > Math.PI / 2)
+      throw overhangOutOfRange('Overhang angle in rad', '0..π/2', f);
     return asOverhang(f / (Math.PI / 2));
   },
 

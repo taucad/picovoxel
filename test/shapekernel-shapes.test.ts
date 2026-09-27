@@ -372,7 +372,12 @@ test('meshUtility: grid/quad construction, per-vertex transforms, frame moves', 
   closeRel(shifted.properties().volume, sphere.properties().volume, 0.05);
   closeAbs(shifted.properties().bounds.min[0], 15, 0.75);
 
-  const onto = meshUtility.translateMeshOntoFrame(pk, quad, localFrame.identity, localFrame.create([5, 0, 0]));
+  const onto = meshUtility.translateMeshOntoFrame(
+    pk,
+    quad,
+    localFrame.identity,
+    localFrame.create([5, 0, 0]),
+  );
   closeAbs(onto.bounds().min[0], 5, 1e-6);
 });
 

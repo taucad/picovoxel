@@ -24,7 +24,12 @@ test('beam ≙ capsule cross-check: a single round-capped beam matches the primi
 test('SG12 — roundCap defaults true; flat caps measurably differ', () => {
   const make = (roundCap: boolean | undefined) => {
     const lattice = pk.createLattice();
-    lattice.addBeam({ start: [0, 0, -8], end: [0, 0, 8], radius: 3, ...(roundCap === undefined ? {} : { roundCap }) });
+    lattice.addBeam({
+      start: [0, 0, -8],
+      end: [0, 0, 8],
+      radius: 3,
+      ...(roundCap === undefined ? {} : { roundCap }),
+    });
     return lattice.toVoxels();
   };
   const defaulted = make(undefined);
@@ -36,8 +41,14 @@ test('SG12 — roundCap defaults true; flat caps measurably differ', () => {
   // Flat caps cut the two hemispheres (4/3 π r³ total) but extend the cylinder.
   const cylinder = Math.PI * 9 * 16;
   const hemispheres = (4 / 3) * Math.PI * 27;
-  assert.ok(Math.abs(flat.volume - cylinder) / cylinder < 0.06, `flat ${flat.volume} vs cylinder ${cylinder}`);
-  assert.ok(Math.abs(rounded.volume - (cylinder + hemispheres)) / (cylinder + hemispheres) < 0.06, `round ${rounded.volume}`);
+  assert.ok(
+    Math.abs(flat.volume - cylinder) / cylinder < 0.06,
+    `flat ${flat.volume} vs cylinder ${cylinder}`,
+  );
+  assert.ok(
+    Math.abs(rounded.volume - (cylinder + hemispheres)) / (cylinder + hemispheres) < 0.06,
+    `round ${rounded.volume}`,
+  );
 });
 
 test('tapered beam radii and spheres combine additively', () => {
@@ -148,7 +159,10 @@ test('polyline: vertices, count, color round-trip, bounds', () => {
   const line = pk.createPolyLine({ color: [1, 0.25, 0, 0.5] });
   assert.equal(line.addVertex([0, 0, 0]), 0);
   assert.equal(line.addVertex([1, 2, 0]), 1);
-  line.addVertices([[2, 4, 0], [3, 6, 1]]);
+  line.addVertices([
+    [2, 4, 0],
+    [3, 6, 1],
+  ]);
   assert.equal(line.vertexCount, 4);
   assert.deepEqual(line.vertices[2], [2, 4, 0]);
 

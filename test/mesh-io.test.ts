@@ -163,7 +163,10 @@ test('toGlb: valid container with accessor counts (carried over)', () => {
 // (Tau's kernel used Uint8Array.from for exactly that). The assignment below is
 // the type-level check; the runtime checks pin the buffer kind and extent.
 test('meshToStlBytes returns Uint8Array<ArrayBuffer> that owns its whole buffer', () => {
-  const bytes: Uint8Array<ArrayBuffer> = meshToStlBytes(new Float32Array(TETRA.vertices), new Uint32Array(TETRA.triangles));
+  const bytes: Uint8Array<ArrayBuffer> = meshToStlBytes(
+    new Float32Array(TETRA.vertices),
+    new Uint32Array(TETRA.triangles),
+  );
   assert.ok(bytes.buffer instanceof ArrayBuffer);
   assert.equal(bytes.byteOffset, 0);
   assert.equal(bytes.byteLength, bytes.buffer.byteLength);

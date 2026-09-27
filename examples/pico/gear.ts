@@ -76,8 +76,11 @@ export function createGearOutline(opts: Partial<GearOptions> = {}): Point2[] {
       addPolar(points, radius, centerAngle - (baseFlankAngle - involuteAngle(radius, baseRadius)));
     }
     for (let step = 1; step <= o.topArcSteps; step++) {
-      addPolar(points, outerRadius,
-        lerp(centerAngle - outerFlankAngle, centerAngle + outerFlankAngle, step / o.topArcSteps));
+      addPolar(
+        points,
+        outerRadius,
+        lerp(centerAngle - outerFlankAngle, centerAngle + outerFlankAngle, step / o.topArcSteps),
+      );
     }
     for (let step = o.involuteSteps - 1; step >= 0; step--) {
       const radius = lerp(flankStartRadius, outerRadius, step / o.involuteSteps);
@@ -123,12 +126,17 @@ export function triangulate(polygon: Point2[]): Array<[number, number, number]> 
       const ia = remaining[(i + remaining.length - 1) % remaining.length]!;
       const ib = remaining[i]!;
       const ic = remaining[(i + 1) % remaining.length]!;
-      const a = polygon[ia]!, b = polygon[ib]!, c = polygon[ic]!;
+      const a = polygon[ia]!,
+        b = polygon[ib]!,
+        c = polygon[ic]!;
       if (cross(a, b, c) <= 0) continue; // reflex
       let contains = false;
       for (const j of remaining) {
         if (j === ia || j === ib || j === ic) continue;
-        if (pointInTriangle(polygon[j]!, a, b, c)) { contains = true; break; }
+        if (pointInTriangle(polygon[j]!, a, b, c)) {
+          contains = true;
+          break;
+        }
       }
       if (contains) continue;
       tris.push([ia, ib, ic]);

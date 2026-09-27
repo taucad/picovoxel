@@ -104,7 +104,11 @@ test('sh lattice builders: line/points/edges/point/beam forms', () => {
     [10, 0, 0],
   ];
   closeRel(sh.latFromLine(pk, line, 2).toVoxels().properties().volume, capsuleVolume(2, 10), 0.03);
-  closeRel(sh.latFromBeam(pk, [0, 0, 0], [10, 0, 0], 2, true).toVoxels().properties().volume, capsuleVolume(2, 10), 0.03);
+  closeRel(
+    sh.latFromBeam(pk, [0, 0, 0], [10, 0, 0], 2, true).toVoxels().properties().volume,
+    capsuleVolume(2, 10),
+    0.03,
+  );
   // Un-rounded beam = plain cylinder (4%: sharp flat caps at r=2 = 4 voxels).
   closeRel(
     sh.latFromBeam(pk, [0, 0, 0], [10, 0, 0], 2, false).toVoxels().properties().volume,
@@ -113,11 +117,34 @@ test('sh lattice builders: line/points/edges/point/beam forms', () => {
   );
   closeRel(sh.latFromPoint(pk, [0, 0, 0], 3).toVoxels().properties().volume, (4 / 3) * Math.PI * 27);
   closeRel(
-    sh.latFromPoints(pk, [[0, 0, 0], [20, 0, 0]], 3).toVoxels().properties().volume,
+    sh
+      .latFromPoints(
+        pk,
+        [
+          [0, 0, 0],
+          [20, 0, 0],
+        ],
+        3,
+      )
+      .toVoxels()
+      .properties().volume,
     2 * (4 / 3) * Math.PI * 27,
   );
   closeRel(
-    sh.latFromEdges(pk, [line, [[0, 20, 0], [10, 20, 0]]], 2).toVoxels().properties().volume,
+    sh
+      .latFromEdges(
+        pk,
+        [
+          line,
+          [
+            [0, 20, 0],
+            [10, 20, 0],
+          ],
+        ],
+        2,
+      )
+      .toVoxels()
+      .properties().volume,
     2 * capsuleVolume(2, 10),
     0.03,
   );
@@ -181,9 +208,9 @@ test('ImplicitGyroid: tape ≡ callback exactly; thickness ratio helper', () => 
   const fromTape = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: gyroid.expression });
   const fromCallback = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: gyroid.sdf });
   expect(fromTape.volume).toBe(fromCallback.volume);
-  expect(
-    Buffer.from(fromTape.toMesh().toStl()).equals(Buffer.from(fromCallback.toMesh().toStl())),
-  ).toBe(true);
+  expect(Buffer.from(fromTape.toMesh().toStl()).equals(Buffer.from(fromCallback.toMesh().toStl()))).toBe(
+    true,
+  );
   assert.equal(ImplicitGyroid.thicknessRatio(0.25, 5), 0.5);
 });
 

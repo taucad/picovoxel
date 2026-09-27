@@ -19,8 +19,16 @@ const DEFAULT_HEADER = resolve(ROOT, 'vendor/PicoGKRuntime/API/PicoGK.h');
 // Every PK* handle is uint64_t (PicoGK.h:73-88) except PKVIEWER/PKGUI/PKGPUTEX, which
 // are viewer-side pointers and excluded with the rest of the viewer surface.
 const HANDLE_TYPES = new Set([
-  'PKHANDLE', 'PKINSTANCE', 'PKMESH', 'PKVOXELS', 'PKLATTICE', 'PKPOLYLINE',
-  'PKSCALARFIELD', 'PKVECTORFIELD', 'PKVDBFILE', 'PKMETADATA',
+  'PKHANDLE',
+  'PKINSTANCE',
+  'PKMESH',
+  'PKVOXELS',
+  'PKLATTICE',
+  'PKPOLYLINE',
+  'PKSCALARFIELD',
+  'PKVECTORFIELD',
+  'PKVDBFILE',
+  'PKMETADATA',
 ]);
 
 /**
@@ -29,7 +37,10 @@ const HANDLE_TYPES = new Set([
  * in SK-0.2 — and are kept so the 4,000-line `src/abi.json` does not churn for a rename.
  */
 function cwrapType(cType) {
-  const t = cType.replace(/\bconst\b/g, '').replace(/\s+/g, ' ').trim();
+  const t = cType
+    .replace(/\bconst\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
   if (t === 'void') return null;
   if (t.includes('*') || t.includes('[')) return 'number'; // pointer
   if (HANDLE_TYPES.has(t)) return 'bigint';
@@ -60,18 +71,19 @@ export async function parseAbi(headerPath = DEFAULT_HEADER) {
     }
     const [, returnType, name, argText] = m;
 
-    const args = argText.trim() === '' || argText.trim() === 'void'
-      ? []
-      : argText.split(',').map((a) => {
-          const arg = a.trim();
-          // "const PKVector3* pvecCoord" / "char psz[255]" / "PKPFnfSdf pfnSDF"
-          // Array params decay to pointers; the * can land on either side of the name.
-          const parts = arg.replace(/\[[^\]]*\]/, '*').split(/\s+/);
-          const argName = parts.pop();
-          let type = parts.join(' ');
-          if (argName.startsWith('*') || argName.endsWith('*')) type += '*';
-          return { type: type.trim(), name: argName.replace(/^\*+|\*+$/g, '') };
-        });
+    const args =
+      argText.trim() === '' || argText.trim() === 'void'
+        ? []
+        : argText.split(',').map((a) => {
+            const arg = a.trim();
+            // "const PKVector3* pvecCoord" / "char psz[255]" / "PKPFnfSdf pfnSDF"
+            // Array params decay to pointers; the * can land on either side of the name.
+            const parts = arg.replace(/\[[^\]]*\]/, '*').split(/\s+/);
+            const argName = parts.pop();
+            let type = parts.join(' ');
+            if (argName.startsWith('*') || argName.endsWith('*')) type += '*';
+            return { type: type.trim(), name: argName.replace(/^\*+|\*+$/g, '') };
+          });
 
     functions.push({
       name,

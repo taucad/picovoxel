@@ -7,7 +7,14 @@
 // voxels.getSlice()/dimensions() — zero native touchpoints and zero dependencies.
 
 import { PicoError } from './errors.ts';
-import { EXACT_LANE_SET, findLaneToken, formatLaneToken, laneOf, unionLaneSets, type LaneSet } from './lanes.ts';
+import {
+  EXACT_LANE_SET,
+  findLaneToken,
+  formatLaneToken,
+  laneOf,
+  unionLaneSets,
+  type LaneSet,
+} from './lanes.ts';
 import type { Voxels } from './voxels.ts';
 
 export type ContourWinding = 'ccw' | 'cw' | 'unknown';
@@ -303,7 +310,10 @@ export function sliceVoxels(voxels: Voxels, options: SliceVoxelsOptions = {}): S
 
   const layerHeight = options.layerHeight ?? voxelSize;
   if (!(layerHeight > 0)) {
-    throw new PicoError('PICO_INVALID_ARGUMENT', `layerHeight must be positive millimetres, got ${layerHeight}.`);
+    throw new PicoError(
+      'PICO_INVALID_ARGUMENT',
+      `layerHeight must be positive millimetres, got ${layerHeight}.`,
+    );
   }
   const zStep = layerHeight / voxelSize;
 
@@ -321,7 +331,12 @@ export function sliceVoxels(voxels: Voxels, options: SliceVoxelsOptions = {}): S
     const image = voxels.getSlice({ z: fZ, interpolated: true });
     fZ += zStep;
 
-    const contours = contoursFromSdf({ width: nx, height: ny, data: image.data }, voxelSize, offsetX, offsetY);
+    const contours = contoursFromSdf(
+      { width: nx, height: ny, data: image.data },
+      voxelSize,
+      offsetX,
+      offsetY,
+    );
     if (slices.length === 0 && contours.length === 0) {
       continue; // skip empty layers until the first filled one (layerZ stays put)
     }
@@ -430,7 +445,9 @@ export function sliceToSvg(slice: Slice, options: ToSvgOptions = {}): string {
         points += ` ${contour.points[i]},${contour.points[i + 1]}`;
       }
       const stroke = contour.winding === 'cw' ? 'blue' : contour.winding === 'ccw' ? 'black' : 'red';
-      lines.push(`<polyline points='${points}' stroke='${stroke}' fill='none' stroke-width='${strokeWidth}' />`);
+      lines.push(
+        `<polyline points='${points}' stroke='${stroke}' fill='none' stroke-width='${strokeWidth}' />`,
+      );
     }
   }
   lines.push('</g>');
@@ -494,7 +511,8 @@ export function slicesToCli(stack: SliceStack, options: ToCliOptions = {}): Uint
   );
   lines.push(`$$LAYERS/${String(stack.slices.length + (emptyFirstLayer ? 1 : 0)).padStart(5, '0')}`);
   // LUB: a hand-assembled stack is fast if its stack claim or any slice is.
-  if (stack.lane === 'fast' || stack.slices.some((slice) => slice.lane === 'fast')) lines.push(`// ${LANE_STAMP} //`);
+  if (stack.lane === 'fast' || stack.slices.some((slice) => slice.lane === 'fast'))
+    lines.push(`// ${LANE_STAMP} //`);
   lines.push('$$HEADEREND');
   lines.push('$$GEOMETRYSTART');
   if (emptyFirstLayer) lines.push('$$LAYER/0.0');
@@ -531,7 +549,10 @@ export interface FromCliResult extends SliceStack {
 }
 
 /** Parses ASCII CLI bytes back into a slice stack. Tolerant of header variants. */
-export function slicesFromCli(bytes: Uint8Array, options: { onProgress?: (fraction: number) => void } = {}): FromCliResult {
+export function slicesFromCli(
+  bytes: Uint8Array,
+  options: { onProgress?: (fraction: number) => void } = {},
+): FromCliResult {
   const text = new TextDecoder().decode(bytes);
   const warnings: string[] = [];
   let units = 0;
@@ -573,7 +594,8 @@ export function slicesFromCli(bytes: Uint8Array, options: { onProgress?: (fracti
     let line = rawLines[lineIndex]!.trim();
     if (line.startsWith('//')) {
       // A remark line; inside the header it may carry the provenance stamp.
-      if (headerStarted) provenance = unionLaneSets(provenance, findLaneToken(line.slice(2).replace(/\/\/$/, '')));
+      if (headerStarted)
+        provenance = unionLaneSets(provenance, findLaneToken(line.slice(2).replace(/\/\/$/, '')));
       continue;
     }
     if (!headerStarted) {

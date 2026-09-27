@@ -11,13 +11,7 @@ import type { Pico, Vec3, Voxels } from 'picovoxel';
 import { ControlPointSpline } from 'picovoxel/shapekernel';
 import { treadPattern02, treadPattern03 } from './treadPatterns.ts';
 import { WheelContext, type WheelLayer } from './wheelContext.ts';
-import {
-  egyptianStruts,
-  rectHoles,
-  rosettaStruts,
-  spiralStruts,
-  tubeStruts,
-} from './wheelElements.ts';
+import { egyptianStruts, rectHoles, rosettaStruts, spiralStruts, tubeStruts } from './wheelElements.ts';
 import { WheelTread } from './wheelTread.ts';
 
 /**

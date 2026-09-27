@@ -93,7 +93,14 @@ export const sh = {
   },
 
   /** One beam, variable radius (C# `latFromBeam` overload). */
-  latFromTaperedBeam(pk: Pico, pt1: Vec3, pt2: Vec3, beam1: number, beam2: number, rounded: boolean): Lattice {
+  latFromTaperedBeam(
+    pk: Pico,
+    pt1: Vec3,
+    pt2: Vec3,
+    beam1: number,
+    beam2: number,
+    rounded: boolean,
+  ): Lattice {
     const lattice = pk.createLattice();
     lattice.addBeam({ start: pt1, end: pt2, startRadius: beam1, endRadius: beam2, roundCap: rounded });
     return lattice;

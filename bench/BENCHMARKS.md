@@ -8,128 +8,128 @@
 > bulk-readback win) are imported by reference from the measured records in the research docs
 > (picovoxel-wasm-kernel-blueprint) — native builds live outside this repo's toolchain.
 
-| Metric | Description | Phase | Median | Min | Max |
-| --- | --- | --- | ---: | ---: | ---: |
-| M1 | createPico() cold instantiate (5.8 MB module) | instantiate | 9.223 ms | 8.395 | 10.225 |
-| M2@0.5 | sphere r=10 @ 0.5mm | build | 1.121 ms | 0.897 | 1.437 |
-|  |  | volume | 0.822 ms | 0.774 | 0.92 |
-| M2@0.25 | sphere r=10 @ 0.25mm | build | 3.223 ms | 3.05 | 3.365 |
-|  |  | volume | 3.273 ms | 3.189 | 3.968 |
-| M3@0.5 | gyroid implicit @ 0.5mm (JS SDF) | render | 17.261 ms | 16.787 | 17.549 |
-|  |  | mesh | 13.473 ms | 13.392 | 13.629 |
-| M3@0.25 | gyroid implicit @ 0.25mm (JS SDF) | render | 109.343 ms | 109.073 | 110.127 |
-|  |  | mesh | 48.147 ms | 47.454 | 50.012 |
-| M4 | union + subtract + intersect chain (differential shapes) | chain | 6.821 ms | 6.666 | 7.392 |
-| M5 | offset +2 and smoothen(1) on a CSG body | offset | 239.287 ms | 231.785 | 245.936 |
-|  |  | smoothen | 415.441 ms | 409.079 | 439.877 |
-| M6 | mesh readback bulk vs per-element (0.25mm gyroid) | bulk | 0.631 ms | 0.262 | 0.669 |
-|  |  | perElement | 15.627 ms | 15.396 | 18.925 |
-| M7 | 100k-triangle synthetic bulk import | import | 1.692 ms | 1.611 | 1.839 |
-| M8 | full interpolated slice sweep + vectorize (sphere r=8) | sweep | 4.255 ms | 3.596 | 4.438 |
-| M9 | facade vs raw: 10k isEmpty calls | raw10k | 16.551 ms | 16.435 | 34.481 |
-|  |  | facade10k | 16.594 ms | 15.909 | 25.35 |
-| M10@single | gyroid tape @ 0.25mm (single entry) | render | 53.21 ms | 52.528 | 64.121 |
-|  |  | mesh | 51.708 ms | 51.054 | 52.683 |
-| M10@multi | gyroid tape @ 0.25mm (multi entry) | render | 11.813 ms | 11.224 | 14.941 |
-|  |  | mesh | 48.508 ms | 45.12 | 52.874 |
-| M11 | RoverWheel Wheel_02 @ 1.0mm (subject) | construct | 27418.794 ms | 27220.323 | 27623.393 |
-|  |  | mesh | 277.256 ms | 271.426 | 277.77 |
-|  |  | stl | 151.273 ms | 144.173 | 159.333 |
-| M12@single | HelixHeatX @ 1.0mm (single entry) | construct | 57524.336 ms | 57315.89 | 58023.821 |
-|  |  | author | 431.614 ms | 426.546 | 435.803 |
-|  |  | kernel:bounding.create | 232.793 ms | 230.019 | 235.298 |
-|  |  | kernel:turning-fins.hot | 3936.898 ms | 3865.145 | 3985.501 |
-|  |  | kernel:turning-fins.cool | 3941.728 ms | 3898.658 | 4006.628 |
-|  |  | kernel:corner-fins.union | 4.858 ms | 4.741 | 5.376 |
-|  |  | kernel:straight-fins.hot | 1286.332 ms | 1254.078 | 1294.874 |
-|  |  | kernel:straight-fins.cool | 1274.53 ms | 1262.059 | 1296.657 |
-|  |  | kernel:straight-fins.union | 4.097 ms | 4.004 | 4.137 |
-|  |  | kernel:fins.union | 3.374 ms | 3.182 | 3.927 |
-|  |  | kernel:outer-structure.create | 14162.297 ms | 14057.697 | 14382.879 |
-|  |  | kernel:helical-void.hot | 5347.049 ms | 5311.113 | 5390.031 |
-|  |  | kernel:helical-void.cool | 5335.416 ms | 5303.194 | 5354.855 |
-|  |  | kernel:cool-inner.offset | 1025.191 ms | 1023.006 | 1131.269 |
-|  |  | kernel:hot-fluid-void.subtract | 4.826 ms | 4.509 | 5.106 |
-|  |  | kernel:hot-inner.offset | 1029.02 ms | 1014.386 | 1041.974 |
-|  |  | kernel:cool-fluid-void.subtract | 5.535 ms | 4.852 | 5.565 |
-|  |  | kernel:inner-volume.union | 6.81 ms | 6.359 | 7.34 |
-|  |  | kernel:splitters.union | 2.297 ms | 2.167 | 3.513 |
-|  |  | kernel:outer-volume.offset | 1120.618 ms | 1108.633 | 1126.731 |
-|  |  | kernel:flange.create | 2726.48 ms | 2682.614 | 2765.095 |
-|  |  | kernel:finished-flange.fillet | 1039.657 ms | 1029.699 | 1055.661 |
-|  |  | kernel:finished-flange.smoothen | 135.605 ms | 133.424 | 138.177 |
-|  |  | kernel:outer-volume.union-flange | 4.16 ms | 4.015 | 4.685 |
-|  |  | kernel:io-supports.create | 178.862 ms | 176.667 | 181.954 |
-|  |  | kernel:outer-volume.union-supports | 5.875 ms | 5.512 | 6.468 |
-|  |  | kernel:outer-volume.fillet | 7207.478 ms | 7145.64 | 7229.684 |
-|  |  | kernel:outer-volume.smoothen | 1176.691 ms | 1156.92 | 1203.368 |
-|  |  | kernel:centre-piece.add | 21.052 ms | 20.643 | 21.403 |
-|  |  | kernel:outer-volume.union-structure | 5.821 ms | 5.242 | 6.197 |
-|  |  | kernel:outer-volume.subtract-screw-holes | 2.839 ms | 2.699 | 3.047 |
-|  |  | kernel:outer-volume.project-z-slice | 4.902 ms | 4.783 | 4.971 |
-|  |  | kernel:print-web.create | 2.983 ms | 2.822 | 3.222 |
-|  |  | kernel:outer-volume.subtract-print-web | 3.976 ms | 3.786 | 4.099 |
-|  |  | kernel:result.subtract-inner-volume | 5.698 ms | 5.485 | 6.949 |
-|  |  | kernel:result.union-fins | 7.513 ms | 6.513 | 10.249 |
-|  |  | kernel:result.union-splitters | 4.027 ms | 3.642 | 4.783 |
-|  |  | kernel:result.intersect-bounding | 4.929 ms | 4.519 | 5.415 |
-|  |  | kernel:io-threads.create | 5823.319 ms | 5787.559 | 5843.671 |
-|  |  | kernel:result.union-threads | 3.567 ms | 3.294 | 4.017 |
-|  |  | kernel:io-cuts.create | 25.165 ms | 24.52 | 27.082 |
-|  |  | kernel:result.subtract-io-cuts | 2.038 ms | 1.807 | 2.204 |
-|  |  | unattributed | 0.401 ms | 0.203 | 0.505 |
-|  |  | mesh | 135.511 ms | 134.088 | 138.334 |
-|  |  | stl | 123.275 ms | 85.952 | 638.497 |
-| M12@multi | HelixHeatX @ 1.0mm (multi entry) | construct | 35523.218 ms | 35435.863 | 37391.597 |
-|  |  | author | 468.383 ms | 452.154 | 515.776 |
-|  |  | kernel:bounding.create | 100.656 ms | 89.773 | 126.852 |
-|  |  | kernel:turning-fins.hot | 3878.177 ms | 3826.071 | 3963.017 |
-|  |  | kernel:turning-fins.cool | 3872.251 ms | 3860.416 | 4008.027 |
-|  |  | kernel:corner-fins.union | 14.646 ms | 10.174 | 49.984 |
-|  |  | kernel:straight-fins.hot | 1260.138 ms | 1237.472 | 1321.886 |
-|  |  | kernel:straight-fins.cool | 1287.494 ms | 1261.446 | 1315.407 |
-|  |  | kernel:straight-fins.union | 10.59 ms | 8.27 | 20.738 |
-|  |  | kernel:fins.union | 7.83 ms | 5.895 | 9.749 |
-|  |  | kernel:outer-structure.create | 2311.542 ms | 2285.251 | 2375.427 |
-|  |  | kernel:helical-void.hot | 5334.119 ms | 5299.216 | 5409.584 |
-|  |  | kernel:helical-void.cool | 5302.984 ms | 5300.505 | 5378.134 |
-|  |  | kernel:cool-inner.offset | 167.993 ms | 150.981 | 203.599 |
-|  |  | kernel:hot-fluid-void.subtract | 13.076 ms | 11.678 | 13.509 |
-|  |  | kernel:hot-inner.offset | 149.738 ms | 145.073 | 211.41 |
-|  |  | kernel:cool-fluid-void.subtract | 13.432 ms | 11.3 | 48.459 |
-|  |  | kernel:inner-volume.union | 14.941 ms | 10.652 | 27.311 |
-|  |  | kernel:splitters.union | 1.824 ms | 1.444 | 2.206 |
-|  |  | kernel:outer-volume.offset | 168.124 ms | 159.031 | 211.755 |
-|  |  | kernel:flange.create | 2601.057 ms | 2581.069 | 3066.71 |
-|  |  | kernel:finished-flange.fillet | 232.962 ms | 216.363 | 501.221 |
-|  |  | kernel:finished-flange.smoothen | 46.935 ms | 41.214 | 60.628 |
-|  |  | kernel:outer-volume.union-flange | 14.461 ms | 5.161 | 17.727 |
-|  |  | kernel:io-supports.create | 177.268 ms | 176.541 | 183.152 |
-|  |  | kernel:outer-volume.union-supports | 17.301 ms | 14.314 | 22.764 |
-|  |  | kernel:outer-volume.fillet | 1117.313 ms | 1092.635 | 1259.989 |
-|  |  | kernel:outer-volume.smoothen | 190.363 ms | 183.381 | 257.28 |
-|  |  | kernel:centre-piece.add | 45.46 ms | 33.347 | 55.301 |
-|  |  | kernel:outer-volume.union-structure | 11.443 ms | 9.428 | 22.32 |
-|  |  | kernel:outer-volume.subtract-screw-holes | 7.204 ms | 5.63 | 10.871 |
-|  |  | kernel:outer-volume.project-z-slice | 7.855 ms | 7.012 | 10.511 |
-|  |  | kernel:print-web.create | 3.033 ms | 3.021 | 3.08 |
-|  |  | kernel:outer-volume.subtract-print-web | 15.21 ms | 11.461 | 17.738 |
-|  |  | kernel:result.subtract-inner-volume | 17.01 ms | 15.961 | 18.26 |
-|  |  | kernel:result.union-fins | 16.453 ms | 14.637 | 27.185 |
-|  |  | kernel:result.union-splitters | 13.581 ms | 8.415 | 16.215 |
-|  |  | kernel:result.intersect-bounding | 20.498 ms | 16.335 | 24.186 |
-|  |  | kernel:io-threads.create | 6549.6 ms | 6463.443 | 6601.972 |
-|  |  | kernel:result.union-threads | 11.658 ms | 8.999 | 18.756 |
-|  |  | kernel:io-cuts.create | 43.536 ms | 38.93 | 53.948 |
-|  |  | kernel:result.subtract-io-cuts | 10.678 ms | 5.119 | 19.974 |
-|  |  | unattributed | 0.519 ms | 0.476 | 0.63 |
-|  |  | mesh | 57.39 ms | 56.892 | 68.802 |
-|  |  | stl | 123.637 ms | 114.096 | 157.427 |
-| M13 | SchwarzDiamond preset @ 0.5mm, [-15,15]³: callback vs tape | callback | 35.91 ms | 35.722 | 36.842 |
-|  |  | tape | 13.572 ms | 13.491 | 13.705 |
-| M14 | QuasiCrystal wireframe gens 0/1/2 @ 2.0mm, QuasiTile_02 seed | gen0 | 4.715 ms | 4.578 | 4.745 |
-|  |  | gen1 | 139.212 ms | 137.796 | 142.918 |
-|  |  | gen2 | 6007.974 ms | 5947.103 | 6136.948 |
+| Metric     | Description                                                  | Phase                                    |       Median |       Min |       Max |
+| ---------- | ------------------------------------------------------------ | ---------------------------------------- | -----------: | --------: | --------: |
+| M1         | createPico() cold instantiate (5.8 MB module)                | instantiate                              |     9.223 ms |     8.395 |    10.225 |
+| M2@0.5     | sphere r=10 @ 0.5mm                                          | build                                    |     1.121 ms |     0.897 |     1.437 |
+|            |                                                              | volume                                   |     0.822 ms |     0.774 |      0.92 |
+| M2@0.25    | sphere r=10 @ 0.25mm                                         | build                                    |     3.223 ms |      3.05 |     3.365 |
+|            |                                                              | volume                                   |     3.273 ms |     3.189 |     3.968 |
+| M3@0.5     | gyroid implicit @ 0.5mm (JS SDF)                             | render                                   |    17.261 ms |    16.787 |    17.549 |
+|            |                                                              | mesh                                     |    13.473 ms |    13.392 |    13.629 |
+| M3@0.25    | gyroid implicit @ 0.25mm (JS SDF)                            | render                                   |   109.343 ms |   109.073 |   110.127 |
+|            |                                                              | mesh                                     |    48.147 ms |    47.454 |    50.012 |
+| M4         | union + subtract + intersect chain (differential shapes)     | chain                                    |     6.821 ms |     6.666 |     7.392 |
+| M5         | offset +2 and smoothen(1) on a CSG body                      | offset                                   |   239.287 ms |   231.785 |   245.936 |
+|            |                                                              | smoothen                                 |   415.441 ms |   409.079 |   439.877 |
+| M6         | mesh readback bulk vs per-element (0.25mm gyroid)            | bulk                                     |     0.631 ms |     0.262 |     0.669 |
+|            |                                                              | perElement                               |    15.627 ms |    15.396 |    18.925 |
+| M7         | 100k-triangle synthetic bulk import                          | import                                   |     1.692 ms |     1.611 |     1.839 |
+| M8         | full interpolated slice sweep + vectorize (sphere r=8)       | sweep                                    |     4.255 ms |     3.596 |     4.438 |
+| M9         | facade vs raw: 10k isEmpty calls                             | raw10k                                   |    16.551 ms |    16.435 |    34.481 |
+|            |                                                              | facade10k                                |    16.594 ms |    15.909 |     25.35 |
+| M10@single | gyroid tape @ 0.25mm (single entry)                          | render                                   |     53.21 ms |    52.528 |    64.121 |
+|            |                                                              | mesh                                     |    51.708 ms |    51.054 |    52.683 |
+| M10@multi  | gyroid tape @ 0.25mm (multi entry)                           | render                                   |    11.813 ms |    11.224 |    14.941 |
+|            |                                                              | mesh                                     |    48.508 ms |     45.12 |    52.874 |
+| M11        | RoverWheel Wheel_02 @ 1.0mm (subject)                        | construct                                | 27418.794 ms | 27220.323 | 27623.393 |
+|            |                                                              | mesh                                     |   277.256 ms |   271.426 |    277.77 |
+|            |                                                              | stl                                      |   151.273 ms |   144.173 |   159.333 |
+| M12@single | HelixHeatX @ 1.0mm (single entry)                            | construct                                | 57524.336 ms |  57315.89 | 58023.821 |
+|            |                                                              | author                                   |   431.614 ms |   426.546 |   435.803 |
+|            |                                                              | kernel:bounding.create                   |   232.793 ms |   230.019 |   235.298 |
+|            |                                                              | kernel:turning-fins.hot                  |  3936.898 ms |  3865.145 |  3985.501 |
+|            |                                                              | kernel:turning-fins.cool                 |  3941.728 ms |  3898.658 |  4006.628 |
+|            |                                                              | kernel:corner-fins.union                 |     4.858 ms |     4.741 |     5.376 |
+|            |                                                              | kernel:straight-fins.hot                 |  1286.332 ms |  1254.078 |  1294.874 |
+|            |                                                              | kernel:straight-fins.cool                |   1274.53 ms |  1262.059 |  1296.657 |
+|            |                                                              | kernel:straight-fins.union               |     4.097 ms |     4.004 |     4.137 |
+|            |                                                              | kernel:fins.union                        |     3.374 ms |     3.182 |     3.927 |
+|            |                                                              | kernel:outer-structure.create            | 14162.297 ms | 14057.697 | 14382.879 |
+|            |                                                              | kernel:helical-void.hot                  |  5347.049 ms |  5311.113 |  5390.031 |
+|            |                                                              | kernel:helical-void.cool                 |  5335.416 ms |  5303.194 |  5354.855 |
+|            |                                                              | kernel:cool-inner.offset                 |  1025.191 ms |  1023.006 |  1131.269 |
+|            |                                                              | kernel:hot-fluid-void.subtract           |     4.826 ms |     4.509 |     5.106 |
+|            |                                                              | kernel:hot-inner.offset                  |   1029.02 ms |  1014.386 |  1041.974 |
+|            |                                                              | kernel:cool-fluid-void.subtract          |     5.535 ms |     4.852 |     5.565 |
+|            |                                                              | kernel:inner-volume.union                |      6.81 ms |     6.359 |      7.34 |
+|            |                                                              | kernel:splitters.union                   |     2.297 ms |     2.167 |     3.513 |
+|            |                                                              | kernel:outer-volume.offset               |  1120.618 ms |  1108.633 |  1126.731 |
+|            |                                                              | kernel:flange.create                     |   2726.48 ms |  2682.614 |  2765.095 |
+|            |                                                              | kernel:finished-flange.fillet            |  1039.657 ms |  1029.699 |  1055.661 |
+|            |                                                              | kernel:finished-flange.smoothen          |   135.605 ms |   133.424 |   138.177 |
+|            |                                                              | kernel:outer-volume.union-flange         |      4.16 ms |     4.015 |     4.685 |
+|            |                                                              | kernel:io-supports.create                |   178.862 ms |   176.667 |   181.954 |
+|            |                                                              | kernel:outer-volume.union-supports       |     5.875 ms |     5.512 |     6.468 |
+|            |                                                              | kernel:outer-volume.fillet               |  7207.478 ms |   7145.64 |  7229.684 |
+|            |                                                              | kernel:outer-volume.smoothen             |  1176.691 ms |   1156.92 |  1203.368 |
+|            |                                                              | kernel:centre-piece.add                  |    21.052 ms |    20.643 |    21.403 |
+|            |                                                              | kernel:outer-volume.union-structure      |     5.821 ms |     5.242 |     6.197 |
+|            |                                                              | kernel:outer-volume.subtract-screw-holes |     2.839 ms |     2.699 |     3.047 |
+|            |                                                              | kernel:outer-volume.project-z-slice      |     4.902 ms |     4.783 |     4.971 |
+|            |                                                              | kernel:print-web.create                  |     2.983 ms |     2.822 |     3.222 |
+|            |                                                              | kernel:outer-volume.subtract-print-web   |     3.976 ms |     3.786 |     4.099 |
+|            |                                                              | kernel:result.subtract-inner-volume      |     5.698 ms |     5.485 |     6.949 |
+|            |                                                              | kernel:result.union-fins                 |     7.513 ms |     6.513 |    10.249 |
+|            |                                                              | kernel:result.union-splitters            |     4.027 ms |     3.642 |     4.783 |
+|            |                                                              | kernel:result.intersect-bounding         |     4.929 ms |     4.519 |     5.415 |
+|            |                                                              | kernel:io-threads.create                 |  5823.319 ms |  5787.559 |  5843.671 |
+|            |                                                              | kernel:result.union-threads              |     3.567 ms |     3.294 |     4.017 |
+|            |                                                              | kernel:io-cuts.create                    |    25.165 ms |     24.52 |    27.082 |
+|            |                                                              | kernel:result.subtract-io-cuts           |     2.038 ms |     1.807 |     2.204 |
+|            |                                                              | unattributed                             |     0.401 ms |     0.203 |     0.505 |
+|            |                                                              | mesh                                     |   135.511 ms |   134.088 |   138.334 |
+|            |                                                              | stl                                      |   123.275 ms |    85.952 |   638.497 |
+| M12@multi  | HelixHeatX @ 1.0mm (multi entry)                             | construct                                | 35523.218 ms | 35435.863 | 37391.597 |
+|            |                                                              | author                                   |   468.383 ms |   452.154 |   515.776 |
+|            |                                                              | kernel:bounding.create                   |   100.656 ms |    89.773 |   126.852 |
+|            |                                                              | kernel:turning-fins.hot                  |  3878.177 ms |  3826.071 |  3963.017 |
+|            |                                                              | kernel:turning-fins.cool                 |  3872.251 ms |  3860.416 |  4008.027 |
+|            |                                                              | kernel:corner-fins.union                 |    14.646 ms |    10.174 |    49.984 |
+|            |                                                              | kernel:straight-fins.hot                 |  1260.138 ms |  1237.472 |  1321.886 |
+|            |                                                              | kernel:straight-fins.cool                |  1287.494 ms |  1261.446 |  1315.407 |
+|            |                                                              | kernel:straight-fins.union               |     10.59 ms |      8.27 |    20.738 |
+|            |                                                              | kernel:fins.union                        |      7.83 ms |     5.895 |     9.749 |
+|            |                                                              | kernel:outer-structure.create            |  2311.542 ms |  2285.251 |  2375.427 |
+|            |                                                              | kernel:helical-void.hot                  |  5334.119 ms |  5299.216 |  5409.584 |
+|            |                                                              | kernel:helical-void.cool                 |  5302.984 ms |  5300.505 |  5378.134 |
+|            |                                                              | kernel:cool-inner.offset                 |   167.993 ms |   150.981 |   203.599 |
+|            |                                                              | kernel:hot-fluid-void.subtract           |    13.076 ms |    11.678 |    13.509 |
+|            |                                                              | kernel:hot-inner.offset                  |   149.738 ms |   145.073 |    211.41 |
+|            |                                                              | kernel:cool-fluid-void.subtract          |    13.432 ms |      11.3 |    48.459 |
+|            |                                                              | kernel:inner-volume.union                |    14.941 ms |    10.652 |    27.311 |
+|            |                                                              | kernel:splitters.union                   |     1.824 ms |     1.444 |     2.206 |
+|            |                                                              | kernel:outer-volume.offset               |   168.124 ms |   159.031 |   211.755 |
+|            |                                                              | kernel:flange.create                     |  2601.057 ms |  2581.069 |   3066.71 |
+|            |                                                              | kernel:finished-flange.fillet            |   232.962 ms |   216.363 |   501.221 |
+|            |                                                              | kernel:finished-flange.smoothen          |    46.935 ms |    41.214 |    60.628 |
+|            |                                                              | kernel:outer-volume.union-flange         |    14.461 ms |     5.161 |    17.727 |
+|            |                                                              | kernel:io-supports.create                |   177.268 ms |   176.541 |   183.152 |
+|            |                                                              | kernel:outer-volume.union-supports       |    17.301 ms |    14.314 |    22.764 |
+|            |                                                              | kernel:outer-volume.fillet               |  1117.313 ms |  1092.635 |  1259.989 |
+|            |                                                              | kernel:outer-volume.smoothen             |   190.363 ms |   183.381 |    257.28 |
+|            |                                                              | kernel:centre-piece.add                  |     45.46 ms |    33.347 |    55.301 |
+|            |                                                              | kernel:outer-volume.union-structure      |    11.443 ms |     9.428 |     22.32 |
+|            |                                                              | kernel:outer-volume.subtract-screw-holes |     7.204 ms |      5.63 |    10.871 |
+|            |                                                              | kernel:outer-volume.project-z-slice      |     7.855 ms |     7.012 |    10.511 |
+|            |                                                              | kernel:print-web.create                  |     3.033 ms |     3.021 |      3.08 |
+|            |                                                              | kernel:outer-volume.subtract-print-web   |     15.21 ms |    11.461 |    17.738 |
+|            |                                                              | kernel:result.subtract-inner-volume      |     17.01 ms |    15.961 |     18.26 |
+|            |                                                              | kernel:result.union-fins                 |    16.453 ms |    14.637 |    27.185 |
+|            |                                                              | kernel:result.union-splitters            |    13.581 ms |     8.415 |    16.215 |
+|            |                                                              | kernel:result.intersect-bounding         |    20.498 ms |    16.335 |    24.186 |
+|            |                                                              | kernel:io-threads.create                 |    6549.6 ms |  6463.443 |  6601.972 |
+|            |                                                              | kernel:result.union-threads              |    11.658 ms |     8.999 |    18.756 |
+|            |                                                              | kernel:io-cuts.create                    |    43.536 ms |     38.93 |    53.948 |
+|            |                                                              | kernel:result.subtract-io-cuts           |    10.678 ms |     5.119 |    19.974 |
+|            |                                                              | unattributed                             |     0.519 ms |     0.476 |      0.63 |
+|            |                                                              | mesh                                     |     57.39 ms |    56.892 |    68.802 |
+|            |                                                              | stl                                      |   123.637 ms |   114.096 |   157.427 |
+| M13        | SchwarzDiamond preset @ 0.5mm, [-15,15]³: callback vs tape   | callback                                 |     35.91 ms |    35.722 |    36.842 |
+|            |                                                              | tape                                     |    13.572 ms |    13.491 |    13.705 |
+| M14        | QuasiCrystal wireframe gens 0/1/2 @ 2.0mm, QuasiTile_02 seed | gen0                                     |     4.715 ms |     4.578 |     4.745 |
+|            |                                                              | gen1                                     |   139.212 ms |   137.796 |   142.918 |
+|            |                                                              | gen2                                     |  6007.974 ms |  5947.103 |  6136.948 |
 
 Identity oracles (hex-float volumes, FNV-1a mesh hashes) are bit-stable across the 5 repeats of every metric — enforced by the harness, not reviewed by eye.
 
@@ -140,16 +140,17 @@ sub-millisecond phases (e.g. M6 bulk readback) are timer-noise-dominated and may
 ~50× here on a ~40k-vertex gyroid, consistent with R11's ~150× record at 174k vertices; M3's render phase
 (~130 ns/sample at 0.25 mm including voxel work) is consistent with R20's 3–9% JS-SDF callback overhead;
 M9's raw10k is a deliberately retained emscripten ccall (SK-0.2) and the facade now runs on direct exports; the rows sit within a few percent because bIsEmpty on a real sphere field is ~1.6 µs of C++ against a ~65 ns boundary delta — the isolated per-call cost is measured by `bench/abi-call-cost.mjs`, not here.
+
 ## Appendix — TP7: post-pruning evaluation program (2026-07-18)
 
 The TP6 re-profile (throwaway phase instrumentation on commit `80f9a68`; percentages stable
 across repeats, single-variant rows) reframed where the pruned fill spends its time:
 
-| fixture (single) | fill | classify | **eval** | write | merge+tiles |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| gyroid @0.1mm | 1,449 ms | 2.3% | **90.7%** | 6.0% | ~0 |
-| sphere @0.1mm | 200 ms | 5.1% | **84.3%** | 8.0% | ~0 |
-| union64 @0.25mm | 494 ms | 10.6% | **87.5%** | 1.4% | ~0 |
+| fixture (single) |     fill | classify |  **eval** | write | merge+tiles |
+| ---------------- | -------: | -------: | --------: | ----: | ----------: |
+| gyroid @0.1mm    | 1,449 ms |     2.3% | **90.7%** |  6.0% |          ~0 |
+| sphere @0.1mm    |   200 ms |     5.1% | **84.3%** |  8.0% |          ~0 |
+| union64 @0.25mm  |   494 ms |    10.6% | **87.5%** |  1.4% |          ~0 |
 
 The fill is 84–91% tape **evaluation** — the callback-era "86% write machinery" split does not
 hold on the tape path, so this program attacks evaluation. Supporting counters: gyroid evaluates
@@ -272,15 +273,16 @@ application is thread-count-deterministic. Source:
 `bench/results/heatx-sweep-2026-07-18-85d283b.json`.
 
 | voxel (mm) | single (s) | multi (s) | published (s) | STL ours (MB) | STL published (MB) |
-| ---: | ---: | ---: | ---: | ---: | ---: |
-| 1.0 | 61.8 | 38.2 | 34 | 93.7 | 94 |
-| 0.9 | 81.8 | 43.1 | — | 122.1 | — |
-| 0.8 | 103.9 | 49.7 | — | 165.2 | — |
-| 0.7 | 151.1 | 73.1 | — | 227.1 | — |
-| 0.6 | 262.2 | 95.0 | — | 328.0 | — |
-| 0.5 | 420.9 | 133.0 | 98 | 502.4 | 502 |
+| ---------: | ---------: | --------: | ------------: | ------------: | -----------------: |
+|        1.0 |       61.8 |      38.2 |            34 |          93.7 |                 94 |
+|        0.9 |       81.8 |      43.1 |             — |         122.1 |                  — |
+|        0.8 |      103.9 |      49.7 |             — |         165.2 |                  — |
+|        0.7 |      151.1 |      73.1 |             — |         227.1 |                  — |
+|        0.6 |      262.2 |      95.0 |             — |         328.0 |                  — |
+|        0.5 |      420.9 |     133.0 |            98 |         502.4 |                502 |
 
 Readings:
+
 - **Geometry parity (the D5 signal): STL sizes match the published table to
   0.1–0.4% at both published cells** (502.4 vs 502 MB; 93.7 vs 94 MB decimal).
   Same tri counts ⇒ same part.
@@ -303,7 +305,7 @@ Attempted per the memory-gated protocol (`node bench/heatx-sweep.mjs --sizes
 0.3 --builds multi`): **0.3 mm does NOT complete on wasm32.** The session's
 native-memory warning fires (>1 GiB) during fin/void construction, and the
 run dies when a later allocation exhausts the 4 GB linear-memory ceiling —
-notably during a *small* flange-cylinder mesh build, i.e. the heap was
+notably during a _small_ flange-cylinder mesh build, i.e. the heap was
 already consumed by long-lived intermediates (the HeatX assembly holds
 fins + voids + structure grids concurrently; at 0.3 mm that is ~4.6× the
 0.5 mm narrow-band footprint, plus the ~1.4 GB STL to come). 0.2 mm
@@ -320,21 +322,21 @@ commit.)
 
 ### SK-0.3 — lattice authoring batched: one ABI crossing per lattice (2026-07-26)
 
-Graduation row for `WORKLOAD-EXECUTORS.md`'s *Lattice authoring* entry (rule 1). Full evidence:
+Graduation row for `WORKLOAD-EXECUTORS.md`'s _Lattice authoring_ entry (rule 1). Full evidence:
 `bench/results/webgpu-v2/SK-0.3.md`; samples `bench/results/webgpu-v2/sk-0.3-lattice-batch.json`.
 
 `lattice.addBeam()`/`addSphere()` stage into a flat `Float32Array` (8 f32/beam,
 `(x, y, z, radius)` per endpoint — the GPU-upload layout) and cross once per lattice via
 `Lattice_AddBeams`/`Lattice_AddSpheres` (`src/pico-bulk.cpp`). Public API unchanged.
 
-| | before (per-element) | after (batched) | Δ |
-| --- | ---: | ---: | ---: |
-| HeatX `Lattice_AddBeam` crossings | **1,197,460** | **37** (one per lattice) | **32,364×** |
-| `lattice.addBeam()` end to end | 50.12 ns/beam¹ | **39.21 ns/beam** | **1.28×** |
-| HeatX `author` stage @3.0 mm | 238.72 ms | **150.83 ms** | **−36.8%** |
+|                                   | before (per-element) |          after (batched) |           Δ |
+| --------------------------------- | -------------------: | -----------------------: | ----------: |
+| HeatX `Lattice_AddBeam` crossings |        **1,197,460** | **37** (one per lattice) | **32,364×** |
+| `lattice.addBeam()` end to end    |       50.12 ns/beam¹ |        **39.21 ns/beam** |   **1.28×** |
+| HeatX `author` stage @3.0 mm      |            238.72 ms |            **150.83 ms** |  **−36.8%** |
 
 ¹ The `raw per-call (Lattice_AddBeam)` export measured in the same process — the floor the old
-facade sat *on top of* (SK-0.2 measured that facade at 131.6 ns). The batched facade is now
+facade sat _on top of_ (SK-0.2 measured that facade at 131.6 ns). The batched facade is now
 below the bare crossing it replaced.
 
 Method: `bench/lattice-batch.mjs`. Per-beam rows are min-of-7 over 9×200,000-beam runs in one

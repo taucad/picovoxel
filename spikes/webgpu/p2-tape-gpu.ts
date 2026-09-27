@@ -35,7 +35,11 @@ const GYROID_EXPRESSION: SdfExpression = [
   ],
   GYROID_THRESHOLD,
 ];
-const SPHERE_EXPRESSION: SdfExpression = ['-', ['sqrt', ['+', ['*', 'x', 'x'], ['*', 'y', 'y'], ['*', 'z', 'z']]], 10];
+const SPHERE_EXPRESSION: SdfExpression = [
+  '-',
+  ['sqrt', ['+', ['*', 'x', 'x'], ['*', 'y', 'y'], ['*', 'z', 'z']]],
+  10,
+];
 
 type TapeVariant = 'subgroup' | 'v1' | 'v2';
 
@@ -136,7 +140,10 @@ const allocateTape = (options: {
   };
 };
 
-const encodeV1Parameters = (options: { readonly info: TapeGpuInfo; readonly variant: number }): ArrayBuffer => {
+const encodeV1Parameters = (options: {
+  readonly info: TapeGpuInfo;
+  readonly variant: number;
+}): ArrayBuffer => {
   const data = new ArrayBuffer(32);
   const view = new DataView(data);
   view.setUint32(0, options.info.outputCount, true);
@@ -416,7 +423,10 @@ const runGpuTape = async (options: {
       profiler.resolve(encoder);
       encoder.copyBufferToBuffer(outputBuffer, 0, readback, 0, outputBytes);
       options.device.queue.submit([encoder.finish()]);
-      const [, measured] = await Promise.all([readback.mapAsync(constants.mapRead, 0, outputBytes), profiler.read()]);
+      const [, measured] = await Promise.all([
+        readback.mapAsync(constants.mapRead, 0, outputBytes),
+        profiler.read(),
+      ]);
       timing = measured;
     } finally {
       profiler.destroy();
@@ -425,7 +435,8 @@ const runGpuTape = async (options: {
     readback.unmap();
     assertAccelerationEngaged({
       activeLane: 'webgpu',
-      adapter: options.report.adapter.description || options.report.adapter.device || options.report.adapter.vendor,
+      adapter:
+        options.report.adapter.description || options.report.adapter.device || options.report.adapter.vendor,
       dispatchCount: dispatch.dispatchX * dispatch.dispatchY,
       requestedLane: 'webgpu',
       resultConsumed: gpuValues.length === info.outputCount,
@@ -497,7 +508,11 @@ const renderCpu = (options: {
   return { ms };
 };
 
-const artifactMetrics = (options: { readonly cpu: Voxels; readonly gpu: Voxels; readonly voxelSize: number }) => {
+const artifactMetrics = (options: {
+  readonly cpu: Voxels;
+  readonly gpu: Voxels;
+  readonly voxelSize: number;
+}) => {
   const cpuProperties = options.cpu.properties();
   const gpuProperties = options.gpu.properties();
   const cpuMesh = options.cpu.toMesh();
@@ -510,7 +525,8 @@ const artifactMetrics = (options: { readonly cpu: Voxels; readonly gpu: Voxels; 
     const cpuBounds = [...cpuProperties.bounds.min, ...cpuProperties.bounds.max];
     const gpuBounds = [...gpuProperties.bounds.min, ...gpuProperties.bounds.max];
     const boundsExact = cpuBounds.every(
-      (value, index) => Math.round(value / options.voxelSize) === Math.round(gpuBounds[index]! / options.voxelSize),
+      (value, index) =>
+        Math.round(value / options.voxelSize) === Math.round(gpuBounds[index]! / options.voxelSize),
     );
     const boundsMaxDelta = Math.max(...cpuBounds.map((value, index) => Math.abs(value - gpuBounds[index]!)));
     return {
@@ -958,7 +974,11 @@ export const runTapeGpuProbe = async (options: {
         at01: main.outputCount,
         at025: variants.outputCountAt025,
         priorClaim1215MMatches:
-          main.outputCount === 12_150_000 ? '@0.1' : variants.outputCountAt025 === 12_150_000 ? '@0.25' : 'neither',
+          main.outputCount === 12_150_000
+            ? '@0.1'
+            : variants.outputCountAt025 === 12_150_000
+              ? '@0.25'
+              : 'neither',
       },
       gates,
       heapStaging: runtime.stager.mode,

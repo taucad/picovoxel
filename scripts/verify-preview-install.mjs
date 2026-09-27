@@ -32,7 +32,11 @@ export const verifyPreviewInstall = ({ from, metadata, sha, install = execFileSy
       throw new Error('preview metadata contains an unknown, duplicate, or invalid package');
     }
     const parsed = new URL(url);
-    if (parsed.protocol !== 'https:' || parsed.hostname !== 'pkg.pr.new' || !parsed.pathname.endsWith('@' + sha)) {
+    if (
+      parsed.protocol !== 'https:' ||
+      parsed.hostname !== 'pkg.pr.new' ||
+      !parsed.pathname.endsWith('@' + sha)
+    ) {
       throw new Error('preview metadata contains an untrusted or stale URL for ' + String(name));
     }
     urls.set(name, url);

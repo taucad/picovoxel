@@ -146,7 +146,8 @@ describe('hosted preview consumer', () => {
       sha,
       install(command, args, options) {
         calls.push(args);
-        if (args[0] === 'pack') return `${JSON.stringify([{ name: 'picovoxel', version: '0.0.0-preview-abc1234' }])}\n`;
+        if (args[0] === 'pack')
+          return `${JSON.stringify([{ name: 'picovoxel', version: '0.0.0-preview-abc1234' }])}\n`;
         if (args[0] !== 'install') return;
         mkdirSync(join(options.cwd, 'node_modules', 'picovoxel'), { recursive: true });
         writeFileSync(

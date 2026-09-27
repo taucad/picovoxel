@@ -71,7 +71,8 @@ export const splineOps = {
   },
 
   /** Average spacing between consecutive points (C# `fGetAveragePointSpacing`). */
-  averagePointSpacing: (points: readonly Vec3[]): number => splineOps.totalLength(points) / (points.length - 1),
+  averagePointSpacing: (points: readonly Vec3[]): number =>
+    splineOps.totalLength(points) / (points.length - 1),
 
   /** Total arc length (C# `fGetTotalLength`). */
   totalLength(points: readonly Vec3[]): number {
@@ -134,8 +135,12 @@ export const splineOps = {
   inFrame: (f: Frame, points: readonly Vec3[]): Vec3[] => points.map((pt) => frame.ptFromWorld(f, pt)),
 
   /** Every point rotated about an arbitrary axis (C# `aRotateListAroundAxis`). */
-  rotatedAroundAxis: (points: readonly Vec3[], deltaPhi: number, axis: Vec3, axisOrigin: Vec3 = vec3.zero): Vec3[] =>
-    points.map((pt) => vecOps.rotateAroundAxis(pt, deltaPhi, axis, axisOrigin)),
+  rotatedAroundAxis: (
+    points: readonly Vec3[],
+    deltaPhi: number,
+    axis: Vec3,
+    axisOrigin: Vec3 = vec3.zero,
+  ): Vec3[] => points.map((pt) => vecOps.rotateAroundAxis(pt, deltaPhi, axis, axisOrigin)),
 
   /** Average of all positions (C# `vecGetAverage`). */
   average(points: readonly Vec3[]): Vec3 {

@@ -27,7 +27,11 @@ export const createHeapStager = (memory: WasmMemoryLike): HeapStager => {
     copyToHeap: (source, copy) => {
       // On non-RAB glue, reading memory.buffer and creating the view must remain
       // in this same synchronous frame: memory.grow() detaches older buffers.
-      const destination = new Uint8Array(resizableBuffer ?? memory.buffer, copy.heapOffset, source.byteLength);
+      const destination = new Uint8Array(
+        resizableBuffer ?? memory.buffer,
+        copy.heapOffset,
+        source.byteLength,
+      );
       destination.set(source);
     },
     writeBuffer: (queue, destination, write) => {

@@ -11,7 +11,9 @@ const compilationError = (shaderId: string, messages: readonly GPUCompilationMes
   const errors = messages.filter((message) => message.type === 'error');
   if (errors.length === 0) return null;
   return new Error(
-    errors.map((message) => `${shaderId}:${message.lineNum}:${message.linePos}: ${message.message}`).join('\n'),
+    errors
+      .map((message) => `${shaderId}:${message.lineNum}:${message.linePos}: ${message.message}`)
+      .join('\n'),
   );
 };
 

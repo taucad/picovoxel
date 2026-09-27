@@ -54,7 +54,13 @@ function randomElements(pk: Pico, ctx: WheelContext, layer: WheelLayer, rng: Ran
   const symmetry = Math.trunc(uf.randomLinear(8, 30, rng));
   const wallThickness = uf.randomLinear(1, 3, rng);
   const elementIndex = Math.min(4, Math.trunc(uf.randomLinear(0, 5, rng)));
-  const builders: WheelElementsBuilder[] = [egyptianStruts, rectHoles, rosettaStruts, spiralStruts, tubeStruts];
+  const builders: WheelElementsBuilder[] = [
+    egyptianStruts,
+    rectHoles,
+    rosettaStruts,
+    spiralStruts,
+    tubeStruts,
+  ];
   return builders[elementIndex]!(pk, ctx, layer, symmetry, wallThickness);
 }
 

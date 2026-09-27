@@ -1,4 +1,4 @@
-# [DRAFT] Library.MmToVoxels calls _VoxelsToMm — returns the inverse conversion
+# [DRAFT] Library.MmToVoxels calls \_VoxelsToMm — returns the inverse conversion
 
 **Repo**: leap71/PicoGK · **File**: `Library/Library.cs:269-283`
 

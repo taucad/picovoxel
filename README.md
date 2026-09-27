@@ -15,7 +15,7 @@ const gyroid = sphere.maskedByImplicit({
   sdf: (x, y, z) =>
     Math.abs(Math.sin(x) * Math.cos(y) + Math.sin(y) * Math.cos(z) + Math.sin(z) * Math.cos(x)) - 0.4,
 });
-const stl = gyroid.toMesh().toStl();   // binary STL bytes, ready to download
+const stl = gyroid.toMesh().toStl(); // binary STL bytes, ready to download
 pico.dispose();
 ```
 
@@ -38,12 +38,12 @@ Two entries share one API: `picovoxel` is the serial build and `picovoxel/multi`
 
 The relocatable assets have their own subpaths, so a host can resolve, copy or precompile them:
 
-| Subpath | File | Loaded by |
-| --- | --- | --- |
-| `picovoxel/wasm` | `dist/pico.wasm` | the serial glue |
-| `picovoxel/glue` | `dist/pico.mjs` | `picovoxel` (static import) |
-| `picovoxel/multi/wasm` | `dist/pico-multi.wasm` | the pthreads glue |
-| `picovoxel/multi/worker` | `dist/pico-multi.mjs` | `picovoxel/multi` and every pthread worker |
+| Subpath                  | File                   | Loaded by                                  |
+| ------------------------ | ---------------------- | ------------------------------------------ |
+| `picovoxel/wasm`         | `dist/pico.wasm`       | the serial glue                            |
+| `picovoxel/glue`         | `dist/pico.mjs`        | `picovoxel` (static import)                |
+| `picovoxel/multi/wasm`   | `dist/pico-multi.wasm` | the pthreads glue                          |
+| `picovoxel/multi/worker` | `dist/pico-multi.mjs`  | `picovoxel/multi` and every pthread worker |
 
 **Bundlers**: each glue finds its wasm, and the multi glue finds its worker script, with `new URL(file, import.meta.url)`. A bundler that emits those files as siblings needs nothing more. Otherwise pass Emscripten overrides through `createPico({ wasm })`:
 
@@ -81,7 +81,7 @@ The CI consumer job exercises both overrides against the installed tarball on No
 
 **TypeScript**: the declarations need TypeScript 5.7 or later in your project. They use typed-array generics, for example `meshToStlBytes()` returns `Uint8Array<ArrayBuffer>`, which older compilers reject.
 
-**Safari**: supported from 16.4 (the wasm-SIMD floor). `Symbol.dispose` is self-shimmed on engines that lack it (Safari 16.4–18.3), so `using` in *your* transpiled code works there too. The shim assigns only when the native symbol is missing; nothing is patched on modern engines. Proven per-release by a Playwright gate that runs the full suite on Chromium, WebKit, and Firefox — pure-wasm results are bit-identical across all three.
+**Safari**: supported from 16.4 (the wasm-SIMD floor). `Symbol.dispose` is self-shimmed on engines that lack it (Safari 16.4–18.3), so `using` in _your_ transpiled code works there too. The shim assigns only when the native symbol is missing; nothing is patched on modern engines. Proven per-release by a Playwright gate that runs the full suite on Chromium, WebKit, and Firefox — pure-wasm results are bit-identical across all three.
 
 ## Memory
 
@@ -113,11 +113,11 @@ sessions, such as one per render, can pay that once with a runtime:
 ```js
 import { createPicoRuntime } from 'picovoxel/multi';
 
-const runtime = await createPicoRuntime();         // instantiate + warm the pool once
+const runtime = await createPicoRuntime(); // instantiate + warm the pool once
 const pico = await runtime.createPico({ voxelSize: 0.5 });
 // ... build ...
-pico.dispose();                                    // frees this session only; the pool keeps running
-runtime.dispose();                                 // disposes open sessions, then stops the pool
+pico.dispose(); // frees this session only; the pool keeps running
+runtime.dispose(); // disposes open sessions, then stops the pool
 ```
 
 Each session is its own PicoGK Library instance, so voxel size, lane and every
@@ -139,14 +139,14 @@ or supply your own `wasm: { instantiateWasm }` override.
 
 Numbers from the committed, harness-enforced baseline ([bench/BENCHMARKS.md](bench/BENCHMARKS.md) — Apple M2 Pro; treat ratios as the portable signal):
 
-| What | Number |
-| --- | --- |
-| Module instantiate | ~10 ms |
-| Sphere r=10 @ 0.5 mm | ~1 ms |
-| Gyroid via **JS SDF callback** @ 0.25 mm (~1M samples) | ~130 ms (≈130 ns/sample, 3–9% over a native SDF) |
-| Mesh readback | 2 ABI crossings instead of one per element (~150× at 174k vertices) |
-| Facade overhead over raw cwraps | not measurable at 10k calls |
-| vs native PicoGK (arm64) | ~1.95× wall clock, bit-identical geometry\* |
+| What                                                   | Number                                                              |
+| ------------------------------------------------------ | ------------------------------------------------------------------- |
+| Module instantiate                                     | ~10 ms                                                              |
+| Sphere r=10 @ 0.5 mm                                   | ~1 ms                                                               |
+| Gyroid via **JS SDF callback** @ 0.25 mm (~1M samples) | ~130 ms (≈130 ns/sample, 3–9% over a native SDF)                    |
+| Mesh readback                                          | 2 ABI crossings instead of one per element (~150× at 174k vertices) |
+| Facade overhead over raw cwraps                        | not measurable at 10k calls                                         |
+| vs native PicoGK (arm64)                               | ~1.95× wall clock, bit-identical geometry\*                         |
 
 \*The wasm is deterministic: no threads, no relaxed-SIMD — the differential suite holds meshes byte-identical against a `-ffp-contract=off` native reference, and the browser gate holds volumes hex-float-identical across engines.
 

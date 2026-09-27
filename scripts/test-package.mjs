@@ -35,7 +35,8 @@ if (!root) throw new Error('candidate manifest has no picovoxel package');
 const { devDependencies } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const exact = (name) => {
   const version = devDependencies[name];
-  if (!/^\d+\.\d+\.\d+$/u.test(version ?? '')) throw new Error(`package.json must pin an exact ${name} devDependency`);
+  if (!/^\d+\.\d+\.\d+$/u.test(version ?? ''))
+    throw new Error(`package.json must pin an exact ${name} devDependency`);
   return `${name}@${version}`;
 };
 
@@ -141,7 +142,14 @@ try {
   execFileSync('npm', ['init', '--yes'], { cwd: directory, stdio: 'ignore' });
   execFileSync(
     'npm',
-    ['install', '--ignore-scripts', '--no-audit', '--no-fund', join(candidate, root.filename), ...['three', '@types/three', 'typescript'].map(exact)],
+    [
+      'install',
+      '--ignore-scripts',
+      '--no-audit',
+      '--no-fund',
+      join(candidate, root.filename),
+      ...['three', '@types/three', 'typescript'].map(exact),
+    ],
     { cwd: directory, stdio: 'inherit' },
   );
   writeFileSync(join(directory, 'smoke.mjs'), smoke);
@@ -157,13 +165,18 @@ try {
  * with exactly one TS2339 per script subpath.
  */
 function typecheckConsumers(directory) {
-  const { exports } = JSON.parse(readFileSync(join(directory, 'node_modules/picovoxel/package.json'), 'utf8'));
+  const { exports } = JSON.parse(
+    readFileSync(join(directory, 'node_modules/picovoxel/package.json'), 'utf8'),
+  );
   const specifiers = Object.keys(exports)
     .filter((subpath) => typeof exports[subpath] !== 'string')
     .map((subpath) => (subpath === '.' ? 'picovoxel' : `picovoxel/${subpath.slice(2)}`));
   const tsc = (project) => {
     try {
-      execFileSync(process.execPath, ['node_modules/typescript/bin/tsc', '-p', project], { cwd: directory, encoding: 'utf8' });
+      execFileSync(process.execPath, ['node_modules/typescript/bin/tsc', '-p', project], {
+        cwd: directory,
+        encoding: 'utf8',
+      });
       return { ok: true, output: '' };
     } catch (error) {
       return { ok: false, output: `${error.stdout ?? ''}${error.stderr ?? ''}` };
@@ -172,11 +185,27 @@ function typecheckConsumers(directory) {
   const fixture = (name, compilerOptions, file, source) => {
     mkdirSync(join(directory, name));
     writeFileSync(join(directory, name, file), source);
-    const options = { strict: true, noEmit: true, skipLibCheck: true, types: [], lib: ['es2023', 'dom'], target: 'es2022', ...compilerOptions };
-    writeFileSync(join(directory, name, 'tsconfig.json'), JSON.stringify({ compilerOptions: options, files: [file] }));
+    const options = {
+      strict: true,
+      noEmit: true,
+      skipLibCheck: true,
+      types: [],
+      lib: ['es2023', 'dom'],
+      target: 'es2022',
+      ...compilerOptions,
+    };
+    writeFileSync(
+      join(directory, name, 'tsconfig.json'),
+      JSON.stringify({ compilerOptions: options, files: [file] }),
+    );
     return tsc(name);
   };
-  const esm = specifiers.map((specifier, index) => `import * as m${index} from '${specifier}';\nexport const k${index}: string[] = Object.keys(m${index});\n`).join('');
+  const esm = specifiers
+    .map(
+      (specifier, index) =>
+        `import * as m${index} from '${specifier}';\nexport const k${index}: string[] = Object.keys(m${index});\n`,
+    )
+    .join('');
   for (const [name, options, file] of [
     ['esm-nodenext', { module: 'nodenext', moduleResolution: 'nodenext' }, 'index.mts'],
     ['esm-bundler', { module: 'esnext', moduleResolution: 'bundler' }, 'index.ts'],
@@ -184,13 +213,29 @@ function typecheckConsumers(directory) {
     const result = fixture(name, options, file, esm);
     if (!result.ok) throw new Error(`the ${name} TypeScript consumer failed to compile:\n${result.output}`);
   }
-  const cjs = specifiers.map((specifier, index) => `import m${index} = require('${specifier}');\nexport const v${index} = m${index}.createPico;\n`).join('');
-  const result = fixture('cjs-nodenext', { module: 'nodenext', moduleResolution: 'nodenext' }, 'index.cts', cjs);
+  const cjs = specifiers
+    .map(
+      (specifier, index) =>
+        `import m${index} = require('${specifier}');\nexport const v${index} = m${index}.createPico;\n`,
+    )
+    .join('');
+  const result = fixture(
+    'cjs-nodenext',
+    { module: 'nodenext', moduleResolution: 'nodenext' },
+    'index.cts',
+    cjs,
+  );
   const errors = result.output.split('\n').filter((line) => line.includes('error TS'));
-  const expected = errors.filter((line) => line.includes("error TS2339: Property 'createPico' does not exist on type 'never'."));
+  const expected = errors.filter((line) =>
+    line.includes("error TS2339: Property 'createPico' does not exist on type 'never'."),
+  );
   if (result.ok || errors.length !== specifiers.length || expected.length !== specifiers.length) {
-    throw new Error(`the CommonJS TypeScript consumer must fail with one TS2339 per script subpath:\n${result.output}`);
+    throw new Error(
+      `the CommonJS TypeScript consumer must fail with one TS2339 per script subpath:\n${result.output}`,
+    );
   }
-  console.log(`TypeScript consumers: ESM nodenext and bundler compile against ${specifiers.length} script subpaths; `
-    + `CommonJS nodenext fails with ${expected.length} x TS2339 on never`);
+  console.log(
+    `TypeScript consumers: ESM nodenext and bundler compile against ${specifiers.length} script subpaths; ` +
+      `CommonJS nodenext fails with ${expected.length} x TS2339 on never`,
+  );
 }

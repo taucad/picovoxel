@@ -36,9 +36,15 @@ export const quat = {
     if (m.length !== 16) {
       throw new PicoError('PICO_INVALID_ARGUMENT', `rotation matrix needs 16 elements, got ${m.length}.`);
     }
-    const m11 = m[0]!, m12 = m[1]!, m13 = m[2]!;
-    const m21 = m[4]!, m22 = m[5]!, m23 = m[6]!;
-    const m31 = m[8]!, m32 = m[9]!, m33 = m[10]!;
+    const m11 = m[0]!,
+      m12 = m[1]!,
+      m13 = m[2]!;
+    const m21 = m[4]!,
+      m22 = m[5]!,
+      m23 = m[6]!;
+    const m31 = m[8]!,
+      m32 = m[9]!,
+      m33 = m[10]!;
 
     const trace = m11 + m22 + m33;
     if (trace > 0) {
@@ -91,21 +97,24 @@ export const quat = {
       s1 = Math.sin((1 - t) * omega) * invSinOmega;
       s2 = flip ? -Math.sin(t * omega) * invSinOmega : Math.sin(t * omega) * invSinOmega;
     }
-    return [
-      s1 * a[0] + s2 * b[0],
-      s1 * a[1] + s2 * b[1],
-      s1 * a[2] + s2 * b[2],
-      s1 * a[3] + s2 * b[3],
-    ];
+    return [s1 * a[0] + s2 * b[0], s1 * a[1] + s2 * b[1], s1 * a[2] + s2 * b[2], s1 * a[3] + s2 * b[3]];
   },
 
   /** Rotate a vector by the quaternion (C# `Vector3.Transform(v, q)`). */
   transform(v: Vec3, q: Quat): Vec3 {
     const [qx, qy, qz, qw] = q;
-    const x2 = qx + qx, y2 = qy + qy, z2 = qz + qz;
-    const wx2 = qw * x2, wy2 = qw * y2, wz2 = qw * z2;
-    const xx2 = qx * x2, xy2 = qx * y2, xz2 = qx * z2;
-    const yy2 = qy * y2, yz2 = qy * z2, zz2 = qz * z2;
+    const x2 = qx + qx,
+      y2 = qy + qy,
+      z2 = qz + qz;
+    const wx2 = qw * x2,
+      wy2 = qw * y2,
+      wz2 = qw * z2;
+    const xx2 = qx * x2,
+      xy2 = qx * y2,
+      xz2 = qx * z2;
+    const yy2 = qy * y2,
+      yz2 = qy * z2,
+      zz2 = qz * z2;
     const [x, y, z] = v;
     return [
       x * (1 - yy2 - zz2) + y * (xy2 - wz2) + z * (xz2 + wy2),

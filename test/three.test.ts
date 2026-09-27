@@ -15,9 +15,14 @@ beforeAll(async () => {
   // Build the gear through the raw ABI helpers the gear port expects.
   const raw = pk.module;
   const builder = {
-    meshCreate: (lib: bigint) => (raw.cwrap('Mesh_hCreate', 'bigint', ['bigint']) as (l: bigint) => bigint)(lib),
+    meshCreate: (lib: bigint) =>
+      (raw.cwrap('Mesh_hCreate', 'bigint', ['bigint']) as (l: bigint) => bigint)(lib),
     addVertex: (() => {
-      const add = raw.cwrap('Mesh_nAddVertex', 'number', ['bigint', 'bigint', 'number']) as (l: bigint, m: bigint, p: number) => number;
+      const add = raw.cwrap('Mesh_nAddVertex', 'number', ['bigint', 'bigint', 'number']) as (
+        l: bigint,
+        m: bigint,
+        p: number,
+      ) => number;
       const ptr = raw._malloc(12);
       return (lib: bigint, mesh: bigint, x: number, y: number, z: number) => {
         raw.HEAPF32.set([x, y, z], ptr >> 2);
@@ -25,7 +30,11 @@ beforeAll(async () => {
       };
     })(),
     addTriangle: (() => {
-      const add = raw.cwrap('Mesh_nAddTriangle', 'number', ['bigint', 'bigint', 'number']) as (l: bigint, m: bigint, p: number) => number;
+      const add = raw.cwrap('Mesh_nAddTriangle', 'number', ['bigint', 'bigint', 'number']) as (
+        l: bigint,
+        m: bigint,
+        p: number,
+      ) => number;
       const ptr = raw._malloc(12);
       return (lib: bigint, mesh: bigint, a: number, b: number, c: number) => {
         raw.HEAP32.set([a, b, c], ptr >> 2);
@@ -36,10 +45,24 @@ beforeAll(async () => {
   const { mesh: gearHandle } = buildGearMesh(builder, pk.handle);
   // Adopt the raw handle through a facade wrapper via merged-with-nothing trick:
   // createMesh from its read-back arrays (bulk) — keeps everything facade-side.
-  const readV = raw.cwrap('Mesh_GetVertices', 'number', ['bigint', 'bigint', 'number', 'number']) as (l: bigint, m: bigint, b: number, n: number) => number;
-  const readT = raw.cwrap('Mesh_GetTriangles', 'number', ['bigint', 'bigint', 'number', 'number']) as (l: bigint, m: bigint, b: number, n: number) => number;
-  const nv = (raw.cwrap('Mesh_nVertexCount', 'number', ['bigint', 'bigint']) as (l: bigint, m: bigint) => number)(pk.handle, gearHandle);
-  const nt = (raw.cwrap('Mesh_nTriangleCount', 'number', ['bigint', 'bigint']) as (l: bigint, m: bigint) => number)(pk.handle, gearHandle);
+  const readV = raw.cwrap('Mesh_GetVertices', 'number', ['bigint', 'bigint', 'number', 'number']) as (
+    l: bigint,
+    m: bigint,
+    b: number,
+    n: number,
+  ) => number;
+  const readT = raw.cwrap('Mesh_GetTriangles', 'number', ['bigint', 'bigint', 'number', 'number']) as (
+    l: bigint,
+    m: bigint,
+    b: number,
+    n: number,
+  ) => number;
+  const nv = (
+    raw.cwrap('Mesh_nVertexCount', 'number', ['bigint', 'bigint']) as (l: bigint, m: bigint) => number
+  )(pk.handle, gearHandle);
+  const nt = (
+    raw.cwrap('Mesh_nTriangleCount', 'number', ['bigint', 'bigint']) as (l: bigint, m: bigint) => number
+  )(pk.handle, gearHandle);
   const vb = raw._malloc(nv * 12);
   const tb = raw._malloc(nt * 12);
   readV(pk.handle, gearHandle, vb, nv);
@@ -48,7 +71,10 @@ beforeAll(async () => {
   const triangles = new Uint32Array(raw.HEAPU32.subarray(tb >> 2, (tb >> 2) + nt * 3));
   raw._free(vb);
   raw._free(tb);
-  (raw.cwrap('Mesh_Destroy', null, ['bigint', 'bigint']) as (l: bigint, m: bigint) => void)(pk.handle, gearHandle);
+  (raw.cwrap('Mesh_Destroy', null, ['bigint', 'bigint']) as (l: bigint, m: bigint) => void)(
+    pk.handle,
+    gearHandle,
+  );
   gear = pk.createMesh({ vertices, triangles });
 });
 afterAll(() => pk.dispose());
@@ -62,7 +88,10 @@ test('gear -> BufferGeometry: counts and bounding volume match', () => {
   geometry.computeBoundingSphere();
   const outerRadius = GEAR_DEFAULTS.module * (GEAR_DEFAULTS.teeth / 2 + 1);
   const expected = Math.hypot(outerRadius, GEAR_DEFAULTS.width / 2);
-  assert.ok(Math.abs(geometry.boundingSphere!.radius - expected) < 0.5, `bounding sphere ${geometry.boundingSphere!.radius} vs ${expected}`);
+  assert.ok(
+    Math.abs(geometry.boundingSphere!.radius - expected) < 0.5,
+    `bounding sphere ${geometry.boundingSphere!.radius} vs ${expected}`,
+  );
 });
 
 test('round-trip: meshFromBufferGeometry(toBufferGeometry(mesh)) is FNV-identical', () => {

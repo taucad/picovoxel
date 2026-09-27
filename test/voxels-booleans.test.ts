@@ -89,7 +89,10 @@ test('SG2 — a.subtract(a).isEmpty is true while raw volume lies (~5% narrow ba
   const nothing = a.subtract(a);
   assert.equal(nothing.isEmpty, true, 'topologically empty');
   const residual = nothing.volume;
-  assert.ok(residual > 0, `narrow band residual expected, got ${residual} (the reason isEmpty is the oracle)`);
+  assert.ok(
+    residual > 0,
+    `narrow band residual expected, got ${residual} (the reason isEmpty is the oracle)`,
+  );
   // Band thickness scales with voxel size: ~5% at 0.4mm (tier-2), ~6% at 0.5mm here.
   assert.ok(residual < a.volume * 0.08, `residual ${residual} grew past the narrow-band ballpark`);
 });
@@ -134,7 +137,8 @@ test('SG10 — cross-session operands throw PICO_SESSION_MISMATCH', async () => 
 test('per-voxel fills leave no prunable tree behind', () => {
   const empty = pk.createVoxels({ shape: 'empty' });
   const lattice = pk.createLattice();
-  for (let i = 0; i < 8; i++) lattice.addBeam({ start: [-15, 0, i * 3 - 12], end: [15, 0, i * 3 - 12], radius: 2 });
+  for (let i = 0; i < 8; i++)
+    lattice.addBeam({ start: [-15, 0, i * 3 - 12], end: [15, 0, i * 3 - 12], radius: 2 });
 
   const cases: Array<[string, Voxels]> = [
     ['RenderLattice', lattice.toVoxels()],

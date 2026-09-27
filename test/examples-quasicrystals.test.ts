@@ -24,9 +24,8 @@ assert.ok(
 const hexFloat = (value: number): string => Buffer.from(Float64Array.of(value).buffer).toString('hex');
 
 test('QuasiCrystal wireframes @ 2.0 mm: gens 0-2 pinned and scaling; face/tile tasks pinned', async () => {
-  const { wireframeFromCrystalTask, crystalFromFaceTask, crystalFromTileTask } = await import(
-    '../examples/quasicrystals/run.ts'
-  );
+  const { wireframeFromCrystalTask, crystalFromFaceTask, crystalFromTileTask } =
+    await import('../examples/quasicrystals/run.ts');
   const pk = await createPico({ voxelSize: 2 });
   try {
     const generations = [0, 1, 2].map((generation) => {

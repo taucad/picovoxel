@@ -20,9 +20,12 @@ import {
 } from './session.ts';
 
 // The glue plus the export names it reads, so a caller's wasmModule is checked first.
-const glue: PicoGlueFactory = Object.assign((overrides?: object) => (createPicoModuleUntyped as PicoGlueFactory)(overrides), {
-  wasmExports: WASM_EXPORTS,
-});
+const glue: PicoGlueFactory = Object.assign(
+  (overrides?: object) => (createPicoModuleUntyped as PicoGlueFactory)(overrides),
+  {
+    wasmExports: WASM_EXPORTS,
+  },
+);
 
 /**
  * Creates a single-threaded PicoGK session. Resolves once the wasm module is

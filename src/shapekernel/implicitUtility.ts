@@ -35,12 +35,15 @@ export class ImplicitGyroid implements Implicit {
       0.5 * thicknessRatio;
     this.expression = [
       '-',
-      ['abs', [
-        '+',
-        ['*', ['sin', ['*', scale, 'x']], ['cos', ['*', scale, 'y']]],
-        ['*', ['sin', ['*', scale, 'y']], ['cos', ['*', scale, 'z']]],
-        ['*', ['sin', ['*', scale, 'z']], ['cos', ['*', scale, 'x']]],
-      ]],
+      [
+        'abs',
+        [
+          '+',
+          ['*', ['sin', ['*', scale, 'x']], ['cos', ['*', scale, 'y']]],
+          ['*', ['sin', ['*', scale, 'y']], ['cos', ['*', scale, 'z']]],
+          ['*', ['sin', ['*', scale, 'z']], ['cos', ['*', scale, 'x']]],
+        ],
+      ],
       0.5 * thicknessRatio,
     ];
   }
@@ -61,12 +64,7 @@ export class ImplicitSphere implements Implicit {
     this.sdf = (x, y, z) => Math.sqrt((x - cx) ** 2 + (y - cy) ** 2 + (z - cz) ** 2) - radius;
     this.expression = [
       '-',
-      ['sqrt', [
-        '+',
-        ['pow', ['-', 'x', cx], 2],
-        ['pow', ['-', 'y', cy], 2],
-        ['pow', ['-', 'z', cz], 2],
-      ]],
+      ['sqrt', ['+', ['pow', ['-', 'x', cx], 2], ['pow', ['-', 'y', cy], 2], ['pow', ['-', 'z', cz], 2]]],
       radius,
     ];
   }
@@ -86,7 +84,8 @@ export class ImplicitGenus implements Implicit {
     const oneMinusZ2: SdfExpression = ['-', 1, z2];
     this.expression = [
       '-',
-      ['+',
+      [
+        '+',
         ['*', 2, 'y', ['-', y2, ['*', 3, x2]], oneMinusZ2],
         ['pow', ['+', x2, y2], 2],
         ['-', 0, ['*', ['-', ['*', 9, z2], 1], oneMinusZ2]],
@@ -107,14 +106,17 @@ export class ImplicitSuperEllipsoid implements Implicit {
       const dx = Math.abs(x + cx) / ax;
       const dy = Math.abs(y + cy) / ay;
       const dz = Math.abs(z + cz) / az;
-      return (dx ** (2 / epsilon2) + dy ** (2 / epsilon2)) ** (epsilon2 / epsilon1) + dz ** (2 / epsilon1) - 1;
+      return (
+        (dx ** (2 / epsilon2) + dy ** (2 / epsilon2)) ** (epsilon2 / epsilon1) + dz ** (2 / epsilon1) - 1
+      );
     };
     const dx: SdfExpression = ['/', ['abs', ['+', 'x', cx]], ax];
     const dy: SdfExpression = ['/', ['abs', ['+', 'y', cy]], ay];
     const dz: SdfExpression = ['/', ['abs', ['+', 'z', cz]], az];
     this.expression = [
       '-',
-      ['+',
+      [
+        '+',
         ['pow', ['+', ['pow', dx, 2 / epsilon2], ['pow', dy, 2 / epsilon2]], epsilon2 / epsilon1],
         ['pow', dz, 2 / epsilon1],
       ],

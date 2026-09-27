@@ -3,41 +3,37 @@
   "version": "0.0.0",
   "description": "PicoGK voxel and implicit geometry on OpenVDB, compiled to WebAssembly with a typed TypeScript API.",
   "keywords": [
-    "picogk",
-    "openvdb",
-    "voxel",
-    "implicit",
-    "sdf",
     "cad",
     "geometry",
-    "webassembly",
-    "wasm"
+    "implicit",
+    "openvdb",
+    "picogk",
+    "sdf",
+    "voxel",
+    "wasm",
+    "webassembly"
   ],
-  "author": "Richard Fontein",
-  "license": "Apache-2.0",
-  "type": "module",
-  "sideEffects": [
-    "./dist/dispose.js"
-  ],
-  "engines": {
-    "node": ">=22.14.0"
-  },
-  "devEngines": {
-    "runtime": {
-      "name": "node",
-      "version": "^22.18.0 || >=24.11.0",
-      "onFail": "warn"
-    }
-  },
-  "packageManager": "pnpm@11.7.0",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/taucad/picovoxel.git"
-  },
   "homepage": "https://tau.new",
   "bugs": {
     "url": "https://github.com/taucad/picovoxel/issues"
   },
+  "license": "Apache-2.0",
+  "author": "Richard Fontein",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/taucad/picovoxel.git"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "MIGRATING-FROM-CSHARP.md",
+    "NOTICE",
+    "license"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "./dist/dispose.js"
+  ],
   "exports": {
     ".": {
       "import": {
@@ -157,13 +153,6 @@
     "./multi/worker": "./dist/pico-multi.mjs",
     "./package.json": "./package.json"
   },
-  "files": [
-    "dist",
-    "README.md",
-    "MIGRATING-FROM-CSHARP.md",
-    "NOTICE",
-    "license"
-  ],
   "publishConfig": {
     "access": "public",
     "provenance": true
@@ -200,14 +189,6 @@
     "spike:node-webgpu": "node scripts/node-webgpu-spike.mjs",
     "spike:webgpu": "node scripts/webgpu-spike.mjs"
   },
-  "peerDependencies": {
-    "three": ">=0.160"
-  },
-  "peerDependenciesMeta": {
-    "three": {
-      "optional": true
-    }
-  },
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
     "@eslint/js": "9.32.0",
@@ -232,5 +213,24 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.61.1",
     "vitest": "4.1.10"
-  }
+  },
+  "peerDependencies": {
+    "three": ">=0.160"
+  },
+  "peerDependenciesMeta": {
+    "three": {
+      "optional": true
+    }
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^22.18.0 || >=24.11.0",
+      "onFail": "warn"
+    }
+  },
+  "engines": {
+    "node": ">=22.14.0"
+  },
+  "packageManager": "pnpm@11.7.0"
 }

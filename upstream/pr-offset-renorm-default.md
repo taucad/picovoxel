@@ -28,7 +28,7 @@ four fixtures — sphere, sphere∪beam, a lattice body, and a real heat-exchang
 model):
 
 - **Renormalization is 93.9–97.5% of the offset wall** — the scheme choice
-  *is* the offset's performance.
+  _is_ the offset's performance.
 - One `HJWENO5` sweep costs 4.2× a first-order sweep.
 - **`SECOND_BIAS` at the default 3 sweeps is 2.1–2.3× faster AND more
   accurate against the closed form** — 0.050% vs 0.094% volume error on an
@@ -38,7 +38,7 @@ model):
   broke that range on every fixture tried. `HJWENO5` at 1 sweep is strictly
   dominated by a lower-order scheme at 3 (slower AND broken AND less
   accurate) — so this PR moves only the scheme and leaves the count alone.
-- Plain `WENO5_BIAS` is 5–8% *slower* than `HJWENO5` and breaks the level
+- Plain `WENO5_BIAS` is 5–8% _slower_ than `HJWENO5` and breaks the level
   set — a dead end, not a middle setting.
 
 This is a defect report against the default, not a fast-mode request: on the

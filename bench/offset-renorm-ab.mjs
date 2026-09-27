@@ -73,8 +73,10 @@ const FIXTURES = [
   {
     name: 'M5 offset +2 (sphere10 + beam, 0.5mm)',
     voxelSize: 0.5,
-    body: (pk) => pk.createVoxels({ shape: 'sphere', radius: 10 })
-      .union(pk.createVoxels({ shape: 'beam', start: [0, -15, 0], end: [0, 15, 0], radius: 4 })),
+    body: (pk) =>
+      pk
+        .createVoxels({ shape: 'sphere', radius: 10 })
+        .union(pk.createVoxels({ shape: 'beam', start: [0, -15, 0], end: [0, 15, 0], radius: 4 })),
     distances: [2],
   },
   {
@@ -92,16 +94,28 @@ const FIXTURES = [
   {
     name: 'M5 smoothen 1 (sphere10 + beam, 0.5mm)',
     voxelSize: 0.5,
-    body: (pk) => pk.createVoxels({ shape: 'sphere', radius: 10 })
-      .union(pk.createVoxels({ shape: 'beam', start: [0, -15, 0], end: [0, 15, 0], radius: 4 })),
+    body: (pk) =>
+      pk
+        .createVoxels({ shape: 'sphere', radius: 10 })
+        .union(pk.createVoxels({ shape: 'beam', start: [0, -15, 0], end: [0, 15, 0], radius: 4 })),
     distances: [1, -2, 1], // == TripleOffset(1)
   },
   {
     name: 'parity offset +1.5 (sphere20 + capsule - hole, 0.5mm)',
     voxelSize: 0.5,
-    body: (pk) => pk.createVoxels({ shape: 'sphere', radius: 20 })
-      .union(pk.createVoxels({ shape: 'capsule', start: [-25, 0, 0], end: [25, 0, 0], startRadius: 6, endRadius: 6 }))
-      .subtract(pk.createVoxels({ shape: 'sphere', radius: 9, center: [0, 0, 12] })),
+    body: (pk) =>
+      pk
+        .createVoxels({ shape: 'sphere', radius: 20 })
+        .union(
+          pk.createVoxels({
+            shape: 'capsule',
+            start: [-25, 0, 0],
+            end: [25, 0, 0],
+            startRadius: 6,
+            endRadius: 6,
+          }),
+        )
+        .subtract(pk.createVoxels({ shape: 'sphere', radius: 9, center: [0, 0, 12] })),
     distances: [1.5],
   },
 ];
@@ -124,7 +138,9 @@ for (const fixture of FIXTURES) {
   const props = module._malloc(32);
   const dims = module._malloc(24);
   const str = module._malloc(256);
-  const setD = (ds) => { for (let i = 0; i < ds.length; i++) module.HEAPF32[(dp >> 2) + i] = ds[i]; };
+  const setD = (ds) => {
+    for (let i = 0; i < ds.length; i++) module.HEAPF32[(dp >> 2) + i] = ds[i];
+  };
 
   const base = fixture.body(pk);
 
@@ -176,10 +192,17 @@ for (const fixture of FIXTURES) {
       boundsMax: [f(20), f(24), f(28)],
     };
   };
-  const diagnose = (h) => { raw.Voxels_bDiagnose(lib, h, str); return module.UTF8ToString(str); };
+  const diagnose = (h) => {
+    raw.Voxels_bDiagnose(lib, h, str);
+    return module.UTF8ToString(str);
+  };
   const meshValid = (h) => {
     const mesh = raw.Mesh_hCreateFromVoxels(lib, h);
-    try { return raw.Mesh_bIsValid(lib, mesh); } finally { raw.Mesh_Destroy(lib, mesh); }
+    try {
+      return raw.Mesh_bIsValid(lib, mesh);
+    } finally {
+      raw.Mesh_Destroy(lib, mesh);
+    }
   };
 
   /**
@@ -195,7 +218,8 @@ for (const fixture of FIXTURES) {
     const db = readDims(b);
     const lo = [0, 1, 2].map((i) => Math.max(da.origin[i], db.origin[i]));
     const hi = [0, 1, 2].map((i) => Math.min(da.origin[i] + da.size[i], db.origin[i] + db.size[i]));
-    if (hi.some((h, i) => h <= lo[i])) return { maxAbsMM: Infinity, meanAbsMM: Infinity, voxels: 0, bandMismatch: -1 };
+    if (hi.some((h, i) => h <= lo[i]))
+      return { maxAbsMM: Infinity, meanAbsMM: Infinity, voxels: 0, bandMismatch: -1 };
 
     const bufA = module._malloc(da.size[0] * da.size[1] * 4);
     const bufB = module._malloc(db.size[0] * db.size[1] * 4);
@@ -219,7 +243,10 @@ for (const fixture of FIXTURES) {
             const vb = module.HEAPF32[rowB + x];
             const inA = Math.abs(va) < backgroundA;
             const inB = Math.abs(vb) < backgroundB;
-            if (!inA || !inB) { if (inA !== inB) mismatch++; continue; }
+            if (!inA || !inB) {
+              if (inA !== inB) mismatch++;
+              continue;
+            }
             const d = Math.abs(va - vb);
             if (d > maxAbs) maxAbs = d;
             sumAbs += d;
@@ -230,7 +257,12 @@ for (const fixture of FIXTURES) {
     } finally {
       for (const p of [bufA, bufB, bgA, bgB]) module._free(p);
     }
-    return { maxAbsMM: maxAbs, meanAbsMM: n === 0 ? Infinity : sumAbs / n, voxels: n, bandMismatch: mismatch };
+    return {
+      maxAbsMM: maxAbs,
+      meanAbsMM: n === 0 ? Infinity : sumAbs / n,
+      voxels: n,
+      bandMismatch: mismatch,
+    };
   };
 
   const accuracy = (referenceHandle, candidateHandle) => {
@@ -253,14 +285,16 @@ for (const fixture of FIXTURES) {
       candidateVolume: pc.volume,
       referenceArea: pr.area,
       candidateArea: pc.area,
-      ...(fixture.analyticVolume === undefined ? {} : {
-        analytic: {
-          referenceVolumeRelError: Math.abs(pr.volume - fixture.analyticVolume) / fixture.analyticVolume,
-          candidateVolumeRelError: Math.abs(pc.volume - fixture.analyticVolume) / fixture.analyticVolume,
-          referenceAreaRelError: Math.abs(pr.area - fixture.analyticArea) / fixture.analyticArea,
-          candidateAreaRelError: Math.abs(pc.area - fixture.analyticArea) / fixture.analyticArea,
-        },
-      }),
+      ...(fixture.analyticVolume === undefined
+        ? {}
+        : {
+            analytic: {
+              referenceVolumeRelError: Math.abs(pr.volume - fixture.analyticVolume) / fixture.analyticVolume,
+              candidateVolumeRelError: Math.abs(pc.volume - fixture.analyticVolume) / fixture.analyticVolume,
+              referenceAreaRelError: Math.abs(pr.area - fixture.analyticArea) / fixture.analyticArea,
+              candidateAreaRelError: Math.abs(pc.area - fixture.analyticArea) / fixture.analyticArea,
+            },
+          }),
     };
   };
 
@@ -301,7 +335,9 @@ for (const fixture of FIXTURES) {
         ` volΔ ${(acc.volumeRelDelta * 100).toFixed(3)}% areaΔ ${(acc.areaRelDelta * 100).toFixed(3)}%` +
         ` sdfMax ${acc.sdf.maxAbsMM.toFixed(4)} sdfMean ${acc.sdf.meanAbsMM.toFixed(5)} bandMiss ${acc.sdf.bandMismatch}` +
         ` boundsΔ ${acc.boundsMaxDeltaMM.toFixed(3)}mm mesh=${acc.meshValid} ls="${acc.levelSetDiagnosis.trim()}"` +
-        (acc.analytic ? ` | analytic vol err ref ${(acc.analytic.referenceVolumeRelError * 100).toFixed(3)}% vs cand ${(acc.analytic.candidateVolumeRelError * 100).toFixed(3)}%` : ''),
+        (acc.analytic
+          ? ` | analytic vol err ref ${(acc.analytic.referenceVolumeRelError * 100).toFixed(3)}% vs cand ${(acc.analytic.candidateVolumeRelError * 100).toFixed(3)}%`
+          : ''),
     );
   }
 
@@ -314,8 +350,12 @@ for (const fixture of FIXTURES) {
       const def = summarizeSamples(Array.from({ length: 7 }, () => runDefault([d])));
       // 'fast' is the CERTIFIED setting (FIRST_BIAS, upstream's sweep count); 'noRenorm'
       // is the non-shippable ceiling.
-      const fast = summarizeSamples(Array.from({ length: 7 }, () => runTuned({ scheme: FIRST, count: -1 }, [d])));
-      const none = summarizeSamples(Array.from({ length: 7 }, () => runTuned({ scheme: FIRST, count: 0 }, [d])));
+      const fast = summarizeSamples(
+        Array.from({ length: 7 }, () => runTuned({ scheme: FIRST, count: -1 }, [d])),
+      );
+      const none = summarizeSamples(
+        Array.from({ length: 7 }, () => runTuned({ scheme: FIRST, count: 0 }, [d])),
+      );
       const row = {
         distanceMM: d,
         cflSteps: Math.ceil(d / (0.5 * fixture.voxelSize)),
@@ -324,7 +364,9 @@ for (const fixture of FIXTURES) {
         noRenormMs: none.median,
       };
       results.distanceLadder.push(row);
-      console.log(`  ladder d=${d}mm steps=${row.cflSteps}: default ${def.median.toFixed(1)} fast ${fast.median.toFixed(1)} noRenorm ${none.median.toFixed(1)} ms`);
+      console.log(
+        `  ladder d=${d}mm steps=${row.cflSteps}: default ${def.median.toFixed(1)} fast ${fast.median.toFixed(1)} noRenorm ${none.median.toFixed(1)} ms`,
+      );
     }
   }
 
@@ -348,7 +390,11 @@ const out = {
     startLoad,
     endLoad: loadavg()[0],
     powerSource: (() => {
-      try { return execFileSync('pmset', ['-g', 'batt'], { encoding: 'utf8' }).split('\n')[0].trim(); } catch { return 'unknown'; }
+      try {
+        return execFileSync('pmset', ['-g', 'batt'], { encoding: 'utf8' }).split('\n')[0].trim();
+      } catch {
+        return 'unknown';
+      }
     })(),
     repeats: REPEATS,
   },

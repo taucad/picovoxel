@@ -46,7 +46,12 @@ export class WheelContext {
   readonly innerRadiusFrames: Frames;
   readonly outerRadiusFrames: Frames;
 
-  constructor(hubRadius: number, outerRadius: number, refWidth: number, fullUpperHeightPoints: readonly Vec3[]) {
+  constructor(
+    hubRadius: number,
+    outerRadius: number,
+    refWidth: number,
+    fullUpperHeightPoints: readonly Vec3[],
+  ) {
     this.hubRadius = hubRadius;
     this.outerRadius = outerRadius;
     this.refWidth = refWidth;
@@ -111,9 +116,18 @@ export class WheelContext {
       counter += 1;
     }
 
-    this.lowerHeightFrames = Frames.ofType(splineOps.reparametrizedBySpacing(lowerHeightPoints, 1), 'minRotation');
-    this.upperHeightFrames = Frames.ofType(splineOps.reparametrizedBySpacing(upperHeightPoints, 1), 'minRotation');
-    this.outerRadiusFrames = Frames.ofType(splineOps.reparametrizedBySpacing(outerRadiusPoints, 1), 'minRotation');
+    this.lowerHeightFrames = Frames.ofType(
+      splineOps.reparametrizedBySpacing(lowerHeightPoints, 1),
+      'minRotation',
+    );
+    this.upperHeightFrames = Frames.ofType(
+      splineOps.reparametrizedBySpacing(upperHeightPoints, 1),
+      'minRotation',
+    );
+    this.outerRadiusFrames = Frames.ofType(
+      splineOps.reparametrizedBySpacing(outerRadiusPoints, 1),
+      'minRotation',
+    );
   }
 
   /**

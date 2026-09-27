@@ -76,7 +76,10 @@ export const summarizePairedSamples = ({ slowMs, fastMs, iterations = 10_000, se
   const logRatios = ratios.map(Math.log);
   const random = randomGenerator(seed);
   const bootstrap = Array.from({ length: iterations }, () => {
-    const sample = Array.from({ length: logRatios.length }, () => logRatios[Math.floor(random() * logRatios.length)]);
+    const sample = Array.from(
+      { length: logRatios.length },
+      () => logRatios[Math.floor(random() * logRatios.length)],
+    );
     return median(sample);
   });
 
@@ -107,7 +110,10 @@ export const fitLinearCost = (points) => {
   const msPerByte =
     points.reduce((sum, point) => sum + (point.bytes - meanBytes) * (point.ms - meanMs), 0) / denominator;
   const baseMs = meanMs - msPerByte * meanBytes;
-  const residual = points.reduce((sum, point) => sum + (point.ms - (baseMs + msPerByte * point.bytes)) ** 2, 0);
+  const residual = points.reduce(
+    (sum, point) => sum + (point.ms - (baseMs + msPerByte * point.bytes)) ** 2,
+    0,
+  );
   const total = points.reduce((sum, point) => sum + (point.ms - meanMs) ** 2, 0);
   return {
     baseMs,
@@ -148,7 +154,13 @@ export const collectPairedSamples = async ({ repeats = 30, warmups = 1, slow, fa
   return { slowMs, fastMs, order };
 };
 
-export const assertAccelerationEngaged = ({ requestedLane, activeLane, adapter, dispatchCount, resultConsumed }) => {
+export const assertAccelerationEngaged = ({
+  requestedLane,
+  activeLane,
+  adapter,
+  dispatchCount,
+  resultConsumed,
+}) => {
   if (
     activeLane === requestedLane &&
     adapter &&

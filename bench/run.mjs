@@ -288,7 +288,10 @@ await metric('M8', 'full interpolated slice sweep + vectorize (sphere r=8)', () 
   const t0 = now();
   const stack = sliceVoxels(sphere);
   const sweepMs = now() - t0;
-  const identity = { layers: stack.slices.length, contours: stack.slices.reduce((n, s) => n + s.contours.length, 0) };
+  const identity = {
+    layers: stack.slices.length,
+    contours: stack.slices.reduce((n, s) => n + s.contours.length, 0),
+  };
   sphere.dispose();
   return { phases: { sweep: sweepMs }, identity };
 });
@@ -502,12 +505,16 @@ if (UPDATE) {
       `${fingerprint.os}, node ${fingerprint.node}, wasm ${fingerprint.wasmSha256.slice(0, 12)} ` +
       `(${fingerprint.wasmBytes.toLocaleString('en-US')} B), commit ${fingerprint.gitSha}, ${fingerprint.date.slice(0, 10)}.`,
   );
-  lines.push('> **Absolute numbers are device-specific; treat ratios and phase splits as the portable signal.**');
+  lines.push(
+    '> **Absolute numbers are device-specific; treat ratios and phase splits as the portable signal.**',
+  );
   lines.push(
     `> Reproduce with \`pnpm run bench\` (the harness refuses loaded machines). Source: \`bench/results/${fileName}\`.`,
   );
   lines.push('>');
-  lines.push("> Native-comparison figures (the ~1.95× PicoGK wasm tax, R20's 3–9% SDF callback overhead, R11's ~150×");
+  lines.push(
+    "> Native-comparison figures (the ~1.95× PicoGK wasm tax, R20's 3–9% SDF callback overhead, R11's ~150×",
+  );
   lines.push('> bulk-readback win) are imported by reference from the measured records in the research docs');
   lines.push("> (picovoxel-wasm-kernel-blueprint) — native builds live outside this repo's toolchain.");
   lines.push('');
@@ -531,7 +538,9 @@ if (UPDATE) {
     'sub-millisecond phases (e.g. M6 bulk readback) are timer-noise-dominated and may vary up to ±20% — their RATIO to the paired phase is the signal.',
   );
   lines.push('');
-  lines.push("**Sanity anchors** (vs the research-doc records): M6's bulk-vs-per-element ratio grows with mesh size —");
+  lines.push(
+    "**Sanity anchors** (vs the research-doc records): M6's bulk-vs-per-element ratio grows with mesh size —",
+  );
   lines.push(
     "~50× here on a ~40k-vertex gyroid, consistent with R11's ~150× record at 174k vertices; M3's render phase",
   );

@@ -7,7 +7,7 @@ import { defineConfig } from 'tsdown';
 // graph (no dist build, no dual-instance session-identity hazard).
 const src = (rel: string) => fileURLToPath(new URL(`./src/${rel}`, import.meta.url));
 const SELF_REFERENCE: Record<string, string> = {
-  'picovoxel': src('index.ts'),
+  picovoxel: src('index.ts'),
   'picovoxel/multi': src('multi.ts'),
   'picovoxel/three': src('three.ts'),
   'picovoxel/shapekernel': src('shapekernel.ts'),

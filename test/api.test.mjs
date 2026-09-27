@@ -67,11 +67,14 @@ test('R12 — mesh exposes typed arrays as caller-owned copies', async () => {
 const scopeWithUsing = (() => {
   try {
     // eslint-disable-next-line no-new-func -- feature detection needs a runtime parse
-    return new Function('pico', `{
+    return new Function(
+      'pico',
+      `{
       using sphere = pico.createVoxels({ shape: 'sphere', radius: 10 });
       using mesh = sphere.toMesh();
       return mesh.triangleCount;
-    }`);
+    }`,
+    );
   } catch {
     return null;
   }
@@ -122,8 +125,10 @@ test('R10 — use after dispose throws PICO_DISPOSED, module survives', async ()
 });
 
 test('R10 — invalid input throws typed, actionable errors', async () => {
-  await assert.rejects(() => createPico({ voxelSize: 0 }), (e) =>
-    e instanceof PicoError && e.code === 'PICO_INVALID_ARGUMENT' && /positive/.test(e.message));
+  await assert.rejects(
+    () => createPico({ voxelSize: 0 }),
+    (e) => e instanceof PicoError && e.code === 'PICO_INVALID_ARGUMENT' && /positive/.test(e.message),
+  );
 
   const pico = await createPico();
   for (const [options, pattern] of [
@@ -132,7 +137,10 @@ test('R10 — invalid input throws typed, actionable errors', async () => {
     [{ shape: 'implicit', sdf: () => 0 }, /boundsMin and boundsMax/],
     // A non-function sdf is treated as a serialized expression; a bare string
     // is not a valid expression node.
-    [{ shape: 'implicit', boundsMin: [0, 0, 0], boundsMax: [1, 1, 1], sdf: 'not a function' }, /Invalid SDF expression/],
+    [
+      { shape: 'implicit', boundsMin: [0, 0, 0], boundsMax: [1, 1, 1], sdf: 'not a function' },
+      /Invalid SDF expression/,
+    ],
   ]) {
     const err = grab(() => pico.createVoxels(options), `createVoxels(${JSON.stringify(options)})`);
     assert.ok(err instanceof PicoError, `expected PicoError, got ${err?.constructor?.name}`);
@@ -152,8 +160,10 @@ test('R10 — a bogus raw handle becomes PICO_INVALID_HANDLE, not an opaque thro
   // premise R10 exists for — assert it, so the day upstream changes we find out here
   // rather than by shipping a useless wrapper.
   const bare = grab(() => triangleCount(pico.handle, 999999n), 'raw call with a bogus handle');
-  assert.ok(bare instanceof WebAssembly.Exception,
-    `premise changed: upstream threw ${bare?.constructor?.name ?? typeof bare}, not a WebAssembly.Exception`);
+  assert.ok(
+    bare instanceof WebAssembly.Exception,
+    `premise changed: upstream threw ${bare?.constructor?.name ?? typeof bare}, not a WebAssembly.Exception`,
+  );
   assert.equal(bare.message, undefined, 'premise changed: the bare throw now carries a message');
 
   // Guarded path: same failure through the API is typed and explains itself.
@@ -179,7 +189,10 @@ test('R13 — implicit SDF: a sphere from a JS callback matches the native primi
     shape: 'implicit',
     boundsMin: [-12, -12, -12],
     boundsMax: [12, 12, 12],
-    sdf: (x, y, z) => { calls++; return Math.sqrt(x * x + y * y + z * z) - 10; },
+    sdf: (x, y, z) => {
+      calls++;
+      return Math.sqrt(x * x + y * y + z * z) - 10;
+    },
   });
 
   assert.ok(calls > 1000, `SDF should be sampled per voxel, got ${calls} calls`);
@@ -188,8 +201,10 @@ test('R13 — implicit SDF: a sphere from a JS callback matches the native primi
   // return values, the volumes diverge — "> 0" would not catch that.
   const nativeSphere = pico.createVoxels({ shape: 'sphere', center: [0, 0, 0], radius: 10 });
   const ratio = implicitSphere.volume / nativeSphere.volume;
-  assert.ok(Math.abs(ratio - 1) < 0.02,
-    `implicit volume ${implicitSphere.volume} vs native ${nativeSphere.volume} (ratio ${ratio.toFixed(4)})`);
+  assert.ok(
+    Math.abs(ratio - 1) < 0.02,
+    `implicit volume ${implicitSphere.volume} vs native ${nativeSphere.volume} (ratio ${ratio.toFixed(4)})`,
+  );
 
   const mesh = implicitSphere.toMesh();
   assert.ok(mesh.triangleCount > 0, 'implicit sphere produced no triangles');
@@ -207,9 +222,10 @@ test('R13 — gyroid: the capability implicit CAD exists for', async () => {
     boundsMax: [15, 15, 15],
     // TPMS gyroid, thickened into a shell by the abs()-minus-thickness trick.
     sdf: (x, y, z) => {
-      const g = Math.sin(x * s) * Math.cos(y * s)
-              + Math.sin(y * s) * Math.cos(z * s)
-              + Math.sin(z * s) * Math.cos(x * s);
+      const g =
+        Math.sin(x * s) * Math.cos(y * s) +
+        Math.sin(y * s) * Math.cos(z * s) +
+        Math.sin(z * s) * Math.cos(x * s);
       return Math.abs(g) - 0.4;
     },
   });
@@ -227,15 +243,21 @@ test('R13 — function table does not leak across repeated implicit renders', as
   const pico = await createPico({ voxelSize: 1.5 });
   const before = pico.module.wasmTable?.length;
   for (let i = 0; i < 20; i++) {
-    pico.createVoxels({
-      shape: 'implicit',
-      boundsMin: [-4, -4, -4], boundsMax: [4, 4, 4],
-      sdf: (x, y, z) => Math.sqrt(x * x + y * y + z * z) - 3,
-    }).dispose();
+    pico
+      .createVoxels({
+        shape: 'implicit',
+        boundsMin: [-4, -4, -4],
+        boundsMax: [4, 4, 4],
+        sdf: (x, y, z) => Math.sqrt(x * x + y * y + z * z) - 3,
+      })
+      .dispose();
   }
   const after = pico.module.wasmTable?.length;
   if (before !== undefined && after !== undefined) {
-    assert.ok(after - before < 20, `function table grew by ${after - before} over 20 renders (removeFunction not reclaiming)`);
+    assert.ok(
+      after - before < 20,
+      `function table grew by ${after - before} over 20 renders (removeFunction not reclaiming)`,
+    );
   }
   pico.dispose();
 });

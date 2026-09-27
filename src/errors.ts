@@ -70,7 +70,9 @@ export function guard<A extends unknown[], R>(
         );
       }
       if (cause instanceof PicoError) throw cause;
-      throw new PicoError('PICO_CALL_FAILED', `${operation} failed${detail ? ` (${detail})` : ''}.`, { cause });
+      throw new PicoError('PICO_CALL_FAILED', `${operation} failed${detail ? ` (${detail})` : ''}.`, {
+        cause,
+      });
     }
   };
 }
@@ -88,5 +90,8 @@ export function assertLive(disposed: boolean, kind: string): void {
 
 /** R3 placeholder thrown by subpath stubs until their phases land. */
 export function notImplemented(what: string): never {
-  throw new PicoError('PICO_NOT_IMPLEMENTED', `${what} is not implemented yet — it lands in a later charter phase.`);
+  throw new PicoError(
+    'PICO_NOT_IMPLEMENTED',
+    `${what} is not implemented yet — it lands in a later charter phase.`,
+  );
 }

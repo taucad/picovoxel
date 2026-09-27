@@ -75,10 +75,7 @@ export const frame = {
   /** Local point (2D points lie in the frame's XY plane) → world (C# `vecPtToWorld`). */
   ptToWorld(f: Frame, local: Vec2 | Vec3): Vec3 {
     const [x, y, z] = lift(local);
-    return vec3.add(
-      f.pos,
-      vec3.add(vec3.scale(f.lx, x), vec3.add(vec3.scale(f.ly, y), vec3.scale(f.lz, z))),
-    );
+    return vec3.add(f.pos, vec3.add(vec3.scale(f.lx, x), vec3.add(vec3.scale(f.ly, y), vec3.scale(f.lz, z))));
   },
 
   /** Local direction → world direction, safe-normalized (C# `vecDirToWorld`). */
@@ -170,10 +167,22 @@ export const frame = {
    */
   toMat4: (f: Frame): Mat4 =>
     [
-      f.lx[0], f.lx[1], f.lx[2], 0,
-      f.ly[0], f.ly[1], f.ly[2], 0,
-      f.lz[0], f.lz[1], f.lz[2], 0,
-      f.pos[0], f.pos[1], f.pos[2], 1,
+      f.lx[0],
+      f.lx[1],
+      f.lx[2],
+      0,
+      f.ly[0],
+      f.ly[1],
+      f.ly[2],
+      0,
+      f.lz[0],
+      f.lz[1],
+      f.lz[2],
+      0,
+      f.pos[0],
+      f.pos[1],
+      f.pos[2],
+      1,
     ] as const,
 
   /** Scale-then-frame model matrix for drawing scaled geometry (C# `matComposeWithScale`). */

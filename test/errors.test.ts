@@ -24,9 +24,13 @@ function expectCode(error: unknown, code: PicoErrorCode): asserts error is PicoE
 test('guard: WebAssembly.Exception -> PICO_INVALID_HANDLE (with cause + args)', () => {
   const tag = new WebAssembly.Tag({ parameters: ['i32'] });
   const boom = new WebAssembly.Exception(tag, [7]);
-  const guarded = guard('Voxels_fCalculateVolume', () => {
-    throw boom;
-  }, () => 'handle=42');
+  const guarded = guard(
+    'Voxels_fCalculateVolume',
+    () => {
+      throw boom;
+    },
+    () => 'handle=42',
+  );
   const error = grab(guarded);
   expectCode(error, 'PICO_INVALID_HANDLE');
   assert.match(error.message, /Voxels_fCalculateVolume/);
@@ -35,26 +39,40 @@ test('guard: WebAssembly.Exception -> PICO_INVALID_HANDLE (with cause + args)', 
 });
 
 test('guard: WebAssembly.RuntimeError -> PICO_OUT_OF_MEMORY', () => {
-  const error = grab(guard('Voxels_Offset', () => {
-    throw new WebAssembly.RuntimeError('memory access out of bounds');
-  }));
+  const error = grab(
+    guard('Voxels_Offset', () => {
+      throw new WebAssembly.RuntimeError('memory access out of bounds');
+    }),
+  );
   expectCode(error, 'PICO_OUT_OF_MEMORY');
   assert.match(error.message, /voxelSize/);
 });
 
 test('guard: PicoError passes through unchanged; anything else -> PICO_CALL_FAILED', () => {
   const original = new PicoError('PICO_RESERVED_METADATA', 'do not rewrap this error, it is already typed');
-  assert.equal(grab(guard('X', () => { throw original; })), original);
+  assert.equal(
+    grab(
+      guard('X', () => {
+        throw original;
+      }),
+    ),
+    original,
+  );
 
-  const wrapped = grab(guard('Mesh_GetVertices', () => {
-    throw new Error('plain failure');
-  }));
+  const wrapped = grab(
+    guard('Mesh_GetVertices', () => {
+      throw new Error('plain failure');
+    }),
+  );
   expectCode(wrapped, 'PICO_CALL_FAILED');
 });
 
 test('guard: integration — a real bogus-handle ABI throw becomes PICO_INVALID_HANDLE', async () => {
   const pk = await createPico();
-  const raw = pk.module.cwrap('Mesh_nTriangleCount', 'bigint', ['bigint', 'bigint']) as (l: bigint, m: bigint) => bigint;
+  const raw = pk.module.cwrap('Mesh_nTriangleCount', 'bigint', ['bigint', 'bigint']) as (
+    l: bigint,
+    m: bigint,
+  ) => bigint;
   const guarded = guard('Mesh_nTriangleCount', () => raw(pk.handle, 987654321n));
   const error = grab(guarded);
   expectCode(error, 'PICO_INVALID_HANDLE');
@@ -109,12 +127,18 @@ test('remaining codes are produced by their owning paths (cross-reference)', asy
   const pk = await createPico();
   const other = await createPico();
 
-  expectCode(grab(() => pk.createVoxels({ shape: 'sphere', radius: -1 })), 'PICO_INVALID_ARGUMENT');
+  expectCode(
+    grab(() => pk.createVoxels({ shape: 'sphere', radius: -1 })),
+    'PICO_INVALID_ARGUMENT',
+  );
   expectCode(
     grab(() => pk.createVoxels({ shape: 'sphere', radius: 2 }).union(other.createVoxels({ shape: 'empty' }))),
     'PICO_SESSION_MISMATCH',
   );
-  expectCode(grab(() => pk.createVoxels({ shape: 'sphere', radius: 2 }).metadata.set('class', 'x')), 'PICO_RESERVED_METADATA');
+  expectCode(
+    grab(() => pk.createVoxels({ shape: 'sphere', radius: 2 }).metadata.set('class', 'x')),
+    'PICO_RESERVED_METADATA',
+  );
   await assert.rejects(
     () => createPico({ wasm: { wasmBinary: new Uint8Array(4) } }),
     (e: unknown) => e instanceof PicoError && e.code === 'PICO_WASM_INIT_FAILED',
@@ -124,7 +148,10 @@ test('remaining codes are produced by their owning paths (cross-reference)', asy
   scalar.set([0, 0, 0], 1);
   const vdb = pk.createVdb();
   vdb.add(scalar, 'only-scalar');
-  expectCode(grab(() => pk.voxelsFromVdb(vdb.toBytes())), 'PICO_VDB_NO_COMPATIBLE_FIELD');
+  expectCode(
+    grab(() => pk.voxelsFromVdb(vdb.toBytes())),
+    'PICO_VDB_NO_COMPATIBLE_FIELD',
+  );
 
   pk.dispose();
   other.dispose();

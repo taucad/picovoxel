@@ -1,4 +1,11 @@
-import { MAX_PROSE_WORDS, INTERNAL_REFERENCES, TEMPORAL_CLAIMS, SLOP, firstMatch, countWords } from './prose-rules.js';
+import {
+  MAX_PROSE_WORDS,
+  INTERNAL_REFERENCES,
+  TEMPORAL_CLAIMS,
+  SLOP,
+  firstMatch,
+  countWords,
+} from './prose-rules.js';
 
 const stripLeadingType = (value) => {
   const source = value.trimStart();
@@ -83,7 +90,11 @@ export const jsdocQualityRule = {
           const wordCount = countWords(prose);
 
           if (internalReference) {
-            context.report({ loc: comment.loc, messageId: 'internalReference', data: { term: internalReference } });
+            context.report({
+              loc: comment.loc,
+              messageId: 'internalReference',
+              data: { term: internalReference },
+            });
           }
           if (temporalClaim) {
             context.report({ loc: comment.loc, messageId: 'temporalClaim', data: { term: temporalClaim } });

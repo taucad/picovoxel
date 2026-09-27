@@ -23,7 +23,11 @@ import type { Vec3 } from '../types.ts';
 /** ShapeKernel `VecOperations` (Hungarian prefixes dropped). */
 export const vecOps = {
   /** Cartesian point from cylindrical coordinates (C# `vecGetCylPoint`). */
-  cylPoint: (radius: number, phi: number, z: number): Vec3 => [radius * Math.cos(phi), radius * Math.sin(phi), z],
+  cylPoint: (radius: number, phi: number, z: number): Vec3 => [
+    radius * Math.cos(phi),
+    radius * Math.sin(phi),
+    z,
+  ],
 
   /** Cartesian point from spherical coordinates, theta measured from the XY plane (C# `vecGetSphPoint`). */
   sphPoint: (radius: number, phi: number, theta: number): Vec3 => [
@@ -59,7 +63,8 @@ export const vecOps = {
     vecOps.cylPoint(vecOps.radius(pt), vecOps.phi(pt) + deltaPhi, pt[2]),
 
   /** Vertically shifted by deltaZ (C# `vecUpdateZ`). */
-  updateZ: (pt: Vec3, deltaZ: number): Vec3 => vecOps.cylPoint(vecOps.radius(pt), vecOps.phi(pt), pt[2] + deltaZ),
+  updateZ: (pt: Vec3, deltaZ: number): Vec3 =>
+    vecOps.cylPoint(vecOps.radius(pt), vecOps.phi(pt), pt[2] + deltaZ),
 
   /** Normalized planar radial direction from the Z axis to the point (C# `vecGetPlanarDir`). */
   planarDir: (pt: Vec3): Vec3 => vec3.safeNormalized([pt[0], pt[1], 0]),

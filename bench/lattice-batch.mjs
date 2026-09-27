@@ -124,7 +124,13 @@ raw.Library_DestroyInstance(lib);
 module._free(scratch);
 
 // ── crossing-counting session ─────────────────────────────────────────────────
-const COUNTED = ['Lattice_AddBeam', 'Lattice_AddBeams', 'Lattice_AddSphere', 'Lattice_AddSpheres', 'Lattice_hCreate'];
+const COUNTED = [
+  'Lattice_AddBeam',
+  'Lattice_AddBeams',
+  'Lattice_AddSphere',
+  'Lattice_AddSpheres',
+  'Lattice_hCreate',
+];
 
 /**
  * Wraps the wasm exports BEFORE bindPicoRaw reads them (bind happens inside
@@ -177,12 +183,18 @@ function perCallFacade(pk) {
         addSphereFn(libHandle, handle, pad, radius);
       },
       toVoxels: () => inner.toVoxels(),
-      get memUsage() { return inner.memUsage; },
-      get handle() { return handle; },
+      get memUsage() {
+        return inner.memUsage;
+      },
+      get handle() {
+        return handle;
+      },
       dispose: () => inner.dispose(),
     };
   };
-  return new Proxy(pk, { get: (target, key) => (key === 'createLattice' ? createLattice : Reflect.get(target, key)) });
+  return new Proxy(pk, {
+    get: (target, key) => (key === 'createLattice' ? createLattice : Reflect.get(target, key)),
+  });
 }
 
 /** One HeatX construct; returns its author-stage split and the crossing counts. */
@@ -231,13 +243,17 @@ for (let rep = 0; rep < HEATX_REPS; rep++) {
 }
 results.perBeam = perBeam;
 for (const [name, r] of Object.entries(perBeam)) {
-  console.log(`  ${name.padEnd(36)} ${String(r.nsPerBeam).padStart(8)} ns/beam  (window ${r.minWindowMs} ms)`);
+  console.log(
+    `  ${name.padEnd(36)} ${String(r.nsPerBeam).padStart(8)} ns/beam  (window ${r.minWindowMs} ms)`,
+  );
 }
 
 // Voxel-size independence of the author stage: the crossing count at the pinned
 // 1.0 mm size must equal the count at the (cheap) A/B size, or the A/B is invalid.
 const confirm = await heatxRun('batched', CONFIRM_SIZE);
-console.log(`  HeatX @${CONFIRM_SIZE}mm batched confirm: bulk crossings ${confirm.counts.Lattice_AddBeams}, lattices ${confirm.counts.Lattice_hCreate}`);
+console.log(
+  `  HeatX @${CONFIRM_SIZE}mm batched confirm: bulk crossings ${confirm.counts.Lattice_AddBeams}, lattices ${confirm.counts.Lattice_hCreate}`,
+);
 
 results.heatx = heatx;
 results.heatxConfirm = confirm;
@@ -256,12 +272,16 @@ results.heatxSummary = Object.fromEntries(
     },
   ]),
 );
-console.log(`  author median: batched ${results.heatxSummary.batched.authorMedianMs} ms vs per-call ${results.heatxSummary['per-call'].authorMedianMs} ms`);
+console.log(
+  `  author median: batched ${results.heatxSummary.batched.authorMedianMs} ms vs per-call ${results.heatxSummary['per-call'].authorMedianMs} ms`,
+);
 
 // The A/B is only a timing claim if both variants built the same part.
 const volumes = new Set([...heatx.batched, ...heatx['per-call']].map((r) => r.volume));
 results.volumeIdentical = volumes.size === 1;
-console.log(`  volume identity across variants: ${results.volumeIdentical ? 'IDENTICAL' : `DIVERGED ${[...volumes]}`}`);
+console.log(
+  `  volume identity across variants: ${results.volumeIdentical ? 'IDENTICAL' : `DIVERGED ${[...volumes]}`}`,
+);
 
 const payload = { spike: 'SK-0.3', fingerprint, endLoad: loadavg()[0], results };
 if (OUT) {

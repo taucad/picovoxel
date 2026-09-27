@@ -169,7 +169,9 @@ class GpuGyroidProbe {
     ]);
     const mapped = new Float32Array(this.#readback.getMappedRange(0, byteLength));
     const indices = Array.from(
-      new Set(Array.from({ length: 257 }, (_, index) => Math.floor((index * (parameters.elementCount - 1)) / 256))),
+      new Set(
+        Array.from({ length: 257 }, (_, index) => Math.floor((index * (parameters.elementCount - 1)) / 256)),
+      ),
     );
     const values = indices.map((index) => mapped[index]!);
     const checksum = values.reduce((sum, value) => sum + value, 0);
@@ -207,10 +209,15 @@ const compareSamples = (cpu: ProbeRun, gpu: GpuProbeRun) => {
     const gpuValue = gpu.sampleValues[index]!;
     const absoluteError = Math.abs(cpuValue - gpuValue);
     maxAbsoluteError = Math.max(maxAbsoluteError, absoluteError);
-    maxRelativeError = Math.max(maxRelativeError, absoluteError / Math.max(Math.abs(cpuValue), Number.EPSILON));
+    maxRelativeError = Math.max(
+      maxRelativeError,
+      absoluteError / Math.max(Math.abs(cpuValue), Number.EPSILON),
+    );
   }
   if (maxAbsoluteError > ACCURACY_TOLERANCE) {
-    throw new Error(`Unrolled gyroid exceeds CPU-oracle tolerance: ${maxAbsoluteError} > ${ACCURACY_TOLERANCE}`);
+    throw new Error(
+      `Unrolled gyroid exceeds CPU-oracle tolerance: ${maxAbsoluteError} > ${ACCURACY_TOLERANCE}`,
+    );
   }
   return {
     maxAbsoluteError,

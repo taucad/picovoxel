@@ -43,7 +43,12 @@ export function createGlb(vertices: Float32Array, indices: Uint32Array): Uint8Ar
     buffers: [{ byteLength: binLength }],
     bufferViews: [
       { buffer: 0, byteOffset: 0, byteLength: vertexBytes, target: TARGET_ARRAY_BUFFER },
-      { buffer: 0, byteOffset: indexOffset, byteLength: indices.byteLength, target: TARGET_ELEMENT_ARRAY_BUFFER },
+      {
+        buffer: 0,
+        byteOffset: indexOffset,
+        byteLength: indices.byteLength,
+        target: TARGET_ELEMENT_ARRAY_BUFFER,
+      },
     ],
     accessors: [
       { bufferView: 0, componentType: COMPONENT_FLOAT, count: vertices.length / 3, type: 'VEC3', min, max },
@@ -58,18 +63,25 @@ export function createGlb(vertices: Float32Array, indices: Uint32Array): Uint8Ar
   const out = new Uint8Array(total);
   const view = new DataView(out.buffer);
   let o = 0;
-  view.setUint32(o, MAGIC, true); o += 4;
-  view.setUint32(o, 2, true); o += 4;
-  view.setUint32(o, total, true); o += 4;
+  view.setUint32(o, MAGIC, true);
+  o += 4;
+  view.setUint32(o, 2, true);
+  o += 4;
+  view.setUint32(o, total, true);
+  o += 4;
 
-  view.setUint32(o, jsonLength, true); o += 4;
-  view.setUint32(o, JSON_CHUNK, true); o += 4;
+  view.setUint32(o, jsonLength, true);
+  o += 4;
+  view.setUint32(o, JSON_CHUNK, true);
+  o += 4;
   out.set(jsonBytes, o);
   out.fill(0x20, o + jsonBytes.length, o + jsonLength); // JSON chunk pads with spaces
   o += jsonLength;
 
-  view.setUint32(o, binLength, true); o += 4;
-  view.setUint32(o, BIN_CHUNK, true); o += 4;
+  view.setUint32(o, binLength, true);
+  o += 4;
+  view.setUint32(o, BIN_CHUNK, true);
+  o += 4;
   out.set(new Uint8Array(vertices.buffer, vertices.byteOffset, vertexBytes), o);
   out.set(new Uint8Array(indices.buffer, indices.byteOffset, indices.byteLength), o + indexOffset);
   return out;

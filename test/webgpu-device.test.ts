@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { DEFAULT_WEBGPU_LIMITS, MINIMUM_WEBGPU_LIMITS, requestWebGpuDevice } from '../spikes/webgpu/device.ts';
+import {
+  DEFAULT_WEBGPU_LIMITS,
+  MINIMUM_WEBGPU_LIMITS,
+  requestWebGpuDevice,
+} from '../spikes/webgpu/device.ts';
 
 const adapterInfo = {
   architecture: 'm2',

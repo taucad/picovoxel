@@ -42,7 +42,9 @@ export const extractCandidatePackages = ({ extract = extractTarball, from, out }
     extract(tarball, destination);
     const extracted = JSON.parse(readFileSync(join(destination, 'package.json'), 'utf8'));
     if (extracted.name !== name || extracted.version !== version) {
-      throw new Error(`${filename} extracted ${extracted.name}@${extracted.version}, expected ${name}@${version}`);
+      throw new Error(
+        `${filename} extracted ${extracted.name}@${extracted.version}, expected ${name}@${version}`,
+      );
     }
     return destination;
   });

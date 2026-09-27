@@ -74,7 +74,9 @@ try {
         result: globalThis.__emdawnResult,
         text: document.body.textContent,
       }));
-      throw new Error(`${variant} timed out: ${JSON.stringify(state)}\n${messages.join('\n')}`, { cause: error });
+      throw new Error(`${variant} timed out: ${JSON.stringify(state)}\n${messages.join('\n')}`, {
+        cause: error,
+      });
     }
     const result = await page.evaluate(() => ({
       error: globalThis.__error,

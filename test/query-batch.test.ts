@@ -40,7 +40,11 @@ test('raycastBatch ≡ serial raycastToSurface, exact per ray, hit/miss 100% off
     if (serial) {
       hitCount++;
       for (let axis = 0; axis < 3; axis++) {
-        assert.equal(hits[i * 3 + axis], serial[axis], `ray ${i} axis ${axis}: batch must be EXACT vs serial`);
+        assert.equal(
+          hits[i * 3 + axis],
+          serial[axis],
+          `ray ${i} axis ${axis}: batch must be EXACT vs serial`,
+        );
       }
     }
   }
@@ -53,7 +57,12 @@ test('closestPointsOnSurface: sub-voxel, in-band, within one voxel of the true m
   const queries: number[] = [];
   const expected: number[] = []; // true distance to the surface per query
   for (const [x, y, z] of [
-    [12, 0, 0], [0, -11, 3], [4, 4, 4], [0, 0, 0.5], [9, 9, 0], [-2, 1, 7],
+    [12, 0, 0],
+    [0, -11, 3],
+    [4, 4, 4],
+    [0, 0, 0.5],
+    [9, 9, 0],
+    [-2, 1, 7],
   ] as const) {
     queries.push(x, y, z);
     expected.push(Math.abs(Math.hypot(x, y, z) - radius));
@@ -61,13 +70,23 @@ test('closestPointsOnSurface: sub-voxel, in-band, within one voxel of the true m
   const { points, found } = sphere.closestPointsOnSurface({ points: queries });
   for (let i = 0; i < expected.length; i++) {
     assert.equal(found[i], 1, `query ${i} must find the surface`);
-    const px = points[i * 3]!, py = points[i * 3 + 1]!, pz = points[i * 3 + 2]!;
+    const px = points[i * 3]!,
+      py = points[i * 3 + 1]!,
+      pz = points[i * 3 + 2]!;
     // The returned point lies on the analytic surface within a voxel…
-    assert.ok(Math.abs(Math.hypot(px, py, pz) - radius) <= pk.voxelSize, `query ${i}: result must be in-band (|r|=${Math.hypot(px, py, pz)})`);
+    assert.ok(
+      Math.abs(Math.hypot(px, py, pz) - radius) <= pk.voxelSize,
+      `query ${i}: result must be in-band (|r|=${Math.hypot(px, py, pz)})`,
+    );
     // …and realizes the true minimum within a voxel.
-    const qx = queries[i * 3]!, qy = queries[i * 3 + 1]!, qz = queries[i * 3 + 2]!;
+    const qx = queries[i * 3]!,
+      qy = queries[i * 3 + 1]!,
+      qz = queries[i * 3 + 2]!;
     const dist = Math.hypot(px - qx, py - qy, pz - qz);
-    assert.ok(Math.abs(dist - expected[i]!) <= pk.voxelSize, `query ${i}: |realized−true| = ${Math.abs(dist - expected[i]!)}`);
+    assert.ok(
+      Math.abs(dist - expected[i]!) <= pk.voxelSize,
+      `query ${i}: |realized−true| = ${Math.abs(dist - expected[i]!)}`,
+    );
   }
 });
 

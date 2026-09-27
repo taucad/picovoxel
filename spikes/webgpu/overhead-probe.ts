@@ -23,7 +23,14 @@ const WORKGROUP_SIZE = 64;
 const REPEATS = 30;
 const WARMUPS = 2;
 const RUNS_PER_CURVE_POINT = REPEATS + WARMUPS;
-const CURVE_BYTES = [64 * 1024, 1024 * 1024, 16 * 1024 * 1024, 64 * 1024 * 1024, 128 * 1024 * 1024, 256 * 1024 * 1024];
+const CURVE_BYTES = [
+  64 * 1024,
+  1024 * 1024,
+  16 * 1024 * 1024,
+  64 * 1024 * 1024,
+  128 * 1024 * 1024,
+  256 * 1024 * 1024,
+];
 
 const collectSamples = async (body: () => Promise<number>): Promise<number[]> => {
   for (let index = 0; index < WARMUPS; index += 1) await body();
@@ -145,7 +152,11 @@ const encodeSaxpyParameters = (elementCount: number): ArrayBuffer => {
   return buffer;
 };
 
-const runSaxpyProbe = async (device: GPUDevice, pipelines: ComputePipelineCache, report: WebGpuCapabilityReport) => {
+const runSaxpyProbe = async (
+  device: GPUDevice,
+  pipelines: ComputePipelineCache,
+  report: WebGpuCapabilityReport,
+) => {
   const pipeline = await pipelines.get({
     constants: { WORKGROUP_SIZE },
     entryPoint: 'main',
@@ -206,7 +217,10 @@ const runSaxpyProbe = async (device: GPUDevice, pipelines: ComputePipelineCache,
           timestamps.resolve(encoder);
           encoder.copyBufferToBuffer(yValues, 0, readback, 0, 4);
           device.queue.submit([encoder.finish()]);
-          const [, gpuTiming] = await Promise.all([readback.mapAsync(MAP_MODE_READ, 0, 4), timestamps.read()]);
+          const [, gpuTiming] = await Promise.all([
+            readback.mapAsync(MAP_MODE_READ, 0, 4),
+            timestamps.read(),
+          ]);
           lastValue = new Float32Array(readback.getMappedRange(0, 4))[0]!;
           const ms = performance.now() - begin;
           readback.unmap();
@@ -350,7 +364,10 @@ const runReductionProbe = async (
           timestamps.resolve(encoder);
           encoder.copyBufferToBuffer(passes.at(-1)!.output, 0, readback, 0, 4);
           device.queue.submit([encoder.finish()]);
-          const [, gpuTiming] = await Promise.all([readback.mapAsync(MAP_MODE_READ, 0, 4), timestamps.read()]);
+          const [, gpuTiming] = await Promise.all([
+            readback.mapAsync(MAP_MODE_READ, 0, 4),
+            timestamps.read(),
+          ]);
           lastValue = new Float32Array(readback.getMappedRange(0, 4))[0]!;
           const ms = performance.now() - begin;
           readback.unmap();

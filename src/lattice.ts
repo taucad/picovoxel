@@ -116,7 +116,9 @@ export function wrapLattice(ctx: SessionContext, handle: bigint): Lattice {
     try {
       ctx.module.HEAPF32.set(beams.subarray(0, floats), pointer >>> 2);
       ctx.module.HEAPU32.set(caps.subarray(0, count), (pointer >>> 2) + floats);
-      guard('Lattice_AddBeams', () => ctx.raw.Lattice_AddBeams(ctx.lib, handle, pointer, pointer + floats * 4, count))();
+      guard('Lattice_AddBeams', () =>
+        ctx.raw.Lattice_AddBeams(ctx.lib, handle, pointer, pointer + floats * 4, count),
+      )();
     } finally {
       ctx.module._free(pointer);
     }
@@ -144,7 +146,10 @@ export function wrapLattice(ctx: SessionContext, handle: bigint): Lattice {
   const lattice = {
     addSphere({ center, radius }: { center: Vec3; radius: number }) {
       if (!(radius > 0)) {
-        throw new PicoError('PICO_INVALID_ARGUMENT', `addSphere needs a positive radius in millimetres, got ${radius}.`);
+        throw new PicoError(
+          'PICO_INVALID_ARGUMENT',
+          `addSphere needs a positive radius in millimetres, got ${radius}.`,
+        );
       }
       live();
       flushBeams();
@@ -154,7 +159,14 @@ export function wrapLattice(ctx: SessionContext, handle: bigint): Lattice {
       spheres[at + 2] = center[2];
       spheres[at + 3] = radius;
     },
-    addBeam({ start, end, radius, startRadius = radius, endRadius = radius, roundCap = true }: AddBeamOptions) {
+    addBeam({
+      start,
+      end,
+      radius,
+      startRadius = radius,
+      endRadius = radius,
+      roundCap = true,
+    }: AddBeamOptions) {
       if (!(startRadius! > 0) || !(endRadius! > 0)) {
         throw new PicoError(
           'PICO_INVALID_ARGUMENT',

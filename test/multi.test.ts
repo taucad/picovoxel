@@ -52,7 +52,9 @@ test('multi session: shared heap, engaged worker pool, serial-identical geometry
     const multiTape = tape(multi);
     const serialTape = tape(serial);
     expect(multiTape.volume).toBe(serialTape.volume);
-    expect(Buffer.from(multiTape.toMesh().toStl()).equals(Buffer.from(serialTape.toMesh().toStl()))).toBe(true);
+    expect(Buffer.from(multiTape.toMesh().toStl()).equals(Buffer.from(serialTape.toMesh().toStl()))).toBe(
+      true,
+    );
 
     // R9 compose differentials: every applied voxel is written by exactly one
     // thread and is a pure function of coordinate + frozen input grid, so the
@@ -73,9 +75,9 @@ test('multi session: shared heap, engaged worker pool, serial-identical geometry
     const multiMasked = masked(multi);
     const serialMasked = masked(serial);
     expect(multiMasked.volume).toBe(serialMasked.volume);
-    expect(
-      Buffer.from(multiMasked.toMesh().toStl()).equals(Buffer.from(serialMasked.toMesh().toStl())),
-    ).toBe(true);
+    expect(Buffer.from(multiMasked.toMesh().toStl()).equals(Buffer.from(serialMasked.toMesh().toStl()))).toBe(
+      true,
+    );
   } finally {
     multi.dispose();
     serial.dispose();
@@ -96,7 +98,10 @@ test('fastRenorm session on the MT artifact: single≡multi G0 identity, healthy
         .union(pk.createVoxels({ shape: 'beam', start: [-2, -2, -2], end: [12, 2, 2], radius: 2 }));
     const diagnose = (pk: typeof multi, handle: bigint): string => {
       const bDiagnose = pk.module.cwrap('Voxels_bDiagnose', 'boolean', ['bigint', 'bigint', 'number']) as (
-        l: bigint, h: bigint, p: number) => boolean;
+        l: bigint,
+        h: bigint,
+        p: number,
+      ) => boolean;
       const p = pk.module._malloc(255);
       try {
         bDiagnose(pk.handle, handle, p);

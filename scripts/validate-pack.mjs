@@ -18,8 +18,11 @@ if (tarball) {
     .filter((entry) => entry && !entry.endsWith('/'))
     .map((entry) => entry.replace(/^package\//u, ''));
 } else {
-  const packed = JSON.parse(execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], { encoding: 'utf8' }));
-  if (!Array.isArray(packed) || packed.length !== 1) throw new Error('npm pack must describe exactly one tarball');
+  const packed = JSON.parse(
+    execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], { encoding: 'utf8' }),
+  );
+  if (!Array.isArray(packed) || packed.length !== 1)
+    throw new Error('npm pack must describe exactly one tarball');
   listed = packed[0].files.map(({ path }) => path);
 }
 

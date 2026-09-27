@@ -125,7 +125,10 @@ export class Frames implements Spline {
     let finalLocalX = initLocalX;
     for (let angleDeg = 0; angleDeg < 180; angleDeg += 0.01) {
       const phi = ((2 * Math.PI) / 360) * angleDeg;
-      const candidate = vec3.add(vec3.scale(initLocalX, Math.cos(phi)), vec3.scale(initLocalY, Math.sin(phi)));
+      const candidate = vec3.add(
+        vec3.scale(initLocalX, Math.cos(phi)),
+        vec3.scale(initLocalY, Math.sin(phi)),
+      );
       const dot = Math.abs(vec3.dot(candidate, targetX));
       if (dot > maxDot) {
         finalLocalX = candidate;
@@ -183,7 +186,11 @@ export class Frames implements Spline {
 
   /** The full local frame at a length ratio (C# `oGetLocalFrame`). */
   frameAt(lengthRatio: number): Frame {
-    return localFrame.createZX(this.spineAt(lengthRatio), this.localZAt(lengthRatio), this.localXAt(lengthRatio));
+    return localFrame.createZX(
+      this.spineAt(lengthRatio),
+      this.localZAt(lengthRatio),
+      this.localXAt(lengthRatio),
+    );
   }
 
   /** The spine points (C# `aGetPoints()`); with `samples`, reparametrized to that count. */

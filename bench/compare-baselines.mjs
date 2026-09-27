@@ -76,5 +76,7 @@ console.log(
   `\n${rows.length} phases compared: ${wins.length} faster, ${losses.length} regressions, ` +
     `${rows.length - wins.length - losses.length} no measurable effect.`,
 );
-for (const r of losses) console.log(`REGRESSION ${r.id}/${r.phase}: ${f(r.ratio)}× (CI ${f(r.low)}–${f(r.high)})`);
-if (missing.length > 0) console.log(`\nabsent from the new record:\n${missing.map((m) => `  ${m}`).join('\n')}`);
+for (const r of losses)
+  console.log(`REGRESSION ${r.id}/${r.phase}: ${f(r.ratio)}× (CI ${f(r.low)}–${f(r.high)})`);
+if (missing.length > 0)
+  console.log(`\nabsent from the new record:\n${missing.map((m) => `  ${m}`).join('\n')}`);

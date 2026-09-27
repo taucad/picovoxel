@@ -18,7 +18,7 @@ export function assertPinSource(lane, label) {
   if (lane !== 'exact') {
     throw new Error(
       `${label}: refusing to pin a source with '${lane}' provenance — pins record L0 (exact-provenance) values ` +
-        'only. Rebuild the fixture without Class-2 ops (no fastRenorm, not in a lane: \'fast\' session).',
+        "only. Rebuild the fixture without Class-2 ops (no fastRenorm, not in a lane: 'fast' session).",
     );
   }
 }
@@ -32,7 +32,8 @@ const GUARD_CALL = /\bassertPinSource\s*\(/g;
 // a guard mentioned in a comment never satisfies an arm.
 // ponytail: `//` inside a string literal blanks the rest of that line — that
 // can only hide a guard (fail-closed), never invent one.
-const blankComments = (source) => source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, (comment) => comment.replace(/[^\n]/g, ' '));
+const blankComments = (source) =>
+  source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, (comment) => comment.replace(/[^\n]/g, ' '));
 
 /**
  * The static half of the guard: returns the 1-based line of every pin arm that

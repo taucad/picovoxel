@@ -45,7 +45,12 @@ export type Color = readonly [number, number, number] | readonly [number, number
  */
 export interface PicoWasmModule {
   cwrap(name: string, returnType: string | null, argTypes: readonly string[]): (...args: never[]) => unknown;
-  ccall(name: string, returnType: string | null, argTypes: readonly string[], args: readonly unknown[]): unknown;
+  ccall(
+    name: string,
+    returnType: string | null,
+    argTypes: readonly string[],
+    args: readonly unknown[],
+  ): unknown;
   UTF8ToString(pointer: number): string;
   stringToUTF8(text: string, pointer: number, maxBytes: number): void;
   lengthBytesUTF8(text: string): number;

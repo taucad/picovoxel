@@ -21,7 +21,14 @@ import { assertLive, guard, PicoError } from './errors.ts';
 import { wrapScalarField, type ScalarField } from './fields.ts';
 import { FAST_LANE_SET, laneOf, unionLaneSets, type LaneSet } from './lanes.ts';
 import type { Lattice } from './lattice.ts';
-import { provenanceOf, recordProvenance, settleProvenance, tagFieldClass, wrapMetadata, type Metadata } from './metadata.ts';
+import {
+  provenanceOf,
+  recordProvenance,
+  settleProvenance,
+  tagFieldClass,
+  wrapMetadata,
+  type Metadata,
+} from './metadata.ts';
 import { wrapMesh, type Mesh } from './mesh.ts';
 import type { SdfExpression } from './tape.ts';
 import type { Bounds, SdfFunction, Vec3 } from './types.ts';
@@ -173,7 +180,10 @@ export interface Voxels {
    * semantics (incl. upstream's integer-voxel hit truncation). `hits` is
    * xyz-triples; entries where `hit[i] === 0` are undefined.
    */
-  raycastBatch(options: { origins: ArrayLike<number>; directions: ArrayLike<number> }): { hits: Float32Array; hit: Uint8Array };
+  raycastBatch(options: { origins: ArrayLike<number>; directions: ArrayLike<number> }): {
+    hits: Float32Array;
+    hit: Uint8Array;
+  };
   /**
    * SKv2-0 V0.11 (P8) — N closest-surface-point queries over one index
    * build (openvdb ClosestSurfacePoint): sub-voxel results, C2 by nature.
@@ -220,7 +230,14 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
   let metadataCache: Metadata | null = null;
   // §14.1 provenance — a non-empty set rides the grid as PicoVoxel.Lane, so it
   // survives copies and .vdb interchange with no serializer work.
-  const lane = settleProvenance(ctx, ctx.raw.Metadata_hFromVoxels, handle, provenance, ctx.raw.Voxels_Destroy, 'getVoxels');
+  const lane = settleProvenance(
+    ctx,
+    ctx.raw.Metadata_hFromVoxels,
+    handle,
+    provenance,
+    ctx.raw.Voxels_Destroy,
+    'getVoxels',
+  );
   const live = () => {
     assertLive(disposed, 'Voxels');
     return handle;
@@ -262,7 +279,14 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       (copy) => {
         const base = ctx.scratch >>> 2;
         for (let i = 0; i < distancesMM.length; i++) ctx.module.HEAPF32[base + i] = distancesMM[i]!;
-        ctx.raw.Voxels_OffsetTuned(ctx.lib, copy, ctx.scratch, distancesMM.length, FAST_RENORM_SCHEME, FAST_RENORM_COUNT);
+        ctx.raw.Voxels_OffsetTuned(
+          ctx.lib,
+          copy,
+          ctx.scratch,
+          distancesMM.length,
+          FAST_RENORM_SCHEME,
+          FAST_RENORM_COUNT,
+        );
       },
       unionLaneSets(lane, FAST_LANE_SET), // the one Class-2 producer today — provenance taints here
     );
@@ -283,7 +307,10 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     let owned = false; // the receiver is never ours to destroy
     try {
       for (const other of others) {
-        const next = expectHandle(name, guard(name, () => ctx.raw[name](ctx.lib, current, operandHandle(other, what)))());
+        const next = expectHandle(
+          name,
+          guard(name, () => ctx.raw[name](ctx.lib, current, operandHandle(other, what)))(),
+        );
         if (owned) ctx.raw.Voxels_Destroy(ctx.lib, current);
         current = next;
         owned = true;
@@ -299,7 +326,10 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
 
   const requireFinite = (value: number, field: string, where: string): number => {
     if (!Number.isFinite(value)) {
-      throw new PicoError('PICO_INVALID_ARGUMENT', `${where} needs a finite ${field} in millimetres, got ${value}.`);
+      throw new PicoError(
+        'PICO_INVALID_ARGUMENT',
+        `${where} needs a finite ${field} in millimetres, got ${value}.`,
+      );
     }
     return value;
   };
@@ -317,7 +347,10 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
 
   /** SG1 — the mesh round-trip both properties() and bounds() are built on. */
   const meshRoundTrip = <T>(body: (meshHandle: bigint) => T): T => {
-    const meshHandle = expectHandle('Mesh_hCreateFromVoxels', ctx.raw.Mesh_hCreateFromVoxels(ctx.lib, live()));
+    const meshHandle = expectHandle(
+      'Mesh_hCreateFromVoxels',
+      ctx.raw.Mesh_hCreateFromVoxels(ctx.lib, live()),
+    );
     try {
       return body(meshHandle);
     } finally {
@@ -344,23 +377,26 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
   };
 
   const voxels = {
-    clone: (): Voxels => wrapVoxels(ctx, expectHandle('Voxels_hCreateCopy', ctx.raw.Voxels_hCreateCopy(ctx.lib, live())), lane),
+    clone: (): Voxels =>
+      wrapVoxels(ctx, expectHandle('Voxels_hCreateCopy', ctx.raw.Voxels_hCreateCopy(ctx.lib, live())), lane),
 
     // SKv2-0 V0.7 — booleans ride the shared-nothing csg*Copy exports: const
     // inputs, exactly ONE fresh grid per pair (the old shape paid a receiver
     // copy in derive() plus upstream's operand deep copy). Variadic forms
     // chain pairwise, destroying intermediates immediately; the mutating
     // exports remain on the raw subpath.
-    union: (...others: Voxels[]): Voxels =>
-      composeCopy('Voxels_hBoolAddCopy', 'union operand', others),
+    union: (...others: Voxels[]): Voxels => composeCopy('Voxels_hBoolAddCopy', 'union operand', others),
     subtract: (...others: Voxels[]): Voxels =>
       composeCopy('Voxels_hBoolSubtractCopy', 'subtract operand', others),
-    intersect: (other: Voxels): Voxels => composeCopy('Voxels_hBoolIntersectCopy', 'intersect operand', [other]),
+    intersect: (other: Voxels): Voxels =>
+      composeCopy('Voxels_hBoolIntersectCopy', 'intersect operand', [other]),
 
     equals(other: Voxels): boolean {
       // T11 (SKv2-0 V0.8): O(stored) sign-set comparison, upstream-verdict-
       // identical; the dense O(bbox³) Voxels_bIsEqual stays on the raw subpath.
-      return guard('Voxels_bIsEqualFast', () => ctx.raw.Voxels_bIsEqualFast(ctx.lib, live(), operandHandle(other, 'equals operand')))();
+      return guard('Voxels_bIsEqualFast', () =>
+        ctx.raw.Voxels_bIsEqualFast(ctx.lib, live(), operandHandle(other, 'equals operand')),
+      )();
     },
     get isEmpty() {
       return guard('Voxels_bIsEmpty', () => ctx.raw.Voxels_bIsEmpty(ctx.lib, live()))();
@@ -377,7 +413,9 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       const first = requireFinite(options.first, 'first', 'doubleOffset');
       const second = requireFinite(options.second, 'second', 'doubleOffset');
       if (options.fastRenorm ?? ctx.fastRenorm) return fastOffset([first, second]);
-      return derive('Voxels_DoubleOffset', (copy) => ctx.raw.Voxels_DoubleOffset(ctx.lib, copy, first, second));
+      return derive('Voxels_DoubleOffset', (copy) =>
+        ctx.raw.Voxels_DoubleOffset(ctx.lib, copy, first, second),
+      );
     },
     smoothen(options: { distance: number; fastRenorm?: boolean }) {
       rejectLoosening(options.fastRenorm, 'smoothen');
@@ -392,7 +430,9 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       const rounding = requireFinite(options.rounding, 'rounding', 'fillet');
       const final = requireFinite(options.finalSurfaceDistance ?? 0, 'finalSurfaceDistance', 'fillet');
       if (options.fastRenorm ?? ctx.fastRenorm) return fastOffset([rounding, -rounding + final]);
-      return derive('Voxels_DoubleOffset', (copy) => ctx.raw.Voxels_DoubleOffset(ctx.lib, copy, rounding, -rounding + final));
+      return derive('Voxels_DoubleOffset', (copy) =>
+        ctx.raw.Voxels_DoubleOffset(ctx.lib, copy, rounding, -rounding + final),
+      );
     },
     shell(options: ShellOptions): Voxels {
       rejectLoosening(options.fastRenorm, 'shell');
@@ -439,7 +479,9 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       try {
         const result = expectHandle(
           'Voxels_hBoolIntersectCopy',
-          guard('Voxels_hBoolIntersectCopy', () => ctx.raw.Voxels_hBoolIntersectCopy(ctx.lib, live(), cube))(),
+          guard('Voxels_hBoolIntersectCopy', () =>
+            ctx.raw.Voxels_hBoolIntersectCopy(ctx.lib, live(), cube),
+          )(),
         );
         return wrapVoxels(ctx, result, lane);
       } finally {
@@ -455,7 +497,9 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       // protocol with this cause named).
       const startZ = requireFinite(options.startZ, 'startZ', 'projectZSlice');
       const endZ = requireFinite(options.endZ, 'endZ', 'projectZSlice');
-      return derive('Voxels_ProjectZSliceFast', (copy) => ctx.raw.Voxels_ProjectZSliceFast(ctx.lib, copy, startZ, endZ));
+      return derive('Voxels_ProjectZSliceFast', (copy) =>
+        ctx.raw.Voxels_ProjectZSliceFast(ctx.lib, copy, startZ, endZ),
+      );
     },
 
     withMesh(mesh: Mesh): Voxels {
@@ -463,7 +507,11 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
         assertSameSession(ctx, mesh, 'withMesh operand');
         return mesh.handle;
       })();
-      return derive('Voxels_RenderMesh', (copy) => ctx.raw.Voxels_RenderMesh(ctx.lib, copy, meshHandle), unionLaneSets(lane, provenanceOf(mesh)));
+      return derive(
+        'Voxels_RenderMesh',
+        (copy) => ctx.raw.Voxels_RenderMesh(ctx.lib, copy, meshHandle),
+        unionLaneSets(lane, provenanceOf(mesh)),
+      );
     },
     withLattice(lattice: Lattice): Voxels {
       assertSameSession(ctx, lattice, 'withLattice operand');
@@ -471,7 +519,15 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       const renderLattice = ctx.renderLatticeExport;
       return derive(renderLattice, (copy) => ctx.raw[renderLattice](ctx.lib, copy, latticeHandle));
     },
-    withImplicit({ sdf, boundsMin, boundsMax }: { sdf: SdfFunction | SdfExpression; boundsMin: Vec3; boundsMax: Vec3 }): Voxels {
+    withImplicit({
+      sdf,
+      boundsMin,
+      boundsMax,
+    }: {
+      sdf: SdfFunction | SdfExpression;
+      boundsMin: Vec3;
+      boundsMax: Vec3;
+    }): Voxels {
       if (typeof sdf === 'function') {
         return derive('Voxels_RenderImplicit', (copy) =>
           withSdfPointer(ctx, sdf, (sdfPointer) => {
@@ -487,7 +543,15 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
         withSdfTape(ctx, sdf, (instrPtr, instrCount, constPtr, constCount) => {
           ctx.writeVec3(ctx.scratch, boundsMin);
           ctx.writeVec3(ctx.scratch + VEC3_BYTES, boundsMax);
-          ctx.raw.Voxels_RenderImplicitTapeCompose(ctx.lib, copy, ctx.scratch, instrPtr, instrCount, constPtr, constCount);
+          ctx.raw.Voxels_RenderImplicitTapeCompose(
+            ctx.lib,
+            copy,
+            ctx.scratch,
+            instrPtr,
+            instrCount,
+            constPtr,
+            constCount,
+          );
         }),
       );
     },
@@ -500,7 +564,9 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       // hold; finer scales gain the correct narrow band (<1/3 mm was broken).
       if (typeof sdf === 'function') {
         return derive('Voxels_IntersectImplicitFast', (copy) =>
-          withSdfPointer(ctx, sdf, (sdfPointer) => ctx.raw.Voxels_IntersectImplicitFast(ctx.lib, copy, sdfPointer)),
+          withSdfPointer(ctx, sdf, (sdfPointer) =>
+            ctx.raw.Voxels_IntersectImplicitFast(ctx.lib, copy, sdfPointer),
+          ),
         );
       }
       return derive('Voxels_IntersectImplicitTapeFast', (copy) =>
@@ -520,7 +586,9 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       // crossing instead of four, and area comes along for free.
       const floats = ctx.scratch;
       const box = ctx.scratch + 8;
-      guard('Voxels_GetProperties', () => ctx.raw.Voxels_GetProperties(ctx.lib, live(), floats, floats + 4, box))();
+      guard('Voxels_GetProperties', () =>
+        ctx.raw.Voxels_GetProperties(ctx.lib, live(), floats, floats + 4, box),
+      )();
       return {
         volume: ctx.module.HEAPF32[floats >>> 2]!,
         area: ctx.module.HEAPF32[(floats + 4) >>> 2]!,
@@ -541,7 +609,8 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
         for (let b = 0; b < 4; b++) hash += ((word >>> (8 * b)) & 0xff).toString(16).padStart(2, '0');
       }
       // Counts are exact below 2^53 — a wasm32/wasm64 grid cannot reach that.
-      const u64 = (at: number) => ctx.module.HEAPU32[at >>> 2]! + ctx.module.HEAPU32[(at + 4) >>> 2]! * 2 ** 32;
+      const u64 = (at: number) =>
+        ctx.module.HEAPU32[at >>> 2]! + ctx.module.HEAPU32[(at + 4) >>> 2]! * 2 ** 32;
       return {
         hash,
         activeVoxels: u64(countsAt),
@@ -562,7 +631,9 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     },
     surfaceNormal(surfacePoint: Vec3): Vec3 {
       ctx.writeVec3(ctx.scratch, surfacePoint);
-      guard('Voxels_GetSurfaceNormal', () => ctx.raw.Voxels_GetSurfaceNormal(ctx.lib, live(), ctx.scratch, ctx.scratch + VEC3_BYTES))();
+      guard('Voxels_GetSurfaceNormal', () =>
+        ctx.raw.Voxels_GetSurfaceNormal(ctx.lib, live(), ctx.scratch, ctx.scratch + VEC3_BYTES),
+      )();
       return ctx.readVec3(ctx.scratch + VEC3_BYTES);
     },
     closestPointOnSurface(position: Vec3): Vec3 | null {
@@ -576,15 +647,27 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       ctx.writeVec3(ctx.scratch, position);
       ctx.writeVec3(ctx.scratch + VEC3_BYTES, direction);
       const hit = guard('Voxels_bRayCastToSurface', () =>
-        ctx.raw.Voxels_bRayCastToSurface(ctx.lib, live(), ctx.scratch, ctx.scratch + VEC3_BYTES, ctx.scratch + 2 * VEC3_BYTES),
+        ctx.raw.Voxels_bRayCastToSurface(
+          ctx.lib,
+          live(),
+          ctx.scratch,
+          ctx.scratch + VEC3_BYTES,
+          ctx.scratch + 2 * VEC3_BYTES,
+        ),
       )();
       return hit ? ctx.readVec3(ctx.scratch + 2 * VEC3_BYTES) : null;
     },
-    raycastBatch({ origins, directions }: { origins: ArrayLike<number>; directions: ArrayLike<number> }): { hits: Float32Array; hit: Uint8Array } {
+    raycastBatch({ origins, directions }: { origins: ArrayLike<number>; directions: ArrayLike<number> }): {
+      hits: Float32Array;
+      hit: Uint8Array;
+    } {
       live();
       const count = origins.length / 3;
       if (!Number.isInteger(count) || directions.length !== origins.length) {
-        throw new PicoError('PICO_INVALID_ARGUMENT', `raycastBatch needs matching xyz-triple arrays; got ${origins.length}/${directions.length} floats.`);
+        throw new PicoError(
+          'PICO_INVALID_ARGUMENT',
+          `raycastBatch needs matching xyz-triple arrays; got ${origins.length}/${directions.length} floats.`,
+        );
       }
       const bytes = count * VEC3_BYTES;
       const pointer = checkedMalloc(ctx.module, 2 * bytes + bytes + count, 'a raycast batch buffer');
@@ -592,30 +675,59 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
         ctx.module.HEAPF32.set(origins as ArrayLike<number> & number[], pointer >>> 2);
         ctx.module.HEAPF32.set(directions as ArrayLike<number> & number[], (pointer + bytes) >>> 2);
         guard('Voxels_RayCastBatch', () =>
-          ctx.raw.Voxels_RayCastBatch(ctx.lib, handle, pointer, pointer + bytes, count, pointer + 2 * bytes, pointer + 3 * bytes),
+          ctx.raw.Voxels_RayCastBatch(
+            ctx.lib,
+            handle,
+            pointer,
+            pointer + bytes,
+            count,
+            pointer + 2 * bytes,
+            pointer + 3 * bytes,
+          ),
         )();
-        const hits = new Float32Array(ctx.module.HEAPF32.subarray((pointer + 2 * bytes) >>> 2, ((pointer + 2 * bytes) >>> 2) + count * 3));
-        const hit = new Uint8Array(ctx.module.HEAPU8.subarray((pointer + 3 * bytes) >>> 0, ((pointer + 3 * bytes) >>> 0) + count));
+        const hits = new Float32Array(
+          ctx.module.HEAPF32.subarray((pointer + 2 * bytes) >>> 2, ((pointer + 2 * bytes) >>> 2) + count * 3),
+        );
+        const hit = new Uint8Array(
+          ctx.module.HEAPU8.subarray((pointer + 3 * bytes) >>> 0, ((pointer + 3 * bytes) >>> 0) + count),
+        );
         return { hits, hit };
       } finally {
         ctx.module._free(pointer);
       }
     },
-    closestPointsOnSurface({ points }: { points: ArrayLike<number> }): { points: Float32Array; found: Uint8Array } {
+    closestPointsOnSurface({ points }: { points: ArrayLike<number> }): {
+      points: Float32Array;
+      found: Uint8Array;
+    } {
       live();
       const count = points.length / 3;
       if (!Number.isInteger(count)) {
-        throw new PicoError('PICO_INVALID_ARGUMENT', `closestPointsOnSurface needs xyz triples; got ${points.length} floats.`);
+        throw new PicoError(
+          'PICO_INVALID_ARGUMENT',
+          `closestPointsOnSurface needs xyz triples; got ${points.length} floats.`,
+        );
       }
       const bytes = count * VEC3_BYTES;
       const pointer = checkedMalloc(ctx.module, 2 * bytes + count, 'a closest-point batch buffer');
       try {
         ctx.module.HEAPF32.set(points as ArrayLike<number> & number[], pointer >>> 2);
         guard('Voxels_ClosestPointBatch', () =>
-          ctx.raw.Voxels_ClosestPointBatch(ctx.lib, handle, pointer, count, pointer + bytes, pointer + 2 * bytes),
+          ctx.raw.Voxels_ClosestPointBatch(
+            ctx.lib,
+            handle,
+            pointer,
+            count,
+            pointer + bytes,
+            pointer + 2 * bytes,
+          ),
         )();
-        const out = new Float32Array(ctx.module.HEAPF32.subarray((pointer + bytes) >>> 2, ((pointer + bytes) >>> 2) + count * 3));
-        const found = new Uint8Array(ctx.module.HEAPU8.subarray((pointer + 2 * bytes) >>> 0, ((pointer + 2 * bytes) >>> 0) + count));
+        const out = new Float32Array(
+          ctx.module.HEAPF32.subarray((pointer + bytes) >>> 2, ((pointer + bytes) >>> 2) + count * 3),
+        );
+        const found = new Uint8Array(
+          ctx.module.HEAPU8.subarray((pointer + 2 * bytes) >>> 0, ((pointer + 2 * bytes) >>> 0) + count),
+        );
         return { points: out, found };
       } finally {
         ctx.module._free(pointer);
@@ -662,7 +774,9 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
           ctx.raw.Voxels_GetXSlice(ctx.lib, handle, at, buffer, backgroundPtr);
         }
         const background = ctx.module.HEAPF32[backgroundPtr >>> 2]!;
-        const data = new Float32Array(ctx.module.HEAPF32.subarray(buffer >>> 2, (buffer >>> 2) + width * height));
+        const data = new Float32Array(
+          ctx.module.HEAPF32.subarray(buffer >>> 2, (buffer >>> 2) + width * height),
+        );
         applyMode(data, mode, background);
         return { width, height, data, background };
       } finally {
@@ -674,20 +788,31 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     toMesh(): Mesh {
       return wrapMesh(
         ctx,
-        expectHandle('Mesh_hCreateFromVoxels', guard('Mesh_hCreateFromVoxels', () => ctx.raw.Mesh_hCreateFromVoxels(ctx.lib, live()))()),
+        expectHandle(
+          'Mesh_hCreateFromVoxels',
+          guard('Mesh_hCreateFromVoxels', () => ctx.raw.Mesh_hCreateFromVoxels(ctx.lib, live()))(),
+        ),
         lane,
       );
     },
     toScalarField(): ScalarField {
       return wrapScalarField(
         ctx,
-        expectHandle('ScalarField_hCreateFromVoxels', guard('ScalarField_hCreateFromVoxels', () => ctx.raw.ScalarField_hCreateFromVoxels(ctx.lib, live()))()),
+        expectHandle(
+          'ScalarField_hCreateFromVoxels',
+          guard('ScalarField_hCreateFromVoxels', () =>
+            ctx.raw.ScalarField_hCreateFromVoxels(ctx.lib, live()),
+          )(),
+        ),
         lane,
       );
     },
     get metadata(): Metadata {
       live();
-      return (metadataCache ??= wrapMetadata(ctx, expectHandle('Metadata_hFromVoxels', ctx.raw.Metadata_hFromVoxels(ctx.lib, handle))));
+      return (metadataCache ??= wrapMetadata(
+        ctx,
+        expectHandle('Metadata_hFromVoxels', ctx.raw.Metadata_hFromVoxels(ctx.lib, handle)),
+      ));
     },
     get memUsage() {
       return Number(guard('Voxels_nMemUsage', () => ctx.raw.Voxels_nMemUsage(ctx.lib, live()))());
@@ -721,17 +846,29 @@ function cubeVoxels(ctx: SessionContext, bounds: Bounds): bigint {
   const [minX, minY, minZ] = bounds.min;
   const [maxX, maxY, maxZ] = bounds.max;
   const corners: Vec3[] = [
-    [minX, minY, minZ], [minX, minY, maxZ], [minX, maxY, minZ], [minX, maxY, maxZ],
-    [maxX, minY, minZ], [maxX, minY, maxZ], [maxX, maxY, minZ], [maxX, maxY, maxZ],
+    [minX, minY, minZ],
+    [minX, minY, maxZ],
+    [minX, maxY, minZ],
+    [minX, maxY, maxZ],
+    [maxX, minY, minZ],
+    [maxX, minY, maxZ],
+    [maxX, maxY, minZ],
+    [maxX, maxY, maxZ],
   ];
   // Faces exactly as Utils.mshCreateCube orders them.
   const faces = [
-    [0, 1, 3], [0, 3, 2], // front (x-)
-    [4, 6, 7], [4, 7, 5], // back (x+)
-    [0, 2, 6], [0, 6, 4], // left
-    [1, 5, 7], [1, 7, 3], // right
-    [2, 3, 7], [2, 7, 6], // top
-    [0, 4, 5], [0, 5, 1], // bottom
+    [0, 1, 3],
+    [0, 3, 2], // front (x-)
+    [4, 6, 7],
+    [4, 7, 5], // back (x+)
+    [0, 2, 6],
+    [0, 6, 4], // left
+    [1, 5, 7],
+    [1, 7, 3], // right
+    [2, 3, 7],
+    [2, 7, 6], // top
+    [0, 4, 5],
+    [0, 5, 1], // bottom
   ];
   const meshHandle = expectHandle('Mesh_hCreate', ctx.raw.Mesh_hCreate(ctx.lib));
   try {

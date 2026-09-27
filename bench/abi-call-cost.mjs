@@ -81,7 +81,9 @@ const results = {};
 const record = (name, variants) => {
   results[name] = variants;
   for (const [variant, r] of Object.entries(variants)) {
-    console.log(`  ${name.padEnd(28)} ${variant.padEnd(8)} ${String(r.nsPerCall).padStart(8)} ns/call  (window ${r.minWindowMs} ms)`);
+    console.log(
+      `  ${name.padEnd(28)} ${variant.padEnd(8)} ${String(r.nsPerCall).padStart(8)} ns/call  (window ${r.minWindowMs} ms)`,
+    );
   }
 };
 
@@ -89,7 +91,18 @@ const record = (name, variants) => {
 // A fresh lattice per run: the beam vector must not carry growth across runs.
 const addBeamVariants = {};
 for (const [variant, fn] of [
-  ['ccall', module.cwrap('Lattice_AddBeam', null, ['bigint', 'bigint', 'number', 'number', 'number', 'number', 'boolean'])],
+  [
+    'ccall',
+    module.cwrap('Lattice_AddBeam', null, [
+      'bigint',
+      'bigint',
+      'number',
+      'number',
+      'number',
+      'number',
+      'boolean',
+    ]),
+  ],
   ['direct', module._Lattice_AddBeam],
   ['bound', raw.Lattice_AddBeam],
 ]) {
@@ -105,28 +118,40 @@ record('Lattice_AddBeam', addBeamVariants);
 // ── Lattice_bIsValid — the boolean-return path (the one shape that still needs a
 // JS wrapper after the repair: wasm returns i32, the API promises boolean). ──
 const lattice = raw.Lattice_hCreate(lib);
-record('Lattice_bIsValid', Object.fromEntries(
-  [
-    ['ccall', module.cwrap('Lattice_bIsValid', 'boolean', ['bigint', 'bigint'])],
-    ['direct', module._Lattice_bIsValid],
-    ['bound', raw.Lattice_bIsValid],
-  ].map(([variant, fn]) => [variant, floor((iters) => {
-    for (let i = 0; i < iters; i++) fn(lib, lattice);
-  })]),
-));
+record(
+  'Lattice_bIsValid',
+  Object.fromEntries(
+    [
+      ['ccall', module.cwrap('Lattice_bIsValid', 'boolean', ['bigint', 'bigint'])],
+      ['direct', module._Lattice_bIsValid],
+      ['bound', raw.Lattice_bIsValid],
+    ].map(([variant, fn]) => [
+      variant,
+      floor((iters) => {
+        for (let i = 0; i < iters; i++) fn(lib, lattice);
+      }),
+    ]),
+  ),
+);
 
 // ── Voxels_bIsEmpty on an empty-ish field — near-zero C++ work, so this row is
 // the pure-crossing floor the AddBeam number decomposes against. ──
 const voxels = raw.Voxels_hCreate(lib);
-record('Voxels_bIsEmpty', Object.fromEntries(
-  [
-    ['ccall', module.cwrap('Voxels_bIsEmpty', 'boolean', ['bigint', 'bigint'])],
-    ['direct', module._Voxels_bIsEmpty],
-    ['bound', raw.Voxels_bIsEmpty],
-  ].map(([variant, fn]) => [variant, floor((iters) => {
-    for (let i = 0; i < iters; i++) fn(lib, voxels);
-  })]),
-));
+record(
+  'Voxels_bIsEmpty',
+  Object.fromEntries(
+    [
+      ['ccall', module.cwrap('Voxels_bIsEmpty', 'boolean', ['bigint', 'bigint'])],
+      ['direct', module._Voxels_bIsEmpty],
+      ['bound', raw.Voxels_bIsEmpty],
+    ].map(([variant, fn]) => [
+      variant,
+      floor((iters) => {
+        for (let i = 0; i < iters; i++) fn(lib, voxels);
+      }),
+    ]),
+  ),
+);
 
 raw.Voxels_Destroy(lib, voxels);
 raw.Lattice_Destroy(lib, lattice);

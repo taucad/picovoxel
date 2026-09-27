@@ -62,9 +62,16 @@ async function main(): Promise<void> {
   try {
     // Parsed lazily so engines without explicit-resource-management still load the gate.
     new Function('const o = { [Symbol.dispose]() { globalThis.__usingRan = true; } }; { using x = o; }')();
-    check('`using` runs against the shimmed symbol', (globalThis as { __usingRan?: boolean }).__usingRan === true);
+    check(
+      '`using` runs against the shimmed symbol',
+      (globalThis as { __usingRan?: boolean }).__usingRan === true,
+    );
   } catch {
-    check('`using` unsupported by this engine — shim still present (tolerated)', typeof Symbol.dispose === 'symbol', '[no-erm-syntax]');
+    check(
+      '`using` unsupported by this engine — shim still present (tolerated)',
+      typeof Symbol.dispose === 'symbol',
+      '[no-erm-syntax]',
+    );
   }
 
   // ── Session ──
@@ -74,19 +81,28 @@ async function main(): Promise<void> {
 
   // ── Pure-wasm determinism: EXACT vs the node record ──
   const sphere = pk.createVoxels({ shape: 'sphere', radius: 10 });
-  check('sphere volume EXACT vs node (hex float)', hexFloat(sphere.volume) === records.sphereVolumeHex,
-    `${hexFloat(sphere.volume)} vs ${records.sphereVolumeHex}`);
+  check(
+    'sphere volume EXACT vs node (hex float)',
+    hexFloat(sphere.volume) === records.sphereVolumeHex,
+    `${hexFloat(sphere.volume)} vs ${records.sphereVolumeHex}`,
+  );
   const sphereMesh = sphere.toMesh();
-  check('sphere mesh counts EXACT vs node',
-    sphereMesh.vertexCount === records.sphereVertexCount && sphereMesh.triangleCount === records.sphereTriangleCount,
-    `${sphereMesh.vertexCount}/${sphereMesh.triangleCount} vs ${records.sphereVertexCount}/${records.sphereTriangleCount}`);
+  check(
+    'sphere mesh counts EXACT vs node',
+    sphereMesh.vertexCount === records.sphereVertexCount &&
+      sphereMesh.triangleCount === records.sphereTriangleCount,
+    `${sphereMesh.vertexCount}/${sphereMesh.triangleCount} vs ${records.sphereVertexCount}/${records.sphereTriangleCount}`,
+  );
 
   // ── Facade booleans (SG11 purity) ──
   const rod = pk.createVoxels({ shape: 'beam', start: [0, 0, -20], end: [0, 0, 20], radius: 3 });
   const before = sphere.volume;
   const drilled = sphere.subtract(rod);
-  check('facade booleans pure', sphere.volume === before && drilled.volume < before,
-    `${before.toFixed(0)} -> ${drilled.volume.toFixed(0)}`);
+  check(
+    'facade booleans pure',
+    sphere.volume === before && drilled.volume < before,
+    `${before.toFixed(0)} -> ${drilled.volume.toFixed(0)}`,
+  );
 
   // ── JS-callback path: tolerance vs node (Math.sin differs across engines) ──
   const s = (2 * Math.PI) / 10;
@@ -97,13 +113,22 @@ async function main(): Promise<void> {
     boundsMax: [12, 12, 12],
     sdf: (x, y, z) => {
       calls++;
-      return Math.abs(Math.sin(x * s) * Math.cos(y * s) + Math.sin(y * s) * Math.cos(z * s) + Math.sin(z * s) * Math.cos(x * s)) - 0.4;
+      return (
+        Math.abs(
+          Math.sin(x * s) * Math.cos(y * s) +
+            Math.sin(y * s) * Math.cos(z * s) +
+            Math.sin(z * s) * Math.cos(x * s),
+        ) - 0.4
+      );
     },
   });
   check('JS SDF callback drives RenderImplicit', calls > 100_000, `${calls} samples`);
   const gyroidError = Math.abs(gyroid.volume - records.gyroidVolume) / records.gyroidVolume;
-  check('gyroid volume within 0.5% of node record', gyroidError < 0.005,
-    `${gyroid.volume.toFixed(1)} vs ${records.gyroidVolume.toFixed(1)} (${(gyroidError * 100).toFixed(3)}%)`);
+  check(
+    'gyroid volume within 0.5% of node record',
+    gyroidError < 0.005,
+    `${gyroid.volume.toFixed(1)} vs ${records.gyroidVolume.toFixed(1)} (${(gyroidError * 100).toFixed(3)}%)`,
+  );
 
   // ── Tape path (TP1/TP6): evaluated entirely in wasm (musl libm), so the
   // interval-pruned parallel fill must be EXACT across engines — the stronger
@@ -112,14 +137,25 @@ async function main(): Promise<void> {
     shape: 'implicit',
     boundsMin: [-12, -12, -12],
     boundsMax: [12, 12, 12],
-    sdf: ['-', ['abs', ['+',
-      ['*', ['sin', ['*', 'x', s]], ['cos', ['*', 'y', s]]],
-      ['*', ['sin', ['*', 'y', s]], ['cos', ['*', 'z', s]]],
-      ['*', ['sin', ['*', 'z', s]], ['cos', ['*', 'x', s]]]]], 0.4],
+    sdf: [
+      '-',
+      [
+        'abs',
+        [
+          '+',
+          ['*', ['sin', ['*', 'x', s]], ['cos', ['*', 'y', s]]],
+          ['*', ['sin', ['*', 'y', s]], ['cos', ['*', 'z', s]]],
+          ['*', ['sin', ['*', 'z', s]], ['cos', ['*', 'x', s]]],
+        ],
+      ],
+      0.4,
+    ],
   });
-  check('tape gyroid volume EXACT vs node (hex float)',
+  check(
+    'tape gyroid volume EXACT vs node (hex float)',
     hexFloat(tapeGyroid.volume) === records.tapeGyroidVolumeHex,
-    `${hexFloat(tapeGyroid.volume)} vs ${records.tapeGyroidVolumeHex}`);
+    `${hexFloat(tapeGyroid.volume)} vs ${records.tapeGyroidVolumeHex}`,
+  );
   tapeGyroid.dispose();
 
   // ── Gear through the bulk import path: counts exact ──
@@ -129,27 +165,44 @@ async function main(): Promise<void> {
   const triangles: number[] = [];
   const arrayBuilder = {
     meshCreate: () => 0n,
-    addVertex: (_l: bigint, _m: bigint, x: number, y: number, z: number) => (vertices.push(x, y, z), vertices.length / 3 - 1),
-    addTriangle: (_l: bigint, _m: bigint, a: number, b: number, c: number) => (triangles.push(a, b, c), triangles.length / 3 - 1),
+    addVertex: (_l: bigint, _m: bigint, x: number, y: number, z: number) => (
+      vertices.push(x, y, z), vertices.length / 3 - 1
+    ),
+    addTriangle: (_l: bigint, _m: bigint, a: number, b: number, c: number) => (
+      triangles.push(a, b, c), triangles.length / 3 - 1
+    ),
   };
   const { buildGearMesh } = await import('../../examples/pico/gear.ts');
   buildGearMesh(arrayBuilder, 0n);
   const gearMesh = pk.createMesh({ vertices, triangles });
-  check('gear counts EXACT (R8 bulk import)',
+  check(
+    'gear counts EXACT (R8 bulk import)',
     gearMesh.vertexCount === records.gearVertexCount && gearMesh.triangleCount === records.gearTriangleCount,
-    `${gearMesh.vertexCount}/${gearMesh.triangleCount} vs ${records.gearVertexCount}/${records.gearTriangleCount}`);
+    `${gearMesh.vertexCount}/${gearMesh.triangleCount} vs ${records.gearVertexCount}/${records.gearTriangleCount}`,
+  );
   check('gear caps triangulated', caps.length > 0, `${caps.length} cap triangles`);
 
   // ── STL + slicing subpaths run in-browser ──
   const stl = gearMesh.toStl();
   const back = pk.meshFromStl(stl);
-  check('STL round-trip in page', back.triangleCount === gearMesh.triangleCount, `${back.triangleCount} tris`);
+  check(
+    'STL round-trip in page',
+    back.triangleCount === gearMesh.triangleCount,
+    `${back.triangleCount} tris`,
+  );
   const contours = contoursFromSdf({
     width: 60,
     height: 60,
-    data: Float32Array.from({ length: 3600 }, (_, i) => Math.hypot((i % 60) - 30, Math.floor(i / 60) - 30) - 20),
+    data: Float32Array.from(
+      { length: 3600 },
+      (_, i) => Math.hypot((i % 60) - 30, Math.floor(i / 60) - 30) - 20,
+    ),
   });
-  check('slicing vectorizer in page', contours.length === 1 && contours[0]!.winding === 'ccw', `${contours.length} contour(s)`);
+  check(
+    'slicing vectorizer in page',
+    contours.length === 1 && contours[0]!.winding === 'ccw',
+    `${contours.length} contour(s)`,
+  );
 
   // ── GC pressure loop (disposal doc, tolerated nondeterminism) ──
   const gcSession = await createPico({ voxelSize: 1.5 });
@@ -183,13 +236,20 @@ async function main(): Promise<void> {
   back.dispose();
   gyroid.dispose();
   const leaked = Object.entries(pk.allocated).filter(([, n]) => n !== 0);
-  check('no leaked handles after explicit disposal', leaked.length === 0, JSON.stringify(Object.fromEntries(leaked)));
+  check(
+    'no leaked handles after explicit disposal',
+    leaked.length === 0,
+    JSON.stringify(Object.fromEntries(leaked)),
+  );
   pk.dispose();
 }
 
 main()
   .catch((error: unknown) => {
-    check(`unexpected failure: ${(error as { code?: string }).code ?? ''} ${(error as Error).message ?? error}`, false);
+    check(
+      `unexpected failure: ${(error as { code?: string }).code ?? ''} ${(error as Error).message ?? error}`,
+      false,
+    );
     console.error(error);
   })
   .finally(() => {

@@ -130,7 +130,9 @@ const attachDeviceDiagnostics = (
   );
 };
 
-export const requestWebGpuDevice = async (options: RequestWebGpuDeviceOptions = {}): Promise<WebGpuCapability> => {
+export const requestWebGpuDevice = async (
+  options: RequestWebGpuDeviceOptions = {},
+): Promise<WebGpuCapability> => {
   const gpu = resolveGpu(options.gpu);
   if (gpu === null) return { reason: 'api-missing', status: 'unavailable' };
 
@@ -159,7 +161,9 @@ export const requestWebGpuDevice = async (options: RequestWebGpuDeviceOptions = 
   }
 
   const requiredLimits = Object.freeze(
-    Object.fromEntries(LIMIT_NAMES.map((limit) => [limit, Math.min(desiredLimits[limit], adapterLimits[limit])])),
+    Object.fromEntries(
+      LIMIT_NAMES.map((limit) => [limit, Math.min(desiredLimits[limit], adapterLimits[limit])]),
+    ),
   ) as unknown as LimitTable;
   const adapterFeatures = [...adapter.features.values()].sort();
   const requiredFeatures = OPTIONAL_FEATURES.filter((feature) => adapter.features.has(feature));
