@@ -51,25 +51,50 @@ const docs = readdirSync(new URL('docs/', repository))
   .filter((name) => name.endsWith('.md'))
   .map((name) => ({ name: `docs/${name}`, text: readFileSync(new URL(`docs/${name}`, repository), 'utf8') }));
 
-/** The JavaScript and TypeScript fences of one Markdown file, with their `##` heading. */
+// Fence languages typechecked as JavaScript or TypeScript modules, and the
+// JavaScript-like ones that are refused rather than skipped: a fence the check
+// cannot read must fail the run, never drop out of it silently.
+const CHECKED = { js: 'mjs', javascript: 'mjs', mjs: 'mjs', ts: 'mts', typescript: 'mts', mts: 'mts' };
+const JS_LIKE = /^(?:[cm]?[jt]sx?|javascript|typescript|ecmascript|es\d*|node)$/u;
+
+/**
+ * The JavaScript and TypeScript fences of one Markdown file, with their `##`
+ * heading. Backtick and tilde fences of any length and indentation are read;
+ * the info string's first word is the language.
+ */
 function fences({ name, text }) {
   const found = [];
   let heading = '';
   let fence = null;
-  for (const line of text.split('\n')) {
+  for (const [index, line] of text.split('\n').entries()) {
     if (fence) {
-      if (line.startsWith('```')) {
-        found.push(fence);
+      const closing = line.trim();
+      if (closing.startsWith(fence.marker) && /^(?:`+|~+)$/u.test(closing)) {
+        if (fence.extension) found.push(fence);
         fence = null;
-      } else fence.code += `${line}\n`;
-    } else if (line.startsWith('```')) {
-      const language = line.slice(3).trim();
-      if (['js', 'javascript', 'ts', 'typescript'].includes(language))
-        fence = { name, heading, typescript: language.startsWith('t'), code: '' };
-      else fence = { name, heading, skip: true, code: '' };
+      } else fence.code += `${line.slice(Math.min(fence.indent, line.length - line.trimStart().length))}\n`;
+      continue;
+    }
+    const open = /^( *)(`{3,}|~{3,})\s*([^\s`]*)/u.exec(line);
+    if (open) {
+      const [, indent, marker, info] = open;
+      const language = info.toLowerCase();
+      if (!Object.hasOwn(CHECKED, language) && JS_LIKE.test(language))
+        throw new Error(
+          `${name}:${index + 1}: fence language '${info}' is JavaScript-like but not typechecked`,
+        );
+      fence = {
+        name,
+        heading,
+        marker,
+        indent: indent.length,
+        extension: Object.hasOwn(CHECKED, language) ? CHECKED[language] : undefined,
+        code: '',
+      };
     } else if (line.startsWith('## ')) heading = line.slice(3).trim();
   }
-  return found.filter(({ skip }) => !skip);
+  if (fence) throw new Error(`${name}: unclosed fence`);
+  return found;
 }
 
 const smoke = String.raw`
@@ -198,11 +223,13 @@ try {
   if (!quickStartFence) throw new Error('README.md has no JavaScript fence under "## Quick start"');
   // The README says to replace 'picovoxel' with 'picovoxel/multi' for threads.
   const quickStart = `${quickStartFence.code}\nexport { stl };\n`;
+  const quickStartMulti = quickStart.replaceAll(/(['"])picovoxel\1/gu, '$1picovoxel/multi$1');
+  if (quickStartMulti === quickStart)
+    throw new Error(
+      "the README quick start fence does not import 'picovoxel', so it cannot run on picovoxel/multi",
+    );
   writeFileSync(join(directory, 'quick-start.mjs'), quickStart);
-  writeFileSync(
-    join(directory, 'quick-start-multi.mjs'),
-    quickStart.replaceAll("'picovoxel'", "'picovoxel/multi'"),
-  );
+  writeFileSync(join(directory, 'quick-start-multi.mjs'), quickStartMulti);
   writeFileSync(join(directory, 'smoke.mjs'), smoke);
   execFileSync(process.execPath, ['smoke.mjs'], { cwd: directory, stdio: 'inherit' });
   typecheckConsumers(directory);
@@ -306,8 +333,8 @@ function typecheckFences(directory) {
   const all = [readme, ...docs].flatMap(fences);
   if (all.length === 0) throw new Error('no JavaScript fences found in README.md or docs/*.md');
   mkdirSync(join(directory, 'fences'));
-  const files = all.map(({ name, typescript }, index) => {
-    const file = `${name.replaceAll(/[^a-z0-9]+/giu, '-')}-${index}.${typescript ? 'mts' : 'mjs'}`;
+  const files = all.map(({ name, extension }, index) => {
+    const file = `${name.replaceAll(/[^a-z0-9]+/giu, '-')}-${index}.${extension}`;
     writeFileSync(join(directory, 'fences', file), all[index].code);
     return file;
   });
