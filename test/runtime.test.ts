@@ -1,0 +1,343 @@
+// TAU-L1 / D31 (picovoxel production close-out) — createPicoRuntime: one module
+// (and, on /multi, one warm pthread pool) shared by many sessions, each its own
+// PicoGK Library instance. Covers the borrowed runtime, per-session isolation,
+// dispose ordering, the two GC invariants (late frees against a destroyed instance
+// are swallowed; handles are never reused), the compile-once instantiation paths,
+// the PV-W1 voxel-unit warm-up, and pool reuse across sessions.
+
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { test } from 'vitest';
+import * as serialEntry from '../src/index.ts';
+import * as multiEntry from '../src/multi.ts';
+import createSerialGlue from '../src/pico.mjs';
+import { bindPicoRaw } from '../src/raw.generated.ts';
+import { freeHeld } from '../src/registry.ts';
+import {
+  createPicoSession,
+  openPicoRuntime,
+  warmUpOp,
+  WARM_OFFSET_VOXELS,
+  WARM_RADIUS_VOXELS,
+  type Pico,
+  type PicoGlueFactory,
+  type PicoRuntime,
+} from '../src/session.ts';
+import type { PicoWasmModule } from '../src/types.ts';
+import { createFakeRegistry, gcUntil, hexFloat } from './helpers.ts';
+
+const serialGlue = createSerialGlue as PicoGlueFactory;
+const raiseInvalidHandle = (): never => {
+  throw new serialEntry.PicoError('PICO_INVALID_HANDLE', 'late free');
+};
+const isPicoError = (code: string) => (error: unknown) =>
+  error instanceof serialEntry.PicoError && error.code === code;
+
+/** A small model that exercises the per-session voxel size, offset lane and lattice arm. */
+function model(pk: Pico): { volume: string; offset: string; lattice: string } {
+  const sphere = pk.createVoxels({ shape: 'sphere', radius: 6 });
+  const lattice = pk.createLattice();
+  lattice.addBeam({ start: [0, 0, 0], end: [10, 0, 0], radius: 2 });
+  lattice.addBeam({ start: [10, 0, 0], end: [10, 10, 0], radius: 1.5 });
+  return {
+    volume: hexFloat(sphere.volume),
+    offset: sphere.offset({ distance: 1 }).gridHash().hash,
+    lattice: lattice.toVoxels().gridHash().hash,
+  };
+}
+
+test('surface: createPicoRuntime on both entries; a runtime is { createPico, dispose } with [Symbol.dispose]', async () => {
+  assert.equal(typeof serialEntry.createPicoRuntime, 'function');
+  assert.equal(typeof multiEntry.createPicoRuntime, 'function');
+  const runtime = await serialEntry.createPicoRuntime();
+  assert.deepEqual(Object.keys(runtime).sort(), ['createPico', 'dispose']);
+  assert.equal((runtime as unknown as Record<symbol, unknown>)[Symbol.dispose], runtime.dispose);
+  runtime.dispose();
+});
+
+test('isolation: sessions on one runtime keep their own voxel size, lane and lattice arm', async () => {
+  const runtime = await serialEntry.createPicoRuntime();
+  const shapes = [
+    { voxelSize: 0.5 },
+    { voxelSize: 0.4, lane: 'fast' as const },
+    { voxelSize: 0.4, lane: 'exact' as const, serialLattice: true },
+    { voxelSize: 0.7, fastRenorm: true },
+  ];
+  const borrowed = await Promise.all(shapes.map((options) => runtime.createPico(options)));
+  try {
+    assert.ok(borrowed.every((pk) => pk.module === borrowed[0]!.module), 'one module under every session');
+    assert.equal(new Set(borrowed.map((pk) => pk.handle)).size, shapes.length, 'one Library instance per session');
+    assert.deepEqual(
+      borrowed.map((pk) => [pk.voxelSize, pk.lane]),
+      [[0.5, 'open'], [0.4, 'fast'], [0.4, 'exact'], [0.7, 'open']],
+    );
+    // Each borrowed session builds exactly what a standalone session with the same
+    // options builds — interleaved, so any state leaking between instances shows.
+    const results = borrowed.map(model);
+    for (const [i, options] of shapes.entries()) {
+      const own = await serialEntry.createPico(options);
+      try {
+        assert.deepEqual(results[i], model(own), `session ${i} matches its standalone twin`);
+      } finally {
+        own.dispose();
+      }
+    }
+    assert.notEqual(results[0]!.offset, results[3]!.offset, 'fastRenorm stays per session');
+    assert.notEqual(results[1]!.lattice, results[2]!.lattice, 'serialLattice stays per session');
+
+    // SG10 still holds between sessions that share a module.
+    const a = borrowed[0]!.createVoxels({ shape: 'sphere', radius: 2 });
+    const b = borrowed[3]!.createVoxels({ shape: 'sphere', radius: 2 });
+    assert.throws(() => a.union(b), isPicoError('PICO_SESSION_MISMATCH'));
+  } finally {
+    runtime.dispose();
+  }
+});
+
+test('session dispose frees only its own instance; siblings and the runtime carry on', async () => {
+  const runtime = await serialEntry.createPicoRuntime();
+  const a = await runtime.createPico({ voxelSize: 0.5 });
+  const b = await runtime.createPico({ voxelSize: 0.5 });
+  const kept = b.createVoxels({ shape: 'sphere', radius: 4 });
+  const volume = kept.volume;
+  a.createVoxels({ shape: 'sphere', radius: 4 });
+  a.dispose();
+  assert.throws(() => a.createVoxels({ shape: 'empty' }), isPicoError('PICO_DISPOSED'));
+  assert.equal(b.allocated.voxels, 1, 'the sibling keeps its objects');
+  assert.equal(kept.volume, volume);
+  const c = await runtime.createPico();
+  assert.equal(c.module, b.module, 'the runtime still opens sessions');
+  runtime.dispose();
+});
+
+test('handles are never reused: within a session, and across sessions on one runtime', async () => {
+  const runtime = await serialEntry.createPicoRuntime();
+  const a = await runtime.createPico();
+  const first = a.createVoxels({ shape: 'sphere', radius: 2 });
+  const firstHandle = first.handle;
+  first.dispose();
+  const second = a.createVoxels({ shape: 'sphere', radius: 2 });
+  assert.ok(second.handle > firstHandle, 'a freed handle is never reissued');
+
+  // Object handles restart per instance, but instance handles never repeat, so a
+  // stale wrapper from a disposed session can only fail — never reach a sibling's
+  // object that happens to carry the same number.
+  const stale = a.createVoxels({ shape: 'sphere', radius: 3 });
+  a.dispose();
+  const b = await runtime.createPico();
+  assert.ok(b.handle > a.handle, 'Library instance handles only grow');
+  let victim = b.createVoxels({ shape: 'sphere', radius: 5 });
+  while (victim.handle < stale.handle) victim = b.createVoxels({ shape: 'sphere', radius: 5 });
+  assert.equal(victim.handle, stale.handle, 'the same object number, in a different instance');
+  const victimVolume = victim.volume;
+  assert.throws(() => stale.volume, isPicoError('PICO_INVALID_HANDLE'));
+  assert.equal(victim.volume, victimVolume, "the sibling's object is untouched");
+  runtime.dispose();
+});
+
+test('runtime dispose: open sessions first (they refuse use), then idempotent; late disposes are no-ops', async () => {
+  const runtime = await serialEntry.createPicoRuntime();
+  const pk = await runtime.createPico();
+  const sphere = pk.createVoxels({ shape: 'sphere', radius: 3 });
+  runtime.dispose();
+  assert.throws(() => pk.createVoxels({ shape: 'empty' }), isPicoError('PICO_DISPOSED'));
+  assert.throws(() => pk.allocated, isPicoError('PICO_DISPOSED'));
+  assert.doesNotThrow(() => sphere.dispose(), 'D4: teardown won, the wrapper does not free');
+  assert.doesNotThrow(() => pk.dispose(), 'the session was already released by the runtime');
+  assert.doesNotThrow(() => runtime.dispose(), 'idempotent');
+  await assert.rejects(() => runtime.createPico(), isPicoError('PICO_DISPOSED'));
+});
+
+test('late GC frees against a destroyed instance are swallowed', async () => {
+  const fake = createFakeRegistry(freeHeld); // collect() goes through the real callback
+  const runtime = await serialEntry.createPicoRuntime();
+  const pk = await runtime.createPico({ registry: fake });
+  const sphere = pk.createVoxels({ shape: 'sphere', radius: 3 });
+  const held = fake.entries.get(sphere as object)!.held;
+  runtime.dispose();
+  assert.doesNotThrow(() => fake.collect(sphere as object), 'a wrapper free after runtime teardown is harmless');
+  assert.doesNotThrow(() => freeHeld({ ...held, free: () => raiseInvalidHandle() }), 'and freeHeld swallows a throwing free');
+  assert.doesNotThrow(() => fake.collect(pk as object), "the session's own GC free is a no-op once released");
+});
+
+test('real GC: a dropped session on a live runtime is reclaimed through the runtime registry', async () => {
+  const runtime = await serialEntry.createPicoRuntime();
+  const probe = await runtime.createPico();
+  const raw = bindPicoRaw(probe.module);
+  const open = async (): Promise<bigint> => (await runtime.createPico()).handle; // the wrapper dies here
+  const lib = await open();
+  assert.equal(raw.Library_nVoxelsAllocated(lib), 0n, 'the dropped instance exists before GC');
+  const reclaimed = await gcUntil(() => {
+    try {
+      raw.Library_nVoxelsAllocated(lib);
+      return false;
+    } catch {
+      return true; // the instance is gone
+    }
+  });
+  assert.ok(reclaimed, 'a dropped session must not leak its Library instance on a shared runtime');
+  runtime.dispose();
+});
+
+test('runtime.createPico takes session options only', async () => {
+  const runtime = await serialEntry.createPicoRuntime({ wasm: {} });
+  await assert.rejects(() => runtime.createPico({ wasm: {} } as never), isPicoError('PICO_INVALID_ARGUMENT'));
+  await assert.rejects(() => runtime.createPico({ wasmModule: undefined } as never), isPicoError('PICO_INVALID_ARGUMENT'));
+  await assert.rejects(() => runtime.createPico({ voxelSize: -1 }), isPicoError('PICO_INVALID_ARGUMENT'));
+  await assert.rejects(() => runtime.createPico({ lane: 'exact', fastRenorm: true }), isPicoError('PICO_LANE_LOOSENED'));
+  runtime.dispose();
+});
+
+test('compile once: wasmModule and wasm.instantiateWasm both skip the glue fetch+compile', async () => {
+  const compiled = await WebAssembly.compile(readFileSync(join(import.meta.dirname, '..', 'src', 'pico.wasm')));
+  const reference = await serialEntry.createPico();
+  const expected = model(reference);
+  reference.dispose();
+
+  const fromModule = await serialEntry.createPicoRuntime({ wasmModule: compiled });
+  const viaModule = await fromModule.createPico();
+  assert.deepEqual(model(viaModule), expected);
+  fromModule.dispose();
+
+  // The standalone factory takes the same option.
+  const standalone = await serialEntry.createPico({ wasmModule: compiled });
+  assert.deepEqual(model(standalone), expected);
+  standalone.dispose();
+
+  let calls = 0;
+  const hostRuntime = await serialEntry.createPicoRuntime({
+    wasm: {
+      instantiateWasm(imports: WebAssembly.Imports, receive: (instance: WebAssembly.Instance) => void) {
+        calls += 1;
+        void WebAssembly.instantiate(compiled, imports).then(receive);
+        return {};
+      },
+    },
+  });
+  assert.deepEqual(model(await hostRuntime.createPico()), expected);
+  assert.equal(calls, 1, "the host's instantiateWasm ran once");
+  hostRuntime.dispose();
+});
+
+test('compile once: contradictory and wrong modules fail loudly, never hang', async () => {
+  const compiled = await WebAssembly.compile(readFileSync(join(import.meta.dirname, '..', 'src', 'pico.wasm')));
+  await assert.rejects(
+    () => serialEntry.createPicoRuntime({ wasmModule: compiled, wasm: { instantiateWasm: () => ({}) } }),
+    isPicoError('PICO_INVALID_ARGUMENT'),
+  );
+  // A module whose single import ("x"."y") the glue cannot satisfy: instantiate
+  // rejects inside instantiateWasm, where the glue offers no reject path.
+  const foreign = await WebAssembly.compile(
+    Uint8Array.of(0, 97, 115, 109, 1, 0, 0, 0, 1, 4, 1, 96, 0, 0, 2, 7, 1, 1, 120, 1, 121, 0, 0),
+  );
+  await assert.rejects(() => serialEntry.createPicoRuntime({ wasmModule: foreign }), isPicoError('PICO_WASM_INIT_FAILED'));
+});
+
+test('a failed warm-up disposes the runtime before rethrowing', async () => {
+  let warmed: PicoRuntime | undefined;
+  const failure = new Error('warm-up failed');
+  await assert.rejects(
+    () =>
+      openPicoRuntime(serialGlue, {}, async (runtime) => {
+        warmed = runtime;
+        throw failure;
+      }),
+    (error) => error === failure,
+  );
+  await assert.rejects(() => warmed!.createPico(), isPicoError('PICO_DISPOSED'));
+});
+
+test('a standalone session that fails to open takes its runtime down with it', async () => {
+  let terminated = 0;
+  let module: PicoWasmModule | undefined;
+  const starved: PicoGlueFactory = async (overrides) => {
+    module = await serialGlue(overrides);
+    module._malloc = () => 0; // the session scratch allocation fails
+    module.PThread = { runningWorkers: [], unusedWorkers: [], terminateAllThreads: () => void (terminated += 1) };
+    return module;
+  };
+  await assert.rejects(() => createPicoSession(starved, {}), isPicoError('PICO_OUT_OF_MEMORY'));
+  assert.equal(terminated, 1, 'the runtime was disposed, pool join included');
+  // The Library instance created before the failed allocation was destroyed too.
+  const raw = bindPicoRaw(module!);
+  const next = raw.Library_hCreateInstance(0.5);
+  assert.throws(() => raw.Library_nVoxelsAllocated(next - 1n), 'the failed session left no instance behind');
+  raw.Library_DestroyInstance(next);
+});
+
+test('PV-W1: the warm-up op does the same voxel work at every voxel size', async () => {
+  const runtime = await serialEntry.createPicoRuntime();
+  try {
+    const counts: number[] = [];
+    for (const voxelSize of [0.02, 0.1, 0.5, 2]) {
+      const pk = await runtime.createPico({ voxelSize });
+      const warm = warmUpOp(pk);
+      counts.push(warm.gridHash().activeVoxels);
+      assert.equal(pk.allocated.voxels, 1, 'the warm-up sphere is freed; only the result the caller owns remains');
+      pk.dispose();
+    }
+    assert.ok(counts[0]! > 0);
+    assert.deepEqual(new Set(counts).size, 1, `constant active-voxel count across voxel sizes, got ${counts}`);
+    assert.deepEqual([WARM_RADIUS_VOXELS, WARM_OFFSET_VOXELS], [4, 1], 'the historical default-size warm-up');
+  } finally {
+    runtime.dispose();
+  }
+});
+
+// ── picovoxel/multi: one pool for every session ──
+
+test('multi runtime: N sessions, one module, one pool spawn, workers engaged, serial-identical', async () => {
+  const runtime = await multiEntry.createPicoRuntime();
+  const serial = await serialEntry.createPico({ voxelSize: 0.5 });
+  const expected = model(serial);
+  serial.dispose();
+
+  const first = await runtime.createPico({ voxelSize: 0.5 });
+  const pool = first.module.PThread!;
+  const workers = new Set([...pool.runningWorkers, ...pool.unusedWorkers]);
+  assert.ok(pool.runningWorkers.length > 0, 'the runtime warm-up launched the TBB workers');
+  let spawned = 0;
+  const spawn = (pool as unknown as { allocateUnusedWorker: () => void }).allocateUnusedWorker;
+  (pool as unknown as { allocateUnusedWorker: () => void }).allocateUnusedWorker = () => {
+    spawned += 1;
+    spawn();
+  };
+
+  const N = 4;
+  for (let i = 0; i < N; i++) {
+    const pk = i === 0 ? first : await runtime.createPico({ voxelSize: 0.5 });
+    assert.equal(pk.module, first.module, `session ${i} borrows the one module`);
+    assert.deepEqual(model(pk), expected, `session ${i} matches the serial oracle`);
+    assert.ok(pool.runningWorkers.length > 0, `session ${i} runs on the warm pool`);
+    pk.dispose();
+    assert.ok(pool.runningWorkers.length > 0, 'session dispose leaves the pool running');
+  }
+  assert.equal(spawned, 0, 'no worker was spawned after the runtime came up');
+  assert.deepEqual(new Set([...pool.runningWorkers, ...pool.unusedWorkers]), workers, 'the same workers throughout');
+
+  runtime.dispose();
+  assert.equal(pool.runningWorkers.length + pool.unusedWorkers.length, 0, 'runtime dispose joins the pool (SK-0.4 §10)');
+});
+
+test('multi createPico: the standalone session still owns its pool and terminates it on dispose', async () => {
+  const pk = await multiEntry.createPico({ voxelSize: 0.5 });
+  const pool = pk.module.PThread!;
+  assert.ok(pool.runningWorkers.length > 0);
+  pk.dispose();
+  assert.equal(pool.runningWorkers.length + pool.unusedWorkers.length, 0);
+});
+
+test('multi runtime from a compiled module: the module reaches every pthread', async () => {
+  const compiled = await WebAssembly.compile(readFileSync(join(import.meta.dirname, '..', 'src', 'pico-multi.wasm')));
+  const runtime = await multiEntry.createPicoRuntime({ wasmModule: compiled });
+  const serial = await serialEntry.createPico({ voxelSize: 0.5 });
+  try {
+    const pk = await runtime.createPico({ voxelSize: 0.5 });
+    assert.ok(pk.module.PThread!.runningWorkers.length > 0, 'workers instantiated the caller-compiled module');
+    assert.deepEqual(model(pk), model(serial));
+  } finally {
+    serial.dispose();
+    runtime.dispose();
+  }
+});

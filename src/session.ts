@@ -6,6 +6,13 @@
 // serial and pthread variants stay out of each other's module graphs. index.ts binds
 // pico.mjs, multi.ts binds pico-multi.mjs; everything downstream is shared.
 //
+// Two lifetimes (TAU-L1, D31 of the production close-out): a RUNTIME is one
+// instantiated wasm module (and, on the multi glue, its pthread pool); a SESSION is
+// one PicoGK Library instance on it. The C++ core isolates instances completely —
+// each owns its handle managers and voxel size (PicoGKLibraryMgr.h:57-125) and the
+// picovoxel TUs hold no mutable globals — so any number of sessions can share one
+// runtime. `createPico` is a runtime and a session disposed together.
+//
 // Handles stay BigInt internally and never require consumer management: wrappers are
 // GC-reclaimed via the FinalizationRegistry; dispose() is the optional escape hatch;
 // session.dispose() is the deterministic full teardown.
@@ -24,6 +31,7 @@ import {
   type ResolvedLane,
   type SessionContext,
 } from './context.ts';
+import { DISPOSE } from './dispose.ts';
 import { PicoError, assertLive, guard } from './errors.ts';
 import { assertVoxelsOperand, wrapScalarField, wrapVectorField, type ScalarField, type VectorField } from './fields.ts';
 import { EXACT_LANE_SET } from './lanes.ts';
@@ -31,7 +39,7 @@ import { wrapLattice, type Lattice } from './lattice.ts';
 import { bulkCreateMesh, wrapMesh, type Mesh } from './mesh.ts';
 import { provenanceOf, rejectLaneIngest } from './metadata.ts';
 import { wrapPolyLine, writeColor, type PolyLine } from './polyline.ts';
-import { bindPicoRaw } from './raw.generated.ts';
+import { bindPicoRaw, type PicoRaw } from './raw.generated.ts';
 import { createHandleRegistry, type HandleRegistry } from './registry.ts';
 import { meshFromStlBytes, type FromStlOptions } from './stl.ts';
 import type { SdfExpression } from './tape.ts';
@@ -78,11 +86,24 @@ export interface MemoryUsage {
 
 export type AllocatedCounts = Omit<MemoryUsage, 'total'>;
 
-export interface CreatePicoOptions {
+/** Options that shape a runtime: how the wasm module is instantiated. */
+export interface CreatePicoRuntimeOptions {
+  /** Emscripten Module overrides (e.g. locateFile, instantiateWasm) forwarded to instantiation. */
+  wasm?: object;
+  /**
+   * A compiled `WebAssembly.Module` of this entry's wasm (`pico.wasm` for the base
+   * entry, `pico-multi.wasm` for `picovoxel/multi`). It is instantiated directly —
+   * no fetch, no compile — and on the multi glue it is also the module every pthread
+   * worker instantiates. A host that compiles once per worker passes it here.
+   * Mutually exclusive with `wasm.instantiateWasm`.
+   */
+  wasmModule?: WebAssembly.Module;
+}
+
+/** Options that shape a session: one PicoGK Library instance. */
+export interface CreatePicoSessionOptions {
   /** Voxel edge length in millimetres. Cost scales cubically as it shrinks. */
   voxelSize?: number;
-  /** Emscripten Module overrides (e.g. locateFile) forwarded to instantiation. */
-  wasm?: object;
   /** Native-memory warning threshold in bytes (default 1 GiB); 0 disables. */
   memoryWarningBytes?: number;
   /**
@@ -145,6 +166,24 @@ export interface CreatePicoOptions {
   now?: () => number;
 }
 
+/** `createPico` options: a runtime and a session created (and disposed) together. */
+export interface CreatePicoOptions extends CreatePicoRuntimeOptions, CreatePicoSessionOptions {}
+
+/**
+ * One instantiated wasm module — plus, on `picovoxel/multi`, its warm pthread pool —
+ * that any number of sessions share. Each session is its own PicoGK Library
+ * instance: voxel size, lane and every object are per session, and disposing a
+ * session frees only what it owns. Disposing the runtime disposes every session
+ * still open on it, then terminates the pool.
+ */
+export interface PicoRuntime {
+  /** Opens a session on this runtime. Takes session options only — no wasm overrides. */
+  createPico(options?: CreatePicoSessionOptions): Promise<Pico>;
+  /** Disposes every open session, then terminates the pthread pool. Idempotent. */
+  dispose(): void;
+  [Symbol.dispose](): void;
+}
+
 export interface Pico {
   readonly voxelSize: number;
   /** SKv2-0 V0.5 — the RESOLVED session lane (never `'auto'`; see `CreatePicoOptions.lane`). */
@@ -189,13 +228,20 @@ export interface Pico {
   [Symbol.dispose](): void;
 }
 
-/**
- * Creates a PicoGK session on the given glue. Internal seam — consumers use
- * `createPico` from the package entry (serial) or `picovoxel/multi` (pthreads),
- * which bind their variant's glue here.
- */
-export async function createPicoSession(glue: PicoGlueFactory, options: CreatePicoOptions = {}): Promise<Pico> {
-  const { voxelSize = 0.5, wasm, memoryWarningBytes = 2 ** 30, serialLattice = false, registry, now } = options;
+/** Session options after lane resolution and validation. */
+interface ResolvedSessionOptions {
+  voxelSize: number;
+  lane: ResolvedLane;
+  fastRenorm: boolean;
+  memoryWarningBytes: number;
+  serialLattice: boolean;
+  registry: HandleRegistry | undefined;
+  now: (() => number) | undefined;
+}
+
+/** Validates session options. Runs before any instantiation, so bad options cost nothing. */
+function resolveSessionOptions(options: CreatePicoSessionOptions): ResolvedSessionOptions {
+  const { voxelSize = 0.5, memoryWarningBytes = 2 ** 30, serialLattice = false, registry, now } = options;
 
   // §14.1 lane resolution — 'auto' resolves NOW (the resolved value is what
   // sessions report and what cache keys must see); 'exact' rejects loosening
@@ -217,23 +263,194 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
         'Cost scales cubically as it shrinks — 0.5 is a reasonable default.',
     );
   }
+  return { voxelSize, lane, fastRenorm, memoryWarningBytes, serialLattice, registry, now };
+}
 
-  let module: PicoWasmModule;
+/** Instantiates the glue, from a caller-compiled module when one is given. */
+async function instantiate(glue: PicoGlueFactory, { wasm, wasmModule }: CreatePicoRuntimeOptions): Promise<PicoWasmModule> {
+  const overrides: Record<string, unknown> = typeof wasm === 'object' && wasm !== null ? { ...wasm } : {};
+  let failed: Promise<never> | undefined;
+  if (wasmModule !== undefined) {
+    if (overrides['instantiateWasm'] !== undefined) {
+      throw new PicoError(
+        'PICO_INVALID_ARGUMENT',
+        'Pass either wasmModule or wasm.instantiateWasm, not both: each one decides how the module is instantiated.',
+      );
+    }
+    // The glue never gives instantiateWasm a way to reject (it resolves from the
+    // callback only), so a failed instantiation is raced in beside it instead of
+    // leaving the returned promise pending forever. The module goes to the
+    // callback too: the multi glue hands exactly that module to every pthread.
+    let fail!: (cause: unknown) => void;
+    failed = new Promise<never>((_, reject) => (fail = reject));
+    overrides['instantiateWasm'] = (
+      imports: WebAssembly.Imports,
+      receive: (instance: WebAssembly.Instance, module: WebAssembly.Module) => void,
+    ) => {
+      WebAssembly.instantiate(wasmModule, imports)
+        .then((instance) => receive(instance, wasmModule))
+        .catch(fail);
+      return {};
+    };
+  }
   try {
-    module = await glue(typeof wasm === 'object' && wasm !== null ? wasm : {});
+    const loading = glue(overrides);
+    return await (failed ? Promise.race([loading, failed]) : loading);
   } catch (cause) {
     throw new PicoError(
       'PICO_WASM_INIT_FAILED',
       'PicoGK WebAssembly failed to instantiate. Check that the .wasm file is served next to its glue .mjs ' +
-        'and that it is returned with Content-Type: application/wasm.',
+        'and that it is returned with Content-Type: application/wasm (or, with wasmModule, that it was ' +
+        "compiled from this entry's .wasm).",
       { cause },
     );
   }
+}
 
-  const raw = bindPicoRaw(module);
+/** What a runtime lends each session it opens. */
+interface RuntimeParts {
+  module: PicoWasmModule;
+  raw: PicoRaw;
+  /** One FinalizationRegistry per loaded module (registry.ts), shared by its sessions. */
+  registry: HandleRegistry;
+  /** Release closures of the open sessions — never the session wrappers (D1). */
+  open: Set<() => void>;
+}
+
+/** A runtime plus its internal session opener; the opener can hand the session the runtime's teardown. */
+interface StartedRuntime {
+  runtime: PicoRuntime;
+  openSession(options: ResolvedSessionOptions, disposeRuntime?: () => void): Pico;
+}
+
+/**
+ * Instantiates once, runs `warm` (the multi entry's pool warm-up), and returns the
+ * runtime. A failed warm-up tears the runtime down before rethrowing, so nothing
+ * leaves a pool running (SK-0.4 §10).
+ */
+async function startRuntime(
+  glue: PicoGlueFactory,
+  options: CreatePicoRuntimeOptions,
+  warm?: (runtime: PicoRuntime) => Promise<void>,
+): Promise<StartedRuntime> {
+  const module = await instantiate(glue, options);
+  const parts: RuntimeParts = { module, raw: bindPicoRaw(module), registry: createHandleRegistry(), open: new Set() };
+  let disposed = false;
+
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    // Teardown order: every open session first (a Set iterator tolerates the
+    // deletions each release makes), then the pool.
+    for (const release of parts.open) release();
+    // Join the module's pthread pool (multi glue only — absent on the serial glue).
+    // Nothing else ever joins the em-pthread workers, so they outlive every JS
+    // reference to this module, and at process teardown V8 can free the wasm backing
+    // store while a worker is still executing in it — SIGILL, timing-dependent
+    // (observed as vitest fork crashes; crash reports show an em-pthread faulting
+    // under a main-thread BackingStore free. SK-0.4.md §10). The pool belongs to the
+    // runtime, so it dies here and never with a single session.
+    module.PThread?.terminateAllThreads();
+  };
+
+  const openSession = (resolved: ResolvedSessionOptions, disposeRuntime?: () => void): Pico => {
+    assertLive(disposed, 'PicoGK runtime');
+    return openPicoSession(parts, resolved, disposeRuntime);
+  };
+
+  const runtime = {
+    async createPico(sessionOptions: CreatePicoSessionOptions = {}): Promise<Pico> {
+      if ('wasm' in sessionOptions || 'wasmModule' in sessionOptions) {
+        throw new PicoError(
+          'PICO_INVALID_ARGUMENT',
+          'runtime.createPico() takes session options only: the module is already instantiated. ' +
+            'Pass wasm / wasmModule to createPicoRuntime() instead.',
+        );
+      }
+      return openSession(resolveSessionOptions(sessionOptions));
+    },
+    dispose,
+  };
+  (runtime as unknown as Record<symbol, unknown>)[DISPOSE] = dispose;
+
+  if (warm) {
+    try {
+      await warm(runtime as unknown as PicoRuntime);
+    } catch (error) {
+      dispose();
+      throw error;
+    }
+  }
+  return { runtime: runtime as unknown as PicoRuntime, openSession };
+}
+
+/**
+ * Creates a runtime on the given glue. Internal seam — consumers use
+ * `createPicoRuntime` from the package entry (serial) or `picovoxel/multi`.
+ */
+export async function openPicoRuntime(
+  glue: PicoGlueFactory,
+  options: CreatePicoRuntimeOptions = {},
+  warm?: (runtime: PicoRuntime) => Promise<void>,
+): Promise<PicoRuntime> {
+  return (await startRuntime(glue, options, warm)).runtime;
+}
+
+/**
+ * Creates a PicoGK session on the given glue: a runtime and a session that
+ * dispose together. Internal seam — consumers use `createPico` from the package
+ * entry (serial) or `picovoxel/multi` (pthreads), which bind their variant's glue here.
+ */
+export async function createPicoSession(
+  glue: PicoGlueFactory,
+  options: CreatePicoOptions = {},
+  warm?: (runtime: PicoRuntime) => Promise<void>,
+): Promise<Pico> {
+  const resolved = resolveSessionOptions(options);
+  const { runtime, openSession } = await startRuntime(glue, options, warm);
+  try {
+    return openSession(resolved, runtime.dispose);
+  } catch (error) {
+    runtime.dispose();
+    throw error;
+  }
+}
+
+/**
+ * Frees what one session owns on the shared module — its scratch buffer and its
+ * Library instance (which frees every object the instance holds) — and nothing else.
+ * Idempotent through the dead flag, so session dispose, runtime dispose and a late
+ * GC callback can race in any order. It doubles as the session's GC free, so it must
+ * not reach the session wrapper (D1) — not even through a shared closure scope: V8
+ * gives every closure in a function one context, and the session's own methods
+ * capture `session`. Hence a factory of its own, closing over primitives, the dead
+ * flag and the runtime parts only.
+ */
+function createSessionRelease(parts: RuntimeParts, dead: { value: boolean }, lib: bigint, scratch: number): () => void {
+  const release = () => {
+    if (dead.value) return;
+    dead.value = true; // D4: teardown wins — wrappers stop freeing individually
+    parts.open.delete(release);
+    parts.module._free(scratch);
+    parts.raw.Library_DestroyInstance(lib);
+  };
+  parts.open.add(release);
+  return release;
+}
+
+/** Opens one Library instance on a runtime's module. */
+function openPicoSession(parts: RuntimeParts, options: ResolvedSessionOptions, disposeRuntime?: () => void): Pico {
+  const { module, raw } = parts;
+  const { voxelSize, lane, fastRenorm, memoryWarningBytes, serialLattice, registry, now } = options;
   const lib = expectHandle('Library_hCreateInstance', raw.Library_hCreateInstance(voxelSize));
 
-  const scratch = checkedMalloc(module, Math.max(BBOX_BYTES, INFO_STRING_BYTES), 'the session scratch buffer');
+  let scratch: number;
+  try {
+    scratch = checkedMalloc(module, Math.max(BBOX_BYTES, INFO_STRING_BYTES), 'the session scratch buffer');
+  } catch (error) {
+    raw.Library_DestroyInstance(lib); // the runtime outlives this failure; don't leak the instance on it
+    throw error;
+  }
   const ctx: SessionContext = {
     module,
     lib,
@@ -242,7 +459,7 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
     lane,
     renderLatticeExport: serialLattice ? 'Voxels_RenderLattice' : 'Voxels_RenderLatticeTubes',
     raw,
-    registry: registry ?? createHandleRegistry(),
+    registry: registry ?? parts.registry,
     dead: { value: false },
     scratch,
     writeVec3(pointer, [x, y, z]) {
@@ -261,6 +478,8 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
     wrapVoxels: (handle, provenance) => wrapVoxels(ctx, handle, provenance),
   };
 
+  const release = createSessionRelease(parts, ctx.dead, lib, scratch);
+
   const readInfo = (fn: 'Library_GetName' | 'Library_GetVersion' | 'Library_GetBuildInfo'): string => {
     raw[fn](scratch);
     return module.UTF8ToString(scratch);
@@ -275,8 +494,7 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
     return [start!, end!];
   };
 
-  let disposed = false;
-  const liveSession = () => assertLive(disposed, 'PicoGK session');
+  const liveSession = () => assertLive(ctx.dead.value, 'PicoGK session');
 
   const session = {
     get voxelSize() {
@@ -598,22 +816,75 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
     },
 
     dispose() {
-      if (disposed) return; // D3
-      disposed = true;
-      ctx.dead.value = true; // D4: teardown wins — wrappers stop freeing individually
+      if (ctx.dead.value) return; // D3 (also after the runtime disposed this session)
       ctx.registry.unregister(session); // D2
-      module._free(scratch);
-      raw.Library_DestroyInstance(lib);
-      // Join the module's pthread pool (multi glue only — absent on the serial glue).
-      // Nothing ever joined the em-pthread workers, so they outlive every JS reference
-      // to this module, and at process teardown V8 can free the wasm backing store
-      // while a worker is still executing in it — SIGILL, timing-dependent (observed
-      // as vitest fork crashes; crash reports show an em-pthread faulting under a
-      // main-thread BackingStore free. SK-0.4.md §10). Each session instantiates its
-      // own module, so its pool dies with it and no other session is affected.
-      module.PThread?.terminateAllThreads();
+      release();
+      // A session from the entry's createPico owns its runtime: they go together,
+      // pool included (SK-0.4 §10). A session opened on a shared runtime leaves the
+      // pool running for its siblings — runtime.dispose() joins it.
+      disposeRuntime?.();
     },
   };
-  adoptHandle(ctx, session, lib, raw.Library_DestroyInstance);
+  adoptHandle(ctx, session, lib, release);
   return session as unknown as Pico; // adoptHandle added [Symbol.dispose] (D6)
+}
+
+// ── The multi entry's pool warm-up (glue-free, so it lives beside the runtime) ──
+
+/**
+ * PV-W1 — the warm-up op is sized in VOXELS, not millimetres, so its work (CFL
+ * steps ∝ offset/voxelSize, band voxels ∝ (radius/voxelSize)²) is the same at every
+ * voxel size. It used to be a 2 mm sphere offset by 0.5 mm at the session's voxel
+ * size: 4 and 1 voxels at the 0.5 mm default, but ≈1 M band voxels and 50 CFL steps
+ * at 0.02 mm, all before the pool engaged. These are those default-size numbers.
+ */
+export const WARM_RADIUS_VOXELS = 4;
+export const WARM_OFFSET_VOXELS = 1;
+/** The warm-up's scratch session voxel size (mm). Any value does the same work; this is the old default. */
+const WARM_VOXEL_SIZE = 0.5;
+
+/** The warm-up op on `pk`: a sphere offset outward, both sized in voxels. The caller disposes the result. */
+export function warmUpOp(pk: Pico): Voxels {
+  const sphere = pk.createVoxels({ shape: 'sphere', radius: WARM_RADIUS_VOXELS * pk.voxelSize });
+  try {
+    return sphere.offset({ distance: WARM_OFFSET_VOXELS * pk.voxelSize });
+  } finally {
+    sphere.dispose();
+  }
+}
+
+/**
+ * Warms a multi runtime's pool once, on a scratch session of its own.
+ *
+ * The warmup matters: oneTBB launches its workers on the first parallel region,
+ * and the launch handshake only completes while the main thread is off the wasm
+ * stack. Without it, back-to-back synchronous calls run single-threaded forever
+ * (measured: identical-to-serial timings, and a livelock under memory growth).
+ * One tiny op + one yield turns that into full parallelism (measured 5–6× on
+ * offsets at 12 threads). The workers then stay launched for every later
+ * session on the runtime, so this runs once per runtime, not once per session.
+ */
+export async function warmPool(runtime: PicoRuntime): Promise<void> {
+  const scratch = await runtime.createPico({ voxelSize: WARM_VOXEL_SIZE });
+  // No fallback: PThread is unconditionally present in the -pthread glue the
+  // multi entry binds, the only caller.
+  const pool = scratch.module.PThread!;
+  try {
+    warmUpOp(scratch).dispose();
+  } finally {
+    scratch.dispose();
+  }
+  // The yielding is load-bearing (the handshake needs the main thread off the
+  // wasm stack) but the *duration* never was: poll the pool instead of sleeping
+  // a flat 100 ms. TBB wants one worker per core besides this thread, and a
+  // 12-core machine gets there in 2–4 ms. The deadline is the old constant, so
+  // a slow host — or one whose browser caps workers below hardwareConcurrency —
+  // is never worse off than it was, it just stops being the common case.
+  // No fallback on navigator.hardwareConcurrency: it exists in every supported
+  // engine (Node >=21, all three gated browsers).
+  const wanted = navigator.hardwareConcurrency - 1;
+  const deadline = Date.now() + 100;
+  while (pool.runningWorkers.length < wanted && Date.now() < deadline) {
+    await new Promise((resume) => setTimeout(resume, 0));
+  }
 }

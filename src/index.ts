@@ -8,23 +8,47 @@
 import './dispose.ts';
 
 import createPicoModuleUntyped from './pico.mjs';
-import { createPicoSession, type CreatePicoOptions, type Pico, type PicoGlueFactory } from './session.ts';
+import {
+  createPicoSession,
+  openPicoRuntime,
+  type CreatePicoOptions,
+  type CreatePicoRuntimeOptions,
+  type Pico,
+  type PicoGlueFactory,
+  type PicoRuntime,
+} from './session.ts';
 
 const glue = createPicoModuleUntyped as PicoGlueFactory;
 
-/** Creates a single-threaded PicoGK session. Resolves once the wasm module is instantiated. */
+/**
+ * Creates a single-threaded PicoGK session. Resolves once the wasm module is
+ * instantiated. The session owns its module: `dispose()` releases both.
+ */
 export async function createPico(options: CreatePicoOptions = {}): Promise<Pico> {
   return createPicoSession(glue, options);
+}
+
+/**
+ * Creates a single-threaded runtime: the module is instantiated once, then
+ * `runtime.createPico()` opens sessions on it with no per-session instantiation.
+ * Each session is its own PicoGK Library instance (voxel size, lane and objects
+ * are per session). `runtime.dispose()` disposes every open session.
+ */
+export async function createPicoRuntime(options: CreatePicoRuntimeOptions = {}): Promise<PicoRuntime> {
+  return openPicoRuntime(glue, options);
 }
 
 export type {
   AllocatedCounts,
   CreatePicoOptions,
+  CreatePicoRuntimeOptions,
+  CreatePicoSessionOptions,
   CreateScalarFieldOptions,
   CreateVectorFieldOptions,
   CreateVoxelsOptions,
   MemoryUsage,
   Pico,
+  PicoRuntime,
 } from './session.ts';
 export type { GetSliceOptions, ShellOptions, SliceAxis, SliceMode, Voxels, VoxelSlice } from './voxels.ts';
 export type { Mesh, TransformOptions } from './mesh.ts';

@@ -102,6 +102,30 @@ picovoxel handles this for you:
 - **The leak oracle is built in**: `session.allocated` reports PicoGK's own
   per-type allocation counters.
 
+## Reusing one module across sessions
+
+`createPico()` instantiates a wasm module for every session, and on
+`picovoxel/multi` it also starts and warms a thread pool. A host that opens many
+sessions, such as one per render, can pay that once with a runtime:
+
+```js
+import { createPicoRuntime } from 'picovoxel/multi';
+
+const runtime = await createPicoRuntime();         // instantiate + warm the pool once
+const pico = await runtime.createPico({ voxelSize: 0.5 });
+// ... build ...
+pico.dispose();                                    // frees this session only; the pool keeps running
+runtime.dispose();                                 // disposes open sessions, then stops the pool
+```
+
+Each session is its own PicoGK Library instance, so voxel size, lane and every
+object stay per session. Dispose the runtime when you are done with it: it is
+the only thing that stops the thread pool.
+
+To compile the wasm once per worker, pass the compiled module as
+`createPicoRuntime({ wasmModule })` (it must come from the same entry's `.wasm`),
+or supply your own `wasm: { instantiateWasm }` override.
+
 ## Performance
 
 Numbers from the committed, harness-enforced baseline ([bench/BENCHMARKS.md](bench/BENCHMARKS.md) — Apple M2 Pro; treat ratios as the portable signal):
