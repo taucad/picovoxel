@@ -138,10 +138,14 @@ export interface Voxels {
   /** Volume in mm³ from the raw grid — fast but approximate after booleans (use `properties()`). */
   readonly volume: number;
   /**
-   * The correct volume (mm³), surface area (mm²) and bounds, from one
+   * Volume (mm³), surface area (mm²) and bounds free of boolean residue, from one
    * native traversal of the mesh → fresh-voxels round-trip (src/pico-props.cpp).
    * Area is openvdb's `levelSetArea` over the same corrected grid; it costs no
    * extra meshing pass.
+   *
+   * As in C# `CalculateProperties`, the round trip fills a sealed cavity, or one
+   * whose openings are about two voxels wide or narrower, and drops its surface.
+   * Cross-check parts with internal voids with `toMesh().measure()`.
    */
   properties(): { volume: number; area: number; bounds: Bounds };
   /**
@@ -386,7 +390,8 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       composeCopy('Voxels_hBoolIntersectCopy', 'intersect operand', [other]),
 
     equals(other: Voxels): boolean {
-      // O(stored) sign-set comparison, upstream-verdict-identical; the dense O(bbox³) Voxels_bIsEqual stays on the raw subpath.
+      // O(stored) sign-set comparison, upstream-verdict-identical; the dense O(bbox³)
+      // Voxels_bIsEqual stays on the raw subpath.
       return guard('Voxels_bIsEqualFast', () =>
         ctx.raw.Voxels_bIsEqualFast(ctx.lib, live(), operandHandle(other, 'equals operand')),
       )();

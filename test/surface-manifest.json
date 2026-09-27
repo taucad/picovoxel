@@ -84,6 +84,7 @@
     "dispose",
     "handle",
     "lane",
+    "measure",
     "merged",
     "mirror",
     "shellVoxels",
