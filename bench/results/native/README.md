@@ -1,6 +1,6 @@
 # Native PicoGK HelixHeatX — same-machine reference sweep
 
-**2026-08-09 · 30 runs · uncommitted**
+**2026-08-09 · 30 runs · committed 2026-09-27**
 
 Why this exists: every wasm-vs-native statement in this repo (`BENCHMARKS.md`
 §R11, `docs/research/picogk-*`) leaned on LEAP 71's **published** table

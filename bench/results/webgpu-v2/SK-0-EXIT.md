@@ -486,6 +486,12 @@ node bench/compare-baselines.mjs sk-0.1-baseline-dlmalloc.json sk-0-exit-baselin
    solved fast-lane one**: worth attacking only for the exact lane, or as
    evidence that the remaining L0 wall is allocator-shaped rather than
    algorithm-shaped.
+
+   > Correction 2026-09-27 (D-pre.2 sizing, 2026-07-30): the 38.6% figure is
+   > retired. It describes the dlmalloc multi lane, which no longer ships. The
+   > live shares are 17.4% of the mimalloc multi (fast-lane) wall and 13.6% of
+   > the single-thread L0 wall, and the stage is the mesh path (`BasePipe`
+   > thread collars through `Voxels_RenderMesh`), not a lattice stage.
 2. **The small-lattice regression** (§5.3): SK-0.4's tube lane inverts below some
    beam count. Locate the crossover; a size-gated fallback to the serial lane is
    the obvious fix and the lane still exists.

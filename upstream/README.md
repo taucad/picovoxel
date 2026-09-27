@@ -3,7 +3,9 @@
 Per the picovoxel charter, outward actions (issues, PRs) require explicit
 maintainer sign-off. These texts are ready to post to leap71/PicoGK and
 leap71/PicoGKRuntime once approved. Line references are against PicoGK
-@ 389d4d9 / PicoGKRuntime 26.2.
+@ 389d4d9 / PicoGKRuntime 26.2, the port's review baseline. PicoGK was
+re-checked at 0e6cf6b6 on 2026-09-27: B2 (b54aef8c) and B5 (0e6cf6b6) are fixed
+there and are not to be filed; see `MIGRATING-FROM-CSHARP.md` for B6.
 
 ## Two homes for patches, and the difference
 
@@ -19,14 +21,16 @@ prose only — if it is implemented, it can be a patch, and a patch is what a
 maintainer can actually apply.
 
 The ledger of what we owe upstream is `MIGRATING-FROM-CSHARP.md` §"Upstreamable
-spikes ledger" (rows U1–U24). **Every patch file in either directory must be
+spikes ledger" (rows U1–U25). **Every patch file in either directory must be
 cited by its exact path from its U-row, in the same change that lands the
 patch.**
 
 ## Inventory
 
-Dry-runs below were re-verified with `patch -p1 --dry-run` against a freshly
-extracted pristine tree on 2026-07-27. Reproduce with
+Dry-runs below were re-verified with `patch -p1 --dry-run --fuzz=0` against a
+freshly extracted pristine tree (and, for the PicoGKRuntime proposals, the
+`patches/PicoGKRuntime/`-applied tree) on 2026-09-27; every row is OK. U24
+targets emscripten main rather than 5.0.1 since that date. Reproduce with
 `scripts/fetch-deps.sh`-style extraction (`tar -xzf … --strip-components=1`)
 plus the command in each row.
 
@@ -35,10 +39,10 @@ plus the command in each row.
 | Patch | Row | Target tree | Dry-run |
 | --- | --- | --- | --- |
 | `emscripten-cwrap-bigint.patch` | U16 | emscripten 5.0.1 (`vendor/emsdk/upstream/emscripten`), `src/lib/libccall.js` sha256 `0cad844a…` | `patching file 'src/lib/libccall.js'` — **OK**, 0 fuzz |
-| `emscripten-heap-index-signed-shift.patch` | U24 | emscripten 5.0.1, `src/lib/libwebgl.js` `367bf0d6…` + `libwebgl2.js` `07ac733f…` | `patching file 'src/lib/libwebgl.js'` / `'src/lib/libwebgl2.js'` — **OK**, 0 fuzz |
+| `emscripten-heap-index-signed-shift.patch` | U24 | emscripten main @ `887305e6` (2026-09-26), `src/lib/libwebgl.js` `cce23f36…` + `libwebgl2.js` `3546fc3b…` | `patching file 'src/lib/libwebgl.js'` / `'src/lib/libwebgl2.js'` — **OK**, 0 fuzz (regenerated 2026-09-27; the 5.0.1 revision no longer applied to main) |
 | `picogkruntime-bulk-mesh-abi.patch` | U4 | leap71/PicoGKRuntime @ `0f26321c` (pristine tarball) | `patching file 'API/PicoGK.h'` / `'Source/PicoGKLibrary.cpp'` — **OK**, 0 fuzz; also applies onto the `patches/PicoGKRuntime/` -applied tree |
 | `picogkruntime-bulk-lattice-abi.patch` | U17 | leap71/PicoGKRuntime @ `0f26321c` | same two files — **OK**, 0 fuzz, and **OK** applied after the mesh patch |
-| `picogkruntime-tubecomplex-lattice.patch` | U5 | leap71/PicoGKRuntime @ `0f26321c` | `patching file 'Source/PicoGKVdbVoxels.h'` — **OK**, 0 fuzz; also **OK** onto the `patches/PicoGKRuntime/` -applied tree. `0003-lattice-parameter-accessors.patch` is a **compile-time prerequisite** (it applies without it, it does not build without it); `0004` is optional. Verified beyond dry-run: composed tree builds warning-clean and runs the native HeatX fixture at 2.77× (`bench/results/native/PATCHED-NATIVE.md`) |
+| `picogkruntime-tubecomplex-lattice.patch` | U5 | leap71/PicoGKRuntime @ `0f26321c` | `patching file 'Source/PicoGKVdbVoxels.h'` — **OK**, 0 fuzz; also **OK** onto the `patches/PicoGKRuntime/` -applied tree. `0003-lattice-parameter-accessors.patch` is a **compile-time prerequisite** (it applies without it, it does not build without it); `0004` is optional. Verified beyond dry-run: the composed tree builds warning-clean, and the native HeatX fixture runs **2.53×** faster on the whole fixture wall (geometric mean, 30 runs per arm over six voxel sizes, `bench/results/native/BEST-CASE.md`; the single build-check run was 2.77×, `PATCHED-NATIVE.md`) |
 | `picogkruntime-offset-renorm-scheme.patch` | U22 (ask 2) | leap71/PicoGKRuntime @ `0f26321c` | `patching file 'Source/PicoGKVdbVoxels.h'` — **OK**, 0 fuzz; also **OK** onto the `patches/PicoGKRuntime/` -applied tree |
 | `picogkruntime-intersect-implicit-band.patch` | U1 | leap71/PicoGKRuntime @ `0f26321c` | `patching file 'Source/PicoGKVdbVoxels.h'` — **OK**, 0 fuzz; also **OK** onto the `patches/PicoGKRuntime/` -applied tree |
 | `picogkruntime-zslice-seal-units.patch` | U2 | leap71/PicoGKRuntime @ `0f26321c` | `patching file 'Source/PicoGKVdbVoxels.h'` — **OK**, 0 fuzz; also **OK** onto the `patches/PicoGKRuntime/` -applied tree |
@@ -65,7 +69,7 @@ a silent application.
 | Document | Target | Row |
 | --- | --- | --- |
 | `issue-b1-mesh-transform-scale.md` | leap71/PicoGK | B1 |
-| `issue-b2-mm-to-voxels.md` | leap71/PicoGK | B2 |
+| `issue-b2-mm-to-voxels.md` | leap71/PicoGK | B2 — **fixed upstream in `b54aef8c` (2026-08-22); do not file** |
 | `issue-b3-addbeam-overloads.md` | leap71/PicoGK | B3 |
 | `issue-b4-voxshell-discarded-results.md` | leap71/PicoGK | B4 |
 | `pr-bulk-mesh-transfer.md` | leap71/PicoGKRuntime (+ the C# half in leap71/PicoGK) | U4 — the C ABI half is now `picogkruntime-bulk-mesh-abi.patch`; this text carries the rationale and the C#-side change, which targets the other repo |

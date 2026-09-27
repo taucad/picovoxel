@@ -27,7 +27,7 @@
 // (LevelSetTubesImpl.h:1183-1207). The real fixtures are EXTRACTED from the examples
 // rather than re-authored here — a Proxy over the session captures the Lattice the
 // example's own code builds, so the fixture is the real beam set, at the real coordinates,
-// with the real cap flags. `heatx:io-threads` is the flat-capped control: the tube complex
+// with the real cap flags. `heatx:thread-cutter` is the flat-capped control: the tube complex
 // has no conical-frustum form, so that fixture takes the serial fallback end to end and
 // its ratio should sit at ~1.0x.
 //
@@ -343,7 +343,10 @@ async function extractedFixtures() {
   // The flat-cap control: ThreadCutter's helix is roundCap:false throughout, so this
   // fixture takes the serial fallback end to end. HeatX's own parameters
   // (helixHeatX.ts flange(): cutLength 24, maxRadius 6, coreRadius 5, slope 1.3).
-  take('heatx:io-threads (flat caps)', () =>
+  // It captures flange.create's ThreadCutter, not the io-threads stage (that stage
+  // is BasePipe collars through the mesh path). Recorded results before 2026-09-27
+  // key this fixture as 'heatx:io-threads (flat caps)'.
+  take('heatx:thread-cutter (flat caps)', () =>
     new ThreadCutter(localFrame.create([0, 0, -10]), 24, 6, 5, 1.3).voxConstruct(spy),
   );
 

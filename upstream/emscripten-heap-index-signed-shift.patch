@@ -1,31 +1,33 @@
-emscripten 5.0.1 (as installed by emsdk) — six hand-written heap indexings use a
-SIGNED shift, which is wrong above 2 GiB under CAN_ADDRESS_2GB.
+emscripten main @ 887305e6 (2026-09-26, emscripten-version.txt 6.0.11-git) — six
+hand-written heap indexings use a SIGNED shift, which is wrong above 2 GiB under
+CAN_ADDRESS_2GB.
 
 PROPOSAL, NOT APPLIED LOCALLY. picovoxel does not use these GL bindings; this
 patch exists because we paid for the bug class in our own glue and found that
 upstream has stragglers of the same shape. Ledger row U24.
 
 The rule upstream already follows: emscripten's own codegen knows about this.
-`getHeapOffset` (src/parseTools.mjs:399-410) emits `>>>` instead of `>>` when
+`getHeapOffset` (src/parseTools.mjs:412-425) emits `>>>` instead of `>>` when
 CAN_ADDRESS_2GB is set, and CAN_ADDRESS_2GB is set automatically whenever
-MAXIMUM_MEMORY > 2 GiB (tools/link.py:1680-1681). Every access written through
-the macro is therefore correct.
+MAXIMUM_MEMORY > 2 GiB without MEMORY64 (tools/link.py:1668-1669). Every access
+written through the macro is therefore correct.
 
 The defect: six accesses in the WebGL libraries are written by hand and bypass
 the macro, so they keep the signed shift under every setting. A pointer at or
 past 2 GiB is >= 2**31; JS `>>` coerces to int32 first, so `p >> 2` goes
 negative, and the resulting index reads the wrong element (or, for the
 `subarray`/`set` family, silently clamps). The neighbouring
-`glUniformMatrix4x3fv` in the very same file uses
+`glUniformMatrix4x3fv` in libwebgl2.js uses
 `{{{ getHeapOffset('value', 'float') }}}` — the two idioms sit five lines apart.
 
-  src/lib/libwebgl.js:3019,3028,3037,3046  glVertexAttrib{1,2,3,4}fv
-  src/lib/libwebgl2.js:881,889             glVertexAttribI4{i,ui}v
+  src/lib/libwebgl.js:3052,3061,3070,3079  glVertexAttrib{1,2,3,4}fv
+  src/lib/libwebgl2.js:890,898             glVertexAttribI4{i,ui}v
 
 The fix is `>>` -> `>>>` at those sites, which is a no-op below 2 GiB and
-correct above it. (A stricter fix would route them through `getHeapOffset` for
-MEMORY64 as well; these entry points are !MEMORY64-only paths today, so this
-patch keeps the change to the minimum that removes the defect.)
+correct above it. (Routing them through `getHeapOffset` would also cover
+MEMORY64, where the macro divides instead of shifting; this patch keeps to the
+minimum change that removes the CAN_ADDRESS_2GB defect and leaves that choice to
+the maintainers.)
 
 Provenance: picovoxel spent a spike (bench/results/webgpu-v2/SK-0.10.md) rooting
 a silent mesh corruption to exactly this class in our OWN hand-written glue —
@@ -36,16 +38,20 @@ window ~1.4 GiB away from the buffer, and every cheap invariant (element count,
 byte count, volume) still passed. That part is our bug, not emscripten's; these
 six lines are the part that is upstream's.
 
-Target file sha256 (emscripten-version.txt = 5.0.1):
-367bf0d6a961c01665c92d0361c4e8e77a242f16acd459818aaff2500fdb1df8  src/lib/libwebgl.js
-07ac733f42928a88f7e717db0c96b69a956453002480e26f234683d3cb4789d3  src/lib/libwebgl2.js
+Regenerated 2026-09-27 against main (the 5.0.1 revision no longer applied at
+fuzz 0: the GL_ASSERTIONS messages were reworded and the sites moved +33/+9
+lines). The six changed lines are the same as in the 5.0.1 revision.
 
-Applies with `patch -p1` at the root of the emscripten checkout.
+Target file sha256 (emscripten main @ 887305e67c418ce26cdf20ea60bc78777f2b0b8f):
+cce23f36fe13811d6989d175346532c8bbe4fda5783949aff2d6d095d4824ebb  src/lib/libwebgl.js
+3546fc3b4c3395591f441b8a28d4ca05328c8bc3c0a4509daed8adcabc2153d3  src/lib/libwebgl2.js
+
+Applies with `patch -p1 --fuzz=0` at the root of the emscripten checkout.
 
 --- a/src/lib/libwebgl.js
 +++ b/src/lib/libwebgl.js
-@@ -3016,7 +3016,7 @@
-     assert(v != 0, 'Null pointer passed to glVertexAttrib1fv!');
+@@ -3049,7 +3049,7 @@
+     assert(v != 0, 'null pointer passed to glVertexAttrib1fv');
  #endif
  
 -    GLctx.vertexAttrib1f(index, HEAPF32[v>>2]);
@@ -53,8 +59,8 @@ Applies with `patch -p1` at the root of the emscripten checkout.
    },
  
    glVertexAttrib2fv: (index, v) => {
-@@ -3025,7 +3025,7 @@
-     assert(v != 0, 'Null pointer passed to glVertexAttrib2fv!');
+@@ -3058,7 +3058,7 @@
+     assert(v != 0, 'null pointer passed to glVertexAttrib2fv');
  #endif
  
 -    GLctx.vertexAttrib2f(index, HEAPF32[v>>2], HEAPF32[v+4>>2]);
@@ -62,8 +68,8 @@ Applies with `patch -p1` at the root of the emscripten checkout.
    },
  
    glVertexAttrib3fv: (index, v) => {
-@@ -3034,7 +3034,7 @@
-     assert(v != 0, 'Null pointer passed to glVertexAttrib3fv!');
+@@ -3067,7 +3067,7 @@
+     assert(v != 0, 'null pointer passed to glVertexAttrib3fv');
  #endif
  
 -    GLctx.vertexAttrib3f(index, HEAPF32[v>>2], HEAPF32[v+4>>2], HEAPF32[v+8>>2]);
@@ -71,8 +77,8 @@ Applies with `patch -p1` at the root of the emscripten checkout.
    },
  
    glVertexAttrib4fv: (index, v) => {
-@@ -3043,7 +3043,7 @@
-     assert(v != 0, 'Null pointer passed to glVertexAttrib4fv!');
+@@ -3076,7 +3076,7 @@
+     assert(v != 0, 'null pointer passed to glVertexAttrib4fv');
  #endif
  
 -    GLctx.vertexAttrib4f(index, HEAPF32[v>>2], HEAPF32[v+4>>2], HEAPF32[v+8>>2], HEAPF32[v+12>>2]);
@@ -82,18 +88,18 @@ Applies with `patch -p1` at the root of the emscripten checkout.
    glGetAttribLocation: (program, name) =>
 --- a/src/lib/libwebgl2.js
 +++ b/src/lib/libwebgl2.js
-@@ -878,7 +878,7 @@
-     assert((v & 3) == 0, 'Pointer to integer data passed to glVertexAttribI4iv must be aligned to four bytes!');
-     assert(v != 0, 'Null pointer passed to glVertexAttribI4iv!');
+@@ -887,7 +887,7 @@
+     assert((v & 3) == 0, 'pointer passed to glVertexAttribI4iv must be 4-byte aligned');
+     assert(v != 0, 'null pointer passed to glVertexAttribI4iv');
  #endif
 -    GLctx.vertexAttribI4i(index, HEAP32[v>>2], HEAP32[v+4>>2], HEAP32[v+8>>2], HEAP32[v+12>>2]);
 +    GLctx.vertexAttribI4i(index, HEAP32[v>>>2], HEAP32[v+4>>>2], HEAP32[v+8>>>2], HEAP32[v+12>>>2]);
    },
  
    glVertexAttribI4uiv: (index, v) => {
-@@ -886,7 +886,7 @@
-     assert((v & 3) == 0, 'Pointer to integer data passed to glVertexAttribI4uiv must be aligned to four bytes!');
-     assert(v != 0, 'Null pointer passed to glVertexAttribI4uiv!');
+@@ -895,7 +895,7 @@
+     assert((v & 3) == 0, 'pointer passed to glVertexAttribI4uiv must be 4-byte aligned');
+     assert(v != 0, 'null pointer passed to glVertexAttribI4uiv');
  #endif
 -    GLctx.vertexAttribI4ui(index, HEAPU32[v>>2], HEAPU32[v+4>>2], HEAPU32[v+8>>2], HEAPU32[v+12>>2]);
 +    GLctx.vertexAttribI4ui(index, HEAPU32[v>>>2], HEAPU32[v+4>>>2], HEAPU32[v+8>>>2], HEAPU32[v+12>>>2]);
