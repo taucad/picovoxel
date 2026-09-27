@@ -73,7 +73,7 @@ export class HelixHeatX {
     const outerBox = new BaseBox(localFrame.create([0, 0, -4]), 107, 2 * halfIOLengthSpacing + 24, 104);
     this.voxBounding = this.measureKernel('bounding.create', () => outerBox.voxConstruct(pk));
     this.plateThickness = 3.5;
-    this.wallThickness = 0.8;
+    this.wallThickness = 0.9;
     this.ioRadius = 7;
   }
 
