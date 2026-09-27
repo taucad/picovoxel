@@ -3,8 +3,8 @@
 //
 // Three passes, run as separate processes so nothing contaminates anything else:
 //
-//   --equivalence  geometry, serial lane as the reference. The SK-0.8 gate shape verbatim
-//                  (bench/results/webgpu-v2/SK-0.8.md §4): corrected volume and area
+//   --equivalence  geometry, serial lane as the reference. The SK-0.8 gate shape verbatim:
+//                  corrected volume and area
 //                  relative delta, iso-surface bounds max component delta, narrow-band SDF
 //                  max/mean |Δ| over the intersection of the two active boxes, band
 //                  mismatch reported not gated, tools::checkLevelSet must be EMPTY, mesh
@@ -74,7 +74,9 @@ const lib = pk.handle;
 
 const battery = () => {
   try {
-    return execFileSync('/usr/bin/pmset', ['-g', 'batt'], { encoding: 'utf8' }).split('\n')[1]?.trim() ?? 'unknown';
+    return (
+      execFileSync('/usr/bin/pmset', ['-g', 'batt'], { encoding: 'utf8' }).split('\n')[1]?.trim() ?? 'unknown'
+    );
   } catch {
     return 'unavailable';
   }
@@ -116,7 +118,7 @@ const bytesAt = (pointer, length) => new Uint8Array(module.HEAPF32.buffer, point
 const heapBytes = () => module.HEAPF32.buffer.byteLength;
 const hexFloat = (value) => Buffer.from(Float64Array.of(value).buffer).toString('hex');
 
-// ── accuracy metrics (SK-0.8 §4, verbatim shape) ──────────────────────────────
+// ── accuracy metrics (SK-0.8 gate, verbatim shape) ────────────────────────────
 const readDims = (h) => {
   raw.Voxels_GetVoxelDimensions(lib, h, dims, dims + 4, dims + 8, dims + 12, dims + 16, dims + 20);
   const i = (o) => module.HEAP32[(dims + o) >> 2];
@@ -146,7 +148,8 @@ const sdfDelta = (a, b) => {
   const db = readDims(b);
   const lo = [0, 1, 2].map((i) => Math.max(da.origin[i], db.origin[i]));
   const hi = [0, 1, 2].map((i) => Math.min(da.origin[i] + da.size[i], db.origin[i] + db.size[i]));
-  if (hi.some((h, i) => h <= lo[i])) return { maxAbsMM: Infinity, meanAbsMM: Infinity, voxels: 0, bandMismatch: -1 };
+  if (hi.some((h, i) => h <= lo[i]))
+    return { maxAbsMM: Infinity, meanAbsMM: Infinity, voxels: 0, bandMismatch: -1 };
 
   const bufA = module._malloc(da.size[0] * da.size[1] * 4);
   const bufB = module._malloc(db.size[0] * db.size[1] * 4);
@@ -481,7 +484,11 @@ function beams1e5() {
   for (let x = 0; x < N; x++)
     for (let y = 0; y < N; y++)
       for (let z = 0; z < N; z++)
-        for (const [dx, dy, dz] of [[1, 0, 0], [0, 1, 0], [0, 0, 1]]) {
+        for (const [dx, dy, dz] of [
+          [1, 0, 0],
+          [0, 1, 0],
+          [0, 0, 1],
+        ]) {
           if (x + dx >= N || y + dy >= N || z + dz >= N) continue;
           beams.push(at(x), at(y), at(z), 0.5, at(x + dx), at(y + dy), at(z + dz), 0.5);
         }
@@ -496,8 +503,7 @@ function beams1e5() {
 }
 
 async function memoryPass() {
-  const spec =
-    FIXTURE === 'beams-1e5' ? beams1e5() : (await extractedFixtures())['heatx:helical-void.hot'];
+  const spec = FIXTURE === 'beams-1e5' ? beams1e5() : (await extractedFixtures())['heatx:helical-void.hot'];
   if (!spec) throw new Error('memory pass needs the helical-void fixture');
   const before = heapBytes();
   const t0 = performance.now();

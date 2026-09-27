@@ -32,8 +32,12 @@ test('B2 — mmToVoxel binds the REAL export and inverts voxelToMm', async () =>
   assert.deepEqual(pk.voxelToMm([20, 40, 60]), [10, 20, 30], 'voxel -> mm must MULTIPLY by voxel size');
 
   // Round-trip on integer voxel coordinates is exact (including negatives).
-  for (const v of [[7, -3, 12], [0, 0, 0], [-40, 5, -1]] as const) {
-    assert.deepEqual(pk.mmToVoxel(pk.voxelToMm(v)), v, `round trip ${v}`);
+  for (const v of [
+    [7, -3, 12],
+    [0, 0, 0],
+    [-40, 5, -1],
+  ] as const) {
+    assert.deepEqual(pk.mmToVoxel(pk.voxelToMm(v)), v, `round trip ${v.join(',')}`);
   }
   pk.dispose();
 });
@@ -41,10 +45,17 @@ test('B2 — mmToVoxel binds the REAL export and inverts voxelToMm', async () =>
 test('memory map: nine camelCase keys, total grows with an allocation', async () => {
   const pk = await createPico();
   const before = pk.memory;
-  assert.deepEqual(
-    Object.keys(before).sort(),
-    ['lattices', 'meshes', 'metadata', 'polyLines', 'scalarFields', 'total', 'vdbFiles', 'vectorFields', 'voxels'],
-  );
+  assert.deepEqual(Object.keys(before).sort(), [
+    'lattices',
+    'meshes',
+    'metadata',
+    'polyLines',
+    'scalarFields',
+    'total',
+    'vdbFiles',
+    'vectorFields',
+    'voxels',
+  ]);
   const sphere = pk.createVoxels({ shape: 'sphere', radius: 10 });
   const after = pk.memory;
   assert.ok(after.voxels > before.voxels, 'voxels memory must grow');
@@ -55,10 +66,16 @@ test('memory map: nine camelCase keys, total grows with an allocation', async ()
 
 test('allocated map: eight camelCase keys, tracks creations', async () => {
   const pk = await createPico();
-  assert.deepEqual(
-    Object.keys(pk.allocated).sort(),
-    ['lattices', 'meshes', 'metadata', 'polyLines', 'scalarFields', 'vdbFiles', 'vectorFields', 'voxels'],
-  );
+  assert.deepEqual(Object.keys(pk.allocated).sort(), [
+    'lattices',
+    'meshes',
+    'metadata',
+    'polyLines',
+    'scalarFields',
+    'vdbFiles',
+    'vectorFields',
+    'voxels',
+  ]);
   for (const count of Object.values(pk.allocated)) assert.equal(count, 0);
   const sphere = pk.createVoxels({ shape: 'sphere', radius: 5 });
   assert.equal(pk.allocated.voxels, 1);
@@ -80,7 +97,8 @@ test('factory validation: voxelSize must be positive and finite', async () => {
 test('wasm init failure path: invalid binary surfaces as PICO_WASM_INIT_FAILED', async () => {
   await assert.rejects(
     () => createPico({ wasm: { wasmBinary: new Uint8Array([1, 2, 3, 4]) } }),
-    (e: unknown) => e instanceof PicoError && e.code === 'PICO_WASM_INIT_FAILED' && /instantiate/.test(e.message),
+    (e: unknown) =>
+      e instanceof PicoError && e.code === 'PICO_WASM_INIT_FAILED' && /instantiate/.test(e.message),
   );
 });
 

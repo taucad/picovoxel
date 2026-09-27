@@ -90,6 +90,7 @@ const errorDetail = (error: unknown): string => (error instanceof Error ? error.
 
 const resolveGpu = (provided: GPU | null | undefined): GPU | null => {
   if (provided !== undefined) return provided;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- lib.dom types navigator.gpu as always present; Node and non-WebGPU browsers lack it
   return globalThis.navigator?.gpu ?? null;
 };
 
@@ -101,6 +102,7 @@ const mergeLimits = (defaults: LimitTable, overrides: Partial<LimitTable> | unde
 
 const readAdapterInfo = (info: GPUAdapterInfo): WebGpuCapabilityReport['adapter'] => {
   const subgroup =
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- lib.dom types subgroupMaxSize as always present; adapters without subgroup support omit it
     info.subgroupMaxSize === undefined
       ? {}
       : {
@@ -130,7 +132,9 @@ const attachDeviceDiagnostics = (
   );
 };
 
-export const requestWebGpuDevice = async (options: RequestWebGpuDeviceOptions = {}): Promise<WebGpuCapability> => {
+export const requestWebGpuDevice = async (
+  options: RequestWebGpuDeviceOptions = {},
+): Promise<WebGpuCapability> => {
   const gpu = resolveGpu(options.gpu);
   if (gpu === null) return { reason: 'api-missing', status: 'unavailable' };
 
@@ -159,7 +163,9 @@ export const requestWebGpuDevice = async (options: RequestWebGpuDeviceOptions = 
   }
 
   const requiredLimits = Object.freeze(
-    Object.fromEntries(LIMIT_NAMES.map((limit) => [limit, Math.min(desiredLimits[limit], adapterLimits[limit])])),
+    Object.fromEntries(
+      LIMIT_NAMES.map((limit) => [limit, Math.min(desiredLimits[limit], adapterLimits[limit])]),
+    ),
   ) as unknown as LimitTable;
   const adapterFeatures = [...adapter.features.values()].sort();
   const requiredFeatures = OPTIONAL_FEATURES.filter((feature) => adapter.features.has(feature));

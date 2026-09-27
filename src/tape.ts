@@ -43,15 +43,36 @@ export type SdfOperator =
 
 /** Opcode values shared with src/pico-tape.cpp — never renumber. */
 const OP = {
-  const: 0, x: 1, y: 2, z: 3,
-  add: 4, sub: 5, mul: 6, div: 7,
-  neg: 8, abs: 9, sqrt: 10, sin: 11, cos: 12, floor: 13,
-  mod: 14, min: 15, max: 16, pow: 17, exp: 18, log: 19,
+  const: 0,
+  x: 1,
+  y: 2,
+  z: 3,
+  add: 4,
+  sub: 5,
+  mul: 6,
+  div: 7,
+  neg: 8,
+  abs: 9,
+  sqrt: 10,
+  sin: 11,
+  cos: 12,
+  floor: 13,
+  mod: 14,
+  min: 15,
+  max: 16,
+  pow: 17,
+  exp: 18,
+  log: 19,
 } as const;
 
 const UNARY: Partial<Record<SdfOperator, number>> = {
-  abs: OP.abs, sqrt: OP.sqrt, sin: OP.sin, cos: OP.cos,
-  floor: OP.floor, exp: OP.exp, log: OP.log,
+  abs: OP.abs,
+  sqrt: OP.sqrt,
+  sin: OP.sin,
+  cos: OP.cos,
+  floor: OP.floor,
+  exp: OP.exp,
+  log: OP.log,
 };
 const BINARY: Partial<Record<SdfOperator, number>> = { '/': OP.div, mod: OP.mod, pow: OP.pow };
 const FOLDING: Partial<Record<SdfOperator, number>> = { '+': OP.add, '*': OP.mul, min: OP.min, max: OP.max };
@@ -133,6 +154,7 @@ export function compileSdfExpression(expression: SdfExpression): SdfTape {
       for (const operand of operands.slice(1)) register = emit(folding, register, compile(operand));
       return register;
     }
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-conversion -- untyped JavaScript callers may pass a Symbol, which a bare template literal throws on
     throw invalid(`unknown operator '${String(operator)}'`);
   };
 

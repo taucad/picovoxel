@@ -1,5 +1,10 @@
 import { bindPicoRaw, type PicoRaw } from '../../src/raw.generated.ts';
-import { createPicoSession, type CreatePicoOptions, type Pico, type PicoGlueFactory } from '../../src/session.ts';
+import {
+  createPicoSession,
+  type CreatePicoOptions,
+  type Pico,
+  type PicoGlueFactory,
+} from '../../src/session.ts';
 import type { PicoWasmModule } from '../../src/types.ts';
 import { createHeapStager, type HeapStager } from './heap-view.ts';
 
@@ -78,6 +83,7 @@ type NanoCreateC = (
 ) => number;
 
 const bindSpikeAbi = (module: SpikePicoModule): WebGpuSpikeAbi => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- the caller names the cwrap signature it expects back
   const wrap = <FunctionType>(
     name: string,
     returnType: string | null,
@@ -95,13 +101,18 @@ const bindSpikeAbi = (module: SpikePicoModule): WebGpuSpikeAbi => {
     'number',
   ]);
   const nanoApplyValues = wrap<(snapshot: number) => number>('Voxels_NanoApplyValues', 'number', ['number']);
-  const nanoRebuildValues = wrap<(snapshot: number) => number>('Voxels_NanoRebuildValues', 'number', ['number']);
+  const nanoRebuildValues = wrap<(snapshot: number) => number>('Voxels_NanoRebuildValues', 'number', [
+    'number',
+  ]);
   const nanoTransformActive = wrap<(snapshot: number, operation: number, operand: number) => number>(
     'Voxels_NanoTransformActive',
     'number',
     ['number', 'number', 'number'],
   );
-  const nanoBounds = wrap<(snapshot: number, bounds: number) => void>('Voxels_NanoBounds', null, ['number', 'number']);
+  const nanoBounds = wrap<(snapshot: number, bounds: number) => void>('Voxels_NanoBounds', null, [
+    'number',
+    'number',
+  ]);
   const nanoSampleBox = wrap<(snapshot: number, coordinates: number, count: number, values: number) => void>(
     'Voxels_NanoSampleBox',
     null,
@@ -123,8 +134,19 @@ const bindSpikeAbi = (module: SpikePicoModule): WebGpuSpikeAbi => {
       constants: number,
       constantCount: number,
     ) => number
-  >('Voxels_TapeGpuClassify', 'number', ['bigint', 'bigint', 'number', 'number', 'number', 'number', 'number']);
-  const tapeGetInfo = wrap<(plan: number, info: number) => void>('Voxels_TapeGpuGetInfo', null, ['number', 'number']);
+  >('Voxels_TapeGpuClassify', 'number', [
+    'bigint',
+    'bigint',
+    'number',
+    'number',
+    'number',
+    'number',
+    'number',
+  ]);
+  const tapeGetInfo = wrap<(plan: number, info: number) => void>('Voxels_TapeGpuGetInfo', null, [
+    'number',
+    'number',
+  ]);
   const tapeEvalCpuSamples = wrap<(plan: number, indices: number, count: number, values: number) => void>(
     'Voxels_TapeGpuEvalCpuSamples',
     null,
@@ -212,7 +234,11 @@ const bindSpikeAbi = (module: SpikePicoModule): WebGpuSpikeAbi => {
 const loadFactory = async (): Promise<PicoGlueFactory> => {
   const moduleUrl = new URL('../picovoxel-dist/pico-webgpu-spike.mjs', import.meta.url).href;
   const imported = (await import(moduleUrl)) as unknown;
-  if (typeof imported !== 'object' || imported === null || typeof Reflect.get(imported, 'default') !== 'function') {
+  if (
+    typeof imported !== 'object' ||
+    imported === null ||
+    typeof Reflect.get(imported, 'default') !== 'function'
+  ) {
     throw new Error('PicoGK WebGPU spike module has no default factory');
   }
   return Reflect.get(imported, 'default') as PicoGlueFactory;
@@ -233,12 +259,12 @@ export const loadPicoSpikeRuntime = async (): Promise<PicoSpikeRuntime> => {
     abi: bindSpikeAbi(module),
     createSession: (options = {}) => {
       if (disposed) throw new Error('PicoGK WebGPU spike runtime is disposed');
-      return createPicoSession(async () => module, options);
+      return createPicoSession(() => Promise.resolve(module), options);
     },
     dispose: () => {
       if (disposed) return;
       disposed = true;
-      module.PThread?.terminateAllThreads?.();
+      module.PThread?.terminateAllThreads();
     },
     module,
     raw,

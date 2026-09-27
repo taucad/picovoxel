@@ -18,10 +18,14 @@ test('leaves and unary/binary ops encode to the pinned opcode words', () => {
   // sin(x) - 0.4  â†’  X, SIN, CONST, SUB
   const tape = compileSdfExpression(['-', ['sin', 'x'], 0.4]);
   expect(Array.from(tape.instructions)).toEqual([
-    1, 0, // 0: X
-    11, 0, // 1: SIN a=0
-    0, 0, // 2: CONST #0
-    5, 1 | (2 << 16), // 3: SUB a=1 b=2
+    1,
+    0, // 0: X
+    11,
+    0, // 1: SIN a=0
+    0,
+    0, // 2: CONST #0
+    5,
+    1 | (2 << 16), // 3: SUB a=1 b=2
   ]);
   expect(Array.from(tape.constants)).toEqual([0.4]);
 });
@@ -103,7 +107,8 @@ test('an all-operator expression matches its JS twin exactly', async () => {
   const expression: SdfExpression = [
     'min',
     ['-', ['sqrt', ['+', ['pow', 'x', 2], ['pow', 'y', 2], ['pow', 'z', 2]]], 6],
-    ['max',
+    [
+      'max',
       ['-', ['abs', ['mod', 'x', 3]], 1],
       ['*', ['floor', ['/', 'y', 4]], ['exp', ['-', ['log', ['+', ['abs', 'z'], 1]]]]],
     ],
@@ -140,7 +145,9 @@ test('a z-independent expression matches its JS twin exactly (TP7a: result regis
     const fromTape = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: expression });
     const fromCallback = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: twin });
     expect(fromTape.volume).toBe(fromCallback.volume);
-    expect(Buffer.from(fromTape.toMesh().toStl()).equals(Buffer.from(fromCallback.toMesh().toStl()))).toBe(true);
+    expect(Buffer.from(fromTape.toMesh().toStl()).equals(Buffer.from(fromCallback.toMesh().toStl()))).toBe(
+      true,
+    );
   } finally {
     pk.dispose();
   }
@@ -175,7 +182,9 @@ test('pruned interior keeps its sign through csg: tape sphere âˆ© inner sphere â
   try {
     const bounds = { boundsMin: [-12, -12, -12] as const, boundsMax: [12, 12, 12] as const };
     const sphereExpression: SdfExpression = [
-      '-', ['sqrt', ['+', ['pow', 'x', 2], ['pow', 'y', 2], ['pow', 'z', 2]]], 10.5,
+      '-',
+      ['sqrt', ['+', ['pow', 'x', 2], ['pow', 'y', 2], ['pow', 'z', 2]]],
+      10.5,
     ];
     const sphereFunction = (x: number, y: number, z: number): number =>
       Math.sqrt(x ** 2 + y ** 2 + z ** 2) - 10.5;
@@ -202,7 +211,8 @@ test('pruned interior keeps its sign through csg: tape sphere âˆ© inner sphere â
 
 test('a min-fold sphere lattice matches its JS twin exactly (decided branches shorten the tape)', async () => {
   const centers: [number, number, number][] = [];
-  for (const i of [-1, 1]) for (const j of [-1, 1]) for (const k of [-1, 1]) centers.push([i * 5, j * 5, k * 5]);
+  for (const i of [-1, 1])
+    for (const j of [-1, 1]) for (const k of [-1, 1]) centers.push([i * 5, j * 5, k * 5]);
   const expression: SdfExpression = [
     'min',
     ...centers.map(
@@ -223,9 +233,9 @@ test('a min-fold sphere lattice matches its JS twin exactly (decided branches sh
     const fromTape = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: expression });
     const fromCallback = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: twin });
     expect(fromTape.volume).toBe(fromCallback.volume);
-    expect(
-      Buffer.from(fromTape.toMesh().toStl()).equals(Buffer.from(fromCallback.toMesh().toStl())),
-    ).toBe(true);
+    expect(Buffer.from(fromTape.toMesh().toStl()).equals(Buffer.from(fromCallback.toMesh().toStl()))).toBe(
+      true,
+    );
   } finally {
     pk.dispose();
   }
@@ -270,9 +280,9 @@ test('withImplicit(expression) composes into NON-empty voxels exactly like the c
     expect(fromTape.isEmpty).toBe(false);
     expect(fromTape.equals(fromCallback)).toBe(true);
     expect(fromTape.properties().volume).toBe(fromCallback.properties().volume);
-    expect(
-      Buffer.from(fromTape.toMesh().toStl()).equals(Buffer.from(fromCallback.toMesh().toStl())),
-    ).toBe(true);
+    expect(Buffer.from(fromTape.toMesh().toStl()).equals(Buffer.from(fromCallback.toMesh().toStl()))).toBe(
+      true,
+    );
     // And the compose genuinely united: more material than either input alone.
     expect(fromTape.properties().volume).toBeGreaterThan(base.properties().volume);
   } finally {

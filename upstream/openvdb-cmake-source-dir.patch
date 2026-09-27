@@ -1,0 +1,202 @@
+AcademySoftwareFoundation/openvdb @ 86b5ea9e98a3 (master, 2026-09-23): resolve
+OpenVDB's own files through OpenVDB_SOURCE_DIR instead of CMAKE_SOURCE_DIR, so
+OpenVDB can be configured with add_subdirectory() or FetchContent.
+
+Proposal only. picovoxel, an unofficial community TypeScript/WebAssembly binding
+of LEAP 71's PicoGK, builds openvdb 13.0.0 (7c03e1f0), which has none of these
+references. PicoGKRuntime builds openvdb as a subproject, so a move to a
+release that has them would hit this.
+
+The defect. When OpenVDB is configured inside another project, CMAKE_SOURCE_DIR
+is the parent project's root, not OpenVDB's:
+
+  - openvdb/openvdb/CMakeLists.txt:15 includes
+    ${CMAKE_SOURCE_DIR}/cmake/OpenVDBUtils.cmake, a hard configure error;
+  - the Half.h/Half.cc sources (:571, :573), the ext/imath and ext/vcl include
+    directories of the static and shared targets (:673, :677, :714, :718) and
+    the ext/vcl install rule (:784) point outside the OpenVDB tree;
+  - the ten VCL instruction-set probes in cmake/OpenVDBUtils.cmake
+    (OPENVDB_COMPUTE_X86_INSTRSET_FROM_VCL) #include
+    "${CMAKE_SOURCE_DIR}/ext/vcl/..." inside check_cxx_source_compiles, so in
+    a subproject the probe fails to compile and reports no instruction set,
+    without an error.
+
+The eight CMakeLists.txt sites arrived with 2433964511 and 60fa1b861d; tag
+v13.0.0 has none and v13.1.0 has all eight. The patch replaces all 18
+references with ${OpenVDB_SOURCE_DIR}, which the root project(OpenVDB ...)
+defines: the same path in a standalone build, and the right one in a
+subproject. It adds a pendingchanges/ note. doc/CMakeLists.txt has similar uses
+and is left alone.
+
+Output values: none; this changes only where the build finds its own files.
+
+Checked (CMake 4.4.3, macOS arm64, 2026-09-27) with a minimal stand-in project:
+a check_cxx_source_compiles probe that includes "${CMAKE_SOURCE_DIR}/ext/..."
+compiles top-level and fails under add_subdirectory; with the project's own
+_SOURCE_DIR variable it compiles in both. A real subproject configure of
+openvdb master, before and after, has not been run.
+
+Target file sha256 prefix: openvdb/openvdb/CMakeLists.txt 6d4d4d3e717fa1b5.
+Applies with `patch -p1 --fuzz=0` at the root of an openvdb master checkout.
+Not applied by picovoxel's build; see upstream/README.md.
+
+--- a/openvdb/openvdb/CMakeLists.txt
++++ b/openvdb/openvdb/CMakeLists.txt
+@@ -12,7 +12,7 @@
+ project(OpenVDBCore LANGUAGES CXX)
+ 
+ include(GNUInstallDirs)
+-include(${CMAKE_SOURCE_DIR}/cmake/OpenVDBUtils.cmake)
++include(${OpenVDB_SOURCE_DIR}/cmake/OpenVDBUtils.cmake)
+ 
+ ###### OpenVDB Core Options
+ 
+@@ -568,9 +568,9 @@
+ )
+ 
+ list(APPEND OPENVDB_LIBRARY_MATH_INCLUDE_FILES
+-  ${CMAKE_SOURCE_DIR}/ext/imath/openvdb/math/Half.h)
++  ${OpenVDB_SOURCE_DIR}/ext/imath/openvdb/math/Half.h)
+ list(APPEND OPENVDB_LIBRARY_SOURCE_FILES
+-  ${CMAKE_SOURCE_DIR}/ext/imath/openvdb/math/Half.cc)
++  ${OpenVDB_SOURCE_DIR}/ext/imath/openvdb/math/Half.cc)
+ 
+ ##########################################################################
+ 
+@@ -670,11 +670,11 @@
+   )
+ 
+   if(NOT USE_IMATH_HALF)
+-    target_include_directories(openvdb_static SYSTEM PUBLIC ${CMAKE_SOURCE_DIR}/ext/imath)
++    target_include_directories(openvdb_static SYSTEM PUBLIC ${OpenVDB_SOURCE_DIR}/ext/imath)
+   endif()
+ 
+   if(USE_VCL)
+-    target_include_directories(openvdb_static SYSTEM PUBLIC ${CMAKE_SOURCE_DIR}/ext/vcl)
++    target_include_directories(openvdb_static SYSTEM PUBLIC ${OpenVDB_SOURCE_DIR}/ext/vcl)
+   endif()
+ 
+   target_compile_definitions(openvdb_static
+@@ -711,11 +711,11 @@
+   )
+ 
+   if(NOT USE_IMATH_HALF)
+-    target_include_directories(openvdb_shared SYSTEM PUBLIC ${CMAKE_SOURCE_DIR}/ext/imath)
++    target_include_directories(openvdb_shared SYSTEM PUBLIC ${OpenVDB_SOURCE_DIR}/ext/imath)
+   endif()
+ 
+   if(USE_VCL)
+-    target_include_directories(openvdb_shared SYSTEM PUBLIC ${CMAKE_SOURCE_DIR}/ext/vcl)
++    target_include_directories(openvdb_shared SYSTEM PUBLIC ${OpenVDB_SOURCE_DIR}/ext/vcl)
+   endif()
+ 
+   target_compile_definitions(openvdb_shared
+@@ -781,5 +781,5 @@
+ install(FILES ${OPENVDB_LIBRARY_SIMD_INCLUDE_FILES} DESTINATION ${OPENVDB_INSTALL_INCLUDEDIR}/openvdb/simd)
+ 
+ if(USE_VCL)
+-  install(DIRECTORY ${CMAKE_SOURCE_DIR}/ext/vcl/openvdb DESTINATION ${OPENVDB_INSTALL_INCLUDEDIR})
++  install(DIRECTORY ${OpenVDB_SOURCE_DIR}/ext/vcl/openvdb DESTINATION ${OPENVDB_INSTALL_INCLUDEDIR})
+ endif()
+--- a/cmake/OpenVDBUtils.cmake
++++ b/cmake/OpenVDBUtils.cmake
+@@ -191,7 +191,7 @@
+   #   invoking bad instruction sets on unsupported ISAs on the build machine.
+   include(CheckCXXSourceCompiles)
+   check_cxx_source_compiles([[
+-    #include "${CMAKE_SOURCE_DIR}/ext/vcl/openvdb/ext/vcl/instrset.h"
++    #include "${OpenVDB_SOURCE_DIR}/ext/vcl/openvdb/ext/vcl/instrset.h"
+     int main() { static_assert(INSTRSET == 10); return 0; } ]] COMPUTE_VCL_INSTRSET__AVX512VL_DQ_BW__)
+   if(COMPUTE_VCL_INSTRSET__AVX512VL_DQ_BW__)
+     set(${VCL_INSTRSET} 10 PARENT_SCOPE)
+@@ -199,7 +199,7 @@
+     return()
+   endif()
+   check_cxx_source_compiles([[
+-    #include "${CMAKE_SOURCE_DIR}/ext/vcl/openvdb/ext/vcl/instrset.h"
++    #include "${OpenVDB_SOURCE_DIR}/ext/vcl/openvdb/ext/vcl/instrset.h"
+     int main() { static_assert(INSTRSET == 9); return 0; } ]] COMPUTE_VCL_INSTRSET__AVX512F__)
+   if(COMPUTE_VCL_INSTRSET__AVX512F__)
+     set(${VCL_INSTRSET} 9 PARENT_SCOPE)
+@@ -207,7 +207,7 @@
+     return()
+   endif()
+   check_cxx_source_compiles([[
+-    #include "${CMAKE_SOURCE_DIR}/ext/vcl/openvdb/ext/vcl/instrset.h"
++    #include "${OpenVDB_SOURCE_DIR}/ext/vcl/openvdb/ext/vcl/instrset.h"
+     int main() { static_assert(INSTRSET == 8); return 0; } ]] COMPUTE_VCL_INSTRSET__AVX2__)
+   if(COMPUTE_VCL_INSTRSET__AVX2__)
+     set(${VCL_INSTRSET} 8 PARENT_SCOPE)
+@@ -215,7 +215,7 @@
+     return()
+   endif()
+   check_cxx_source_compiles([[
+-    #include "${CMAKE_SOURCE_DIR}/ext/vcl/openvdb/ext/vcl/instrset.h"
++    #include "${OpenVDB_SOURCE_DIR}/ext/vcl/openvdb/ext/vcl/instrset.h"
+     int main() { static_assert(INSTRSET == 7); return 0; } ]] COMPUTE_VCL_INSTRSET__AVX__)
+   if(COMPUTE_VCL_INSTRSET__AVX__)
+     set(${VCL_INSTRSET} 7 PARENT_SCOPE)
+@@ -223,7 +223,7 @@
+     return()
+   endif()
+   check_cxx_source_compiles([[
+-    #include "${CMAKE_SOURCE_DIR}/ext/vcl/openvdb/ext/vcl/instrset.h"
++    #include "${OpenVDB_SOURCE_DIR}/ext/vcl/openvdb/ext/vcl/instrset.h"
+     int main() { static_assert(INSTRSET == 6); return 0; } ]] COMPUTE_VCL_INSTRSET__SSE4_2__)
+   if(COMPUTE_VCL_INSTRSET__SSE4_2__)
+     set(${VCL_INSTRSET} 6 PARENT_SCOPE)
+@@ -231,7 +231,7 @@
+     return()
+   endif()
+   check_cxx_source_compiles([[
+-    #include "${CMAKE_SOURCE_DIR}/ext/vcl/openvdb/ext/vcl/instrset.h"
++    #include "${OpenVDB_SOURCE_DIR}/ext/vcl/openvdb/ext/vcl/instrset.h"
+     int main() { static_assert(INSTRSET == 5); return 0; } ]] COMPUTE_VCL_INSTRSET__SSE4_1__)
+   if(COMPUTE_VCL_INSTRSET__SSE4_1__)
+     set(${VCL_INSTRSET} 5 PARENT_SCOPE)
+@@ -239,7 +239,7 @@
+     return()
+   endif()
+   check_cxx_source_compiles([[
+-    #include "${CMAKE_SOURCE_DIR}/ext/vcl/openvdb/ext/vcl/instrset.h"
++    #include "${OpenVDB_SOURCE_DIR}/ext/vcl/openvdb/ext/vcl/instrset.h"
+     int main() { static_assert(INSTRSET == 4); return 0; } ]] COMPUTE_VCL_INSTRSET__SSSE3__)
+   if(COMPUTE_VCL_INSTRSET__SSSE3__)
+     set(${VCL_INSTRSET} 4 PARENT_SCOPE)
+@@ -247,7 +247,7 @@
+     return()
+   endif()
+   check_cxx_source_compiles([[
+-    #include "${CMAKE_SOURCE_DIR}/ext/vcl/openvdb/ext/vcl/instrset.h"
++    #include "${OpenVDB_SOURCE_DIR}/ext/vcl/openvdb/ext/vcl/instrset.h"
+     int main() { static_assert(INSTRSET == 3); return 0; } ]] COMPUTE_VCL_INSTRSET__SSE3__)
+   if(COMPUTE_VCL_INSTRSET__SSE3__)
+     set(${VCL_INSTRSET} 3 PARENT_SCOPE)
+@@ -255,7 +255,7 @@
+     return()
+   endif()
+   check_cxx_source_compiles([[
+-    #include "${CMAKE_SOURCE_DIR}/ext/vcl/openvdb/ext/vcl/instrset.h"
++    #include "${OpenVDB_SOURCE_DIR}/ext/vcl/openvdb/ext/vcl/instrset.h"
+     int main() { static_assert(INSTRSET == 2); return 0; } ]] COMPUTE_VCL_INSTRSET__SSE2__)
+   if(COMPUTE_VCL_INSTRSET__SSE2__)
+     set(${VCL_INSTRSET} 2 PARENT_SCOPE)
+@@ -263,7 +263,7 @@
+     return()
+   endif()
+   check_cxx_source_compiles([[
+-    #include "${CMAKE_SOURCE_DIR}/ext/vcl/openvdb/ext/vcl/instrset.h"
++    #include "${OpenVDB_SOURCE_DIR}/ext/vcl/openvdb/ext/vcl/instrset.h"
+     int main() { static_assert(INSTRSET == 1); return 0; } ]] COMPUTE_VCL_INSTRSET__SSE__)
+   if(COMPUTE_VCL_INSTRSET__SSE__)
+     set(${VCL_INSTRSET} 1 PARENT_SCOPE)
+--- /dev/null
++++ b/pendingchanges/cmakesourcedir.txt
+@@ -0,0 +1,7 @@
++OpenVDB:
++    Build:
++    - Fixed configuring OpenVDB as a subproject with add_subdirectory(): the
++      core library's CMakeLists.txt and the VCL instruction-set probes in
++      OpenVDBUtils.cmake located OpenVDB's own files through CMAKE_SOURCE_DIR,
++      which is the parent project's root in that case. They now use
++      OpenVDB_SOURCE_DIR.

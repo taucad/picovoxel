@@ -80,7 +80,11 @@ export class RandomDeformationField {
     const dir00 = interpolate(at(lowerX, lowerY, lowerZ), at(lowerX + 1, lowerY, lowerZ), xRatio);
     const dir10 = interpolate(at(lowerX, lowerY + 1, lowerZ), at(lowerX + 1, lowerY + 1, lowerZ), xRatio);
     const dir01 = interpolate(at(lowerX, lowerY, lowerZ + 1), at(lowerX + 1, lowerY, lowerZ + 1), xRatio);
-    const dir11 = interpolate(at(lowerX, lowerY + 1, lowerZ + 1), at(lowerX + 1, lowerY + 1, lowerZ + 1), xRatio);
+    const dir11 = interpolate(
+      at(lowerX, lowerY + 1, lowerZ + 1),
+      at(lowerX + 1, lowerY + 1, lowerZ + 1),
+      xRatio,
+    );
     const dir0 = interpolate(dir00, dir10, yRatio);
     const dir1 = interpolate(dir01, dir11, yRatio);
     return interpolate(dir0, dir1, zRatio);

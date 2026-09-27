@@ -27,16 +27,25 @@ test('offset: analytic growth and shrink on a sphere', () => {
 test('doubleOffset(+d, −d) is morphological closing: ≈ identity on a convex body', () => {
   const base = sphere(10);
   const closed = base.doubleOffset({ first: 2, second: -2 });
-  assert.ok(Math.abs(closed.volume - base.volume) / base.volume < 0.05, `closing changed a convex body: ${closed.volume}`);
+  assert.ok(
+    Math.abs(closed.volume - base.volume) / base.volume < 0.05,
+    `closing changed a convex body: ${closed.volume}`,
+  );
 });
 
 test('fillet ≙ its defining doubleOffset composition (bit-exact)', () => {
-  const base = sphere(8).union(pk.createVoxels({ shape: 'beam', start: [0, 0, 0], end: [14, 0, 0], radius: 3 }));
+  const base = sphere(8).union(
+    pk.createVoxels({ shape: 'beam', start: [0, 0, 0], end: [14, 0, 0], radius: 3 }),
+  );
   // C# voxFillet(r) = voxOverOffset(r, 0) = DoubleOffset(r, −r + 0).
   const viaFillet = base.fillet({ rounding: 2 });
   const viaDouble = base.doubleOffset({ first: 2, second: -2 });
   assert.ok(viaFillet.equals(viaDouble), 'fillet must be exactly DoubleOffset(r, −r)');
-  assert.equal(hexFloat(viaFillet.volume), hexFloat(viaDouble.volume), 'hex-float volumes must match bit-for-bit');
+  assert.equal(
+    hexFloat(viaFillet.volume),
+    hexFloat(viaDouble.volume),
+    'hex-float volumes must match bit-for-bit',
+  );
 
   // finalSurfaceDistance shifts the second offset: DoubleOffset(r, −r + f).
   const viaFilletFinal = base.fillet({ rounding: 2, finalSurfaceDistance: 1 });
@@ -45,15 +54,32 @@ test('fillet ≙ its defining doubleOffset composition (bit-exact)', () => {
 });
 
 test('smoothen ≙ raw Voxels_TripleOffset differential (bit-exact)', () => {
-  const base = sphere(8).union(pk.createVoxels({ shape: 'beam', start: [-2, -2, -2], end: [12, 2, 2], radius: 2 }));
+  const base = sphere(8).union(
+    pk.createVoxels({ shape: 'beam', start: [-2, -2, -2], end: [12, 2, 2], radius: 2 }),
+  );
   const smoothed = base.smoothen({ distance: 1 });
 
   // Raw path: copy the same source, run the export directly.
+  // eslint-disable-next-line @typescript-eslint/unbound-method -- Emscripten module functions do not use this
   const { cwrap } = pk.module;
-  const hCreateCopy = cwrap('Voxels_hCreateCopy', 'bigint', ['bigint', 'bigint']) as (l: bigint, v: bigint) => bigint;
-  const tripleOffset = cwrap('Voxels_TripleOffset', null, ['bigint', 'bigint', 'number']) as (l: bigint, v: bigint, d: number) => void;
-  const bIsEqual = cwrap('Voxels_bIsEqual', 'boolean', ['bigint', 'bigint', 'bigint']) as (l: bigint, a: bigint, b: bigint) => boolean;
-  const fVolume = cwrap('Voxels_fCalculateVolume', 'number', ['bigint', 'bigint']) as (l: bigint, v: bigint) => number;
+  const hCreateCopy = cwrap('Voxels_hCreateCopy', 'bigint', ['bigint', 'bigint']) as (
+    l: bigint,
+    v: bigint,
+  ) => bigint;
+  const tripleOffset = cwrap('Voxels_TripleOffset', null, ['bigint', 'bigint', 'number']) as (
+    l: bigint,
+    v: bigint,
+    d: number,
+  ) => void;
+  const bIsEqual = cwrap('Voxels_bIsEqual', 'boolean', ['bigint', 'bigint', 'bigint']) as (
+    l: bigint,
+    a: bigint,
+    b: bigint,
+  ) => boolean;
+  const fVolume = cwrap('Voxels_fCalculateVolume', 'number', ['bigint', 'bigint']) as (
+    l: bigint,
+    v: bigint,
+  ) => number;
   const destroy = cwrap('Voxels_Destroy', null, ['bigint', 'bigint']) as (l: bigint, v: bigint) => void;
 
   const rawCopy = hCreateCopy(pk.handle, base.handle);
@@ -99,7 +125,9 @@ test('shell({ inner, outer }): wall between both offsets; reversed args swap (bi
 
 test('shell smoothInner actually smooths (upstream B4 discarded it — we port the intent)', () => {
   // A bumpy body: sphere with a rod, so the inner void has concave detail to strip.
-  const base = sphere(8).union(pk.createVoxels({ shape: 'beam', start: [0, 0, 0], end: [11, 0, 0], radius: 2 }));
+  const base = sphere(8).union(
+    pk.createVoxels({ shape: 'beam', start: [0, 0, 0], end: [11, 0, 0], radius: 2 }),
+  );
   const plain = base.shell({ inner: -1.5, outer: 1.5 });
   const smoothed = base.shell({ inner: -1.5, outer: 1.5, smoothInner: 2 });
   assert.ok(!plain.equals(smoothed), 'smoothInner must change the result');
@@ -138,23 +166,51 @@ test('projectZSlice: the start slice is stamped through to endZ', () => {
 // whole-model case; this covers each entry point directly), and the OPT-IN must
 // actually engage. A knob that silently no-ops would pass every accuracy gate.
 
-/** The raw offset surface, straight off the module — same escape hatch the R12 differential above uses. */
+/** The raw offset surface, straight off the module — same escape hatch the smoothen differential above uses. */
 const rawOffsets = () => {
+  // eslint-disable-next-line @typescript-eslint/unbound-method -- Emscripten module functions do not use this
   const { cwrap } = pk.module;
   return {
     copy: cwrap('Voxels_hCreateCopy', 'bigint', ['bigint', 'bigint']) as (l: bigint, v: bigint) => bigint,
-    offset: cwrap('Voxels_Offset', null, ['bigint', 'bigint', 'number']) as (l: bigint, v: bigint, d: number) => void,
-    double: cwrap('Voxels_DoubleOffset', null, ['bigint', 'bigint', 'number', 'number']) as (l: bigint, v: bigint, a: number, b: number) => void,
-    triple: cwrap('Voxels_TripleOffset', null, ['bigint', 'bigint', 'number']) as (l: bigint, v: bigint, d: number) => void,
-    tuned: cwrap('Voxels_OffsetTuned', null, ['bigint', 'bigint', 'number', 'number', 'number', 'number']) as (
-      l: bigint, v: bigint, p: number, n: number, scheme: number, count: number) => void,
-    equal: cwrap('Voxels_bIsEqual', 'boolean', ['bigint', 'bigint', 'bigint']) as (l: bigint, a: bigint, b: bigint) => boolean,
-    volume: cwrap('Voxels_fCalculateVolume', 'number', ['bigint', 'bigint']) as (l: bigint, v: bigint) => number,
+    offset: cwrap('Voxels_Offset', null, ['bigint', 'bigint', 'number']) as (
+      l: bigint,
+      v: bigint,
+      d: number,
+    ) => void,
+    double: cwrap('Voxels_DoubleOffset', null, ['bigint', 'bigint', 'number', 'number']) as (
+      l: bigint,
+      v: bigint,
+      a: number,
+      b: number,
+    ) => void,
+    triple: cwrap('Voxels_TripleOffset', null, ['bigint', 'bigint', 'number']) as (
+      l: bigint,
+      v: bigint,
+      d: number,
+    ) => void,
+    tuned: cwrap('Voxels_OffsetTuned', null, [
+      'bigint',
+      'bigint',
+      'number',
+      'number',
+      'number',
+      'number',
+    ]) as (l: bigint, v: bigint, p: number, n: number, scheme: number, count: number) => void,
+    equal: cwrap('Voxels_bIsEqual', 'boolean', ['bigint', 'bigint', 'bigint']) as (
+      l: bigint,
+      a: bigint,
+      b: bigint,
+    ) => boolean,
+    volume: cwrap('Voxels_fCalculateVolume', 'number', ['bigint', 'bigint']) as (
+      l: bigint,
+      v: bigint,
+    ) => number,
     destroy: cwrap('Voxels_Destroy', null, ['bigint', 'bigint']) as (l: bigint, v: bigint) => void,
   };
 };
 
-const bumpyBody = () => sphere(8).union(pk.createVoxels({ shape: 'beam', start: [-2, -2, -2], end: [12, 2, 2], radius: 2 }));
+const bumpyBody = () =>
+  sphere(8).union(pk.createVoxels({ shape: 'beam', start: [-2, -2, -2], end: [12, 2, 2], radius: 2 }));
 
 test('the default path is the untuned upstream call, bit-for-bit (all four entry points)', () => {
   const r = rawOffsets();
@@ -182,7 +238,10 @@ test('Voxels_OffsetTuned with default settings IS the untuned export (bit-exact)
   const r = rawOffsets();
   const base = bumpyBody();
   const p = pk.module._malloc(16);
-  const write = (ds: number[]) => ds.forEach((d, i) => { pk.module.HEAPF32[(p >> 2) + i] = d; });
+  const write = (ds: number[]) =>
+    ds.forEach((d, i) => {
+      pk.module.HEAPF32[(p >> 2) + i] = d;
+    });
   const sequences: [string, number[], (h: bigint) => void][] = [
     ['Offset(+2)', [2], (h) => r.offset(pk.handle, h, 2)],
     ['Offset(-2)', [-2], (h) => r.offset(pk.handle, h, -2)],
@@ -192,12 +251,20 @@ test('Voxels_OffsetTuned with default settings IS the untuned export (bit-exact)
   for (const [label, distances, untuned] of sequences) {
     const a = r.copy(pk.handle, base.handle);
     untuned(a);
-    for (const [scheme, count] of [[-1, -1], [4, 3]]) { // "leave defaults" and "spell them out"
+    for (const [scheme, count] of [
+      [-1, -1],
+      [4, 3],
+    ]) {
+      // "leave defaults" and "spell them out"
       const b = r.copy(pk.handle, base.handle);
       write(distances);
       r.tuned(pk.handle, b, p, distances.length, scheme!, count!);
       assert.ok(r.equal(pk.handle, a, b), `${label} @(${scheme},${count}) is not the untuned export`);
-      assert.equal(hexFloat(r.volume(pk.handle, a)), hexFloat(r.volume(pk.handle, b)), `${label} @(${scheme},${count}) volume`);
+      assert.equal(
+        hexFloat(r.volume(pk.handle, a)),
+        hexFloat(r.volume(pk.handle, b)),
+        `${label} @(${scheme},${count}) volume`,
+      );
       r.destroy(pk.handle, b);
     }
     r.destroy(pk.handle, a);
@@ -206,7 +273,7 @@ test('Voxels_OffsetTuned with default settings IS the untuned export (bit-exact)
 });
 
 test('fastRenorm engages, and stays inside the SK-0.8 accuracy gates', () => {
-  // Gates (bench/results/webgpu-v2/SK-0.8.md): volume and area within 3% of the L0
+  // Gates (A/B data: bench/results/webgpu-v2/sk-0.8-ab.json): volume and area within 3% of the L0
   // output — the tolerance the analytic offset test at the top of this file already
   // uses — bounds within one voxel, and the non-negotiable one: openvdb's own
   // tools::checkLevelSet must still report a CLEAN field. That last gate is what
@@ -215,7 +282,10 @@ test('fastRenorm engages, and stays inside the SK-0.8 accuracy gates', () => {
   const voxel = 0.4;
   const diagnose = (v: Voxels): string => {
     const bDiagnose = pk.module.cwrap('Voxels_bDiagnose', 'boolean', ['bigint', 'bigint', 'number']) as (
-      l: bigint, h: bigint, p: number) => boolean;
+      l: bigint,
+      h: bigint,
+      p: number,
+    ) => boolean;
     const p = pk.module._malloc(255);
     try {
       bDiagnose(pk.handle, v.handle, p);
@@ -243,8 +313,14 @@ test('fastRenorm engages, and stays inside the SK-0.8 accuracy gates', () => {
     assert.ok(Math.abs(b.volume - a.volume) / a.volume < 0.03, `${label} volume ${b.volume} vs ${a.volume}`);
     assert.ok(Math.abs(b.area - a.area) / a.area < 0.03, `${label} area ${b.area} vs ${a.area}`);
     for (let axis = 0; axis < 3; axis++) {
-      assert.ok(Math.abs(b.bounds.min[axis]! - a.bounds.min[axis]!) < voxel, `${label} bounds min drifted past a voxel on axis ${axis}`);
-      assert.ok(Math.abs(b.bounds.max[axis]! - a.bounds.max[axis]!) < voxel, `${label} bounds max drifted past a voxel on axis ${axis}`);
+      assert.ok(
+        Math.abs(b.bounds.min[axis]! - a.bounds.min[axis]!) < voxel,
+        `${label} bounds min drifted past a voxel on axis ${axis}`,
+      );
+      assert.ok(
+        Math.abs(b.bounds.max[axis]! - a.bounds.max[axis]!) < voxel,
+        `${label} bounds max drifted past a voxel on axis ${axis}`,
+      );
     }
     assert.equal(diagnose(fast), '', `${label}: fastRenorm left the level set unhealthy`);
     slow.dispose();
@@ -277,15 +353,31 @@ test('session fastRenorm default engages the whole family, and per-op values win
       // The session default reproduces the per-op opt-in exactly…
       const viaSession = run(fastBase, {});
       const viaExplicit = run(base, { fastRenorm: true });
-      assert.equal(viaSession.gridHash().hash, viaExplicit.gridHash().hash, `${label}: session default ≠ per-op opt-in`);
+      assert.equal(
+        viaSession.gridHash().hash,
+        viaExplicit.gridHash().hash,
+        `${label}: session default ≠ per-op opt-in`,
+      );
       // …an explicit true inside the fast session is honoured (and redundant)…
       const viaBoth = run(fastBase, { fastRenorm: true });
-      assert.equal(viaBoth.gridHash().hash, viaSession.gridHash().hash, `${label}: explicit true inside the fast session drifted`);
+      assert.equal(
+        viaBoth.gridHash().hash,
+        viaSession.gridHash().hash,
+        `${label}: explicit true inside the fast session drifted`,
+      );
       // …and an explicit false restores the byte-locked upstream path exactly.
       const viaOptOut = run(fastBase, { fastRenorm: false });
       const viaDefault = run(base, {});
-      assert.equal(viaOptOut.gridHash().hash, viaDefault.gridHash().hash, `${label}: per-op false did not restore the L0 path`);
-      assert.notEqual(viaSession.gridHash().hash, viaDefault.gridHash().hash, `${label}: the session default was a no-op`);
+      assert.equal(
+        viaOptOut.gridHash().hash,
+        viaDefault.gridHash().hash,
+        `${label}: per-op false did not restore the L0 path`,
+      );
+      assert.notEqual(
+        viaSession.gridHash().hash,
+        viaDefault.gridHash().hash,
+        `${label}: the session default was a no-op`,
+      );
       for (const v of [viaSession, viaExplicit, viaBoth, viaOptOut, viaDefault]) v.dispose();
     }
     base.dispose();

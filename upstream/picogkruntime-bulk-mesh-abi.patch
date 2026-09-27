@@ -1,19 +1,20 @@
-PicoGKRuntime 26.2 (0f26321c) — bulk mesh transfer in the C ABI.
+leap71/PicoGKRuntime @ 0f26321c (26.2): bulk mesh transfer in the C ABI.
 
-PROPOSAL, NOT APPLIED LOCALLY. picovoxel ships this as a sibling translation
-unit (src/pico-bulk.cpp) so the vendored tree stays pristine; this file is the
-same code shaped as a diff against upstream, for leap71/PicoGKRuntime. Ledger
-row U4. Companion PR text: upstream/pr-bulk-mesh-transfer.md.
+Proposal only. picovoxel, an unofficial community TypeScript/WebAssembly binding
+of PicoGK (not affiliated with or endorsed by LEAP 71), ships the same code as a
+separate translation unit (src/pico-bulk.cpp) so its vendored runtime stays
+unmodified. This file is that code shaped as a diff against upstream.
 
-REPO SPLIT: this patch is the C ABI half only. The C# binding half —
-Mesh.vVertices()/vTriangles() reading through the four new exports instead of
-looping Mesh_GetVertex/Mesh_GetTriangle — targets a DIFFERENT repository
-(leap71/PicoGK) and is described in the PR text rather than diffed here.
+This is the C ABI half only. The C# half belongs to leap71/PicoGK, a different
+repository: Mesh.vVertices()/vTriangles() and Mesh.AddVertices would read and
+write through the four new exports instead of looping over Mesh_GetVertex,
+Mesh_GetTriangle and Mesh_nAddVertex. It is described here rather than diffed,
+for the maintainers to take or adapt.
 
 Why: the ABI moves mesh data one element per call. Reading a 174k-vertex mesh
-costs ~522k crossings; on managed and wasm hosts the crossing dominates
-everything else. Measured in the picovoxel WebAssembly port: 522k crossings
-become 2, ~150x faster on readback. The same shape serves C#, Python and any
+costs about 522k crossings, and on managed and wasm hosts the crossing
+dominates. In picovoxel's WebAssembly build the same read takes 2 crossings and
+runs about 150x faster (Apple M2 Pro). The same exports serve C#, Python and any
 other binding.
 
 Signatures follow the existing caller-supplied-buffer precedent
@@ -24,14 +25,15 @@ and nMemUsage bookkeeping stay correct.
 
 Layout note: Vector3 and Triangle are 12-byte #pragma pack(1) types identical
 in layout to PKVector3/PKTriangle. Vector3 has a user-provided copy constructor
-(PicoGKTypes.h:146), so std::copy and not memcpy — clang lowers it to the same
+(PicoGKTypes.h:146), so std::copy and not memcpy; clang lowers it to the same
 vectorised move at -O3.
 
-Differentially tested byte-identical against the per-element path (100k-vertex
-FNV-1a comparison) in the picovoxel suite. Evidence: the R11 measurement in
-MIGRATING-FROM-CSHARP.md U4; the shipped implementation in src/pico-bulk.cpp.
+Output values: unchanged. picovoxel's suite checks bulk against per-element
+transfer byte for byte, including a 100k-vertex FNV-1a comparison
+(test/bulk-mesh.test.mjs).
 
-Applies with `patch -p1` to a pristine PicoGKRuntime 0f26321c tree.
+Applies with `patch -p1 --fuzz=0` to a pristine PicoGKRuntime 0f26321c tree.
+Not applied by picovoxel's build; see upstream/README.md.
 
 --- a/API/PicoGK.h
 +++ b/API/PicoGK.h

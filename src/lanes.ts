@@ -1,10 +1,10 @@
-// Lane provenance, the pure half (§14.1; LANES D-pre.1 as ratified 2026-09-27).
+// Lane provenance, the pure half (the lane contract is described in docs/lanes.md).
 //
-// A handle's value-class provenance is a SET of members (LANES item 4). The
-// persisted grammar — used by the `PicoVoxel.Lane` grid tag, the STL header
-// token and the CLI header comment alike — is canonical comma-separated
-// members, sorted, deduplicated, no spaces: `fast` today, `fast,gpu-l1` once
-// GPU lanes land. Members match `[a-z0-9][a-z0-9-]*`. The TypeScript surface
+// A handle's value-class provenance is a SET of members. The persisted grammar
+// — used by the `PicoVoxel.Lane` grid tag, the STL header token and the CLI
+// header comment alike — is canonical comma-separated members, sorted,
+// deduplicated, no spaces: `fast`, or `fast,gpu-l1` for a set with a GPU
+// member. Members match `[a-z0-9][a-z0-9-]*`. The TypeScript surface
 // keeps the two-value enum: a set collapses to it by least upper bound, where
 // the empty set (or only `exact`, the bottom element) is `'exact'` and any
 // other member — known or not — is `'fast'`. Unknown members are therefore
@@ -28,13 +28,15 @@ export const UNKNOWN_LANE_MEMBER = 'unknown';
 const LANE_MEMBER = /^[a-z0-9][a-z0-9-]*$/;
 
 /** Canonical form: deduplicated, sorted, `exact` (the bottom element) dropped. */
-export function canonicalLaneSet(members: Iterable<string>): LaneSet {
+function canonicalLaneSet(members: Iterable<string>): LaneSet {
   return [...new Set(members)].filter((member) => member !== 'exact').sort();
 }
 
 /** Parses a persisted set value; malformed tokens become `unknown`, never dropped. */
 export function parseLaneSet(value: string): LaneSet {
-  return canonicalLaneSet(value.split(',').map((member) => (LANE_MEMBER.test(member) ? member : UNKNOWN_LANE_MEMBER)));
+  return canonicalLaneSet(
+    value.split(',').map((member) => (LANE_MEMBER.test(member) ? member : UNKNOWN_LANE_MEMBER)),
+  );
 }
 
 /** Least upper bound over provenance sets (set union). */
@@ -48,13 +50,13 @@ export function laneOf(set: LaneSet): PicoLane {
 }
 
 /**
- * LANES item 1, rider (ii): a session's `lane: 'fast'` (or resolved `'auto'`)
- * consent covers today's Class-2 lane — exactly the `fast` member. Any other
- * member (a future `gpu-l1`, a relaxed-math Class-3 member, `unknown`) is
- * outside it: Class-3 export policy is reserved for SK-2, so for consent an
- * unknown member is NOT fast-like (that would be the permissive direction).
+ * A session's `lane: 'fast'` (or resolved `'auto'`) consent covers the Class-2
+ * lane — exactly the `fast` member. Any other member (`gpu-l1`, a relaxed-math
+ * Class-3 member, `unknown`) is outside it: Class-3 export policy is reserved,
+ * so for consent an unknown member is NOT fast-like (that would be the
+ * permissive direction).
  */
-export function withinFastConsent(set: LaneSet): boolean {
+function withinFastConsent(set: LaneSet): boolean {
   return set.every((member) => member === 'fast');
 }
 
@@ -95,11 +97,12 @@ export function formatLaneToken(set: LaneSet): string {
 }
 
 /**
- * LANES defect 2 — finds the provenance token in header text: whitespace- or
+ * Finds the provenance token in header text: whitespace- or
  * NUL-delimited, anchored at a token start and case-exact, so `PLANE=FASTENED`
  * or `lane=fast` never match. The first `LANE=` token wins; none = exact.
  */
 export function findLaneToken(text: string): LaneSet {
+  // oxlint-disable-next-line eslint/no-control-regex -- NUL is a real delimiter: STL headers pad with NUL bytes
   const token = text.split(/[\s\0]+/).find((candidate) => candidate.startsWith('LANE='));
   return token === undefined ? EXACT_LANE_SET : parseLaneSet(token.slice('LANE='.length));
 }

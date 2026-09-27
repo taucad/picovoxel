@@ -23,7 +23,7 @@ csg* replaced by the Merge.h operators under a DeepCopy tag, to avoid the eager
 whole-operand deep copy). It was REVERTED: the multi-thread build silently and
 nondeterministically drops geometry at every voxel size below 1.0 mm, and a
 patch-level toggle matrix showed U-SK05-a necessary and sufficient while
-U-SK05-b alone is bit-exact. See bench/results/webgpu-v2/SK-0-P0-finecell.md.
+U-SK05-b alone is bit-exact (bench/results/webgpu-v2/sk-0-p0-toggle-matrix.jsonl).
 Whether the race lives in openvdb's TreeToMerge under DeepCopy or in how the
 patch drove it is NOT established, and answering that is the precondition for any
 re-attempt. Do not reintroduce the merge path without it.

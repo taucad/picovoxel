@@ -1,0 +1,66 @@
+leap71/PicoGKRuntime @ 0f26321c18ed (26.2): LatticeBeam::fSdvRoundCone renders
+the wrong shape when one end sphere contains the other.
+
+Proposal only. picovoxel, an unofficial community TypeScript/WebAssembly binding
+of PicoGK (not affiliated with or endorsed by LEAP 71), avoids the defect by
+rendering lattices through openvdb's tube-complex voxelizer by default; its
+optional serial lattice path and the PicoGK C# binding still reach this code.
+
+The defect. fSdvRoundCone implements the round-cone (tapered capsule) distance.
+When the end spheres nest, |a - b| <= |r1 - r2|, the shape is the larger
+sphere, but the formula computes a2 = l2 - rr * rr <= 0 and later takes
+sqrtf(x2 * a2 * il2) of a negative product. For a beam from radius 6 mm to 1 mm
+over 2 mm, the distance at the centre of the 6 mm sphere comes out as +1 mm
+(outside).
+
+The fix returns the distance to the larger sphere in that case, before the
+round-cone algebra (and before 1.0f / l2, which is infinite for a zero-length
+beam). openvdb's tube voxelizer makes the same decision for the same condition
+(tools/impl/LevelSetTubesImpl.h, the `// ball` branch).
+
+Output values: unchanged for non-nested beams (the new branch runs only when
+a2 <= 0); changed for nested beams, which move to the correct shape.
+
+Numeric check, 2026-09-27, Apple clang -O2, against Source/PicoGKLattice.h and
+Source/PicoGKTypes.h at 0f26321c18ed; volume sampled at 0.05 mm by counting
+negative field values:
+
+  beam                          before                    after       exact
+  r 6 -> 1 over 2 mm            657.83 mm^3, centre +1.00 904.82, -6.00  904.78
+  r 1 -> 6 over 2 mm            785.93 mm^3               904.82         904.78
+  r 3 -> 1 over 6 mm (control)  149.4410 mm^3             149.4410       -
+
+The check program is upstream/picogkruntime-roundcone-nested-spheres-check.cpp
+in the picovoxel repository. Rendered to voxels, the same r 6 -> 1 beam measured
+84.21 mm^3 against the closed form's 904.78 mm^3 (-90.7%) in picovoxel's
+WebAssembly build, with 160 tools::checkLevelSet violations
+(test/tier2.test.mjs pins the direction of the difference).
+
+Target file sha256 prefix: Source/PicoGKLattice.h d5aae62f9be8fdd2.
+Applies with `patch -p1 --fuzz=0` to a pristine PicoGKRuntime 0f26321c tree, onto
+it with patches/PicoGKRuntime/0003 applied, and onto it with 0001-0004 applied;
+picogkruntime-tubecomplex-lattice.patch still applies on top.
+Not applied by picovoxel's build; see upstream/README.md.
+
+--- a/Source/PicoGKLattice.h
++++ b/Source/PicoGKLattice.h
+@@ -127,6 +127,19 @@
+         float l2 = ba.fDot(ba);
+         float rr = r1 - r2;
+         float a2 = l2 - rr * rr;
++        
++        // Nested end spheres (|a-b| <= |r1-r2|): the smaller sphere lies
++        // inside the larger one, so the round cone is exactly the larger
++        // sphere. The formula below would take the square root of a negative
++        // product here (a2 <= 0) and describe a different, much smaller shape.
++        if (a2 <= 0.0f)
++        {
++            if (r1 >= r2)
++                return (p - a).fLength() - r1;
++            
++            return (p - b).fLength() - r2;
++        }
++        
+         float il2 = 1.0f / l2;
+         
+         // sampling dependant computations

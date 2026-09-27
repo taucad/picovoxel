@@ -4,7 +4,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'vitest';
-// eslint-disable-next-line import/no-relative-packages — dev script under test
 import { BULK_FUNCTIONS, generateRawSource } from '../scripts/generate-raw.mjs';
 import abi from '../src/abi.json' with { type: 'json' };
 
@@ -40,13 +39,20 @@ test('boolean returns keep the i32 -> boolean coercion wasm cannot do', () => {
   // Arity-matched wrappers only — a rest/spread wrapper would allocate per call.
   assert.match(source, /Voxels_bIsEmpty: \(fn\) => \(a0, a1\) => !!fn\(a0, a1\),/);
   const wrappers = source.match(/^ {2}[A-Za-z0-9_]+: \(fn\) => /gm) ?? [];
-  assert.equal(wrappers.length, 21, 'every boolean-returning export needs the !! wrap, and nothing else does');
+  assert.equal(
+    wrappers.length,
+    21,
+    'every boolean-returning export needs the !! wrap, and nothing else does',
+  );
   assert.ok(!/=> !!fn\(\.\.\./.test(source), 'boolean wrappers must not spread');
 });
 
 test('upstream typos are matched, not fixed', () => {
   assert.match(source, /MetaData_RemoveValue\(/, 'capital-D MetaData_RemoveValue must bind by its real name');
-  assert.ok(!source.includes('Metadata_RemoveValue('), 'a "fixed" lowercase name would fail to bind at runtime');
+  assert.ok(
+    !source.includes('Metadata_RemoveValue('),
+    'a "fixed" lowercase name would fail to bind at runtime',
+  );
   // ScalarField_RemoveValue's handle arg is typed PKVECTORFIELD in the header —
   // all handles are uint64_t, so it still types as a handle here.
   assert.match(source, /ScalarField_RemoveValue\(hInstance: PicoHandle, hThis: PicoHandle/);
@@ -57,7 +63,10 @@ test('char[255] params decay to pointer numbers with their real names', () => {
 });
 
 test('callback params cross as fn-table numbers', () => {
-  assert.match(source, /Voxels_RenderImplicit\(hInstance: PicoHandle, hThis: PicoHandle, poBBox: number, pfnSDF: number\): void/);
+  assert.match(
+    source,
+    /Voxels_RenderImplicit\(hInstance: PicoHandle, hThis: PicoHandle, poBBox: number, pfnSDF: number\): void/,
+  );
 });
 
 test('handles are branded; counters stay plain bigint', () => {
@@ -67,7 +76,11 @@ test('handles are branded; counters stay plain bigint', () => {
 
 test('regeneration is byte-stable against the checked-in file', async () => {
   const onDisk = await readFile(new URL('../src/raw.generated.ts', import.meta.url), 'utf8');
-  assert.equal(onDisk, source, 'src/raw.generated.ts drifted from its generator — re-run scripts/generate-raw.mjs');
+  assert.equal(
+    onDisk,
+    source,
+    'src/raw.generated.ts drifted from its generator — re-run scripts/generate-raw.mjs',
+  );
 });
 
 test('a wrong core count halts generation loudly', () => {

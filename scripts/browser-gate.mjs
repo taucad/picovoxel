@@ -39,7 +39,10 @@ if (!existsSync(join(HERE, 'dist/index.js'))) {
   process.exit(1);
 }
 console.log('building gate bundle…');
-execFileSync('./node_modules/.bin/tsdown', ['--config', 'tsdown.gate.config.ts'], { cwd: HERE, stdio: 'inherit' });
+execFileSync('./node_modules/.bin/tsdown', ['--config', 'tsdown.gate.config.ts'], {
+  cwd: HERE,
+  stdio: 'inherit',
+});
 
 // ── 2. Node-side records from the same package build ──
 console.log('computing node records…');
@@ -61,7 +64,11 @@ const gyroid = pk.createVoxels({
   boundsMin: [-12, -12, -12],
   boundsMax: [12, 12, 12],
   sdf: (x, y, z) =>
-    Math.abs(Math.sin(x * s) * Math.cos(y * s) + Math.sin(y * s) * Math.cos(z * s) + Math.sin(z * s) * Math.cos(x * s)) - 0.4,
+    Math.abs(
+      Math.sin(x * s) * Math.cos(y * s) +
+        Math.sin(y * s) * Math.cos(z * s) +
+        Math.sin(z * s) * Math.cos(x * s),
+    ) - 0.4,
 });
 const vertices = [];
 const triangles = [];
@@ -83,10 +90,19 @@ const tapeGyroid = pk.createVoxels({
   shape: 'implicit',
   boundsMin: [-12, -12, -12],
   boundsMax: [12, 12, 12],
-  sdf: ['-', ['abs', ['+',
-    ['*', ['sin', ['*', 'x', s]], ['cos', ['*', 'y', s]]],
-    ['*', ['sin', ['*', 'y', s]], ['cos', ['*', 'z', s]]],
-    ['*', ['sin', ['*', 'z', s]], ['cos', ['*', 'x', s]]]]], 0.4],
+  sdf: [
+    '-',
+    [
+      'abs',
+      [
+        '+',
+        ['*', ['sin', ['*', 'x', s]], ['cos', ['*', 'y', s]]],
+        ['*', ['sin', ['*', 'y', s]], ['cos', ['*', 'z', s]]],
+        ['*', ['sin', ['*', 'z', s]], ['cos', ['*', 'x', s]]],
+      ],
+    ],
+    0.4,
+  ],
 });
 
 const records = {

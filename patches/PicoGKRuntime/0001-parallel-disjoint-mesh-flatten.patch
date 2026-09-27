@@ -20,11 +20,9 @@ because it modifies dependency source; no flag-level override exists.
    concatenation, same winding reversal; Include() is pure per-axis min/max
    so the bbox reduction is order-independent bit-for-bit. This also makes
    emission order independent of allocation order — the property the mimalloc
-   NO-GO (bench/results/webgpu-v2/SK-0.1.md) was missing.
+   NO-GO (SK-0.1) was missing.
 
-Evidence: docs/research/picogk-runtime-performance-deficiency-audit.md
-(F16 cluster), docs/research/gpu-surface-extraction-survey.md (disjoint-slot
-polygon discipline), bench/results/webgpu-v2/SK-0.6.md.
+Evidence: bench/results/webgpu-v2/sk-0.6-mesh-*.json.
 
 Updated for flat-mode: roAsMesh() now calls enableFlatQuadOutput() and
 consumes flatQuads()+leaf offsets/counts when active (see the sibling

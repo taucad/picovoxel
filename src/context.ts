@@ -15,19 +15,17 @@ import type { PicoWasmModule, SdfFunction, Vec3 } from './types.ts';
 import type { Voxels } from './voxels.ts';
 
 /**
- * SK-0.4 / SKv2-0 V0.5-V0.6 — which export renders a lattice into voxels.
- * Default: the parallel tube-complex lane (`src/pico-lattice.cpp`,
- * deterministic by construction). `createPico({ serialLattice: true })`
- * routes the facade down the serial C#-identical `Voxels::RenderLattice`
- * loop instead — the escape hatch, and the arm the pre-SK-0.4 byte pins
- * certify. This was `PICOVOXEL_SERIAL_LATTICE=1`, a module-load env read —
- * deleted per §14.1: geometry-relevant selection must be a keyed,
- * constructor-explicit init option (ambient state that changes geometry is a
- * cache-key bug by definition), and a module-scoped read could not even
- * differ between two sessions in one process. Both exports share one
- * signature; the arm choice is per-session on `SessionContext`.
+ * Which export renders a lattice into voxels. Default: the parallel
+ * tube-complex lane (`src/pico-lattice.cpp`, deterministic by construction).
+ * `createPico({ serialLattice: true })` routes the facade down the serial
+ * C#-identical `Voxels::RenderLattice` loop instead — the escape hatch, and the
+ * arm the serial-lattice byte pins certify. The choice is a constructor option,
+ * not an environment variable: ambient state that changes geometry breaks cache
+ * keys, and a module-scoped read could not differ between two sessions in one
+ * process. Both exports share one signature; the arm choice is per-session on
+ * `SessionContext`.
  */
-export type RenderLatticeExport = 'Voxels_RenderLattice' | 'Voxels_RenderLatticeTubes';
+type RenderLatticeExport = 'Voxels_RenderLattice' | 'Voxels_RenderLatticeTubes';
 
 /** Resolved session lane (§14.1). `'open'` = no lane requested: library
  * defaults with per-op freedom in both directions — the pre-lane behavior. */
@@ -39,6 +37,15 @@ export const VEC3_BYTES = 12;
 export const TRI_BYTES = 12;
 export const BBOX_BYTES = 24; // PKBBox3 = 2 x PKVector3
 export const INFO_STRING_BYTES = 255; // PKINFOSTRINGLEN
+
+/**
+ * {@link PicoRaw} with every binding typed as a free function. The bindings are
+ * direct wasm exports that never read `this`, so detaching one (for example to
+ * pass a destroy function to the registry) is safe.
+ */
+type SessionRaw = {
+  [K in keyof PicoRaw]: (...args: Parameters<PicoRaw[K]>) => ReturnType<PicoRaw[K]>;
+};
 
 /** Raw destroy signature the registry frees through. */
 export type FreeFn = (lib: bigint, handle: bigint) => void;
@@ -63,7 +70,7 @@ export interface SessionContext {
   lane: ResolvedLane;
   /** SKv2-0 V0.6 — the keyed lattice-arm selection (see RenderLatticeExport). */
   renderLatticeExport: RenderLatticeExport;
-  raw: PicoRaw;
+  raw: SessionRaw;
   registry: HandleRegistry;
   /** D4 — session teardown wins races; wrappers consult this before freeing. */
   dead: { value: boolean };
@@ -83,7 +90,8 @@ export interface SessionContext {
 
 /** Anything the facade hands out: disposable, optionally so (GC is the backstop). */
 export interface Disposable {
-  dispose(): void;
+  // Property form: the dispose function is detached and re-attached as `[Symbol.dispose]`.
+  dispose: () => void;
 }
 
 /** Which session a wrapper belongs to — the SG10 cross-instance guard's memory. */
@@ -100,7 +108,7 @@ export function adoptHandle(ctx: SessionContext, wrapper: Disposable, handle: bi
   WRAPPER_SESSION.set(wrapper, ctx);
 }
 
-/** SG10 — operands from another Library instance corrupt nothing, they just throw. */
+/** SG10 — operands from another Library instance corrupt nothing; they throw. */
 export function assertSameSession(ctx: SessionContext, other: object, what: string): void {
   if (WRAPPER_SESSION.get(other) !== ctx) {
     throw new PicoError(
@@ -114,7 +122,7 @@ export function assertSameSession(ctx: SessionContext, other: object, what: stri
 /**
  * `_malloc` that fails LOUDLY: near the wasm32 4 GB linear-memory ceiling
  * malloc returns 0, and unchecked writes then surface as bare RangeErrors
- * from `HEAP*.set` (found by the R12 fine-voxel probe at 0.3 mm). A
+ * from `HEAP*.set` (seen on a fine-voxel probe at 0.3 mm). A
  * zero-byte request may legitimately return 0.
  *
  * Pointers this returns routinely exceed 2 GiB on fine-cell work (a 0.5 mm
@@ -140,7 +148,11 @@ export function checkedMalloc(module: PicoWasmModule, bytes: number, what: strin
  * Runs `body` with NUL-terminated UTF-8 copies of `texts` in wasm memory.
  * Buffers are freed on the way out; copy results before returning.
  */
-export function withStrings<T>(ctx: SessionContext, texts: readonly string[], body: (...pointers: number[]) => T): T {
+export function withStrings<T>(
+  ctx: SessionContext,
+  texts: readonly string[],
+  body: (...pointers: number[]) => T,
+): T {
   const { module } = ctx;
   const pointers = texts.map((text) => {
     const bytes = module.lengthBytesUTF8(text) + 1;
@@ -155,7 +167,7 @@ export function withStrings<T>(ctx: SessionContext, texts: readonly string[], bo
   }
 }
 
-/** Reads a length-`bytes` C string a call just wrote into `pointer`. */
+/** Reads the NUL-terminated C string a call wrote into `pointer`. */
 export function readCString(ctx: SessionContext, pointer: number): string {
   return ctx.module.UTF8ToString(pointer);
 }
@@ -177,7 +189,7 @@ export function expectHandle(operation: string, handle: bigint): bigint {
  * Runs `body` with a wasm function-table pointer for a JS SDF callback.
  * The C signature is float(*)(const PKVector3*): the trampoline reads the struct and
  * hands the author three scalars — at ~10^7 samples, allocating a vector object per
- * call is the difference between slow and unusable (R20: 3–9% total overhead).
+ * call is the difference between slow and unusable (measured at 3–9% total overhead).
  * The slot is removed in finally — addFunction slots leak without it.
  */
 export function withSdfPointer<T>(ctx: SessionContext, sdf: unknown, body: (sdfPointer: number) => T): T {
@@ -208,7 +220,12 @@ export function withSdfPointer<T>(ctx: SessionContext, sdf: unknown, body: (sdfP
 export function withSdfTape<T>(
   ctx: SessionContext,
   expression: SdfExpression,
-  body: (instructionPointer: number, instructionCount: number, constantPointer: number, constantCount: number) => T,
+  body: (
+    instructionPointer: number,
+    instructionCount: number,
+    constantPointer: number,
+    constantCount: number,
+  ) => T,
 ): T {
   const { instructions, constants } = compileSdfExpression(expression);
   const { module } = ctx;

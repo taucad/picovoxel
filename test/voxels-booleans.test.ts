@@ -89,7 +89,10 @@ test('SG2 — a.subtract(a).isEmpty is true while raw volume lies (~5% narrow ba
   const nothing = a.subtract(a);
   assert.equal(nothing.isEmpty, true, 'topologically empty');
   const residual = nothing.volume;
-  assert.ok(residual > 0, `narrow band residual expected, got ${residual} (the reason isEmpty is the oracle)`);
+  assert.ok(
+    residual > 0,
+    `narrow band residual expected, got ${residual} (the reason isEmpty is the oracle)`,
+  );
   // Band thickness scales with voxel size: ~5% at 0.4mm (tier-2), ~6% at 0.5mm here.
   assert.ok(residual < a.volume * 0.08, `residual ${residual} grew past the narrow-band ballpark`);
 });
@@ -118,12 +121,12 @@ test('SG10 — cross-session operands throw PICO_SESSION_MISMATCH', async () => 
 
 // SK-0.5's operand-copy guard lived here and is GONE with the change it guarded.
 // U-SK05-a (merge-based CSG, which removed the eager whole-operand deep copy) was
-// reverted for nondeterministic fine-cell geometry loss on the multi build — see
-// bench/results/webgpu-v2/SK-0-P0-finecell.md. Booleans deep-copy the operand again,
-// so an assertion that they don't is simply false. The measurement shape it used
-// (heap high-water on a contained-operand union, clone arm as the control) is
-// written up in SK-0.5.md §1 and is what a re-attempt should re-run — but not as a
-// committed test until the race question in the P0 doc is answered.
+// reverted for nondeterministic fine-cell geometry loss on the multi build (see the
+// fine-cell gate in test/examples-helixheatx.test.ts). Booleans deep-copy the operand
+// again, so an assertion that they don't is false. The measurement shape it used
+// (heap high-water on a contained-operand union, clone arm as the control) is what a
+// re-attempt should re-run — but not as a committed test until the fine-cell race
+// is explained.
 
 // SK-0.5 — the dense per-voxel fills prune before they hand the grid on.
 //
@@ -134,7 +137,8 @@ test('SG10 — cross-session operands throw PICO_SESSION_MISMATCH', async () => 
 test('per-voxel fills leave no prunable tree behind', () => {
   const empty = pk.createVoxels({ shape: 'empty' });
   const lattice = pk.createLattice();
-  for (let i = 0; i < 8; i++) lattice.addBeam({ start: [-15, 0, i * 3 - 12], end: [15, 0, i * 3 - 12], radius: 2 });
+  for (let i = 0; i < 8; i++)
+    lattice.addBeam({ start: [-15, 0, i * 3 - 12], end: [15, 0, i * 3 - 12], radius: 2 });
 
   const cases: Array<[string, Voxels]> = [
     ['RenderLattice', lattice.toVoxels()],

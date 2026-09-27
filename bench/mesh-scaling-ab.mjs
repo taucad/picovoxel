@@ -44,10 +44,10 @@ const gyroidExpression = [
 
 const out = { label, repeats: REPEATS, load: loadavg(), variants: {} };
 
-for (const [variant, importer] of [
+for (const [variant, importer] of /** @type {const} */ ([
   ['single', () => import('../src/index.ts')],
   ['multi', () => import('../src/multi.ts')],
-]) {
+])) {
   const { createPico } = await importer();
   const session = await createPico({ voxelSize: 0.25 });
   const gyroid = session.createVoxels({
@@ -88,4 +88,16 @@ for (const [variant, importer] of [
 
 const file = `bench/results/webgpu-v2/sk-0.6-mesh-${label}-${Date.now()}.json`;
 writeFileSync(file, JSON.stringify(out, null, 2));
-console.log(JSON.stringify({ file, single: out.variants.single.median, multi: out.variants.multi.median, threads: out.variants.multi.threads, identity: out.variants.multi.identity }, null, 1));
+console.log(
+  JSON.stringify(
+    {
+      file,
+      single: out.variants.single.median,
+      multi: out.variants.multi.median,
+      threads: out.variants.multi.threads,
+      identity: out.variants.multi.identity,
+    },
+    null,
+    1,
+  ),
+);

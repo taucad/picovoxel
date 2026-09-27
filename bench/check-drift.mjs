@@ -23,11 +23,15 @@ const tracked = new Set(
     .split('\n')
     .map((path) => path.slice('bench/results/'.length)),
 );
-const records = readdirSync(resultsDir).filter((f) => RECORD.test(f)).sort();
+const records = readdirSync(resultsDir)
+  .filter((f) => RECORD.test(f))
+  .sort();
 const baselineFile = records.filter((f) => tracked.has(f)).at(-1);
 const latestFile = records.filter((f) => !tracked.has(f)).at(-1);
 if (!baselineFile || !latestFile) {
-  console.log(`drift check: need a committed baseline and a fresh run (baseline ${baselineFile}, fresh ${latestFile}); nothing to compare.`);
+  console.log(
+    `drift check: need a committed baseline and a fresh run (baseline ${baselineFile}, fresh ${latestFile}); nothing to compare.`,
+  );
   process.exit(0);
 }
 const baseline = JSON.parse(readFileSync(join(resultsDir, baselineFile), 'utf8'));
@@ -41,7 +45,8 @@ for (const [id, entry] of Object.entries(latest.results)) {
     const baseMedian = base.phases[phase]?.medianMs;
     if (!baseMedian || baseMedian < 0.5) continue; // sub-ms phases are noise-dominated
     const ratio = sample.medianMs / baseMedian;
-    if (ratio > 2) drifts.push(`${id}/${phase}: ${baseMedian}ms -> ${sample.medianMs}ms (${ratio.toFixed(1)}x)`);
+    if (ratio > 2)
+      drifts.push(`${id}/${phase}: ${baseMedian}ms -> ${sample.medianMs}ms (${ratio.toFixed(1)}x)`);
   }
 }
 
@@ -50,7 +55,8 @@ if (drifts.length === 0) {
   process.exit(0);
 }
 
-const body = `Benchmark drift >2x vs the committed baseline (${baselineFile}):\n\n` +
+const body =
+  `Benchmark drift >2x vs the committed baseline (${baselineFile}):\n\n` +
   drifts.map((d) => `- ${d}`).join('\n') +
   `\n\nLatest: ${latestFile} on ${latest.fingerprint.cpu}. ` +
   'CI numbers are canaries, not certification — reproduce on a quiet machine with `pnpm run bench`.';

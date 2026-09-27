@@ -16,6 +16,8 @@ export type { PicoHandle, PicoRaw } from './raw.generated.ts';
 
 /** Instantiates the serial wasm module and binds the full raw surface. */
 export async function loadPicoRaw(overrides: object = {}): Promise<{ module: PicoWasmModule; raw: PicoRaw }> {
-  const module = await (createPicoModuleUntyped as (overrides?: object) => Promise<PicoWasmModule>)(overrides);
+  const module = await (createPicoModuleUntyped as (overrides?: object) => Promise<PicoWasmModule>)(
+    overrides,
+  );
   return { module, raw: bindPicoRaw(module) };
 }

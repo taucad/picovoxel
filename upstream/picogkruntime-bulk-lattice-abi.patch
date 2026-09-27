@@ -1,37 +1,37 @@
-PicoGKRuntime 26.2 (0f26321c) — bulk lattice authoring in the C ABI.
+leap71/PicoGKRuntime @ 0f26321c (26.2): bulk lattice authoring in the C ABI.
 
-PROPOSAL, NOT APPLIED LOCALLY. picovoxel ships this as a sibling translation
-unit (src/pico-bulk.cpp) so the vendored tree stays pristine; this file is the
-same code shaped as a diff against upstream, for leap71/PicoGKRuntime. Ledger
-row U17.
+Proposal only. picovoxel, an unofficial community TypeScript/WebAssembly binding
+of PicoGK (not affiliated with or endorsed by LEAP 71), ships the same code as a
+separate translation unit (src/pico-bulk.cpp) so its vendored runtime stays
+unmodified. This file is that code shaped as a diff against upstream.
 
-REPO SPLIT: this patch is the C ABI half only. The C# binding half —
-Lattice.AddBeam/AddSphere accumulating into a flat float array and flushing once
-per lattice instead of a P/Invoke per element — targets a DIFFERENT repository
-(leap71/PicoGK) and is described in the U17 ledger row rather than diffed here.
+This is the C ABI half only. The C# half, Lattice.AddBeam/AddSphere collecting
+into a flat float array and flushing once per lattice instead of one P/Invoke
+per element, belongs to leap71/PicoGK, a different repository. It is described
+here rather than diffed, for the maintainers to take or adapt.
 
-Why: Lattice_AddBeam is the hottest ABI site in the port. One picovoxel fixture
-(HelixHeatX) crosses it 1,197,460 times across 37 lattices; bulk transfer turns
-that into 37 crossings. Facade cost 50.1 -> 39.2 ns/beam, `author` stage
-238.7 -> 150.8 ms (paired ABAB x5), voxelization byte-identical. Evidence:
-bench/results/webgpu-v2/SK-0.3.md. The C# binding has the same shape of problem.
+Why: Lattice_AddBeam is the busiest ABI entry point in picovoxel. One fixture
+(LEAP71_HelixHeatX) crosses it 1,197,460 times across 37 lattices; bulk
+transfer turns that into 37 calls. Measured on an Apple M2 Pro, WebAssembly
+build, 2026-07-26: binding cost 50.1 -> 39.2 ns per beam, lattice authoring
+238.7 -> 150.8 ms (paired, 5 repeats each way). The C# binding has the same
+shape of cost.
 
-Wire format is chosen for the GPU upload seam, not for this loop: 8 floats per
-beam as (x, y, z, radius) per endpoint is two vec4 lanes at a 32-byte stride,
-no padding under std140 or std430, so the same buffer a binding accumulates can
-be handed to a GPU writeBuffer unrepacked. Round-cap flags ride in a parallel
-uint32 array (WGSL has no u8, so a byte array would have to be widened anyway).
+Wire format: 8 floats per beam, (x, y, z, radius) for each endpoint, so two
+vec4 lanes at a 32-byte stride with no padding under std140 or std430. The same
+buffer can go to a GPU upload without repacking. Round-cap flags travel in a
+parallel uint32 array.
 
-Elements still route through Lattice::AddBeam/AddSphere, which preserves the
-bounding-box update and the degenerate round-cap rule — a zero-length
-round-capped beam becomes a sphere (PicoGKLattice.h:213-218). Bulk-inserting
-behind their back would change what gets rendered.
+Elements still go through Lattice::AddBeam/AddSphere, which keeps the bounding
+box update and the rule that a zero-length round-capped beam becomes a sphere
+(PicoGKLattice.h:213-218).
 
-Note this patch does NOT change the storage: upstream keeps
-std::vector<LatticeBeam::Ptr>, one make_shared per beam. That allocator cost is
-20.9 ns/beam of the remaining 39.2 and is filed separately as ledger row U18.
+Output values: unchanged. Same elements, same order; voxelization is
+byte-identical in picovoxel's suite (test/lattice-polyline.test.ts).
 
-Applies with `patch -p1` to a pristine PicoGKRuntime 0f26321c tree.
+Applies with `patch -p1 --fuzz=0` to a pristine PicoGKRuntime 0f26321c tree,
+alone or after picogkruntime-bulk-mesh-abi.patch.
+Not applied by picovoxel's build; see upstream/README.md.
 
 --- a/API/PicoGK.h
 +++ b/API/PicoGK.h

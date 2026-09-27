@@ -4,7 +4,7 @@
 // (same exported names — switching variants is a one-specifier change).
 //
 // The dispose-shim import is load-bearing and must stay first: it installs
-// Symbol.dispose (Safari 16.4–18.3) before any consumer `using` code can run.
+// Symbol.dispose (hosts without it, including every released Safari) before any consumer `using` code can run.
 import './dispose.ts';
 
 import createPicoModuleUntyped from './pico.mjs';
@@ -20,9 +20,12 @@ import {
 } from './session.ts';
 
 // The glue plus the export names it reads, so a caller's wasmModule is checked first.
-const glue: PicoGlueFactory = Object.assign((overrides?: object) => (createPicoModuleUntyped as PicoGlueFactory)(overrides), {
-  wasmExports: WASM_EXPORTS,
-});
+const glue: PicoGlueFactory = Object.assign(
+  (overrides?: object) => (createPicoModuleUntyped as PicoGlueFactory)(overrides),
+  {
+    wasmExports: WASM_EXPORTS,
+  },
+);
 
 /**
  * Creates a single-threaded PicoGK session. Resolves once the wasm module is

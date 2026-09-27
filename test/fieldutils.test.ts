@@ -37,7 +37,8 @@ test('defaults: near-surface normals are near-unit and point outward', () => {
     const length = Math.hypot(value[0], value[1], value[2]);
     assert.ok(Math.abs(length - 1) < 1e-3, `near-unit normal, |n| = ${length}`);
     const radius = Math.hypot(position[0], position[1], position[2]);
-    const outward = (position[0] * value[0] + position[1] * value[1] + position[2] * value[2]) / (radius * length);
+    const outward =
+      (position[0] * value[0] + position[1] * value[1] + position[2] * value[2]) / (radius * length);
     assert.ok(outward > 0.98, `outward normal at ${position.join(',')}: dot(n, r̂) = ${outward}`);
   }
 });
@@ -58,7 +59,10 @@ test('directionFilter: +Z with tolerance keeps only top-cap normals', () => {
     surfaceNormalFieldExtractor(pk, sphere, { directionFilter: [0, 0, 2], directionFilterTolerance: 0.05 }),
   );
   assert.ok(top.length > 0, 'the top cap is non-empty');
-  assert.ok(top.length < all.length / 4, `a 0.05-tolerance cap is a small fraction: ${top.length} of ${all.length}`);
+  assert.ok(
+    top.length < all.length / 4,
+    `a 0.05-tolerance cap is a small fraction: ${top.length} of ${all.length}`,
+  );
   for (const { value } of top) {
     assert.ok(value[2] > 0.9, `top-cap normal points up, nz = ${value[2]}`);
   }
@@ -66,7 +70,10 @@ test('directionFilter: +Z with tolerance keeps only top-cap normals', () => {
 
 test('scaleBy: stored normals scale component-wise, bit-exactly for powers of two', () => {
   const base = new Map(
-    collect(surfaceNormalFieldExtractor(pk, sphere)).map(({ position, value }) => [position.join(','), value]),
+    collect(surfaceNormalFieldExtractor(pk, sphere)).map(({ position, value }) => [
+      position.join(','),
+      value,
+    ]),
   );
   const scaled = collect(surfaceNormalFieldExtractor(pk, sphere, { scaleBy: [2, 2, -4] }));
   assert.equal(scaled.length, base.size, 'scaling changes values, never the active set');

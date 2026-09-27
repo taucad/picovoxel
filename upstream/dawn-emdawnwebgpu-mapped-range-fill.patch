@@ -1,0 +1,39 @@
+google/dawn @ 6c1e27710cd1 (main, 2026-09-26): zero the mapped-range shadow in
+emwgpuBufferGetMappedRange.
+
+Proposal only. picovoxel, an unofficial community TypeScript/WebAssembly binding
+of LEAP 71's PicoGK, found this while evaluating emdawnwebgpu for WebGPU
+compute experiments (scripts/build-emdawnwebgpu-spike.sh). Dawn takes changes
+through Gerrit and the Chromium issue tracker; this diff is the one-line change
+such a CL would carry.
+
+The defect (third_party/emdawnwebgpu/pkg/webgpu/src/library_webgpu.js:1063).
+The shadow buffer comes from _memalign and is zeroed with
+HEAPU8.fill(0, data, mapped.byteLength). TypedArray.fill takes an end index,
+not a length, and data is a heap address normally far above
+mapped.byteLength, so the call fills nothing. On unmap the whole shadow is
+copied into the mapped range, so bytes the application did not write reach the
+GPU buffer as leftover heap contents.
+
+The fix: pass data + mapped.byteLength as the end index.
+
+Output values: bytes the application writes are unchanged; bytes it does not
+write become zero instead of leftover heap contents.
+
+Not reproduced in a browser; derived from reading the source at the commit
+above.
+
+Applies with `patch -p1 --fuzz=0` at the root of a Dawn checkout.
+Not applied by picovoxel's build; see upstream/README.md.
+
+--- a/third_party/emdawnwebgpu/pkg/webgpu/src/library_webgpu.js
++++ b/third_party/emdawnwebgpu/pkg/webgpu/src/library_webgpu.js
+@@ -1060,7 +1060,7 @@
+     }
+ 
+     var data = _memalign(16, mapped.byteLength);
+-    HEAPU8.fill(0, data, mapped.byteLength);
++    HEAPU8.fill(0, data, data + mapped.byteLength);
+     WebGPU.Internals.bufferOnUnmaps[bufferPtr].push(() => {
+       new Uint8Array(mapped).set(HEAPU8.subarray(data, data + mapped.byteLength));
+       _free(data);

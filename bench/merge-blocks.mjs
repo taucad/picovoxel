@@ -29,7 +29,9 @@ const [first] = blocks;
 // comparing two different libraries and calling the result a baseline.
 for (const { file, data } of blocks) {
   if (data.fingerprint.wasmSha256 !== first.data.fingerprint.wasmSha256) {
-    console.error(`REFUSED: ${file} has wasmSha256 ${data.fingerprint.wasmSha256}, expected ${first.data.fingerprint.wasmSha256}`);
+    console.error(
+      `REFUSED: ${file} has wasmSha256 ${data.fingerprint.wasmSha256}, expected ${first.data.fingerprint.wasmSha256}`,
+    );
     process.exit(1);
   }
 }

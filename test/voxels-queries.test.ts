@@ -25,7 +25,10 @@ test('isInside / surfaceNormal / closestPointOnSurface / raycastToSurface vs ana
   assert.ok(Math.abs(hit[0] + 10) < 0.5, `hit x=${hit[0]}, expected ≈ −10`);
 
   const normal = body.surfaceNormal(hit);
-  assert.ok(Math.abs(Math.abs(normal[0]) - 1) < 0.1, `normal at (−10,0,0) should be ±x, got ${normal}`);
+  assert.ok(
+    Math.abs(Math.abs(normal[0]) - 1) < 0.1,
+    `normal at (−10,0,0) should be ±x, got ${normal.join(',')}`,
+  );
 
   const closest = body.closestPointOnSurface([30, 0, 0]);
   assert.ok(closest, 'closest point must exist on a non-empty field');
@@ -51,8 +54,11 @@ test('dimensions / sliceCount / sliceOrigin describe the voxel grid', () => {
 
   const bottom = body.sliceOrigin(0);
   const top = body.sliceOrigin(body.sliceCount - 1);
-  assert.ok(Math.abs(bottom[2]! - -top[2]!) < 1.5, `slice origins should straddle the sphere symmetrically: ${bottom[2]} vs ${top[2]}`);
-  assert.ok(bottom[2]! < -9 && bottom[2]! > -12, `bottom slice z=${bottom[2]}`);
+  assert.ok(
+    Math.abs(bottom[2] - -top[2]) < 1.5,
+    `slice origins should straddle the sphere symmetrically: ${bottom[2]} vs ${top[2]}`,
+  );
+  assert.ok(bottom[2] < -9 && bottom[2] > -12, `bottom slice z=${bottom[2]}`);
 });
 
 test('SG8 — slice modes: sdf raw floats, bw ∈ {0,1}, antialiased ∈ [0,1]', () => {
@@ -60,19 +66,34 @@ test('SG8 — slice modes: sdf raw floats, bw ∈ {0,1}, antialiased ∈ [0,1]',
   const mid = Math.floor(body.sliceCount / 2);
 
   const sdf = body.getSlice({ index: mid });
-  assert.ok(sdf.data.some((v) => v < 0), 'mid slice must contain interior (negative) samples');
-  assert.ok(sdf.data.some((v) => v > 0), 'and exterior samples');
+  assert.ok(
+    sdf.data.some((v) => v < 0),
+    'mid slice must contain interior (negative) samples',
+  );
+  assert.ok(
+    sdf.data.some((v) => v > 0),
+    'and exterior samples',
+  );
   assert.ok(sdf.background > 0, 'background is the outside band value');
 
   const bw = body.getSlice({ index: mid, mode: 'bw' });
-  assert.ok(bw.data.every((v) => v === 0 || v === 1), 'bw is strictly binary');
+  assert.ok(
+    bw.data.every((v) => v === 0 || v === 1),
+    'bw is strictly binary',
+  );
   const insideCount = bw.data.filter((v) => v === 0).length;
   // Interior disc ≈ π r² in cells (r = 20 cells): ~1250.
   assert.ok(insideCount > 800, `mid slice inside-count ${insideCount}`);
 
   const aa = body.getSlice({ index: mid, mode: 'antialiased' });
-  assert.ok(aa.data.every((v) => v >= 0 && v <= 1), 'antialiased is normalized');
-  assert.ok(aa.data.some((v) => v > 0 && v < 1), 'antialiased has fractional band samples');
+  assert.ok(
+    aa.data.every((v) => v >= 0 && v <= 1),
+    'antialiased is normalized',
+  );
+  assert.ok(
+    aa.data.some((v) => v > 0 && v < 1),
+    'antialiased has fractional band samples',
+  );
 
   // Extremal slice has (almost) no interior.
   const edge = body.getSlice({ index: 0, mode: 'bw' });
@@ -108,7 +129,10 @@ test('interpolated Z slice: fractional positions between voxel layers', () => {
   const a = body.getSlice({ z: mid - 0.5, interpolated: true });
   const b = body.getSlice({ z: mid - 0.25, interpolated: true });
   assert.equal(a.data.length, a.width * a.height);
-  assert.ok(a.data.some((v) => v < 0), 'interpolated mid slice has interior');
+  assert.ok(
+    a.data.some((v) => v < 0),
+    'interpolated mid slice has interior',
+  );
   assert.notDeepEqual(Array.from(a.data), Array.from(b.data), 'different fractional z -> different samples');
 });
 
@@ -116,7 +140,7 @@ test('getSlice range/type validation', () => {
   const body = sphere(5);
   for (const bad of [{ index: -1 }, { index: 10_000 }, { index: 1.5 }]) {
     try {
-      body.getSlice(bad as never);
+      body.getSlice(bad);
       assert.fail(`getSlice(${JSON.stringify(bad)}) did not throw`);
     } catch (error) {
       assert.equal((error as { code: string }).code, 'PICO_INVALID_ARGUMENT');
@@ -160,14 +184,25 @@ test('maskedByImplicit — the gyroid-in-sphere idiom (SG-grade mask semantics)'
   const ball = sphere(10);
   const s = (2 * Math.PI) / 8;
   const gyroid = (x: number, y: number, z: number) =>
-    Math.abs(Math.sin(x * s) * Math.cos(y * s) + Math.sin(y * s) * Math.cos(z * s) + Math.sin(z * s) * Math.cos(x * s)) - 0.4;
+    Math.abs(
+      Math.sin(x * s) * Math.cos(y * s) +
+        Math.sin(y * s) * Math.cos(z * s) +
+        Math.sin(z * s) * Math.cos(x * s),
+    ) - 0.4;
 
   const masked = ball.maskedByImplicit({ sdf: gyroid });
   assert.ok(masked.volume > 0, 'mask left material');
-  assert.ok(masked.volume < ball.volume * 0.8, `mask must carve substantially: ${masked.volume} vs ${ball.volume}`);
+  assert.ok(
+    masked.volume < ball.volume * 0.8,
+    `mask must carve substantially: ${masked.volume} vs ${ball.volume}`,
+  );
 
   // Masking only re-evaluates EXISTING voxels: nothing may appear outside the ball.
   const outside = masked.subtract(ball);
   assert.equal(outside.isEmpty, true, 'mask must never create material outside the receiver');
-  assert.equal(Math.round(ball.volume), Math.round(pk.createVoxels({ shape: 'sphere', radius: 10 }).volume), 'receiver untouched');
+  assert.equal(
+    Math.round(ball.volume),
+    Math.round(pk.createVoxels({ shape: 'sphere', radius: 10 }).volume),
+    'receiver untouched',
+  );
 });

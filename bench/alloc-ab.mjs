@@ -57,7 +57,9 @@ for (const [id, entry] of Object.entries(aRuns[0].results)) {
 }
 
 const f = (n, d = 3) => n.toFixed(d);
-console.log('| metric | phase | dlmalloc median (ms) | mimalloc median (ms) | Δ% | speedup (A/B) | 95% CI | verdict |');
+console.log(
+  '| metric | phase | dlmalloc median (ms) | mimalloc median (ms) | Δ% | speedup (A/B) | 95% CI | verdict |',
+);
 console.log('| --- | --- | ---: | ---: | ---: | ---: | :---: | :---: |');
 for (const r of rows) {
   const verdict = !r.significant ? 'no effect' : r.ratio > 1 ? 'faster' : '**REGRESSION**';
@@ -73,5 +75,7 @@ console.log(
   `\n${rows.length} phases compared: ${wins.length} faster, ${regressions.length} regressions, ` +
     `${rows.length - wins.length - regressions.length} no measurable effect.`,
 );
-for (const r of regressions) console.log(`REGRESSION ${r.id}/${r.phase}: ${f(r.ratio, 3)}× (${f(r.deltaPct, 1)}%)`);
-if (skipped.length > 0) console.log(`\nskipped (sample-count mismatch):\n${skipped.map((s) => `  ${s}`).join('\n')}`);
+for (const r of regressions)
+  console.log(`REGRESSION ${r.id}/${r.phase}: ${f(r.ratio, 3)}× (${f(r.deltaPct, 1)}%)`);
+if (skipped.length > 0)
+  console.log(`\nskipped (sample-count mismatch):\n${skipped.map((s) => `  ${s}`).join('\n')}`);

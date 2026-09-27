@@ -1,8 +1,7 @@
 // SKv2-0 V0.1 — the G0 canonical grid hash, in-module.
 //
-// NON-DETERMINISM.md §14.5: normalize representation first, then hash the
-// depth-first (coord, canonical value bits) stream over active voxels plus the
-// post-prune sign classification of everything inactive. The whole point is the
+// Normalize representation first, then hash the depth-first (coord, canonical
+// value bits) stream over active voxels plus the post-prune sign classification of everything inactive. The whole point is the
 // `bIsEqual` lesson made structural: tile and dense-leaf encodings of ONE field
 // must hash equal, and only a *normalized* tree gives a canonical stream.
 //

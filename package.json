@@ -3,34 +3,40 @@
   "version": "0.0.0",
   "description": "PicoGK voxel and implicit geometry on OpenVDB, compiled to WebAssembly with a typed TypeScript API.",
   "keywords": [
-    "picogk",
-    "openvdb",
-    "voxel",
-    "implicit",
-    "sdf",
     "cad",
     "geometry",
-    "webassembly",
-    "wasm"
+    "implicit",
+    "openvdb",
+    "picogk",
+    "sdf",
+    "voxel",
+    "wasm",
+    "webassembly"
   ],
-  "author": "Richard Fontein",
-  "license": "Apache-2.0",
-  "type": "module",
-  "sideEffects": [
-    "./dist/dispose.js"
-  ],
-  "engines": {
-    "node": ">=22.14.0"
-  },
-  "packageManager": "pnpm@11.7.0",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/taucad/picovoxel.git"
-  },
   "homepage": "https://tau.new",
   "bugs": {
     "url": "https://github.com/taucad/picovoxel/issues"
   },
+  "license": "Apache-2.0",
+  "author": "Richard Fontein",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/taucad/picovoxel.git"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "MIGRATING-FROM-CSHARP.md",
+    "compatibility.md",
+    "CHANGELOG.md",
+    "BREAKING_CHANGES.md",
+    "NOTICE",
+    "license"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "./dist/dispose.js"
+  ],
   "exports": {
     ".": {
       "import": {
@@ -150,13 +156,6 @@
     "./multi/worker": "./dist/pico-multi.mjs",
     "./package.json": "./package.json"
   },
-  "files": [
-    "dist",
-    "README.md",
-    "MIGRATING-FROM-CSHARP.md",
-    "NOTICE",
-    "license"
-  ],
   "publishConfig": {
     "access": "public",
     "provenance": true
@@ -172,11 +171,15 @@
     "test:scripts": "node --test tests/*.test.mjs",
     "test:package": "node scripts/test-package.mjs candidate",
     "check": "nx run picovoxel:quality",
-    "check:shell": "for script in scripts/*.sh bench/*.sh .github/actions/*/*.sh; do bash -n \"$script\" || exit 1; done",
     "check:size": "size-limit",
+    "check:dead-code": "knip",
+    "format:check": "oxfmt --check .",
+    "lint": "oxlint --deny-warnings --type-aware && eslint .",
     "pkgcheck": "pnpm run validate-pack && node scripts/pkgcheck.mjs",
     "plan:check": "nx release plan:check",
+    "prose": "./scripts/check-prose.sh",
     "validate-pack": "node scripts/validate-pack.mjs",
+    "workflows": "./scripts/check-workflows.sh",
     "prepublishOnly": "node scripts/validate-pack.mjs",
     "bench": "node bench/run.mjs",
     "build:demo": "tsdown --config tsdown.demo.config.ts",
@@ -189,6 +192,31 @@
     "spike:node-webgpu": "node scripts/node-webgpu-spike.mjs",
     "spike:webgpu": "node scripts/webgpu-spike.mjs"
   },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.5",
+    "@eslint/js": "9.32.0",
+    "@nx/js": "23.1.1",
+    "@size-limit/file": "13.0.3",
+    "@types/node": "26.1.1",
+    "@types/three": "0.185.1",
+    "@vitest/coverage-v8": "4.1.10",
+    "eslint": "9.32.0",
+    "globals": "17.11.0",
+    "knip": "6.17.1",
+    "nx": "23.1.1",
+    "oxfmt": "0.36.0",
+    "oxlint": "1.70.0",
+    "oxlint-tsgolint": "0.22.1",
+    "pkg-pr-new": "0.0.88",
+    "playwright": "1.61.1",
+    "publint": "0.3.23",
+    "size-limit": "13.0.3",
+    "three": "0.185.1",
+    "tsdown": "0.22.14",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.61.1",
+    "vitest": "4.1.10"
+  },
   "peerDependencies": {
     "three": ">=0.160"
   },
@@ -197,21 +225,8 @@
       "optional": true
     }
   },
-  "devDependencies": {
-    "@arethetypeswrong/cli": "0.18.5",
-    "@nx/js": "23.1.1",
-    "@size-limit/file": "13.0.3",
-    "@types/node": "26.1.1",
-    "@types/three": "0.185.1",
-    "@vitest/coverage-v8": "4.1.10",
-    "nx": "23.1.1",
-    "pkg-pr-new": "0.0.88",
-    "playwright": "1.61.1",
-    "publint": "0.3.23",
-    "size-limit": "13.0.3",
-    "three": "0.185.1",
-    "tsdown": "0.22.14",
-    "typescript": "6.0.3",
-    "vitest": "4.1.10"
-  }
+  "engines": {
+    "node": ">=22.14.0"
+  },
+  "packageManager": "pnpm@11.7.0"
 }

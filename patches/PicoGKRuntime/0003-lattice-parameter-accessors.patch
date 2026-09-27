@@ -21,8 +21,7 @@ members, no member added, no member changed, no existing declaration touched
 `protected:` sections and nMemUsage()'s sizeof arithmetic are all unchanged.
 
 Consumer: src/pico-lattice.cpp (SK-0.4). Evidence:
-bench/results/webgpu-v2/SK-0.4.md, WORKLOAD-EXECUTORS.md `Voxels_RenderLattice`
-row, and U5 (the serial-lattice ledger row this unblocks).
+bench/results/webgpu-v2/sk-0.4-*.json.
 
 --- a/Source/PicoGKLattice.h
 +++ b/Source/PicoGKLattice.h

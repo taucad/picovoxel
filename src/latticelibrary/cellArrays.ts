@@ -26,7 +26,15 @@ export interface CellArray {
 }
 
 /** C# `vecGetCorner`: coordinate-seeded noise, shared by both regular arrays. */
-function noisyCorner(x: number, y: number, z: number, dx: number, dy: number, dz: number, noiseLevel: number): Vec3 {
+function noisyCorner(
+  x: number,
+  y: number,
+  z: number,
+  dx: number,
+  dy: number,
+  dz: number,
+  noiseLevel: number,
+): Vec3 {
   const iX = Math.trunc(x * 1000);
   const iY = Math.trunc(y * 1000);
   const iZ = Math.trunc(z * 1000);
@@ -40,7 +48,15 @@ function noisyCorner(x: number, y: number, z: number, dx: number, dy: number, dz
 }
 
 /** The 8 cuboid corners at (x, y, z) with the C# corner winding 1-8. */
-function cuboidAt(x: number, y: number, z: number, dx: number, dy: number, dz: number, noiseLevel: number): CuboidCell {
+function cuboidAt(
+  x: number,
+  y: number,
+  z: number,
+  dx: number,
+  dy: number,
+  dz: number,
+  noiseLevel: number,
+): CuboidCell {
   return new CuboidCell([
     noisyCorner(x, y, z, dx, dy, dz, noiseLevel),
     noisyCorner(x, y + dy, z, dx, dy, dz, noiseLevel),
@@ -79,7 +95,7 @@ export class RegularCellArray implements CellArray {
 }
 
 /**
- * A grid of just one unit cell, centred in XY and based at z = 0
+ * A grid of exactly one unit cell, centred in XY and based at z = 0
  * (C# `RegularUnitCell`).
  */
 export class RegularUnitCell implements CellArray {
@@ -130,7 +146,9 @@ export const conformalShowcaseShapes = {
     const innerRadius = (_phi: number, lengthRatio: number): number => 20 + 10 * lengthRatio;
     segment.setRadius(
       new SurfaceModulation(innerRadius),
-      new SurfaceModulation((phi: number, lengthRatio: number) => innerRadius(phi, lengthRatio) + 15 + 5 * Math.cos(4 * phi)),
+      new SurfaceModulation(
+        (phi: number, lengthRatio: number) => innerRadius(phi, lengthRatio) + 15 + 5 * Math.cos(4 * phi),
+      ),
     );
     return segment;
   },
@@ -144,7 +162,12 @@ export const conformalShowcaseShapes = {
 export class ConformalCellArray implements CellArray {
   private readonly cells: UnitCell[] = [];
 
-  constructor(shape: BaseBox | BaseLens | BasePipeSegment, numberInX: number, numberInY: number, numberInZ: number) {
+  constructor(
+    shape: BaseBox | BaseLens | BasePipeSegment,
+    numberInX: number,
+    numberInY: number,
+    numberInZ: number,
+  ) {
     const point = (ix: number, iy: number, iz: number): Vec3 =>
       shape instanceof BaseBox
         ? // widthRatio/depthRatio span -1..1, lengthRatio 0..1 (C# vecGetInternalBoxPt).

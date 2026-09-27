@@ -60,7 +60,10 @@ test('analytic circle: one closed CCW contour hugging the radius', () => {
     const r = Math.hypot(circle.points[i]! - 50, circle.points[i + 1]! - 49);
     assert.ok(Math.abs(r - 30) <= 1, `radial deviation ${Math.abs(r - 30)} at point ${i / 2}`);
   }
-  assert.ok(Math.abs(contourArea(circle) - Math.PI * 900) / (Math.PI * 900) < 0.02, `area ${contourArea(circle)}`);
+  assert.ok(
+    Math.abs(contourArea(circle) - Math.PI * 900) / (Math.PI * 900) < 0.02,
+    `area ${contourArea(circle)}`,
+  );
 });
 
 test('hollow cylinder slice: outer CCW + inner CW (hole winding)', () => {
@@ -96,14 +99,20 @@ test('winding detection matches the upstream signed-area convention', () => {
 test('sphere through the facade: one contour per slice, area tracks the analytic disc', () => {
   const sphere = pk.createVoxels({ shape: 'sphere', radius: 8 });
   const stack = sliceVoxels(sphere);
-  assert.ok(stack.slices.length > 25 && stack.slices.length < 40, `${stack.slices.length} slices for r=8 @ 0.5`);
+  assert.ok(
+    stack.slices.length > 25 && stack.slices.length < 40,
+    `${stack.slices.length} slices for r=8 @ 0.5`,
+  );
 
   // Anchor on the equator (max-area slice) — the driver relabels z after skipping
   // leading empty layers, so absolute indices don't map to voxel-space z directly.
   const layerHeight = 0.5;
   const areas = stack.slices.map((s) => (s.contours.length === 1 ? contourArea(s.contours[0]!) : -1));
   const equator = areas.indexOf(Math.max(...areas));
-  assert.ok(Math.abs(areas[equator]! - Math.PI * 64) / (Math.PI * 64) < 0.04, `equator area ${areas[equator]}`);
+  assert.ok(
+    Math.abs(areas[equator]! - Math.PI * 64) / (Math.PI * 64) < 0.04,
+    `equator area ${areas[equator]}`,
+  );
 
   let checked = 0;
   for (let k = -14; k <= 14; k++) {
@@ -113,7 +122,10 @@ test('sphere through the facade: one contour per slice, area tracks the analytic
     if (discSquared < 16) continue; // pole slices are band-dominated
     assert.equal(stack.slices[i]!.contours.length, 1, `slice ${i} contour count`);
     const expected = Math.PI * discSquared;
-    assert.ok(Math.abs(areas[i]! - expected) / expected < 0.06, `slice ${i}: area ${areas[i]} vs ${expected}`);
+    assert.ok(
+      Math.abs(areas[i]! - expected) / expected < 0.06,
+      `slice ${i}: area ${areas[i]} vs ${expected}`,
+    );
     checked++;
   }
   assert.ok(checked > 10, `checked ${checked} interior slices`);

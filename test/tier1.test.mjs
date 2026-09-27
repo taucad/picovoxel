@@ -49,9 +49,12 @@ test('S3 — mm <-> voxel round trip', () => {
   assert.ok(Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z));
 
   const mm = pk.voxelsToMm(lib, v.x, v.y, v.z);
-  for (const [axis, expected] of [['x', 10], ['y', 20], ['z', 30]]) {
-    assert.ok(Math.abs(mm[axis] - expected) < 1e-3,
-      `round trip ${axis}: ${mm[axis]} != ${expected}`);
+  for (const [axis, expected] of [
+    ['x', 10],
+    ['y', 20],
+    ['z', 30],
+  ]) {
+    assert.ok(Math.abs(mm[axis] - expected) < 1e-3, `round trip ${axis}: ${mm[axis]} != ${expected}`);
   }
 
   // The conversion must actually scale by the voxel size, not pass through.
@@ -76,8 +79,10 @@ test('S4 — sphere -> Mesh_hCreateFromVoxels -> triangles > 0 (OpenVDB actually
   // Marching cubes under-reports slightly vs the analytic 4/3*pi*r^3 = 4189mm^3.
   const volume = pk.volume(lib, sphere);
   const analytic = (4 / 3) * Math.PI * 10 ** 3;
-  assert.ok(Math.abs(volume - analytic) / analytic < 0.02,
-    `sphere volume ${volume} is not within 2% of analytic ${analytic}`);
+  assert.ok(
+    Math.abs(volume - analytic) / analytic < 0.02,
+    `sphere volume ${volume} is not within 2% of analytic ${analytic}`,
+  );
 
   pk.destroyMesh(lib, mesh);
   pk.destroyVoxels(lib, sphere);
@@ -99,7 +104,10 @@ test('S5 — involute gear -> GLB bytes (the original PoC target)', async () => 
 
   const { vertices, indices } = pk.readMesh(lib, mesh);
   assert.equal(indices.length, tris * 3);
-  assert.ok(indices.every((i) => i < verts), 'index out of range');
+  assert.ok(
+    indices.every((i) => i < verts),
+    'index out of range',
+  );
 
   const glb = createGlb(vertices, indices);
   // Validate the container rather than trusting the writer.

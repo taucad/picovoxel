@@ -7,7 +7,14 @@
 // voxels.getSlice()/dimensions() — zero native touchpoints and zero dependencies.
 
 import { PicoError } from './errors.ts';
-import { EXACT_LANE_SET, findLaneToken, formatLaneToken, laneOf, unionLaneSets, type LaneSet } from './lanes.ts';
+import {
+  EXACT_LANE_SET,
+  findLaneToken,
+  formatLaneToken,
+  laneOf,
+  unionLaneSets,
+  type LaneSet,
+} from './lanes.ts';
 import type { Voxels } from './voxels.ts';
 
 export type ContourWinding = 'ccw' | 'cw' | 'unknown';
@@ -39,7 +46,7 @@ export interface SliceStack {
    * §14.1 value-class provenance (`'exact'` or absent = exact): `sliceVoxels` copies
    * `voxels.lane`, `slicesFromCli` restores it from the header stamp, and
    * `slicesToCli` stamps `'fast'` — manufacturing bytes are stamped, never
-   * refused (LANES item 2).
+   * refused.
    */
   lane?: 'exact' | 'fast';
 }
@@ -303,7 +310,10 @@ export function sliceVoxels(voxels: Voxels, options: SliceVoxelsOptions = {}): S
 
   const layerHeight = options.layerHeight ?? voxelSize;
   if (!(layerHeight > 0)) {
-    throw new PicoError('PICO_INVALID_ARGUMENT', `layerHeight must be positive millimetres, got ${layerHeight}.`);
+    throw new PicoError(
+      'PICO_INVALID_ARGUMENT',
+      `layerHeight must be positive millimetres, got ${layerHeight}.`,
+    );
   }
   const zStep = layerHeight / voxelSize;
 
@@ -321,7 +331,12 @@ export function sliceVoxels(voxels: Voxels, options: SliceVoxelsOptions = {}): S
     const image = voxels.getSlice({ z: fZ, interpolated: true });
     fZ += zStep;
 
-    const contours = contoursFromSdf({ width: nx, height: ny, data: image.data }, voxelSize, offsetX, offsetY);
+    const contours = contoursFromSdf(
+      { width: nx, height: ny, data: image.data },
+      voxelSize,
+      offsetX,
+      offsetY,
+    );
     if (slices.length === 0 && contours.length === 0) {
       continue; // skip empty layers until the first filled one (layerZ stays put)
     }
@@ -430,7 +445,9 @@ export function sliceToSvg(slice: Slice, options: ToSvgOptions = {}): string {
         points += ` ${contour.points[i]},${contour.points[i + 1]}`;
       }
       const stroke = contour.winding === 'cw' ? 'blue' : contour.winding === 'ccw' ? 'black' : 'red';
-      lines.push(`<polyline points='${points}' stroke='${stroke}' fill='none' stroke-width='${strokeWidth}' />`);
+      lines.push(
+        `<polyline points='${points}' stroke='${stroke}' fill='none' stroke-width='${strokeWidth}' />`,
+      );
     }
   }
   lines.push('</g>');
@@ -445,7 +462,7 @@ export interface ToCliOptions {
   units?: number;
   /** Emit an intentionally-empty first layer so readers can infer layer height. */
   emptyFirstLayer?: boolean;
-  /** Header date string; defaults to today (pass a fixed one for reproducible bytes). */
+  /** Header date string; defaults to the date at call time (pass a fixed one for reproducible bytes). */
   date?: string;
   onProgress?: (fraction: number) => void;
 }
@@ -453,7 +470,7 @@ export interface ToCliOptions {
 const WINDING_TO_CLI: Record<ContourWinding, number> = { cw: 0, ccw: 1, unknown: 2 };
 
 /**
- * LANES item 2 — the provenance stamp for slice artifacts: the STL header's
+ * The provenance stamp for slice artifacts: the STL header's
  * `LANE=<set>` token (`./lanes.ts`) after a `PicoVoxel` marker. In CLI it
  * rides a `// … //` remark line inside `$$HEADERSTART … $$HEADEREND` — CLI
  * v2.0 §3.1.1 defines `// text //` as a comment and its own §4 example puts
@@ -494,7 +511,8 @@ export function slicesToCli(stack: SliceStack, options: ToCliOptions = {}): Uint
   );
   lines.push(`$$LAYERS/${String(stack.slices.length + (emptyFirstLayer ? 1 : 0)).padStart(5, '0')}`);
   // LUB: a hand-assembled stack is fast if its stack claim or any slice is.
-  if (stack.lane === 'fast' || stack.slices.some((slice) => slice.lane === 'fast')) lines.push(`// ${LANE_STAMP} //`);
+  if (stack.lane === 'fast' || stack.slices.some((slice) => slice.lane === 'fast'))
+    lines.push(`// ${LANE_STAMP} //`);
   lines.push('$$HEADEREND');
   lines.push('$$GEOMETRYSTART');
   if (emptyFirstLayer) lines.push('$$LAYER/0.0');
@@ -531,7 +549,10 @@ export interface FromCliResult extends SliceStack {
 }
 
 /** Parses ASCII CLI bytes back into a slice stack. Tolerant of header variants. */
-export function slicesFromCli(bytes: Uint8Array, options: { onProgress?: (fraction: number) => void } = {}): FromCliResult {
+export function slicesFromCli(
+  bytes: Uint8Array,
+  options: { onProgress?: (fraction: number) => void } = {},
+): FromCliResult {
   const text = new TextDecoder().decode(bytes);
   const warnings: string[] = [];
   let units = 0;
@@ -573,7 +594,8 @@ export function slicesFromCli(bytes: Uint8Array, options: { onProgress?: (fracti
     let line = rawLines[lineIndex]!.trim();
     if (line.startsWith('//')) {
       // A remark line; inside the header it may carry the provenance stamp.
-      if (headerStarted) provenance = unionLaneSets(provenance, findLaneToken(line.slice(2).replace(/\/\/$/, '')));
+      if (headerStarted)
+        provenance = unionLaneSets(provenance, findLaneToken(line.slice(2).replace(/\/\/$/, '')));
       continue;
     }
     if (!headerStarted) {

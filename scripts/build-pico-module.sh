@@ -107,6 +107,7 @@ compile "$HERE/src/pico-query.cpp" "$OUT/pico_query_module$MT.o"
 for pid in ${PIDS[@]+"${PIDS[@]}"}; do wait "$pid"; done
 
 echo "=== link -> $VARIANT.mjs ==="
+# shellcheck disable=SC2086 # WASM_FLAGS and EH_FLAGS are flag lists, split on purpose.
 em++ -std=c++20 $WASM_FLAGS $EH_FLAGS "-ffile-prefix-map=$HERE=." \
   "$OUT/pico_core_module$MT.o" "$OUT/pico_bulk_module$MT.o" "$OUT/pico_tape_module$MT.o" \
   "$OUT/pico_props_module$MT.o" "$OUT/pico_offset_module$MT.o" \

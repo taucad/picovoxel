@@ -35,7 +35,13 @@ test('beam ≙ raw capsule primitive; capsule alias identical; tapered radii dif
   assert.ok(beam.equals(capsule), 'beam and capsule alias must be identical fields');
 
   // Tapered form drives the two-radius ABI path.
-  const tapered = pk.createVoxels({ shape: 'beam', start: [-10, 0, 0], end: [10, 0, 0], startRadius: 2, endRadius: 6 });
+  const tapered = pk.createVoxels({
+    shape: 'beam',
+    start: [-10, 0, 0],
+    end: [10, 0, 0],
+    startRadius: 2,
+    endRadius: 6,
+  });
   assert.ok(!tapered.equals(beam), 'tapered beam must differ');
   assert.ok(tapered.volume > 0);
   pk.dispose();

@@ -10,29 +10,80 @@
     <!-- Relative, so it resolves the same however the page is reached. -->
     <link rel="icon" href="../assets/logo.svg" type="image/svg+xml" />
     <style>
-      html, body { height: 100%; }
-      body { margin: 0; display: flex; flex-direction: column; background: #14161a; color: #d8dee9; font: 13px/1.5 ui-monospace, monospace; }
-      fieldset { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; border: 0; margin: 0; padding: 10px 16px; border-bottom: 1px solid #262a31; }
-      fieldset:disabled { opacity: 0.5; }
-      label { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
-      select, input[type='range'], input[type='number'] { accent-color: #88c0d0; background: #1d2026; color: inherit; border: 1px solid #333842; border-radius: 4px; padding: 2px 6px; }
-      input[type='number'] { width: 5.5em; }
-      #stats { margin-left: auto; color: #a3be8c; white-space: nowrap; }
-      #viewport { flex: 1; min-height: 0; }
-      canvas { display: block; }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        background: #14161a;
+        color: #d8dee9;
+        font:
+          13px/1.5 ui-monospace,
+          monospace;
+      }
+      fieldset {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        flex-wrap: wrap;
+        border: 0;
+        margin: 0;
+        padding: 10px 16px;
+        border-bottom: 1px solid #262a31;
+      }
+      fieldset:disabled {
+        opacity: 0.5;
+      }
+      label {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        white-space: nowrap;
+      }
+      select,
+      input[type='range'],
+      input[type='number'] {
+        accent-color: #88c0d0;
+        background: #1d2026;
+        color: inherit;
+        border: 1px solid #333842;
+        border-radius: 4px;
+        padding: 2px 6px;
+      }
+      input[type='number'] {
+        width: 5.5em;
+      }
+      #stats {
+        margin-left: auto;
+        color: #a3be8c;
+        white-space: nowrap;
+      }
+      #viewport {
+        flex: 1;
+        min-height: 0;
+      }
+      canvas {
+        display: block;
+      }
     </style>
   </head>
   <body>
     <fieldset id="controls" disabled>
-      <label>model
+      <label
+        >model
         <!-- Options are generated in main.ts from the grouped example registry. -->
         <select id="model"></select>
       </label>
-      <label>voxel size
+      <label
+        >voxel size
         <input id="voxel" type="range" min="0.05" max="1" step="0.05" value="0.5" />
         <input id="voxelNumber" type="number" min="0.05" max="1" step="0.05" value="0.5" /> mm
       </label>
-      <label>threading
+      <label
+        >threading
         <select id="threading">
           <option value="single" selected>single</option>
           <option value="multi">multi (pthreads)</option>

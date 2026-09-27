@@ -16,7 +16,13 @@ import {
 } from './context.ts';
 import { assertLive, guard, PicoError } from './errors.ts';
 import { laneOf, type LaneSet } from './lanes.ts';
-import { recordProvenance, settleProvenance, tagFieldClass, wrapMetadata, type Metadata } from './metadata.ts';
+import {
+  recordProvenance,
+  settleProvenance,
+  tagFieldClass,
+  wrapMetadata,
+  type Metadata,
+} from './metadata.ts';
 import type { Bounds, Vec3 } from './types.ts';
 import type { Voxels } from './voxels.ts';
 
@@ -68,7 +74,12 @@ export interface VectorField extends FieldBase {
 }
 
 /** Runs `body` with a wasm callback-table slot; always removes it (slots leak). */
-function withCallback<T>(ctx: SessionContext, signature: string, fn: (...args: number[]) => void, body: (pointer: number) => T): T {
+function withCallback<T>(
+  ctx: SessionContext,
+  signature: string,
+  fn: (...args: number[]) => void,
+  body: (pointer: number) => T,
+): T {
   const pointer = ctx.module.addFunction(fn, signature);
   try {
     return body(pointer);
@@ -107,12 +118,16 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint, provenance?
   const field = {
     set(position: Vec3, value: number) {
       ctx.writeVec3(ctx.scratch, position);
-      guard('ScalarField_SetValue', () => ctx.raw.ScalarField_SetValue(ctx.lib, live(), ctx.scratch, value))();
+      guard('ScalarField_SetValue', () =>
+        ctx.raw.ScalarField_SetValue(ctx.lib, live(), ctx.scratch, value),
+      )();
     },
     get(position: Vec3): number | null {
       ctx.writeVec3(ctx.scratch, position);
       const out = ctx.scratch + VEC3_BYTES;
-      const found = guard('ScalarField_bGetValue', () => ctx.raw.ScalarField_bGetValue(ctx.lib, live(), ctx.scratch, out))();
+      const found = guard('ScalarField_bGetValue', () =>
+        ctx.raw.ScalarField_bGetValue(ctx.lib, live(), ctx.scratch, out),
+      )();
       return found ? ctx.module.HEAPF32[out >>> 2]! : null;
     },
     remove(position: Vec3) {
@@ -122,11 +137,19 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint, provenance?
     traverse(callback: (x: number, y: number, z: number, value: number) => void) {
       live();
       // C signature: void(const PKVector3*, float) — 'vif'.
-      withCallback(ctx, 'vif', (positionPointer: number, value: number) => {
-        const f32 = ctx.module.HEAPF32;
-        const i = positionPointer! >>> 2;
-        callback(f32[i]!, f32[i + 1]!, f32[i + 2]!, value!);
-      }, (pointer) => guard('ScalarField_TraverseActive', () => ctx.raw.ScalarField_TraverseActive(ctx.lib, handle, pointer))());
+      withCallback(
+        ctx,
+        'vif',
+        (positionPointer: number, value: number) => {
+          const f32 = ctx.module.HEAPF32;
+          const i = positionPointer >>> 2;
+          callback(f32[i]!, f32[i + 1]!, f32[i + 2]!, value);
+        },
+        (pointer) =>
+          guard('ScalarField_TraverseActive', () =>
+            ctx.raw.ScalarField_TraverseActive(ctx.lib, handle, pointer),
+          )(),
+      );
     },
     dimensions: () => dims(),
     getSlice({ index }: { index: number }) {
@@ -138,7 +161,11 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint, provenance?
       const buffer = checkedMalloc(ctx.module, width * height * 4, 'a slice image buffer');
       try {
         ctx.raw.ScalarField_GetSlice(ctx.lib, handle, index, buffer);
-        return { width, height, data: new Float32Array(ctx.module.HEAPF32.subarray(buffer >>> 2, (buffer >>> 2) + width * height)) };
+        return {
+          width,
+          height,
+          data: new Float32Array(ctx.module.HEAPF32.subarray(buffer >>> 2, (buffer >>> 2) + width * height)),
+        };
       } finally {
         ctx.module._free(buffer);
       }
@@ -160,7 +187,11 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint, provenance?
       return value === null ? null : value * ctx.voxelSize; // SG6
     },
     clone(): ScalarField {
-      return wrapScalarField(ctx, expectHandle('ScalarField_hCreateCopy', ctx.raw.ScalarField_hCreateCopy(ctx.lib, live())), lane);
+      return wrapScalarField(
+        ctx,
+        expectHandle('ScalarField_hCreateCopy', ctx.raw.ScalarField_hCreateCopy(ctx.lib, live())),
+        lane,
+      );
     },
     get lane() {
       return laneOf(lane);
@@ -213,12 +244,16 @@ export function wrapVectorField(ctx: SessionContext, handle: bigint, provenance?
     set(position: Vec3, value: Vec3) {
       ctx.writeVec3(ctx.scratch, position);
       ctx.writeVec3(ctx.scratch + VEC3_BYTES, value);
-      guard('VectorField_SetValue', () => ctx.raw.VectorField_SetValue(ctx.lib, live(), ctx.scratch, ctx.scratch + VEC3_BYTES))();
+      guard('VectorField_SetValue', () =>
+        ctx.raw.VectorField_SetValue(ctx.lib, live(), ctx.scratch, ctx.scratch + VEC3_BYTES),
+      )();
     },
     get(position: Vec3): Vec3 | null {
       ctx.writeVec3(ctx.scratch, position);
       const out = ctx.scratch + VEC3_BYTES;
-      const found = guard('VectorField_bGetValue', () => ctx.raw.VectorField_bGetValue(ctx.lib, live(), ctx.scratch, out))();
+      const found = guard('VectorField_bGetValue', () =>
+        ctx.raw.VectorField_bGetValue(ctx.lib, live(), ctx.scratch, out),
+      )();
       return found ? ctx.readVec3(out) : null;
     },
     remove(position: Vec3) {
@@ -228,15 +263,27 @@ export function wrapVectorField(ctx: SessionContext, handle: bigint, provenance?
     traverse(callback: (x: number, y: number, z: number, vx: number, vy: number, vz: number) => void) {
       live();
       // C signature: void(const PKVector3*, const PKVector3*) — 'vii'.
-      withCallback(ctx, 'vii', (positionPointer: number, valuePointer: number) => {
-        const f32 = ctx.module.HEAPF32;
-        const i = positionPointer! >>> 2;
-        const j = valuePointer! >>> 2;
-        callback(f32[i]!, f32[i + 1]!, f32[i + 2]!, f32[j]!, f32[j + 1]!, f32[j + 2]!);
-      }, (pointer) => guard('VectorField_TraverseActive', () => ctx.raw.VectorField_TraverseActive(ctx.lib, handle, pointer))());
+      withCallback(
+        ctx,
+        'vii',
+        (positionPointer: number, valuePointer: number) => {
+          const f32 = ctx.module.HEAPF32;
+          const i = positionPointer >>> 2;
+          const j = valuePointer >>> 2;
+          callback(f32[i]!, f32[i + 1]!, f32[i + 2]!, f32[j]!, f32[j + 1]!, f32[j + 2]!);
+        },
+        (pointer) =>
+          guard('VectorField_TraverseActive', () =>
+            ctx.raw.VectorField_TraverseActive(ctx.lib, handle, pointer),
+          )(),
+      );
     },
     clone(): VectorField {
-      return wrapVectorField(ctx, expectHandle('VectorField_hCreateCopy', ctx.raw.VectorField_hCreateCopy(ctx.lib, live())), lane);
+      return wrapVectorField(
+        ctx,
+        expectHandle('VectorField_hCreateCopy', ctx.raw.VectorField_hCreateCopy(ctx.lib, live())),
+        lane,
+      );
     },
     get lane() {
       return laneOf(lane);

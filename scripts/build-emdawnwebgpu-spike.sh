@@ -7,6 +7,7 @@ SOURCE="$ROOT/spikes/webgpu/emdawn/hello-compute.cpp"
 SHADER="$ROOT/spikes/webgpu/emdawn/hello-compute.wgsl"
 BASELINE="$ROOT/spikes/webgpu/emdawn/baseline.cpp"
 OUTPUT="$ROOT/spikes/webgpu/emdawn/dist"
+# shellcheck disable=SC2054 # -sENVIRONMENT takes a comma list as one flag.
 COMMON=(
   -std=c++20
   -O3

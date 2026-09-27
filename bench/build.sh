@@ -59,6 +59,7 @@ cmake --build "$OUT/ovdb-wasm" -j"$(getconf _NPROCESSORS_ONLN)"
 cmake --install "$OUT/ovdb-wasm" --prefix "$PREFIX"   # version.h is generated; the source tree alone won't compile
 
 echo "=== bench: wasm + native ==="
+# shellcheck disable=SC2086 # WASM_FLAGS and EH_FLAGS are flag lists, split on purpose.
 em++ -std=c++17 $WASM_FLAGS $EH_FLAGS "$(dirname "$0")/openvdb-parity.cpp" -o "$OUT/bench.js" \
   -I"$PREFIX/include" "$PREFIX/lib/libopenvdb.a" "$PREFIX/lib/libtbb.a" \
   -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=512MB -sMAXIMUM_MEMORY=4GB \

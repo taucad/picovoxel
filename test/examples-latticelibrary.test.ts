@@ -87,6 +87,10 @@ for (const { name, voxelSize } of EXAMPLES) {
 
 function writeFixture(): void {
   const merged = { ...pins, ...regenerated };
-  const ordered = Object.fromEntries(Object.keys(merged).sort().map((k) => [k, merged[k]!]));
+  const ordered = Object.fromEntries(
+    Object.keys(merged)
+      .sort()
+      .map((k) => [k, merged[k]!]),
+  );
   writeFileSync(fixturePath, `${JSON.stringify(ordered, null, 1)}\n`);
 }

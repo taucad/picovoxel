@@ -17,10 +17,14 @@ const sealLayers = (pk: Pico, voxels: ReturnType<Pico['createVoxels']>, endZ: nu
   const dims = voxels.dimensions();
   const iEnd = Math.round(endZ / pk.voxelSize);
   let layers = 0;
-  for (let z = iEnd - 1; z >= dims.origin[2]!; z--) {
-    const slice = voxels.getSlice({ index: z - dims.origin[2]! });
+  for (let z = iEnd - 1; z >= dims.origin[2]; z--) {
+    const slice = voxels.getSlice({ index: z - dims.origin[2] });
     let active = false;
-    for (const v of slice.data) if (Math.abs(v) < slice.background) { active = true; break; }
+    for (const v of slice.data)
+      if (Math.abs(v) < slice.background) {
+        active = true;
+        break;
+      }
     if (active) layers++;
     else break;
   }
@@ -55,10 +59,23 @@ test('1.0 mm: fixed export ≡ upstream export bit-for-bit (formulas coincide)',
     const sphere = pk.createVoxels({ shape: 'sphere', radius: 8 });
     const viaFast = sphere.projectZSlice({ startZ: 6, endZ: -6 });
     const raw = pk.module.cwrap('Voxels_ProjectZSlice', null, ['bigint', 'bigint', 'number', 'number']) as (
-      l: bigint, v: bigint, s: number, e: number) => void;
-    const copy = pk.module.cwrap('Voxels_hCreateCopy', 'bigint', ['bigint', 'bigint']) as (l: bigint, v: bigint) => bigint;
-    const gh = pk.module.cwrap('Voxels_GetGridHash', null, ['bigint', 'bigint', 'number', 'number', 'number', 'number']) as (
-      l: bigint, v: bigint, a: number, b: number, c: number, d: number) => void;
+      l: bigint,
+      v: bigint,
+      s: number,
+      e: number,
+    ) => void;
+    const copy = pk.module.cwrap('Voxels_hCreateCopy', 'bigint', ['bigint', 'bigint']) as (
+      l: bigint,
+      v: bigint,
+    ) => bigint;
+    const gh = pk.module.cwrap('Voxels_GetGridHash', null, [
+      'bigint',
+      'bigint',
+      'number',
+      'number',
+      'number',
+      'number',
+    ]) as (l: bigint, v: bigint, a: number, b: number, c: number, d: number) => void;
     const reference = copy(pk.handle, sphere.handle);
     raw(pk.handle, reference, 6, -6);
     const p = pk.module._malloc(48);
@@ -87,22 +104,38 @@ test('direct per-column min oracle on an analytic sphere, both directions', asyn
   const pk = await createPico({ voxelSize: 0.5 });
   try {
     const sphere = pk.createVoxels({ shape: 'sphere', radius: 4 });
-    type Grid = { origin: number[]; size: number[]; width: number; slices: Float32Array[]; background: number };
+    type Grid = {
+      origin: number[];
+      size: number[];
+      width: number;
+      slices: Float32Array[];
+      background: number;
+    };
     const readAll = (v: ReturnType<Pico['createVoxels']>): Grid => {
       const d = v.dimensions();
       const first = v.getSlice({ index: 0 });
       const slices: Float32Array[] = [first.data];
-      for (let i = 1; i < d.size[2]!; i++) slices.push(v.getSlice({ index: i }).data);
-      return { origin: [...d.origin], size: [...d.size], width: first.width, slices, background: first.background };
+      for (let i = 1; i < d.size[2]; i++) slices.push(v.getSlice({ index: i }).data);
+      return {
+        origin: [...d.origin],
+        size: [...d.size],
+        width: first.width,
+        slices,
+        background: first.background,
+      };
     };
     const value = (g: Grid, wx: number, wy: number, wz: number): number => {
       const ix = wx - g.origin[0]!;
       const iy = wy - g.origin[1]!;
       const iz = wz - g.origin[2]!;
-      if (ix < 0 || iy < 0 || iz < 0 || ix >= g.size[0]! || iy >= g.size[1]! || iz >= g.size[2]!) return g.background;
+      if (ix < 0 || iy < 0 || iz < 0 || ix >= g.size[0]! || iy >= g.size[1]! || iz >= g.size[2]!)
+        return g.background;
       return g.slices[iz]![iy * g.width + ix]!;
     };
-    for (const [startZ, endZ] of [[3, -3], [-3, 3]] as const) {
+    for (const [startZ, endZ] of [
+      [3, -3],
+      [-3, 3],
+    ] as const) {
       const projected = sphere.projectZSlice({ startZ, endZ });
       const iStart = Math.round(startZ / pk.voxelSize);
       const iEnd = Math.round(endZ / pk.voxelSize);

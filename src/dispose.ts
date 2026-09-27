@@ -1,10 +1,10 @@
 // The ONLY file that mentions Symbol.dispose (disposal-facade doc, Finding 3).
 //
-// Safari shipped explicit resource management in 18.4; our floor is 16.4 (SIMD), so
-// the gap 16.4–18.3 needs the symbol defined before any consumer `using` runs —
+// No released Safari ships Symbol.dispose (MDN, 2026-09), and our floor is Safari 16.4
+// (SIMD), so hosts without it need the symbol defined before any consumer `using` runs —
 // tslib's __addDisposableResource reads the GLOBAL Symbol.dispose at use time and
 // throws if it is missing, so installing it here serves consumer code too.
-// When the supported floor reaches 18.4+, delete the `??=` line; nothing else changes.
+// When every supported host ships Symbol.dispose, delete the `??=` line; nothing else changes.
 
 const S = Symbol as unknown as { dispose?: symbol };
 

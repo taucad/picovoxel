@@ -3,7 +3,7 @@
 # Build the isolated pthread PicoGK wasm used by the P1/P2 WebGPU spikes.
 #
 # The output lives under spikes/webgpu and never overwrites the byte-locked L0
-# modules in src/. See docs/research/picogk-webgpu-{p1,p2}-*.md.
+# modules in src/.
 #
 # Required env vars:
 #   none

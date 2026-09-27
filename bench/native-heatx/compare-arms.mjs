@@ -12,7 +12,7 @@
 //
 //   node bench/native-heatx/compare-arms.mjs
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { summarizeBootstrapMedian } from '../stats.mjs';
@@ -55,7 +55,9 @@ for (const [label] of ARMS) {
 }
 if (data.size === 0) throw new Error(`no arm data in ${DIR}`);
 
-const sizes = [...(data.get(ARMS[0][0]) ?? [...data.values()][0]).bySize.keys()].sort((a, b) => Number(b) - Number(a));
+const sizes = [...(data.get(ARMS[0][0]) ?? [...data.values()][0]).bySize.keys()].sort(
+  (a, b) => Number(b) - Number(a),
+);
 const stat = (label, size) => {
   const runs = data.get(label)?.bySize.get(size);
   return runs ? summarizeBootstrapMedian(runs.map((r) => r.taskSeconds)) : null;
@@ -71,7 +73,9 @@ for (const [label, desc] of ARMS) {
 }
 
 console.log('\n## Task seconds by arm (median of 5, 95% CI)\n');
-console.log('| voxel (mm) | published | pristine (our build) | patched (our build) | patched vs pristine | patched vs published | STL identical? |');
+console.log(
+  '| voxel (mm) | published | pristine (our build) | patched (our build) | patched vs pristine | patched vs published | STL identical? |',
+);
 console.log('| ---: | ---: | ---: | ---: | ---: | ---: | :--- |');
 const gains = [];
 for (const size of sizes) {
@@ -91,7 +95,9 @@ for (const size of sizes) {
 }
 if (gains.length) {
   const geo = Math.exp(gains.reduce((s, g) => s + Math.log(g), 0) / gains.length);
-  console.log(`\n**Patch effect (geometric mean over sizes): ${f(geo)}×** vs the pristine control built with identical flags.`);
+  console.log(
+    `\n**Patch effect (geometric mean over sizes): ${f(geo)}×** vs the pristine control built with identical flags.`,
+  );
 }
 
 console.log('\n## Confidence intervals (do the arms actually separate?)\n');
@@ -101,8 +107,15 @@ for (const size of sizes) {
   const pri = stat('pristine-ourbuild', size);
   const pat = stat('patched', size);
   if (!pri || !pat) continue;
-  const sep = pat.ci95.high < pri.ci95.low ? 'yes — patched faster' : pri.ci95.high < pat.ci95.low ? 'yes — patched SLOWER' : 'no — overlapping';
-  console.log(`| ${size} | [${f(pri.ci95.low)}, ${f(pri.ci95.high)}] | [${f(pat.ci95.low)}, ${f(pat.ci95.high)}] | ${sep} |`);
+  const sep =
+    pat.ci95.high < pri.ci95.low
+      ? 'yes — patched faster'
+      : pri.ci95.high < pat.ci95.low
+        ? 'yes — patched SLOWER'
+        : 'no — overlapping';
+  console.log(
+    `| ${size} | [${f(pri.ci95.low)}, ${f(pri.ci95.high)}] | [${f(pat.ci95.low)}, ${f(pat.ci95.high)}] | ${sep} |`,
+  );
 }
 
 console.log('\n## Against the published MacBook Air table\n');

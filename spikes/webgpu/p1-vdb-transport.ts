@@ -45,14 +45,14 @@ interface LeafTransformRun {
 }
 
 const gpuConstants = (): GpuConstants => {
-  const buffer = Reflect.get(globalThis, 'GPUBufferUsage');
-  const mapMode = Reflect.get(globalThis, 'GPUMapMode');
+  const buffer: unknown = Reflect.get(globalThis, 'GPUBufferUsage');
+  const mapMode: unknown = Reflect.get(globalThis, 'GPUMapMode');
   if (typeof buffer !== 'object' || typeof mapMode !== 'object') {
     throw new Error('WebGPU runtime constants are unavailable');
   }
   return {
     buffer: buffer as GpuConstants['buffer'],
-    mapRead: Reflect.get(mapMode, 'READ') as number,
+    mapRead: Reflect.get(mapMode as object, 'READ') as number,
   };
 };
 
@@ -179,7 +179,10 @@ const runLeafTransform = async (options: {
   });
   const uniforms: GPUBuffer[] = [];
   const bindGroups: GPUBindGroup[] = [];
-  const profiler = new TimestampProfiler(options.device, options.report.features.requested.includes('timestamp-query'));
+  const profiler = new TimestampProfiler(
+    options.device,
+    options.report.features.requested.includes('timestamp-query'),
+  );
 
   try {
     const uploadStarted = performance.now();
@@ -286,7 +289,11 @@ const runParityKernel = async (options: {
   try {
     snapshot = options.runtime.abi.nanoCreate(session.handle, voxels.handle);
     const pristine = copyHeap(options.runtime, snapshot.data, snapshot.byteSize);
-    const cpuWritten = options.runtime.abi.nanoTransformActive(snapshot.handle, options.operation, options.operand);
+    const cpuWritten = options.runtime.abi.nanoTransformActive(
+      snapshot.handle,
+      options.operation,
+      options.operand,
+    );
     const expected = copyHeap(options.runtime, snapshot.data, snapshot.byteSize);
     options.runtime.stager.copyToHeap(pristine, {
       heapOffset: snapshot.data,
@@ -307,7 +314,8 @@ const runParityKernel = async (options: {
     }
     assertAccelerationEngaged({
       activeLane: 'webgpu',
-      adapter: options.report.adapter.description || options.report.adapter.device || options.report.adapter.vendor,
+      adapter:
+        options.report.adapter.description || options.report.adapter.device || options.report.adapter.vendor,
       dispatchCount: gpu.dispatchCount,
       requestedLane: 'webgpu',
       resultConsumed: gpu.bytes.byteLength === snapshot.byteSize,
@@ -387,7 +395,9 @@ const runTrilinearProbe = async (options: {
       throw new Error('K4 fixture unexpectedly exceeds one reader binding');
     }
     options.runtime.abi.nanoBounds(snapshot.handle, boundsPointer);
-    const bounds = new Int32Array(options.runtime.module.HEAP32.slice(boundsPointer >>> 2, (boundsPointer >>> 2) + 6));
+    const bounds = new Int32Array(
+      options.runtime.module.HEAP32.slice(boundsPointer >>> 2, (boundsPointer >>> 2) + 6),
+    );
     const random = xorshift(0x4b345031);
     const cpuCoordinates = new Float32Array(sampleCount * 3);
     const gpuCoordinates = new Float32Array(sampleCount * 4);
@@ -487,7 +497,8 @@ const runTrilinearProbe = async (options: {
     }
     assertAccelerationEngaged({
       activeLane: 'webgpu',
-      adapter: options.report.adapter.description || options.report.adapter.device || options.report.adapter.vendor,
+      adapter:
+        options.report.adapter.description || options.report.adapter.device || options.report.adapter.vendor,
       dispatchCount: dispatch.dispatchX * dispatch.dispatchY,
       requestedLane: 'webgpu',
       resultConsumed: gpuValues.length === sampleCount,
@@ -512,23 +523,25 @@ const runTrilinearProbe = async (options: {
   }
 };
 
+// Every operand is a float32 value; ties are written as their exact decimal
+// expansion so each literal names its double without rounding.
 const FMA_OPERANDS = [
   [59.336978912353516, -833.156005859375, 49436.91796875],
   [13.295721054077148, -123.22908020019531, 1638.3519287109375],
-  [76.48648071289062, 539.8080444335938, -41287.953125],
-  [-541.4644165039062, -173.85125732421875, -94134.3125],
-  [974.5603637695312, -582.8273315429688, 568000.4375],
+  [76.486480712890625, 539.8080444335938, -41287.953125],
+  [-541.46441650390625, -173.85125732421875, -94134.3125],
+  [974.56036376953125, -582.8273315429688, 568000.4375],
   [928.5485229492188, 605.8433837890625, -562554.9375],
-  [810.6235961914062, -493.9886779785156, 400438.8125],
+  [810.62359619140625, -493.9886779785156, 400438.8125],
   [835.0673217773438, -672.02197265625, 561183.625],
   [934.2449951171875, 911.886962890625, -851925.75],
   [507.95458984375, 832.4600830078125, -422851.9375],
-  [-876.4014282226562, 937.616455078125, 821728.4375],
-  [592.7744140625, 183.68252563476562, -108882.2890625],
+  [-876.40142822265625, 937.616455078125, 821728.4375],
+  [592.7744140625, 183.682525634765625, -108882.2890625],
   [35.910091400146484, 619.2056884765625, -22235.65234375],
   [-43.92039108276367, -184.41712951660156, -8099.603515625],
   [-66.99906158447266, -467.2255554199219, -31303.73828125],
-  [-775.6477661132812, -590.029296875, -457654.96875],
+  [-775.64776611328125, -590.029296875, -457654.96875],
 ] as const;
 
 const runFmaProbe = async (options: {
@@ -597,7 +610,8 @@ const runFmaProbe = async (options: {
     }
     assertAccelerationEngaged({
       activeLane: 'webgpu',
-      adapter: options.report.adapter.description || options.report.adapter.device || options.report.adapter.vendor,
+      adapter:
+        options.report.adapter.description || options.report.adapter.device || options.report.adapter.vendor,
       dispatchCount: 1,
       requestedLane: 'webgpu',
       resultConsumed: results.length === FMA_OPERANDS.length,
@@ -605,7 +619,11 @@ const runFmaProbe = async (options: {
     return {
       fusedMatches,
       observation:
-        fusedMatches === FMA_OPERANDS.length ? 'fused' : unfusedMatches === FMA_OPERANDS.length ? 'unfused' : 'mixed',
+        fusedMatches === FMA_OPERANDS.length
+          ? 'fused'
+          : unfusedMatches === FMA_OPERANDS.length
+            ? 'unfused'
+            : 'mixed',
       other,
       samples: FMA_OPERANDS.length,
       unfusedMatches,
@@ -669,7 +687,8 @@ const runCostRegime = async (options: {
     }
     assertAccelerationEngaged({
       activeLane: 'webgpu',
-      adapter: options.report.adapter.description || options.report.adapter.device || options.report.adapter.vendor,
+      adapter:
+        options.report.adapter.description || options.report.adapter.device || options.report.adapter.vendor,
       dispatchCount: lastGpu.dispatchCount,
       requestedLane: 'webgpu',
       resultConsumed: lastGpu.bytes.byteLength === snapshot.byteSize,
@@ -691,7 +710,8 @@ const runCostRegime = async (options: {
         : null;
     const effectiveKernelMs = kernelStatistics?.median ?? Math.min(wallStatistics.median, 0);
     const writebackMs = Math.min(applyStatistics.median, rebuildStatistics.median);
-    const transportMs = createStatistics.median + Math.max(0, wallStatistics.median - effectiveKernelMs) + writebackMs;
+    const transportMs =
+      createStatistics.median + Math.max(0, wallStatistics.median - effectiveKernelMs) + writebackMs;
     return {
       activeCount: snapshot.activeCount,
       apply: applyStatistics,
@@ -753,10 +773,11 @@ const runChunkingProbe = async (options: {
     }
     assertAccelerationEngaged({
       activeLane: 'webgpu',
-      adapter: options.report.adapter.description || options.report.adapter.device || options.report.adapter.vendor,
+      adapter:
+        options.report.adapter.description || options.report.adapter.device || options.report.adapter.vendor,
       dispatchCount: gpu.dispatchCount,
       requestedLane: 'webgpu',
-      resultConsumed: mismatch === null,
+      resultConsumed: true, // a mismatch threw above
     });
     return {
       activeCount: snapshot.activeCount,

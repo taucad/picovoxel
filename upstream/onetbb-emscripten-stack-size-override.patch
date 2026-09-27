@@ -1,0 +1,45 @@
+uxlfoundation/oneTBB @ 8976636cbd89 (master, 2026-09-23): let
+-DTBB_EMSCRIPTEN_STACK_SIZE=... override the 64 KB worker stack.
+
+picovoxel, an unofficial community TypeScript/WebAssembly binding of LEAP 71's
+PicoGK, applies the same change to its vendored oneTBB as the third hunk of
+patches/oneTBB/0001-wasm-substrate-edges.patch. That hunk no longer applies to
+master because its surrounding lines changed, so this file carries the same
+change regenerated for master, with the comment reworded.
+
+The defect. cmake/compilers/Clang.cmake:21 sets TBB_EMSCRIPTEN_STACK_SIZE with
+a plain set(), so a value given on the cmake command line is overwritten
+without a warning, and the 64 KB worker stack cannot be raised for applications
+that recurse deeper.
+
+The fix: an `if (NOT DEFINED TBB_EMSCRIPTEN_STACK_SIZE)` guard around the
+default.
+
+Output values: none; the default build is unchanged.
+
+Checked (picovoxel, emscripten 5.0.1, 2026-07-26): a probe configured with
+-DTBB_EMSCRIPTEN_STACK_SIZE=1048576 still reported worker_stack_size=65536
+before the guard, and 1048576 after it. picovoxel builds with 1 MB worker
+stacks (scripts/build-deps-wasm.sh); the measured cost was +10.3 MiB of thread
+pool heap.
+
+Applies with `patch -p1 --fuzz=0` at the root of a oneTBB master checkout.
+Independent of the other two oneTBB proposals.
+Not applied by picovoxel's build; see upstream/README.md.
+
+--- a/cmake/compilers/Clang.cmake
++++ b/cmake/compilers/Clang.cmake
+@@ -18,7 +18,12 @@
+     if (NOT EMSCRIPTEN_WITHOUT_PTHREAD)
+         set_property(TARGET Threads::Threads PROPERTY INTERFACE_LINK_LIBRARIES "-pthread")
+     endif()
+-    set(TBB_EMSCRIPTEN_STACK_SIZE 65536)
++    # Overridable: a plain set() here made -DTBB_EMSCRIPTEN_STACK_SIZE=... on
++    # the cmake command line silently ineffective, so the 64 KB worker stack
++    # could not be raised for applications that need deeper recursion.
++    if (NOT DEFINED TBB_EMSCRIPTEN_STACK_SIZE)
++        set(TBB_EMSCRIPTEN_STACK_SIZE 65536)
++    endif()
+     set(TBB_LIB_COMPILE_FLAGS -D__TBB_EMSCRIPTEN_STACK_SIZE=${TBB_EMSCRIPTEN_STACK_SIZE})
+     set(TBB_TEST_COMPILE_FLAGS ${TBB_TEST_COMPILE_FLAGS} -fexceptions)
+     set(TBB_TEST_LINK_FLAGS ${TBB_TEST_LINK_FLAGS} -fexceptions -sINITIAL_MEMORY=65536000 -sALLOW_MEMORY_GROWTH=1 -sMALLOC=mimalloc -sEXIT_RUNTIME=1 -sTOTAL_STACK=${TBB_EMSCRIPTEN_STACK_SIZE})

@@ -56,7 +56,8 @@ export const vec2 = {
     vec2.distanceSquared(a, b) <= distSquared,
 
   /** Fuzzy zero-length test (C# `Vector2.bAlmostZero`). */
-  almostZero: (v: Vec2, zeroSquared = tolerances.zeroSquared): boolean => vec2.lengthSquared(v) <= zeroSquared,
+  almostZero: (v: Vec2, zeroSquared = tolerances.zeroSquared): boolean =>
+    vec2.lengthSquared(v) <= zeroSquared,
 
   /** All components finite (C# `Vector2.bIsFinite`). */
   isFinite: (v: Vec2): boolean => Number.isFinite(v[0]) && Number.isFinite(v[1]),
@@ -139,7 +140,8 @@ export const vec3 = {
     vec3.distanceSquared(a, b) <= distSquared,
 
   /** Fuzzy zero-length test (C# `Vector3.bAlmostZero`). */
-  almostZero: (v: Vec3, zeroSquared = tolerances.zeroSquared): boolean => vec3.lengthSquared(v) <= zeroSquared,
+  almostZero: (v: Vec3, zeroSquared = tolerances.zeroSquared): boolean =>
+    vec3.lengthSquared(v) <= zeroSquared,
 
   /** All components finite (C# `Vector3.bIsFinite`). */
   isFinite: (v: Vec3): boolean => Number.isFinite(v[0]) && Number.isFinite(v[1]) && Number.isFinite(v[2]),

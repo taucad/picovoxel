@@ -6,6 +6,10 @@ allowBuilds:
 
 linkWorkspacePackages: true
 
+# pnpm 11 reads only auth and registry keys from .npmrc, so the exact-pin rule
+# lives here: `pnpm add` writes 1.2.3, never ^1.2.3.
+saveExact: true
+
 # Dev-only transitive advisories (high) that the CI audit gate fails on,
 # pinned to the patched releases as nanoraster does.
 overrides:

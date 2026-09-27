@@ -130,7 +130,10 @@ export class SurfaceModulation {
   }
 
   /** Lift a 1D modulation: `line` picks which argument it reads (C# `SurfaceModulation(oLineModulation, eLine)`). */
-  static fromLineModulation(lineModulation: LineModulation, line: ModulationLine = 'second'): SurfaceModulation {
+  static fromLineModulation(
+    lineModulation: LineModulation,
+    line: ModulationLine = 'second',
+  ): SurfaceModulation {
     return new SurfaceModulation((phi: number, lengthRatio: number) =>
       line === 'first' ? lineModulation.modulation(phi) : lineModulation.modulation(lengthRatio),
     );

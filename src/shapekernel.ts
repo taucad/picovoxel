@@ -36,11 +36,7 @@ export {
   ImplicitSphere,
   ImplicitSuperEllipsoid,
 } from './shapekernel/implicitUtility.ts';
-export {
-  LatticeManifold,
-  type LatticeManifoldOptions,
-  LatticePipe,
-} from './shapekernel/latticePipe.ts';
+export { LatticeManifold, type LatticeManifoldOptions, LatticePipe } from './shapekernel/latticePipe.ts';
 export { localFrame } from './shapekernel/localFrame.ts';
 export { meshUtility } from './shapekernel/meshUtility.ts';
 export { inverseGrid, sh } from './shapekernel/sh.ts';

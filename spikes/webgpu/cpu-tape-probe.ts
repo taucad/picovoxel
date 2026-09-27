@@ -33,7 +33,9 @@ interface CpuTapeModuleNamespace {
 }
 
 const sampleIndices = (elementCount: number): number[] =>
-  Array.from(new Set(Array.from({ length: 257 }, (_, index) => Math.floor((index * (elementCount - 1)) / 256))));
+  Array.from(
+    new Set(Array.from({ length: 257 }, (_, index) => Math.floor((index * (elementCount - 1)) / 256))),
+  );
 
 export class CpuTapeProbe {
   readonly #evaluate: (...arguments_: number[]) => number;

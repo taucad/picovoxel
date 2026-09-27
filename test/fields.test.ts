@@ -109,11 +109,17 @@ test('dims/slice/bounds on a field built from voxels', () => {
 
   const slice = field.getSlice({ index: Math.floor(size[2] / 2) });
   assert.equal(slice.data.length, slice.width * slice.height);
-  assert.ok(slice.data.some((v) => v < 0), 'mid slice has interior samples');
+  assert.ok(
+    slice.data.some((v) => v < 0),
+    'mid slice has interior samples',
+  );
 
   const bounds = field.bounds();
   for (let axis = 0; axis < 3; axis++) {
-    assert.ok(bounds.min[axis]! < -7 && bounds.max[axis]! > 7, `bounds axis ${axis}: ${bounds.min[axis]}..${bounds.max[axis]}`);
+    assert.ok(
+      bounds.min[axis]! < -7 && bounds.max[axis]! > 7,
+      `bounds axis ${axis}: ${bounds.min[axis]}..${bounds.max[axis]}`,
+    );
   }
 });
 

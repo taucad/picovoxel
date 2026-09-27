@@ -12,18 +12,14 @@
     },
     "typecheck": {
       "executor": "nx:run-commands",
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "options": {
         "command": "pnpm run typecheck"
       }
     },
     "test": {
       "executor": "nx:run-commands",
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "options": {
         "command": "pnpm run test"
       }
@@ -34,49 +30,77 @@
         "command": "pnpm run test:scripts"
       }
     },
-    "check:shell": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "pnpm run check:shell"
-      }
-    },
     "check:size": {
       "executor": "nx:run-commands",
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "options": {
         "command": "pnpm run check:size"
       }
     },
     "validate-pack": {
       "executor": "nx:run-commands",
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "options": {
         "command": "pnpm run validate-pack"
       }
     },
     "pkgcheck": {
       "executor": "nx:run-commands",
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "options": {
         "command": "pnpm run pkgcheck"
       }
+    },
+    "check:dead-code": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "command": "pnpm run check:dead-code"
+      }
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm run format:check"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "command": "pnpm run lint"
+      }
+    },
+    "prose": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm run prose"
+      }
+    },
+    "workflows": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm run workflows"
+      }
+    },
+    "docs-prose": {
+      "executor": "nx:noop",
+      "dependsOn": ["check:dead-code", "format", "lint", "prose", "workflows"]
     },
     "quality": {
       "executor": "nx:noop",
       "dependsOn": [
         "build",
-        "check:shell",
+        "check:dead-code",
         "check:size",
+        "format",
+        "lint",
         "pkgcheck",
+        "prose",
         "test:scripts",
         "typecheck",
-        "validate-pack"
+        "validate-pack",
+        "workflows"
       ]
     }
   }

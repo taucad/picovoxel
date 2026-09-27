@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { DEFAULT_WEBGPU_LIMITS, MINIMUM_WEBGPU_LIMITS, requestWebGpuDevice } from '../spikes/webgpu/device.ts';
+import {
+  DEFAULT_WEBGPU_LIMITS,
+  MINIMUM_WEBGPU_LIMITS,
+  requestWebGpuDevice,
+} from '../spikes/webgpu/device.ts';
 
 const adapterInfo = {
   architecture: 'm2',
@@ -22,7 +26,7 @@ const supportedLimits = {
 const createAdapter = (overrides: Record<string, unknown> = {}) => {
   const device = new EventTarget();
   Object.assign(device, { lost: new Promise(() => undefined) });
-  const requestDevice = vi.fn(async () => device);
+  const requestDevice = vi.fn(() => Promise.resolve(device));
   const adapter = {
     features: new Set<GPUFeatureName>(['shader-f16', 'timestamp-query']),
     info: adapterInfo,
@@ -43,7 +47,7 @@ describe('requestWebGpuDevice', () => {
 
   it('requests a high-performance adapter without compatibility mode', async () => {
     const { adapter } = createAdapter();
-    const requestAdapter = vi.fn(async (_options?: GPURequestAdapterOptions) => adapter);
+    const requestAdapter = vi.fn((_options?: GPURequestAdapterOptions) => Promise.resolve(adapter));
 
     const result = await requestWebGpuDevice({ gpu: { requestAdapter } as unknown as GPU });
 
@@ -54,7 +58,7 @@ describe('requestWebGpuDevice', () => {
 
   it('clamps desired limits and requests only adapter-supported optional features', async () => {
     const { adapter, requestDevice } = createAdapter();
-    const requestAdapter = vi.fn(async (_options?: GPURequestAdapterOptions) => adapter);
+    const requestAdapter = vi.fn((_options?: GPURequestAdapterOptions) => Promise.resolve(adapter));
 
     const result = await requestWebGpuDevice({ gpu: { requestAdapter } as unknown as GPU });
 
@@ -87,7 +91,7 @@ describe('requestWebGpuDevice', () => {
   });
 
   it('returns typed unavailability when no adapter is available', async () => {
-    const requestAdapter = vi.fn(async () => null);
+    const requestAdapter = vi.fn(() => Promise.resolve(null));
 
     await expect(requestWebGpuDevice({ gpu: { requestAdapter } as unknown as GPU })).resolves.toEqual({
       reason: 'adapter-unavailable',
@@ -102,7 +106,7 @@ describe('requestWebGpuDevice', () => {
         maxComputeInvocationsPerWorkgroup: MINIMUM_WEBGPU_LIMITS.maxComputeInvocationsPerWorkgroup - 1,
       },
     });
-    const requestAdapter = vi.fn(async () => adapter);
+    const requestAdapter = vi.fn(() => Promise.resolve(adapter));
 
     const result = await requestWebGpuDevice({ gpu: { requestAdapter } as unknown as GPU });
 
@@ -125,9 +129,7 @@ describe('requestWebGpuDevice', () => {
     await expect(
       requestWebGpuDevice({
         gpu: {
-          requestAdapter: vi.fn(async () => {
-            throw adapterFailure;
-          }),
+          requestAdapter: vi.fn(() => Promise.reject(adapterFailure)),
         } as unknown as GPU,
       }),
     ).resolves.toEqual({
@@ -137,13 +139,11 @@ describe('requestWebGpuDevice', () => {
     });
 
     const { adapter } = createAdapter({
-      requestDevice: vi.fn(async () => {
-        throw new Error('device boom');
-      }),
+      requestDevice: vi.fn(() => Promise.reject(new Error('device boom'))),
     });
     await expect(
       requestWebGpuDevice({
-        gpu: { requestAdapter: vi.fn(async () => adapter) } as unknown as GPU,
+        gpu: { requestAdapter: vi.fn(() => Promise.resolve(adapter)) } as unknown as GPU,
       }),
     ).resolves.toEqual({
       detail: 'device boom',

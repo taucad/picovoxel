@@ -35,7 +35,10 @@ describe('candidate preview extraction', () => {
         encoding: 'utf8',
       }),
     );
-    writeFileSync(join(source, 'manifest.json'), `${JSON.stringify({ packages: [{ ...manifest, filename }] })}\n`);
+    writeFileSync(
+      join(source, 'manifest.json'),
+      `${JSON.stringify({ packages: [{ ...manifest, filename }] })}\n`,
+    );
 
     const [directory] = extractCandidatePackages({ from: source, out: output });
 

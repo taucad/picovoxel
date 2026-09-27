@@ -22,11 +22,20 @@ test('createMesh (bulk) ≙ per-element raw adds — FNV-identical', () => {
   const viaBulk = pk.createMesh(TETRA);
 
   // Per-element oracle straight through the raw ABI.
+  // eslint-disable-next-line @typescript-eslint/unbound-method -- Emscripten module functions do not use this
   const { cwrap, _malloc, _free, HEAPF32, HEAP32 } = pk.module;
   const h = 'bigint';
   const meshCreate = cwrap('Mesh_hCreate', h, [h]) as (l: bigint) => bigint;
-  const addVertex = cwrap('Mesh_nAddVertex', 'number', [h, h, 'number']) as (l: bigint, m: bigint, p: number) => number;
-  const addTriangle = cwrap('Mesh_nAddTriangle', 'number', [h, h, 'number']) as (l: bigint, m: bigint, p: number) => number;
+  const addVertex = cwrap('Mesh_nAddVertex', 'number', [h, h, 'number']) as (
+    l: bigint,
+    m: bigint,
+    p: number,
+  ) => number;
+  const addTriangle = cwrap('Mesh_nAddTriangle', 'number', [h, h, 'number']) as (
+    l: bigint,
+    m: bigint,
+    p: number,
+  ) => number;
   const destroy = cwrap('Mesh_Destroy', null, [h, h]) as (l: bigint, m: bigint) => void;
 
   const rawMesh = meshCreate(pk.handle);
@@ -42,7 +51,12 @@ test('createMesh (bulk) ≙ per-element raw adds — FNV-identical', () => {
   _free(p);
 
   // Read the raw mesh back through a facade wrapper for identical readout paths.
-  const getV = cwrap('Mesh_GetVertices', 'number', [h, h, 'number', 'number']) as (l: bigint, m: bigint, b: number, n: number) => number;
+  const getV = cwrap('Mesh_GetVertices', 'number', [h, h, 'number', 'number']) as (
+    l: bigint,
+    m: bigint,
+    b: number,
+    n: number,
+  ) => number;
   const buf = _malloc(4 * 12);
   getV(pk.handle, rawMesh, buf, 4);
   const rawVerts = new Float32Array(pk.module.HEAPF32.subarray(buf >> 2, (buf >> 2) + 12));
@@ -73,10 +87,18 @@ test('B1 — non-uniform scale applies component-wise to EVERY vertex (hand-comp
   // Upstream mshCreateTransformed would have multiplied corner A by 2, corner B
   // by 3, corner C by 4 (each a different UNIFORM scalar). Correct semantics:
   const expected = new Float32Array([
-    0 * 2 + 1, 0 * 3 + 1, 0 * 4 + 1,
-    10 * 2 + 1, 0 * 3 + 1, 0 * 4 + 1,
-    0 * 2 + 1, 10 * 3 + 1, 0 * 4 + 1,
-    0 * 2 + 1, 0 * 3 + 1, 10 * 4 + 1,
+    0 * 2 + 1,
+    0 * 3 + 1,
+    0 * 4 + 1,
+    10 * 2 + 1,
+    0 * 3 + 1,
+    0 * 4 + 1,
+    0 * 2 + 1,
+    10 * 3 + 1,
+    0 * 4 + 1,
+    0 * 2 + 1,
+    0 * 3 + 1,
+    10 * 4 + 1,
   ]);
   assert.deepEqual(scaled.vertices, expected, 'component-wise scale per vertex');
   assert.deepEqual(scaled.triangles, mesh.triangles, 'indexing preserved');
@@ -104,12 +126,7 @@ test('mirror: reflection across a plane, hand-computed', () => {
   const mesh = pk.createMesh(TETRA);
   // Mirror across the plane x = 5 (point [5,0,0], normal [1,0,0] — passed unnormalized).
   const mirrored = mesh.mirror({ point: [5, 0, 0], normal: [2, 0, 0] });
-  const expected = new Float32Array([
-    10, 0, 0,
-    0, 0, 0,
-    10, 10, 0,
-    10, 0, 10,
-  ]);
+  const expected = new Float32Array([10, 0, 0, 0, 0, 0, 10, 10, 0, 10, 0, 10]);
   assert.deepEqual(mirrored.vertices, expected);
   assert.deepEqual(mirrored.triangles, mesh.triangles, 'corner order preserved, as upstream');
 });
@@ -120,7 +137,11 @@ test('merged: concatenation with re-based indices, no dedup', () => {
   const merged = a.merged(b);
   assert.equal(merged.vertexCount, 8, 'no dedup — duplicate vertices survive');
   assert.equal(merged.triangleCount, 8);
-  assert.deepEqual(Array.from(merged.triangles.slice(12)), Array.from(b.triangles).map((i) => i + 4), 'second half re-based');
+  assert.deepEqual(
+    Array.from(merged.triangles.slice(12)),
+    Array.from(b.triangles).map((i) => i + 4),
+    'second half re-based',
+  );
   assert.equal(a.vertexCount, 4, 'sources untouched');
 });
 

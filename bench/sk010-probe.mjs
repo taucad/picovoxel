@@ -3,7 +3,6 @@
 // histogram of the OOB *values* — the discriminator between "INVALID_IDX was
 // emitted" and "the slot held arbitrary stale heap".
 // Temporary instrument; not part of the shipped bench set.
-import { readFileSync } from 'node:fs';
 import { loadavg } from 'node:os';
 
 const arg = (flag, fallback) => {

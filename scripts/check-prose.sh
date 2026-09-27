@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Validate every tracked Markdown and MDX file with the checksum-pinned Vale
+# binary, then run the prose block-length and README shape tests.
+#
+# Scope is `git ls-files`, so the untracked third-party trees that the wasm
+# build fetches into vendor/ and build/ are never scanned; the prose test reads
+# the same list.
+
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd "$script_dir/.." && pwd)"
+
+"$script_dir/install-ci-tool.sh" --tool vale --dest "$repo_root/.ci-tools"
+
+cd "$repo_root"
+prose_list="$(mktemp)"
+trap 'rm -f "$prose_list"' EXIT
+git ls-files -z '*.md' '*.mdx' > "$prose_list"
+
+prose_files=()
+while IFS= read -r -d '' file; do
+  [[ -f "$file" ]] && prose_files+=("$file")
+done < "$prose_list"
+
+.ci-tools/bin/vale --config=.vale.ini "${prose_files[@]}"
+
+pnpm exec vitest run prose-quality.test.ts readme-shape.test.ts

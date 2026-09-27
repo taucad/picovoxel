@@ -13,7 +13,9 @@ export interface FakeRegistry extends HandleRegistry {
 }
 
 /** Recorder registry — proves D1–D6 with zero GC involvement. */
-export function createFakeRegistry(onFree: (held: Held) => void = (held) => held.free(held.lib, held.handle)): FakeRegistry {
+export function createFakeRegistry(
+  onFree: (held: Held) => void = (held) => held.free(held.lib, held.handle),
+): FakeRegistry {
   const fake: FakeRegistry = {
     entries: new Map(),
     registered: 0,
@@ -75,11 +77,15 @@ export async function gcUntil(predicate: () => boolean, iterations = 50): Promis
 const GYROID_SCALE = (2 * Math.PI) / 10;
 export const gyroidExpression: SdfExpression = [
   '-',
-  ['abs', ['+',
-    ['*', ['sin', ['*', 'x', GYROID_SCALE]], ['cos', ['*', 'y', GYROID_SCALE]]],
-    ['*', ['sin', ['*', 'y', GYROID_SCALE]], ['cos', ['*', 'z', GYROID_SCALE]]],
-    ['*', ['sin', ['*', 'z', GYROID_SCALE]], ['cos', ['*', 'x', GYROID_SCALE]]],
-  ]],
+  [
+    'abs',
+    [
+      '+',
+      ['*', ['sin', ['*', 'x', GYROID_SCALE]], ['cos', ['*', 'y', GYROID_SCALE]]],
+      ['*', ['sin', ['*', 'y', GYROID_SCALE]], ['cos', ['*', 'z', GYROID_SCALE]]],
+      ['*', ['sin', ['*', 'z', GYROID_SCALE]], ['cos', ['*', 'x', GYROID_SCALE]]],
+    ],
+  ],
   0.4,
 ];
 export const gyroidFunction = (x: number, y: number, z: number): number =>

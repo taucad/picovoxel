@@ -1,0 +1,85 @@
+leap71/PicoGKRuntime @ 0f26321c18ed (26.2): store lattice beams by value.
+
+Proposal only. picovoxel, an unofficial community TypeScript/WebAssembly binding
+of PicoGK (not affiliated with or endorsed by LEAP 71), applies the same change
+to its vendored runtime as patches/PicoGKRuntime/0004-lattice-beam-value-
+storage.patch. That file does not apply to a pristine tree, because its
+trailing context includes the PruneFill() call added by picovoxel's 0002 patch.
+This file is the same change rebased onto pristine 0f26321c18ed: the same 21
+changed lines, with only hunk offsets and trailing context differing.
+
+The change. Lattice stores std::vector<LatticeBeam::Ptr>: one make_shared
+(control block plus the object) per beam and a pointer chase per beam in
+RenderLattice. LatticeBeam has no virtual members and no shared owner anywhere
+in the runtime, so std::vector<LatticeBeam> with emplace_back does the same job.
+
+Output values: unchanged. Same beams, same order; picovoxel's pinned grids and
+test suite did not move.
+
+Measured (picovoxel, WebAssembly build, Apple M2 Pro): under 2 ns per beam
+recovered on either allocator (1.05x and 1.09x, paired, 400k beams). The case
+for the change is the contiguous beam array (a single buffer a GPU upload or a
+bulk reader can use directly) and simpler ownership, more than speed.
+
+Ordering with picogkruntime-tubecomplex-lattice.patch: either can land first;
+that patch reads beams through overloads for both storage forms. Ordering with
+picovoxel's 0002 post-fill prune: the two touch adjacent lines, so whichever
+lands second needs a trivial rebase.
+
+Applies with `patch -p1 --fuzz=0` to a pristine PicoGKRuntime 0f26321c tree.
+Not applied by picovoxel's build; see upstream/README.md.
+
+--- a/Source/PicoGKLattice.h
++++ b/Source/PicoGKLattice.h
+@@ -217,13 +217,12 @@
+             return;
+         }
+         
+-        LatticeBeam::Ptr roBeam = std::make_shared<LatticeBeam>(    vecS,
+-                                                                    vecE,
+-                                                                    fRadS,
+-                                                                    fRadE,
+-                                                                    bRoundCap);
+-        m_oBBox.Include(roBeam->oBBox());
+-        m_oBeams.push_back(roBeam);
++        m_oBeams.emplace_back(  vecS,
++                                vecE,
++                                fRadS,
++                                fRadE,
++                                bRoundCap);
++        m_oBBox.Include(m_oBeams.back().oBBox());
+     }
+     
+     inline const BBox3& oBBox() const
+@@ -231,7 +230,7 @@
+         return m_oBBox;
+     }
+     
+-    inline const std::vector<LatticeBeam::Ptr>& oBeams() const
++    inline const std::vector<LatticeBeam>& oBeams() const
+     {
+         return m_oBeams;
+     }
+@@ -242,7 +241,7 @@
+     }
+     
+ protected:
+-    std::vector<LatticeBeam::Ptr>   m_oBeams;
++    std::vector<LatticeBeam>        m_oBeams;
+     std::vector<LatticeSphere::Ptr> m_oSpheres;
+     BBox3                           m_oBBox;
+ };
+--- a/Source/PicoGKVdbVoxels.h
++++ b/Source/PicoGKVdbVoxels.h
+@@ -351,9 +351,9 @@
+             DoRenderLattice(&oAccess, *roSphere, oVoxelSize(), m_nSdfNarrowBand);
+         }
+         
+-        for (auto roBeam : oLattice.oBeams())
++        for (const auto& oBeam : oLattice.oBeams())
+         {
+-            DoRenderLattice(&oAccess, *roBeam, oVoxelSize(), m_nSdfNarrowBand);
++            DoRenderLattice(&oAccess, oBeam, oVoxelSize(), m_nSdfNarrowBand);
+         }
+     }
+     

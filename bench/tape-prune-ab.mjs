@@ -28,10 +28,19 @@ const median = (values) => [...values].sort((a, b) => a - b)[Math.floor(values.l
 // ── fixtures ──
 
 const GYROID_SCALE = (2 * Math.PI) / 10;
-const gyroid = ['-', ['abs', ['+',
-  ['*', ['sin', ['*', 'x', GYROID_SCALE]], ['cos', ['*', 'y', GYROID_SCALE]]],
-  ['*', ['sin', ['*', 'y', GYROID_SCALE]], ['cos', ['*', 'z', GYROID_SCALE]]],
-  ['*', ['sin', ['*', 'z', GYROID_SCALE]], ['cos', ['*', 'x', GYROID_SCALE]]]]], 0.4];
+const gyroid = [
+  '-',
+  [
+    'abs',
+    [
+      '+',
+      ['*', ['sin', ['*', 'x', GYROID_SCALE]], ['cos', ['*', 'y', GYROID_SCALE]]],
+      ['*', ['sin', ['*', 'y', GYROID_SCALE]], ['cos', ['*', 'z', GYROID_SCALE]]],
+      ['*', ['sin', ['*', 'z', GYROID_SCALE]], ['cos', ['*', 'x', GYROID_SCALE]]],
+    ],
+  ],
+  0.4,
+];
 
 // Solid sphere — interior/exterior blocks dominate: the pure block-pruning case.
 const sphere = ['-', ['sqrt', ['+', ['pow', 'x', 2], ['pow', 'y', 2], ['pow', 'z', 2]]], 10.5];
@@ -39,11 +48,16 @@ const sphere = ['-', ['sqrt', ['+', ['pow', 'x', 2], ['pow', 'y', 2], ['pow', 'z
 // 64-sphere union (4×4×4 lattice, r 1.6, pitch 6): a min-fold 63 deep — the
 // tape-shortening case; per-block tapes should collapse to the nearby spheres.
 const spheres = [];
-for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) for (let k = 0; k < 4; k++) {
-  const [cx, cy, cz] = [i, j, k].map((v) => -9 + 6 * v);
-  spheres.push(['-', ['sqrt', ['+',
-    ['pow', ['-', 'x', cx], 2], ['pow', ['-', 'y', cy], 2], ['pow', ['-', 'z', cz], 2]]], 1.6]);
-}
+for (let i = 0; i < 4; i++)
+  for (let j = 0; j < 4; j++)
+    for (let k = 0; k < 4; k++) {
+      const [cx, cy, cz] = [i, j, k].map((v) => -9 + 6 * v);
+      spheres.push([
+        '-',
+        ['sqrt', ['+', ['pow', ['-', 'x', cx], 2], ['pow', ['-', 'y', cy], 2], ['pow', ['-', 'z', cz], 2]]],
+        1.6,
+      ]);
+    }
 const union64 = ['min', ...spheres];
 
 const BOUNDS = { boundsMin: [-12, -12, -12], boundsMax: [12, 12, 12] };
@@ -65,7 +79,11 @@ console.log(`# tape-prune A/B — ${label}`);
 console.log(`modules: ${moduleDir}`);
 for (const variant of VARIANTS) {
   const factory = await glue(variant.file);
-  console.log(`\n## ${variant.name}  (loadavg ${loadavg().map((v) => v.toFixed(2)).join(' ')})`);
+  console.log(
+    `\n## ${variant.name}  (loadavg ${loadavg()
+      .map((v) => v.toFixed(2))
+      .join(' ')})`,
+  );
   for (const fixture of FIXTURES) {
     const pk = await createPicoSession(factory, { voxelSize: fixture.voxelSize });
     try {
@@ -96,7 +114,8 @@ for (const variant of VARIANTS) {
         if (rep === 0) continue; // warmup
         times.push(ms);
         volumeHex ??= hex;
-        if (volumeHex !== hex) throw new Error(`volume drift within run: ${fixture.name} ${volumeHex} != ${hex}`);
+        if (volumeHex !== hex)
+          throw new Error(`volume drift within run: ${fixture.name} ${volumeHex} != ${hex}`);
       }
       const spread = `${Math.min(...times).toFixed(0)}–${Math.max(...times).toFixed(0)}`;
       console.log(
@@ -107,4 +126,8 @@ for (const variant of VARIANTS) {
     }
   }
 }
-console.log(`\nend loadavg ${loadavg().map((v) => v.toFixed(2)).join(' ')}`);
+console.log(
+  `\nend loadavg ${loadavg()
+    .map((v) => v.toFixed(2))
+    .join(' ')}`,
+);

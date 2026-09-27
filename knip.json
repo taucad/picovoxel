@@ -1,0 +1,26 @@
+{
+  "$schema": "./node_modules/knip/schema.json",
+  "treatConfigHintsAsErrors": true,
+  "entry": [
+    "bench/**/*.mjs",
+    "demo/serve.mjs",
+    // Every example is a standalone module that hosts load by path, so its
+    // exports are its interface even when no file here imports them.
+    "examples/**/*.ts",
+    "scripts/*.mjs",
+    "spikes/webgpu/*.ts",
+    "spikes/webgpu/emdawn/runner.mjs",
+    "test/**/*.test.{ts,mjs}",
+    "tests/**/*.test.mjs",
+    "*.config.ts",
+    "*.test.ts"
+  ],
+  "project": ["**/*.{ts,mjs,js}"],
+  // TypeScript reads these declarations in place of prose-rules.js; knip
+  // follows the .js import itself.
+  "ignore": ["tools/eslint-plugin/prose-rules.d.ts"],
+  // System tools the benchmark and spike scripts shell out to.
+  "ignoreBinaries": ["gh", "pmset", "rustc"],
+  // Nx loads @nx/js by name.
+  "ignoreDependencies": ["@nx/js"]
+}

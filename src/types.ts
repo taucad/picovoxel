@@ -12,7 +12,7 @@ export interface Bounds {
 }
 
 /** float32 FLT_MAX — the ABI's empty-bounds sentinel component (SG15). */
-export const FLOAT_MAX = 3.4028234663852886e38;
+const FLOAT_MAX = 3.4028234663852886e38;
 
 /**
  * SG15 — the empty-bounds sentinel the ABI structs use (`BBox3()` default:
@@ -45,10 +45,16 @@ export type Color = readonly [number, number, number] | readonly [number, number
  */
 export interface PicoWasmModule {
   cwrap(name: string, returnType: string | null, argTypes: readonly string[]): (...args: never[]) => unknown;
-  ccall(name: string, returnType: string | null, argTypes: readonly string[], args: readonly unknown[]): unknown;
+  ccall(
+    name: string,
+    returnType: string | null,
+    argTypes: readonly string[],
+    args: readonly unknown[],
+  ): unknown;
   UTF8ToString(pointer: number): string;
   stringToUTF8(text: string, pointer: number, maxBytes: number): void;
   lengthBytesUTF8(text: string): number;
+  // eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- Emscripten callbacks may return nothing ('v' signatures); undefined would reject void-returning functions
   addFunction(fn: (...args: number[]) => number | void, signature: string): number;
   removeFunction(pointer: number): void;
   _malloc(bytes: number): number;

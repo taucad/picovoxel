@@ -15,7 +15,14 @@ import { afterAll, beforeAll, test } from 'vitest';
 import { assertPinSource, unguardedPinArms } from '../bench/pin-guard.mjs';
 import { createPico, PicoError, type Mesh, type Pico, type Voxels } from '../src/index.ts';
 import { bindPicoRaw } from '../src/raw.ts';
-import { sliceToSvg, sliceVoxels, slicesFromCli, slicesToCli, type Slice, type SliceStack } from '../src/slicing.ts';
+import {
+  sliceToSvg,
+  sliceVoxels,
+  slicesFromCli,
+  slicesToCli,
+  type Slice,
+  type SliceStack,
+} from '../src/slicing.ts';
 import { meshToStlBytes } from '../src/stl.ts';
 
 let open: Pico; // lane omitted — the no-claim legacy behavior
@@ -231,7 +238,11 @@ test('serialLattice is a keyed init option: deterministic per arm, byte-differen
     };
     const tubeArm = render(open).gridHash();
     const serialArm = render(serial).gridHash();
-    assert.notEqual(serialArm.hash, tubeArm.hash, 'the two arms are distinct geometry classes — that is WHY the flag must be keyed');
+    assert.notEqual(
+      serialArm.hash,
+      tubeArm.hash,
+      'the two arms are distinct geometry classes — that is WHY the flag must be keyed',
+    );
     assert.equal(render(serial2).gridHash().hash, serialArm.hash, 'the serial arm is deterministic');
     assert.equal(render(open).gridHash().hash, tubeArm.hash, 'the tube arm is deterministic');
     // The withLattice path follows the same per-session arm.
@@ -316,14 +327,14 @@ function foreignVdb(value?: string | number): Uint8Array {
 function withHeader(stl: Uint8Array, header: string | number[], pad = 0x20): Uint8Array {
   const out = stl.slice();
   out.fill(pad, 0, 80);
-  const codes = typeof header === 'string' ? [...header].map((c) => c.charCodeAt(0)) : header;
+  const codes = typeof header === 'string' ? Array.from(header, (c) => c.charCodeAt(0)) : header;
   out.set(codes, 0);
   return out;
 }
 
 // ── Item 1 — the session-claim hybrid (D2+D3, riders R1–R4) ──
 
-test("item 1 matrix: session {exact, fast, auto, open} x format {stl, glb, vdb} x provenance {exact, fast}", () => {
+test('item 1 matrix: session {exact, fast, auto, open} x format {stl, glb, vdb} x provenance {exact, fast}', () => {
   // Exact provenance exports everywhere, unstamped and identical across sessions.
   const reference = body(openS).toMesh().toStl();
   for (const p of [exactS, fastS, autoS, openS]) {
@@ -352,7 +363,11 @@ test("item 1 matrix: session {exact, fast, auto, open} x format {stl, glb, vdb} 
     file.add(part, 'part');
     const reopened = openS.openVdb(file.toBytes()).getVoxels('part');
     assert.equal(reopened.metadata.get(LANE), 'fast', `${p.lane}: the .vdb stamp rides the field`);
-    assert.throws(() => part.toMesh().toGlb(), isCode('PICO_LANE_EXPORT'), `${p.lane}: GLB has no slot — refuses`);
+    assert.throws(
+      () => part.toMesh().toGlb(),
+      isCode('PICO_LANE_EXPORT'),
+      `${p.lane}: GLB has no slot — refuses`,
+    );
     assert.ok(part.toMesh().toGlb({ acceptLane: 'fast' }).length > 0);
   }
 
@@ -395,7 +410,11 @@ test("rider R2: meshToStlBytes has no session, so it keeps 'open' semantics", ()
   const historical = openS.createMesh(TETRA).toStl();
   assert.deepEqual(meshToStlBytes(vertices, triangles), historical, 'omitted lane: historical bytes');
   assert.deepEqual(meshToStlBytes(vertices, triangles, {}, 'exact'), historical, "'exact': historical bytes");
-  assert.deepEqual(meshToStlBytes(vertices, triangles, { acceptLane: 'fast' }), historical, 'acknowledging exact stamps nothing');
+  assert.deepEqual(
+    meshToStlBytes(vertices, triangles, { acceptLane: 'fast' }),
+    historical,
+    'acknowledging exact stamps nothing',
+  );
   assert.throws(() => meshToStlBytes(vertices, triangles, {}, 'fast'), isCode('PICO_LANE_EXPORT'));
   const stamped = meshToStlBytes(vertices, triangles, { acceptLane: 'fast' }, 'fast');
   assert.match(latin1(stamped), /^PicoGK UNITS=mm LANE=fast {2}/);
@@ -419,18 +438,32 @@ test("rider (ii): a lane: 'fast' session consents to Class-2 'fast' only — gpu
       ['PicoGK UNITS=mm LANE=FAST', 'LANE=unknown'], // malformed → unknown
     ] as const) {
       const mesh = p.meshFromStl(withHeader(mm, header));
-      assert.throws(() => mesh.toStl(), outsideConsent, `${p.lane}: ${header} must not ride the fast consent`);
-      assert.ok(latin1(mesh.toStl({ acceptLane: 'fast' })).includes(` ${stamp} `), `${p.lane}: acknowledged export stamps ${stamp}`);
+      assert.throws(
+        () => mesh.toStl(),
+        outsideConsent,
+        `${p.lane}: ${header} must not ride the fast consent`,
+      );
+      assert.ok(
+        latin1(mesh.toStl({ acceptLane: 'fast' })).includes(` ${stamp} `),
+        `${p.lane}: acknowledged export stamps ${stamp}`,
+      );
       // Class-2 geometry merged with it inherits the wider set, and the refusal.
       assert.throws(() => mesh.merged(fastPart(p).toMesh()).toStl(), outsideConsent);
     }
-    assert.doesNotThrow(() => p.meshFromStl(withHeader(mm, 'PicoGK UNITS=mm LANE=fast')).toStl(), 'Class-2 fast still needs nothing');
+    assert.doesNotThrow(
+      () => p.meshFromStl(withHeader(mm, 'PicoGK UNITS=mm LANE=fast')).toStl(),
+      'Class-2 fast still needs nothing',
+    );
 
     // .vdb: fields added from foreign gpu-l1 / float-tagged (unknown) grids.
     for (const value of ['gpu-l1', 'fast,gpu-l1', 1] as const) {
       const container = p.createVdb();
       container.add(p.voxelsFromVdb(foreignVdb(value)), 'foreign');
-      assert.throws(() => container.toBytes(), outsideConsent, `${p.lane}: vdb tag '${value}' must not ride the fast consent`);
+      assert.throws(
+        () => container.toBytes(),
+        outsideConsent,
+        `${p.lane}: vdb tag '${value}' must not ride the fast consent`,
+      );
       assert.ok(container.toBytes({ acceptLane: 'fast' }).length > 0);
     }
     // Union across fields: one fast field plus one gpu-l1 field refuses; fast alone does not.
@@ -442,7 +475,10 @@ test("rider (ii): a lane: 'fast' session consents to Class-2 'fast' only — gpu
   }
 
   // In an 'open' session the same refusal applies, again without the useless "declare the lane" remedy.
-  assert.throws(() => openS.meshFromStl(withHeader(mm, 'PicoGK UNITS=mm LANE=gpu-l1')).toStl(), outsideConsent);
+  assert.throws(
+    () => openS.meshFromStl(withHeader(mm, 'PicoGK UNITS=mm LANE=gpu-l1')).toStl(),
+    outsideConsent,
+  );
 });
 
 test('provenance lookups refuse same-session wrappers that carry no geometry provenance (before any native call)', () => {
@@ -498,7 +534,10 @@ test('item 2: fast slice stacks stamp a CLI v2.0 header remark and an SVG <metad
   assert.deepEqual(back.warnings, [], 'the remark is a legal CLI comment, not an unsupported command');
 
   // LUB for hand-assembled stacks: one fast slice stamps the file.
-  const mixed: SliceStack = { slices: [exactStack.slices[0]!, { ...fastStack.slices[0]!, lane: 'fast' }], bounds: exactStack.bounds };
+  const mixed: SliceStack = {
+    slices: [exactStack.slices[0]!, { ...fastStack.slices[0]!, lane: 'fast' }],
+    bounds: exactStack.bounds,
+  };
   assert.match(new TextDecoder().decode(slicesToCli(mixed, date)), /\/\/ PicoVoxel LANE=fast \/\//);
 
   // The reader honours only header remarks, with the anchored, case-exact token.
@@ -507,13 +546,18 @@ test('item 2: fast slice stacks stamp a CLI v2.0 header remark and an SVG <metad
   const laneOf = (line: string, before = '$$HEADEREND') => slicesFromCli(inject(line, before)).lane;
   assert.equal(laneOf('// PLANE=FASTENED //'), 'exact');
   assert.equal(laneOf('// written by another tool //'), 'exact');
-  assert.equal(laneOf('// LANE=fast //', '$$HEADERSTART'), 'exact', 'a remark before the header is not a header stamp');
+  assert.equal(
+    laneOf('// LANE=fast //', '$$HEADERSTART'),
+    'exact',
+    'a remark before the header is not a header stamp',
+  );
   assert.equal(laneOf('//LANE=fast//'), 'fast', 'unspaced remark delimiters');
   assert.equal(laneOf('// LANE=gpu-l1 //'), 'fast', 'unknown members are fast-like');
 
   // SVG: the stamp is one <metadata> line; exact renders the historical document.
   const exactSlice = exactStack.slices[Math.floor(exactStack.slices.length / 2)]!;
-  const { lane: _drop, ...bare } = exactSlice;
+  const bare: Partial<Slice> = { ...exactSlice };
+  delete bare.lane;
   assert.equal(sliceToSvg(exactSlice), sliceToSvg(bare as Slice), 'exact SVG bytes unchanged');
   assert.ok(!sliceToSvg(exactSlice).includes('<metadata>'));
   const fastSvg = sliceToSvg({ ...exactSlice, lane: 'fast' });
@@ -525,21 +569,55 @@ test('item 2: fast slice stacks stamp a CLI v2.0 header remark and an SVG <metad
 
 test('item 3: assertPinSource admits exact sources only', () => {
   assert.doesNotThrow(() => assertPinSource('exact', 'pin'));
-  assert.throws(() => assertPinSource('fast', 'heatx@1mm'), /heatx@1mm: refusing to pin a source with 'fast' provenance/);
-  assert.throws(() => assertPinSource(undefined, 'legacy record'), /refusing to pin/, 'a record without provenance is unpinnable');
+  assert.throws(
+    () => assertPinSource('fast', 'heatx@1mm'),
+    /heatx@1mm: refusing to pin a source with 'fast' provenance/,
+  );
+  assert.throws(
+    () => assertPinSource(undefined, 'legacy record'),
+    /refusing to pin/,
+    'a record without provenance is unpinnable',
+  );
 });
 
 test('item 3: unguardedPinArms flags every unguarded arm, and comments never count as a guard', () => {
   const guarded = "assertPinSource(v.lane, 'a');\nif (updatePins) write();\n";
   assert.deepEqual(unguardedPinArms(guarded), []);
-  assert.deepEqual(unguardedPinArms("if (updatePins) write();\nassertPinSource(v.lane, 'a');\n"), [1], 'guard after the arm');
-  assert.deepEqual(unguardedPinArms(`${guarded}if (updatePins) writeAgain();\n`), [3], 'a second arm needs its own guard');
-  assert.deepEqual(unguardedPinArms(`${guarded}assertPinSource(w.lane, 'b');\nif (updatePins) writeAgain();\n`), []);
-  assert.deepEqual(unguardedPinArms("// assertPinSource(v.lane, 'a');\nif (updatePins) write();\n"), [2], 'line comment');
-  assert.deepEqual(unguardedPinArms("/* assertPinSource(v.lane) */\nif (updatePins) write();\n"), [2], 'block comment');
-  assert.deepEqual(unguardedPinArms("if (process.env.UPDATE_SNAPSHOTS === '1') write();\n"), [1], 'env-keyed arm');
-  assert.deepEqual(unguardedPinArms("if (!updateSnapshots) compare();\n"), [1], 'UPDATE_SNAPSHOTS naming');
-  assert.deepEqual(unguardedPinArms("const pins = process.env.UPDATE_PINS;\nwhile (pins) write();\n"), [0], 'writer keyed some other way');
+  assert.deepEqual(
+    unguardedPinArms("if (updatePins) write();\nassertPinSource(v.lane, 'a');\n"),
+    [1],
+    'guard after the arm',
+  );
+  assert.deepEqual(
+    unguardedPinArms(`${guarded}if (updatePins) writeAgain();\n`),
+    [3],
+    'a second arm needs its own guard',
+  );
+  assert.deepEqual(
+    unguardedPinArms(`${guarded}assertPinSource(w.lane, 'b');\nif (updatePins) writeAgain();\n`),
+    [],
+  );
+  assert.deepEqual(
+    unguardedPinArms("// assertPinSource(v.lane, 'a');\nif (updatePins) write();\n"),
+    [2],
+    'line comment',
+  );
+  assert.deepEqual(
+    unguardedPinArms('/* assertPinSource(v.lane) */\nif (updatePins) write();\n'),
+    [2],
+    'block comment',
+  );
+  assert.deepEqual(
+    unguardedPinArms("if (process.env.UPDATE_SNAPSHOTS === '1') write();\n"),
+    [1],
+    'env-keyed arm',
+  );
+  assert.deepEqual(unguardedPinArms('if (!updateSnapshots) compare();\n'), [1], 'UPDATE_SNAPSHOTS naming');
+  assert.deepEqual(
+    unguardedPinArms('const pins = process.env.UPDATE_PINS;\nwhile (pins) write();\n'),
+    [0],
+    'writer keyed some other way',
+  );
   assert.deepEqual(unguardedPinArms('// mentions UPDATE_PINS only in prose\n'), []);
 });
 
@@ -548,17 +626,26 @@ test('item 3: every pin-writing arm under test/, bench/ and scripts/ calls the s
   const walk = (dir: string): string[] =>
     readdirSync(join(root, dir), { withFileTypes: true }).flatMap((entry) => {
       const path = join(dir, entry.name);
-      if (entry.isDirectory()) return ['results', 'fixtures', 'node_modules'].includes(entry.name) ? [] : walk(path);
+      if (entry.isDirectory())
+        return ['results', 'fixtures', 'node_modules'].includes(entry.name) ? [] : walk(path);
       return /\.(ts|mts|mjs|js|cjs)$/.test(entry.name) ? [path] : [];
     });
   // This file is excluded: it is the checker's own test and holds synthetic unguarded arms.
-  const sources = ['test', 'bench', 'scripts'].flatMap(walk).filter((path) => path !== join('test', 'lanes.test.ts'));
+  const sources = ['test', 'bench', 'scripts']
+    .flatMap(walk)
+    .filter((path) => path !== join('test', 'lanes.test.ts'));
   const failures = sources.flatMap((path) =>
     unguardedPinArms(readFileSync(join(root, path), 'utf8')).map((line) => `${path}:${line}`),
   );
-  assert.deepEqual(failures, [], 'pin-writing arms without a preceding assertPinSource (line 0 = flag used without an if-arm)');
+  assert.deepEqual(
+    failures,
+    [],
+    'pin-writing arms without a preceding assertPinSource (line 0 = flag used without an if-arm)',
+  );
 
-  const pinWriters = sources.filter((path) => /\bif\s*\(\s*updatePins\s*\)/.test(readFileSync(join(root, path), 'utf8'))).sort();
+  const pinWriters = sources
+    .filter((path) => /\bif\s*\(\s*updatePins\s*\)/.test(readFileSync(join(root, path), 'utf8')))
+    .sort();
   assert.deepEqual(
     pinWriters,
     [
@@ -573,8 +660,16 @@ test('item 3: every pin-writing arm under test/, bench/ and scripts/ calls the s
     'the known pin writers (a new one is fine once it is guarded — add it here)',
   );
   const harness = readFileSync(join(root, 'bench', 'g0-identity.mjs'), 'utf8');
-  assert.match(harness, /assertPinSource\(firstOf\[build\]\.provenance/, 'the g0 exact reference path is guarded');
-  assert.match(harness, /provenance: mesh\.lane/, 'g0 records carry value provenance, not just the session lane');
+  assert.match(
+    harness,
+    /assertPinSource\(firstOf\[build\]\.provenance/,
+    'the g0 exact reference path is guarded',
+  );
+  assert.match(
+    harness,
+    /provenance: mesh\.lane/,
+    'g0 records carry value provenance, not just the session lane',
+  );
 });
 
 // ── Item 4 + defect 1 — the persisted set, read by value ──
@@ -609,7 +704,11 @@ test('item 4 / defect 1: PicoVoxel.Lane is read by value as a set, collapsed by 
   // Hygiene: fresh geometry is never read or tagged; only non-exact sets write.
   const fresh = openS.createVoxels({ shape: 'sphere', radius: 2 });
   assert.ok(!fresh.metadata.names().includes(LANE));
-  assert.equal(fastPart(openS).metadata.get(LANE), 'fast', "today's bytes already conform to the set grammar");
+  assert.equal(
+    fastPart(openS).metadata.get(LANE),
+    'fast',
+    "today's bytes already conform to the set grammar",
+  );
 });
 
 // ── Defects 2 + 3 — the STL header parse ──
@@ -618,24 +717,48 @@ test('defects 2+3: anchored case-exact STL lane token, byte-wise UNITS=, set gra
   const mm = openS.createMesh(TETRA).toStl();
   const read = (header: string | number[], pad?: number) => openS.meshFromStl(withHeader(mm, header, pad));
 
-  assert.equal(read('PicoGK UNITS=mm PLANE=FASTENED').lane, 'exact', 'the old substring match false-positived here');
+  assert.equal(
+    read('PicoGK UNITS=mm PLANE=FASTENED').lane,
+    'exact',
+    'the old substring match false-positived here',
+  );
   assert.equal(read('PicoGK UNITS=mm lane=fast').lane, 'exact', 'case-exact key');
   assert.equal(read('PicoGK UNITS=mm XLANE=fast').lane, 'exact', 'anchored at a token start');
   assert.equal(read('PicoGK UNITS=mm LANE=fast').lane, 'fast');
   assert.equal(read('PicoGK UNITS=mm LANE=FAST').lane, 'fast', 'a malformed value is fast-like, never exact');
-  assert.equal(read([...'LANE=fast'].map((c) => c.charCodeAt(0)), 0).lane, 'fast', 'NUL-padded headers delimit too');
+  assert.equal(
+    read(
+      Array.from('LANE=fast', (c) => c.charCodeAt(0)),
+      0,
+    ).lane,
+    'fast',
+    'NUL-padded headers delimit too',
+  );
 
   // ß (0xDF) upper-cases to 'SS': the old string parse slid the UNITS= index one byte.
-  const cm = read([...'PicoGK '].map((c) => c.charCodeAt(0)).concat([0xdf], [...' UNITS=cm'].map((c) => c.charCodeAt(0))));
+  const cm = read(
+    Array.from('PicoGK ', (c) => c.charCodeAt(0)).concat(
+      [0xdf],
+      Array.from(' UNITS=cm', (c) => c.charCodeAt(0)),
+    ),
+  );
   assert.deepEqual(cm.bounds().max, [100, 100, 100], 'cm honoured past a high byte');
-  assert.deepEqual(read('PicoGK units=cm').bounds().max, [100, 100, 100], 'UNITS= stays case-insensitive (upstream)');
+  assert.deepEqual(
+    read('PicoGK units=cm').bounds().max,
+    [100, 100, 100],
+    'UNITS= stays case-insensitive (upstream)',
+  );
 
   // The token carries the set: canonical on re-export, overflow degrades to `unknown`.
   const set = fastS.meshFromStl(withHeader(mm, 'PicoGK UNITS=mm LANE=gpu-l1,fast,fast'));
   assert.match(latin1(set.toStl({ acceptLane: 'fast' })), /^PicoGK UNITS=mm LANE=fast,gpu-l1 /);
   const long = fastS.meshFromStl(withHeader(mm, `LANE=${'a'.repeat(70)}`));
   assert.equal(long.lane, 'fast');
-  assert.match(latin1(long.toStl({ acceptLane: 'fast' })), /^PicoGK UNITS=mm LANE=unknown /, 'a set too long for 80 bytes stamps unknown');
+  assert.match(
+    latin1(long.toStl({ acceptLane: 'fast' })),
+    /^PicoGK UNITS=mm LANE=unknown /,
+    'a set too long for 80 bytes stamps unknown',
+  );
 });
 
 // ── Defect 4 — foreign .vdb pass-through ──
@@ -645,11 +768,19 @@ test('defect 4: foreign .vdb tags pass through byte-for-byte; untagged stays unt
   for (const p of [openS, fastS, exactS]) {
     // Re-serialising opened content never refuses — not even in 'open' or 'exact'.
     const out = p.openVdb(tagged).toBytes();
-    assert.equal(openS.openVdb(out).getVoxels('part').metadata.get(LANE), 'fast,gpu-l1', `${p.lane}: tag byte-for-byte`);
+    assert.equal(
+      openS.openVdb(out).getVoxels('part').metadata.get(LANE),
+      'fast,gpu-l1',
+      `${p.lane}: tag byte-for-byte`,
+    );
   }
   const untagged = foreignVdb();
   const reopened = openS.openVdb(openS.openVdb(untagged).toBytes()).getVoxels('part');
-  assert.equal(reopened.lane, 'exact', 'importing is not a Class-2 op: untagged is honestly exact (weak claim)');
+  assert.equal(
+    reopened.lane,
+    'exact',
+    'importing is not a Class-2 op: untagged is honestly exact (weak claim)',
+  );
   assert.ok(!reopened.metadata.names().includes(LANE), 'and no exact stamp is ever written');
 
   // A container mixing a foreign fast field with a local exact one still passes through.
@@ -662,11 +793,17 @@ test('defect 4: foreign .vdb tags pass through byte-for-byte; untagged stays unt
 
 test("defect 5: importing non-exact provenance into a lane: 'exact' session throws PICO_LANE_LOOSENED, no override, no leak", () => {
   const remedy = (error: unknown) =>
-    isCode('PICO_LANE_LOOSENED')(error) && /'open' session/.test((error as Error).message) && /lane: 'fast'/.test((error as Error).message);
+    isCode('PICO_LANE_LOOSENED')(error) &&
+    /'open' session/.test((error as Error).message) &&
+    /lane: 'fast'/.test((error as Error).message);
   const before = exactS.allocated;
 
   for (const value of ['fast', 'gpu-l1', 1] as const) {
-    assert.throws(() => exactS.voxelsFromVdb(foreignVdb(value)), remedy, `'${value}' must not enter an exact session`);
+    assert.throws(
+      () => exactS.voxelsFromVdb(foreignVdb(value)),
+      remedy,
+      `'${value}' must not enter an exact session`,
+    );
   }
   const fields = openS.createVdb();
   const fast = fastPart(openS);
@@ -687,6 +824,8 @@ test("defect 5: importing non-exact provenance into a lane: 'exact' session thro
   // Exact and untagged assets load; so does a header that merely looks lane-ish.
   assert.equal(exactS.voxelsFromVdb(foreignVdb()).lane, 'exact');
   assert.equal(exactS.voxelsFromVdb(foreignVdb('exact')).lane, 'exact');
-  const plane: Mesh = exactS.meshFromStl(withHeader(openS.createMesh(TETRA).toStl(), 'PicoGK UNITS=mm PLANE=FASTENED'));
+  const plane: Mesh = exactS.meshFromStl(
+    withHeader(openS.createMesh(TETRA).toStl(), 'PicoGK UNITS=mm PLANE=FASTENED'),
+  );
   assert.equal(plane.lane, 'exact');
 });

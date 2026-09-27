@@ -14,7 +14,8 @@ const loadRaw = async (options) => {
   if (process.env.PICOVOXEL_R14_ARTIFACT !== 'multi') return loadPicoRaw(options);
   const { default: createPicoMultiModule } = await import('../src/pico-multi.mjs');
   const module = await createPicoMultiModule(options);
-  if (!(module.HEAPU8.buffer instanceof SharedArrayBuffer)) throw new Error('R14: expected the pthread artifact');
+  if (!(module.HEAPU8.buffer instanceof SharedArrayBuffer))
+    throw new Error('R14: expected the pthread artifact');
   return { module, raw: bindPicoRaw(module) };
 };
 

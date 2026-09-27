@@ -88,7 +88,8 @@ export class ControlPointSpline implements Spline {
       const lastKnot = knots[knots.length - 1]!;
       if (
         (lengthRatio >= knots[controlPoint]! && lengthRatio < knots[controlPoint + 1]!) ||
-        (Math.abs(lengthRatio - knots[controlPoint + 1]!) < EPSILON && Math.abs(lengthRatio - lastKnot) < EPSILON)
+        (Math.abs(lengthRatio - knots[controlPoint + 1]!) < EPSILON &&
+          Math.abs(lengthRatio - lastKnot) < EPSILON)
       ) {
         return 1;
       }
@@ -134,7 +135,11 @@ export class TangentialControlSpline implements Spline {
   }
 
   /** The frame-to-frame form: positions + local Z directions (the C# frame ctor). */
-  static betweenFrames(startFrame: Frame, endFrame: Frame, options: TangentOptions = {}): TangentialControlSpline {
+  static betweenFrames(
+    startFrame: Frame,
+    endFrame: Frame,
+    options: TangentOptions = {},
+  ): TangentialControlSpline {
     return new TangentialControlSpline(startFrame.pos, endFrame.pos, startFrame.lz, endFrame.lz, options);
   }
 

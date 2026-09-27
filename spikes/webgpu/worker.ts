@@ -26,7 +26,7 @@ let context: SpikeContext | undefined;
 
 const isRequest = (value: unknown): value is WebGpuSpikeRequest => {
   if (typeof value !== 'object' || value === null) return false;
-  const command = Reflect.get(value, 'command');
+  const command: unknown = Reflect.get(value, 'command');
   return (
     typeof Reflect.get(value, 'id') === 'number' &&
     typeof command === 'object' &&

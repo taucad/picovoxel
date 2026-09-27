@@ -354,7 +354,7 @@ test('raw TPMS patterns: unit-frequency surface equations', () => {
   const blended = transition.signedDistance(0.5, 0.1, 0.2);
   const d = diamond.signedDistance(0.5, 0.1, 0.2);
   const p = primitive.signedDistance(0.5, 0.1, 0.2);
-  assert.ok((blended >= Math.min(d, p) && blended <= Math.max(d, p)), 'blend stays between the surfaces');
+  assert.ok(blended >= Math.min(d, p) && blended <= Math.max(d, p), 'blend stays between the surfaces');
 });
 
 // ------------------------------------------------- random deformation field
@@ -376,13 +376,15 @@ test('RandomDeformationField: trilinear noise, clamped to bounds, deterministic 
 
 // ----------------------------------------------------------- TPMS presets
 
-/** tape ≡ callback with the R6 exactness discipline over a fresh implicit fill. */
+/** Asserts tape ≡ callback bit-exactly (volume and STL bytes) over a fresh implicit fill. */
 function expectTapeMatchesCallback(implicit: Implicit): void {
   const bounds = { boundsMin: [-5, -5, -5] as const, boundsMax: [5, 5, 5] as const };
   const fromTape = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: implicit.expression });
   const fromCallback = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: implicit.sdf });
   expect(fromTape.volume).toBe(fromCallback.volume);
-  expect(Buffer.from(fromTape.toMesh().toStl()).equals(Buffer.from(fromCallback.toMesh().toStl()))).toBe(true);
+  expect(Buffer.from(fromTape.toMesh().toStl()).equals(Buffer.from(fromCallback.toMesh().toStl()))).toBe(
+    true,
+  );
   expect(fromTape.isEmpty).toBe(false);
 }
 
@@ -418,7 +420,9 @@ test('ImplicitRadialGyroid: callback matches the cylindrical unwrap formula', ()
   const dY = ((Math.atan2(y, x) + Math.PI) / ((2 * Math.PI) / 16)) * ((2 * Math.PI) / s);
   const expected =
     Math.abs(
-      Math.sin(s * radius) * Math.cos(s * dY) + Math.sin(s * dY) * Math.cos(s * z) + Math.sin(s * z) * Math.cos(s * radius),
+      Math.sin(s * radius) * Math.cos(s * dY) +
+        Math.sin(s * dY) * Math.cos(s * z) +
+        Math.sin(s * z) * Math.cos(s * radius),
     ) - 0.25;
   assert.equal(preset.sdf(x, y, z), expected);
 });
@@ -436,7 +440,11 @@ test('ImplicitRandomizedSchwarzPrimitive: a zero field degenerates to the plain 
     assert.equal(randomized.sdf(...pt), plain.sdf(...pt));
   }
   // A real field displaces the surface.
-  const bumpy = new ImplicitRandomizedSchwarzPrimitive(5, 0.5, new RandomDeformationField(bounds, 10, -2, 2, createRandom(1)));
+  const bumpy = new ImplicitRandomizedSchwarzPrimitive(
+    5,
+    0.5,
+    new RandomDeformationField(bounds, 10, -2, 2, createRandom(1)),
+  );
   assert.notEqual(bumpy.sdf(1.3, -2.7, 4.9), plain.sdf(1.3, -2.7, 4.9));
 });
 

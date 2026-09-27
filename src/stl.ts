@@ -66,8 +66,7 @@ const fround = Math.fround;
 /**
  * Serialises indexed geometry to binary STL bytes (deindexed, as the format is).
  *
- * LANES item 1, rider R2: this free function has no session, so no lane was
- * ever declared for it — it keeps the `'open'`-session semantics. Passing
+ * This free function has no session, so no lane is declared for it — it keeps the `'open'`-session semantics. Passing
  * `lane: 'fast'` refuses with `PICO_LANE_EXPORT` unless `options.acceptLane`
  * is `'fast'`; an acknowledged export stamps `LANE=fast` into the 80-byte
  * header (read back by `meshFromStl`). `'exact'` or omitted writes the
@@ -103,7 +102,10 @@ export function writeStlBytes(
 ): Uint8Array<ArrayBuffer> {
   const { unit = 'mm', scale = 1, offset = [0, 0, 0] } = options;
   if (unit === 'auto') {
-    throw new PicoError('PICO_INVALID_ARGUMENT', "toStl unit 'auto' only applies when reading — pick a concrete unit.");
+    throw new PicoError(
+      'PICO_INVALID_ARGUMENT',
+      "toStl unit 'auto' only applies when reading — pick a concrete unit.",
+    );
   }
   const divider = UNIT_MULTIPLIER[unit];
   const triangleCount = triangles.length / 3;
@@ -135,11 +137,21 @@ export function writeStlBytes(
       }
     }
     // Facet normal = normalize(cross(v2-v1, v3-v1)), as upstream computes it.
-    const ux = corner[3]! - corner[0]!, uy = corner[4]! - corner[1]!, uz = corner[5]! - corner[2]!;
-    const vx = corner[6]! - corner[0]!, vy = corner[7]! - corner[1]!, vz = corner[8]! - corner[2]!;
-    let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    const ux = corner[3]! - corner[0]!,
+      uy = corner[4]! - corner[1]!,
+      uz = corner[5]! - corner[2]!;
+    const vx = corner[6]! - corner[0]!,
+      vy = corner[7]! - corner[1]!,
+      vz = corner[8]! - corner[2]!;
+    let nx = uy * vz - uz * vy,
+      ny = uz * vx - ux * vz,
+      nz = ux * vy - uy * vx;
     const length = Math.sqrt(nx * nx + ny * ny + nz * nz);
-    if (length > 0) { nx /= length; ny /= length; nz /= length; }
+    if (length > 0) {
+      nx /= length;
+      ny /= length;
+      nz /= length;
+    }
     view.setFloat32(out, nx, true);
     view.setFloat32(out + 4, ny, true);
     view.setFloat32(out + 8, nz, true);
@@ -160,7 +172,10 @@ export function meshFromStlBytes(
 ): { vertices: Float32Array; triangles: Uint32Array; provenance: LaneSet } {
   const { unit = 'auto', scale = 1, offset = [0, 0, 0] } = options;
   if (bytes.length < 84) {
-    throw new PicoError('PICO_INVALID_ARGUMENT', `STL too short: ${bytes.length} bytes cannot hold the 80-byte header + count.`);
+    throw new PicoError(
+      'PICO_INVALID_ARGUMENT',
+      `STL too short: ${bytes.length} bytes cannot hold the 80-byte header + count.`,
+    );
   }
   // One char per byte (Latin-1), so string indices ARE byte offsets.
   let rawHeader = '';
@@ -181,9 +196,8 @@ export function meshFromStlBytes(
 
   let effectiveUnit: Exclude<StlUnit, 'auto'> = 'mm';
   if (unit === 'auto') {
-    // LANES defect 3 — case-fold ASCII letters only: toUpperCase() maps 'ß'
-    // (0xDF) to 'SS', and the length change used to shift the index onto the
-    // wrong bytes. This fold is length-preserving, so `at` indexes the bytes.
+    // Case-fold ASCII letters only: toUpperCase() maps 'ß' (0xDF) to 'SS', and
+    // that length change would shift the index onto the wrong bytes. This fold is length-preserving, so `at` indexes the bytes.
     const at = rawHeader.replace(/[a-z]/g, (letter) => letter.toUpperCase()).indexOf('UNITS=');
     if (at !== -1) {
       const value = rawHeader.slice(at + 'UNITS='.length);
@@ -202,7 +216,10 @@ export function meshFromStlBytes(
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const triangleCount = view.getUint32(80, true);
   if (triangleCount === 0) {
-    throw new PicoError('PICO_INVALID_ARGUMENT', 'Imported STL mesh is empty (zero triangles), failed to load.');
+    throw new PicoError(
+      'PICO_INVALID_ARGUMENT',
+      'Imported STL mesh is empty (zero triangles), failed to load.',
+    );
   }
   if (bytes.length < 84 + triangleCount * 50) {
     throw new PicoError(
@@ -221,7 +238,10 @@ export function meshFromStlBytes(
     const record = 84 + t * 50;
     for (let c = 0; c < 3; c++) {
       for (let axis = 0; axis < 3; axis++) {
-        vertices[t * 9 + c * 3 + axis] = transform(view.getFloat32(record + 12 + (c * 3 + axis) * 4, true), axis);
+        vertices[t * 9 + c * 3 + axis] = transform(
+          view.getFloat32(record + 12 + (c * 3 + axis) * 4, true),
+          axis,
+        );
       }
       triangles[t * 3 + c] = t * 3 + c;
     }

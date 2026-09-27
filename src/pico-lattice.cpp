@@ -8,7 +8,7 @@
 // exactly this loop — `turning-fins.hot` (3.8 s) and `helical-void.hot` (5.2 s) — and
 // both sat at 0.99-1.00x through a 12-thread allocator swap (SK-0.1 §"HeatX creation
 // stage decomposition"), which is what a genuinely serial stage looks like from the
-// outside. WORKLOAD-EXECUTORS.md marks the row ST and calls it the top serial wall.
+// outside: it is the largest single-threaded stage in the HeatX build.
 //
 // openvdb has shipped the parallel replacement since 12.1: tools::createLevelSetTubeComplex
 // (LevelSetTubes.h — already #included by PicoGKVdbVoxels.h:49, unused) takes vertex,
@@ -17,8 +17,8 @@
 // voxels the shape actually touches. Per-thread trees are combined with a node-stealing
 // csg union.
 //
-// WHAT MAPS AND WHAT DOES NOT (the beam-case table; see SK-0.4.md for the measured
-// per-fixture consequences):
+// WHAT MAPS AND WHAT DOES NOT (the beam-case table; the measured per-fixture
+// consequences are in bench/results/webgpu-v2/sk-0.4-equivalence.json):
 //
 //   * round-capped beam, r0 != r1  -> tapered capsule. Both PicoGK's fSdvRoundCone and
 //     openvdb's TaperedCapsuleVoxelizer are the exact SDF of the convex hull of the two
@@ -48,9 +48,8 @@
 // flat caps here is PV-FC1, deferred.
 //
 // DETERMINISM IS BY CONSTRUCTION, NOT BY LUCK. The 0.7 mm fine-cell single==multi
-// identity gate is part of L0 (bench/results/webgpu-v2/SK-0-P0-finecell.md — a spike was
-// reverted for breaking it), so a lane whose output depends on how tbb happened to
-// schedule is not shippable. Upstream's own entry point uses tbb::parallel_reduce with
+// identity gate is part of L0 (an earlier spike was reverted for breaking it), so a
+// lane whose output depends on how tbb happened to schedule is not shippable. Upstream's own entry point uses tbb::parallel_reduce with
 // the auto partitioner: the number of body splits, and therefore the shape of the join
 // tree, depends on how many workers turn up. csg union is a min and min is exactly
 // associative and commutative in IEEE, so the VALUES are order-free either way, but the
@@ -140,8 +139,8 @@ openvdb::FloatGrid::Ptr roTubeComplex(   const std::vector<openvdb::Vec3s>&  oVe
 /// Renders a lattice into a voxel field through openvdb's parallel tube complex, falling
 /// back to Voxels::RenderLattice for the flat-capped beams it cannot express. Drop-in
 /// replacement for Voxels_RenderLattice: same handles, same union-into-existing-grid
-/// semantics, same result up to the narrow-band construction difference documented in
-/// bench/results/webgpu-v2/SK-0.4.md.
+/// semantics, same result up to the narrow-band construction difference measured in
+/// bench/results/webgpu-v2/sk-0.4-equivalence.json.
 PICOGK_API void Voxels_RenderLatticeTubes(  PKINSTANCE  hLib,
                                             PKVOXELS    hThis,
                                             PKLATTICE   hLattice)

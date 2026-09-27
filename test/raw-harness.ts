@@ -21,7 +21,13 @@ export interface RawHarness {
   mmToVoxels(lib: bigint, x: number, y: number, z: number): { x: number; y: number; z: number };
   voxelsToMm(lib: bigint, x: number, y: number, z: number): { x: number; y: number; z: number };
   sphere(lib: bigint, center: readonly [number, number, number], radius: number): bigint;
-  capsule(lib: bigint, a: readonly [number, number, number], b: readonly [number, number, number], radiusA: number, radiusB: number): bigint;
+  capsule(
+    lib: bigint,
+    a: readonly [number, number, number],
+    b: readonly [number, number, number],
+    radiusA: number,
+    radiusB: number,
+  ): bigint;
   boolAdd(lib: bigint, voxels: bigint, operand: bigint): void;
   boolSubtract(lib: bigint, voxels: bigint, operand: bigint): void;
   offset(lib: bigint, voxels: bigint, distance: number): void;
@@ -37,15 +43,30 @@ export interface RawHarness {
   destroyMesh(lib: bigint, mesh: bigint): void;
   readMesh(lib: bigint, mesh: bigint): { vertices: Float32Array; indices: Uint32Array };
   readMeshPerElement(lib: bigint, mesh: bigint): { vertices: Float32Array; indices: Uint32Array };
-  writeMesh(lib: bigint, mesh: bigint, vertices: Float32Array, indices: Uint32Array): { firstVertex: number; firstTriangle: number };
+  writeMesh(
+    lib: bigint,
+    mesh: bigint,
+    vertices: Float32Array,
+    indices: Uint32Array,
+  ): { firstVertex: number; firstTriangle: number };
   allocated(lib: bigint): Record<string, number>;
 }
 
-const COUNTERS = ['Voxels', 'Meshes', 'Lattices', 'PolyLines', 'ScalarFields', 'VectorFields', 'VdbFiles', 'VdbMetas'] as const;
+const COUNTERS = [
+  'Voxels',
+  'Meshes',
+  'Lattices',
+  'PolyLines',
+  'ScalarFields',
+  'VectorFields',
+  'VdbFiles',
+  'VdbMetas',
+] as const;
 
 /** Loads the wasm module and returns the generated bindings plus test conveniences. */
 export async function loadRawHarness(options: object = {}): Promise<RawHarness> {
   const { module, raw } = await loadPicoRaw(options);
+  // eslint-disable-next-line @typescript-eslint/unbound-method -- Emscripten module functions do not use this
   const { _malloc, _free, UTF8ToString } = module;
 
   // Scratch buffers for pointer-taking calls. One allocation per shape, reused.
@@ -177,8 +198,6 @@ export async function loadRawHarness(options: object = {}): Promise<RawHarness> 
 
     /** All eight PicoGK allocation counters. Zero after cleanup, or a handle leaked. */
     allocated: (lib) =>
-      Object.fromEntries(
-        COUNTERS.map((c) => [c, Number((raw[`Library_n${c}Allocated`] as (l: bigint) => bigint)(lib))]),
-      ),
+      Object.fromEntries(COUNTERS.map((c) => [c, Number(raw[`Library_n${c}Allocated`](lib))])),
   };
 }

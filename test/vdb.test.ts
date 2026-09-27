@@ -38,10 +38,7 @@ test('mixed container: fields() lists names+types; typed getters by index and na
   const bytes = vdb.toBytes();
   const back = pk.openVdb(bytes);
   const fields = back.fields();
-  assert.deepEqual(
-    fields.map((f) => f.name).sort(),
-    ['body', 'flow', 'sd'],
-  );
+  assert.deepEqual(fields.map((f) => f.name).sort(), ['body', 'flow', 'sd']);
   const byName = Object.fromEntries(fields.map((f) => [f.name, f.type]));
   assert.equal(byName['body'], 'voxels');
   assert.equal(byName['sd'], 'scalarField');

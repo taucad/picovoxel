@@ -174,7 +174,12 @@ test('localFrame: translated, rotated, inverted', () => {
 // ----------------------------------------------------------------- splines
 
 test('ControlPointSpline: open endpoints clamp to the control endpoints', () => {
-  const control: Vec3[] = [[0, 0, 0], [1, 0, 2], [3, 0, 2], [4, 0, 0]];
+  const control: Vec3[] = [
+    [0, 0, 0],
+    [1, 0, 2],
+    [3, 0, 2],
+    [4, 0, 0],
+  ];
   const spline = new ControlPointSpline(control);
   const points = spline.points(21);
   assert.equal(points.length, 21);
@@ -188,7 +193,13 @@ test('ControlPointSpline: open endpoints clamp to the control endpoints', () => 
 });
 
 test('ControlPointSpline: closed splines wrap the control points continuously', () => {
-  const square: Vec3[] = [[1, 1, 0], [-1, 1, 0], [-1, -1, 0], [1, -1, 0], [1, 1, 0]]; // duplicate end
+  const square: Vec3[] = [
+    [1, 1, 0],
+    [-1, 1, 0],
+    [-1, -1, 0],
+    [1, -1, 0],
+    [1, 1, 0],
+  ]; // duplicate end
   const spline = new ControlPointSpline(square, 2, 'closed');
   const points = spline.points(41);
   assert.equal(points.length, 41);
@@ -196,7 +207,7 @@ test('ControlPointSpline: closed splines wrap the control points continuously', 
   // stays inside the polygon's bounds and the curve is continuous. (Upstream's
   // closed parametrization does NOT return to its start point at t=1.)
   for (const pt of points) {
-    assert.ok(Math.abs(pt[0]) <= 1 + 1e-9 && Math.abs(pt[1]) <= 1 + 1e-9, `inside bounds: ${pt}`);
+    assert.ok(Math.abs(pt[0]) <= 1 + 1e-9 && Math.abs(pt[1]) <= 1 + 1e-9, `inside bounds: ${pt.join(',')}`);
   }
   for (let i = 1; i < points.length; i += 1) {
     assert.ok(vec3.length(vec3.sub(points[i]!, points[i - 1]!)) < 0.5, `continuous at ${i}`);
@@ -204,7 +215,16 @@ test('ControlPointSpline: closed splines wrap the control points continuously', 
   // The caller's array is NOT mutated (deliberate deviation from C#).
   assert.equal(square.length, 5);
   // Non-coincident endpoints skip the duplicate-removal branch.
-  const openEnds = new ControlPointSpline([[1, 1, 0], [-1, 1, 0], [-1, -1, 0], [1, -1, 0]], 2, 'closed');
+  const openEnds = new ControlPointSpline(
+    [
+      [1, 1, 0],
+      [-1, 1, 0],
+      [-1, -1, 0],
+      [1, -1, 0],
+    ],
+    2,
+    'closed',
+  );
   assert.equal(openEnds.points(11).length, 11);
 });
 
@@ -251,7 +271,12 @@ test('CylindricalControlSpline: relative and absolute steps in all directions', 
 
 // --------------------------------------------------------------- splineOps
 
-const unitSquarePath: Vec3[] = [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]];
+const unitSquarePath: Vec3[] = [
+  [0, 0, 0],
+  [1, 0, 0],
+  [1, 1, 0],
+  [0, 1, 0],
+];
 
 test('splineOps: lengths, spacing, interpolation and resampling invariants', () => {
   assert.deepEqual(splineOps.lengthsAtIndices(unitSquarePath), [0, 1, 2, 3]);
@@ -270,7 +295,13 @@ test('splineOps: lengths, spacing, interpolation and resampling invariants', () 
 
   const bySpacing = splineOps.reparametrizedBySpacing(unitSquarePath, 0.25);
   assert.equal(bySpacing.length, 13); // 3 / 0.25 = 12 samples → 13 points
-  const shortList = splineOps.reparametrizedBySpacing([[0, 0, 0], [0, 0, 1]], 10);
+  const shortList = splineOps.reparametrizedBySpacing(
+    [
+      [0, 0, 0],
+      [0, 0, 1],
+    ],
+    10,
+  );
   assert.equal(shortList.length, 11); // min-10-samples branch
 });
 
@@ -285,11 +316,22 @@ test('splineOps: list surgery — split, combine, transforms, sampling', () => {
   assert.deepEqual(splineOps.scaled([[1, 2, 3]], 2), [[2, 4, 6]]);
   closeVec(splineOps.rotatedAroundAxis([[1, 0, 0]], Math.PI / 2, [0, 0, 1])[0]!, [0, 1, 0], 1e-12);
 
-  const over = splineOps.overSampled([[0, 0, 0], [1, 0, 0]], 4);
+  const over = splineOps.overSampled(
+    [
+      [0, 0, 0],
+      [1, 0, 0],
+    ],
+    4,
+  );
   assert.equal(over.length, 5);
   assert.deepEqual(over[1], [0.25, 0, 0]);
   const sub = splineOps.subSampled(splineOps.linearInterpolation([0, 0, 0], [1, 0, 0], 9), 4);
-  assert.deepEqual(sub, [[0, 0, 0], [0.5, 0, 0], [1, 0, 0], [1, 0, 0]]); // upstream repeats the end
+  assert.deepEqual(sub, [
+    [0, 0, 0],
+    [0.5, 0, 0],
+    [1, 0, 0],
+    [1, 0, 0],
+  ]); // upstream repeats the end
 
   const nurbs = splineOps.nurbsSpline(unitSquarePath, 20);
   assert.equal(nurbs.length, 20);
@@ -303,22 +345,42 @@ test('splineOps: frame transforms round-trip; averages, closest points, clusteri
   const back = splineOps.inFrame(f, onto);
   for (let i = 0; i < unitSquarePath.length; i += 1) closeVec(back[i]!, unitSquarePath[i]!, 1e-12);
 
-  assert.deepEqual(splineOps.average([[0, 0, 0], [2, 4, 6]]), [1, 2, 3]);
+  assert.deepEqual(
+    splineOps.average([
+      [0, 0, 0],
+      [2, 4, 6],
+    ]),
+    [1, 2, 3],
+  );
   assert.deepEqual(splineOps.closestPoint(unitSquarePath, [0.9, 0.1, 0]), [1, 0, 0]);
   close(splineOps.distanceToClosestPoint(unitSquarePath, [1, 0, 1]), 1, 1e-12);
 
   const clustered = splineOps.clusteredPoints(
-    [[0, 0, 0], [0.1, 0, 0], [5, 0, 0], [5.05, 0, 0]],
+    [
+      [0, 0, 0],
+      [0.1, 0, 0],
+      [5, 0, 0],
+      [5.05, 0, 0],
+    ],
     1,
   );
-  assert.deepEqual(clustered, [[0, 0, 0], [5, 0, 0]]);
+  assert.deepEqual(clustered, [
+    [0, 0, 0],
+    [5, 0, 0],
+  ]);
 });
 
 test('splineOps.snappedSpline: points land on the surface; empty targets give zeros', async () => {
   const pk = await createPico({ voxelSize: 0.5 });
   try {
     const sphere = pk.createVoxels({ shape: 'sphere', radius: 10 });
-    const snapped = splineOps.snappedSpline([[20, 0, 0], [0, 30, 0]], sphere);
+    const snapped = splineOps.snappedSpline(
+      [
+        [20, 0, 0],
+        [0, 30, 0],
+      ],
+      sphere,
+    );
     for (const pt of snapped) close(vec3.length(pt), 10, 0.75); // within ~1.5 voxels of the surface
     // C# ignores the failure flag and keeps the zero vector — mirrored via ?? zero.
     const empty = pk.createVoxels({ shape: 'empty' });
@@ -345,34 +407,69 @@ test('Frames.alongLine / alongSpline: const frame extruded, sampling clamps', ()
   assert.ok(frames.points().length >= 10);
   assert.equal(frames.points(4).length, 5); // reparametrized count+1 (upstream)
 
-  const alongSpline = Frames.alongSpline([[0, 0, 0], [10, 0, 0]], base, 1);
+  const alongSpline = Frames.alongSpline(
+    [
+      [0, 0, 0],
+      [10, 0, 0],
+    ],
+    base,
+    1,
+  );
   closeVec(alongSpline.spineAt(1), [10, 0, 0], 1e-6);
   closeVec(alongSpline.localZAt(0.3), [0, 0, 1], 1e-12); // frame stays const, not tangent
 });
 
 test('Frames.withTargetX: tangential Z, X pulled to the target', () => {
-  const frames = Frames.withTargetX([[0, 0, 0], [0, 0, 8]], [1, 0, 0], 1);
+  const frames = Frames.withTargetX(
+    [
+      [0, 0, 0],
+      [0, 0, 8],
+    ],
+    [1, 0, 0],
+    1,
+  );
   const f = frames.frameAt(0.5);
-  assert.ok(vec3.dot(f.lz, [0, 0, 1]) > 0.99, `lz ${f.lz} tangential`);
-  assert.ok(Math.abs(vec3.dot(f.lx, [1, 0, 0])) > 0.999, `lx ${f.lx} on target`);
+  assert.ok(vec3.dot(f.lz, [0, 0, 1]) > 0.99, `lz ${f.lz.join(',')} tangential`);
+  assert.ok(Math.abs(vec3.dot(f.lx, [1, 0, 0])) > 0.999, `lx ${f.lx.join(',')} on target`);
 });
 
 test('Frames.ofType: z / cylindrical / spherical targets', () => {
-  const zFrames = Frames.ofType([[0, 0, 0], [8, 0, 0]], 'z', 1); // spine along X → Z targets unitZ
+  const zFrames = Frames.ofType(
+    [
+      [0, 0, 0],
+      [8, 0, 0],
+    ],
+    'z',
+    1,
+  ); // spine along X → Z targets unitZ
   const zf = zFrames.frameAt(0.5);
   assert.ok(vec3.dot(zf.lz, [1, 0, 0]) > 0.99);
   assert.ok(Math.abs(vec3.dot(zf.lx, [0, 0, 1])) > 0.999);
 
   // A vertical spine off-axis: cylindrical X points radially outward (±).
-  const cylFrames = Frames.ofType([[5, 0, 0], [5, 0, 8]], 'cylindrical', 1);
+  const cylFrames = Frames.ofType(
+    [
+      [5, 0, 0],
+      [5, 0, 8],
+    ],
+    'cylindrical',
+    1,
+  );
   const cf = cylFrames.frameAt(0.5);
-  assert.ok(Math.abs(vec3.dot(cf.lx, [1, 0, 0])) > 0.999, `cyl lx ${cf.lx}`);
+  assert.ok(Math.abs(vec3.dot(cf.lx, [1, 0, 0])) > 0.999, `cyl lx ${cf.lx.join(',')}`);
 
   // alignWithTargetX can only choose IN-PLANE (⊥ lz) directions: for a
   // vertical spine the spherical target [0.7, 0, 0.7] projects to ±X.
-  const sphFrames = Frames.ofType([[5, 0, 5], [5, 0, 13]], 'spherical', 1);
+  const sphFrames = Frames.ofType(
+    [
+      [5, 0, 5],
+      [5, 0, 13],
+    ],
+    'spherical',
+    1,
+  );
   const sf = sphFrames.frameAt(0.1);
-  assert.ok(Math.abs(vec3.dot(sf.lx, [1, 0, 0])) > 0.999, `sph lx ${sf.lx}`);
+  assert.ok(Math.abs(vec3.dot(sf.lx, [1, 0, 0])) > 0.999, `sph lx ${sf.lx.join(',')}`);
 });
 
 test('Frames minRotation: parallel transport does not corkscrew along a helix', () => {
@@ -385,8 +482,10 @@ test('Frames minRotation: parallel transport does not corkscrew along a helix', 
   let previous = frames.localXAt(0);
   for (let s = 0.05; s <= 1; s += 0.05) {
     const current = frames.localXAt(s);
-    assert.ok(vec3.dot(vec3.safeNormalized(previous), vec3.safeNormalized(current)) > 0.98,
-      `no twist jump at s=${s}`);
+    assert.ok(
+      vec3.dot(vec3.safeNormalized(previous), vec3.safeNormalized(current)) > 0.98,
+      `no twist jump at s=${s}`,
+    );
     previous = current;
   }
 });

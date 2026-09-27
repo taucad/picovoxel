@@ -240,11 +240,11 @@ test('overhang factories: all five conventions agree on 45º', () => {
 
 test('overhang factories reject NaN, negative, and above-range inputs', () => {
   const cases: Array<[name: string, factory: (f: number) => unknown, above: number]> = [
-    ['fromNormalized', overhang.fromNormalized, 1.01],
-    ['fromPercent', overhang.fromPercent, 100.5],
-    ['fromRad', overhang.fromRad, Math.PI / 2 + 0.01],
-    ['fromDeg', overhang.fromDeg, 90.5],
-    ['fromDegFromHorizontal', overhang.fromDegFromHorizontal, 91],
+    ['fromNormalized', (f) => overhang.fromNormalized(f), 1.01],
+    ['fromPercent', (f) => overhang.fromPercent(f), 100.5],
+    ['fromRad', (f) => overhang.fromRad(f), Math.PI / 2 + 0.01],
+    ['fromDeg', (f) => overhang.fromDeg(f), 90.5],
+    ['fromDegFromHorizontal', (f) => overhang.fromDegFromHorizontal(f), 91],
   ];
   for (const [name, factory, above] of cases) {
     assert.throws(() => factory(Number.NaN), invalidArg, `${name}(NaN)`);
@@ -436,7 +436,11 @@ test('frame.compose ∘ frame.inverse is the identity', () => {
 
 test('frame moves: local axes vs world axes', () => {
   const f = frame.fromZX([0, 0, 0], [1, 0, 0], [0, 0, 1]); // local Z = world X
-  closeVec(frame.movedLocal(f, [1, 2, 3]).pos, vec3.add(vec3.add(vec3.scale(f.lx, 1), vec3.scale(f.ly, 2)), vec3.scale(f.lz, 3)), 1e-12);
+  closeVec(
+    frame.movedLocal(f, [1, 2, 3]).pos,
+    vec3.add(vec3.add(vec3.scale(f.lx, 1), vec3.scale(f.ly, 2)), vec3.scale(f.lz, 3)),
+    1e-12,
+  );
   closeVec(frame.movedLocalX(f, 2).pos, vec3.scale(f.lx, 2), 1e-12);
   closeVec(frame.movedLocalY(f, 2).pos, vec3.scale(f.ly, 2), 1e-12);
   closeVec(frame.movedLocalZ(f, 2).pos, [2, 0, 0], 1e-12); // along world X

@@ -1,88 +1,56 @@
-# Staged upstream contributions — DRAFTS, NOT POSTED
+# Upstream proposals
 
-Per the picovoxel charter, outward actions (issues, PRs) require explicit
-maintainer sign-off. These texts are ready to post to leap71/PicoGK and
-leap71/PicoGKRuntime once approved. Line references are against PicoGK
-@ 389d4d9 / PicoGKRuntime 26.2, the port's review baseline. PicoGK was
-re-checked at 0e6cf6b6 on 2026-09-27: B2 (b54aef8c) and B5 (0e6cf6b6) are fixed
-there and are not to be filed; see `MIGRATING-FROM-CSHARP.md` for B6.
+This directory holds fixes that picovoxel offers to the projects it builds on, each shaped as a patch against that project's own tree. picovoxel is an unofficial community TypeScript/WebAssembly binding of LEAP 71's PicoGK; it is not affiliated with or endorsed by LEAP 71, and nothing here implies that any upstream project has reviewed or accepted a change.
 
-## Two homes for patches, and the difference
+Nothing in `upstream/` is applied by picovoxel's build, and adding a file here cannot change a build artifact. picovoxel ships each of these fixes some other way, usually as a separate translation unit or a direct binding, so its vendored sources stay as upstream published them.
 
-| Directory | What lives there | Applied to our build? |
-| --- | --- | --- |
-| `patches/<dep>/*.patch` | Changes we **need** in the vendored tree to build or to ship a measured win, and which are also upstreamable | **Yes** — `scripts/fetch-deps.sh` applies every file in `patches/<dep>/` with `patch -p1` right after extraction, and folds their hash into the extraction stamp |
-| `upstream/*.patch` | **Proposals.** Code we ship some other way (a sibling TU, a direct binding) shaped as a diff for the upstream repo, so the offer is a real patch and not prose | **No** — nothing in `upstream/` is ever applied locally. Adding a file here cannot change our build |
+The patches that the build does apply live in `patches/<dependency>/`. `scripts/fetch-deps.sh` applies them with `patch -p1 --fuzz=0` right after extracting each pinned source, in file-name order, and folds their hashes into the extraction stamp. A file never moves between the two directories: `patches/` is build input, and moving a proposal there would change every artifact.
 
-Consequence: never move a proposal into `patches/` to "tidy up". `patches/` is
-build input; a file dropped there changes every artifact and invalidates every
-byte pin. And never leave an upstreamable that we have already implemented as
-prose only — if it is implemented, it can be a patch, and a patch is what a
-maintainer can actually apply.
+[LEDGER.md](LEDGER.md) tracks every item, with evidence, whether it moves output values, and its status.
 
-The ledger of what we owe upstream is `MIGRATING-FROM-CSHARP.md` §"Upstreamable
-spikes ledger" (rows U1–U25). **Every patch file in either directory must be
-cited by its exact path from its U-row, in the same change that lands the
-patch.**
+## Patch index
 
-## Inventory
+| Patch                                                                                              | Target repository and base                       | What it fixes                                                                                                                                      | Output values                                                                | Status                                        |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | --------------------------------------------- |
+| [`picogkruntime-intersect-implicit-band.patch`](picogkruntime-intersect-implicit-band.patch)       | leap71/PicoGKRuntime `0f26321c`                  | `IntersectImplicit` passes millimetres into an integer narrow-band parameter and throws below about 0.33 mm                                        | Change outside 1.0–1.33 mm voxels                                            | Spiked; PR #28 upstream carries the same hunk |
+| [`picogkruntime-zslice-seal-units.patch`](picogkruntime-zslice-seal-units.patch)                   | leap71/PicoGKRuntime `0f26321c`                  | `ProjectZSlice` seal loops read millimetres as a layer count, leaving end caps open below about 0.167 mm                                           | Change away from 1.0 mm                                                      | Spiked                                        |
+| [`picogkruntime-bulk-mesh-abi.patch`](picogkruntime-bulk-mesh-abi.patch)                           | leap71/PicoGKRuntime `0f26321c`                  | Bulk mesh transfer in the C ABI instead of one call per vertex or triangle                                                                         | Unchanged                                                                    | PR drafted                                    |
+| [`picogkruntime-bulk-lattice-abi.patch`](picogkruntime-bulk-lattice-abi.patch)                     | leap71/PicoGKRuntime `0f26321c`                  | Bulk lattice authoring in the C ABI instead of one call per beam                                                                                   | Unchanged                                                                    | PR drafted                                    |
+| [`picogkruntime-tubecomplex-lattice.patch`](picogkruntime-tubecomplex-lattice.patch)               | leap71/PicoGKRuntime `0f26321c`                  | Parallel `RenderLattice` through openvdb's tube-complex voxelizer; needs `patches/PicoGKRuntime/0003-lattice-parameter-accessors.patch` to compile | Change slightly (volume within 2.3e-5 relative on picovoxel's pinned models) | PR drafted                                    |
+| [`picogkruntime-roundcone-nested-spheres.patch`](picogkruntime-roundcone-nested-spheres.patch)     | leap71/PicoGKRuntime `0f26321c`                  | `fSdvRoundCone` renders the wrong shape when one end sphere contains the other (−90.7% volume)                                                     | Change for nested beams only                                                 | PR drafted                                    |
+| [`picogkruntime-lattice-beam-value-storage.patch`](picogkruntime-lattice-beam-value-storage.patch) | leap71/PicoGKRuntime `0f26321c`                  | Stores lattice beams by value instead of one `make_shared` per beam; rebased form of `patches/PicoGKRuntime/0004`                                  | Unchanged                                                                    | PR drafted                                    |
+| [`picogkruntime-offset-renorm-scheme.patch`](picogkruntime-offset-renorm-scheme.patch)             | leap71/PicoGKRuntime `0f26321c`                  | Offsets renormalize with `SECOND_BIAS` instead of `HJWENO5_BIAS`: 2.1–2.3× faster and closer to the closed form                                    | Change for every caller                                                      | Drafted as an issue                           |
+| [`openvdb-cmake-source-dir.patch`](openvdb-cmake-source-dir.patch)                                 | AcademySoftwareFoundation/openvdb `86b5ea9e98a3` | `${CMAKE_SOURCE_DIR}` breaks configuring OpenVDB with `add_subdirectory` (18 sites)                                                                | None (build only)                                                            | PR drafted                                    |
+| [`onetbb-machine-pause.patch`](onetbb-machine-pause.patch)                                         | uxlfoundation/oneTBB `8976636cbd89`              | On WebAssembly workers, `machine_pause` calls out to JavaScript and ignores its delay                                                              | None                                                                         | PR drafted                                    |
+| [`onetbb-external-thread-stack-size.patch`](onetbb-external-thread-stack-size.patch)               | uxlfoundation/oneTBB `8976636cbd89`              | Under emscripten the external thread's stealing threshold comes from the worker stack size                                                         | None                                                                         | PR drafted                                    |
+| [`onetbb-emscripten-stack-size-override.patch`](onetbb-emscripten-stack-size-override.patch)       | uxlfoundation/oneTBB `8976636cbd89`              | `-DTBB_EMSCRIPTEN_STACK_SIZE=…` is ignored                                                                                                         | None                                                                         | PR drafted                                    |
+| [`emscripten-cwrap-bigint.patch`](emscripten-cwrap-bigint.patch)                                   | emscripten-core/emscripten `887305e67c41`        | `cwrap` drops to the slow `ccall` path for any `'bigint'` argument                                                                                 | Unchanged                                                                    | PR drafted                                    |
+| [`emscripten-heap-index-signed-shift.patch`](emscripten-heap-index-signed-shift.patch)             | emscripten-core/emscripten `887305e6`            | Six WebGL heap reads use a signed shift and are wrong above 2 GiB                                                                                  | Unchanged below 2 GiB, correct above                                         | PR drafted                                    |
+| [`dawn-emdawnwebgpu-mapped-range-fill.patch`](dawn-emdawnwebgpu-mapped-range-fill.patch)           | google/dawn `6c1e27710cd1`                       | The mapped-range shadow is never zeroed (`fill` end index)                                                                                         | Unwritten bytes become zero                                                  | Drafted for the Chromium tracker              |
 
-Dry-runs below were re-verified with `patch -p1 --dry-run --fuzz=0` against a
-freshly extracted pristine tree (and, for the PicoGKRuntime proposals, the
-`patches/PicoGKRuntime/`-applied tree) on 2026-09-27; every row is OK. U24
-targets emscripten main rather than 5.0.1 since that date. Reproduce with
-`scripts/fetch-deps.sh`-style extraction (`tar -xzf … --strip-components=1`)
-plus the command in each row.
+"PR drafted" means the patch and its outward text are ready; picovoxel had filed none of them as of 2026-09-27. `picogkruntime-roundcone-nested-spheres-check.cpp` is the standalone numeric check for the round-cone patch; its header comment has the build command.
 
-### Proposals (`upstream/` — not applied locally)
+The build applies these files from `patches/`; each is also upstreamable as it stands, and LEDGER.md tracks it:
 
-| Patch | Row | Target tree | Dry-run |
-| --- | --- | --- | --- |
-| `emscripten-cwrap-bigint.patch` | U16 | emscripten 5.0.1 (`vendor/emsdk/upstream/emscripten`), `src/lib/libccall.js` sha256 `0cad844a…` | `patching file 'src/lib/libccall.js'` — **OK**, 0 fuzz |
-| `emscripten-heap-index-signed-shift.patch` | U24 | emscripten main @ `887305e6` (2026-09-26), `src/lib/libwebgl.js` `cce23f36…` + `libwebgl2.js` `3546fc3b…` | `patching file 'src/lib/libwebgl.js'` / `'src/lib/libwebgl2.js'` — **OK**, 0 fuzz (regenerated 2026-09-27; the 5.0.1 revision no longer applied to main) |
-| `picogkruntime-bulk-mesh-abi.patch` | U4 | leap71/PicoGKRuntime @ `0f26321c` (pristine tarball) | `patching file 'API/PicoGK.h'` / `'Source/PicoGKLibrary.cpp'` — **OK**, 0 fuzz; also applies onto the `patches/PicoGKRuntime/` -applied tree |
-| `picogkruntime-bulk-lattice-abi.patch` | U17 | leap71/PicoGKRuntime @ `0f26321c` | same two files — **OK**, 0 fuzz, and **OK** applied after the mesh patch |
-| `picogkruntime-tubecomplex-lattice.patch` | U5 | leap71/PicoGKRuntime @ `0f26321c` | `patching file 'Source/PicoGKVdbVoxels.h'` — **OK**, 0 fuzz; also **OK** onto the `patches/PicoGKRuntime/` -applied tree. `0003-lattice-parameter-accessors.patch` is a **compile-time prerequisite** (it applies without it, it does not build without it); `0004` is optional. Verified beyond dry-run: the composed tree builds warning-clean, and the native HeatX fixture runs **2.53×** faster on the whole fixture wall (geometric mean, 30 runs per arm over six voxel sizes, `bench/results/native/BEST-CASE.md`; the single build-check run was 2.77×, `PATCHED-NATIVE.md`) |
-| `picogkruntime-offset-renorm-scheme.patch` | U22 (ask 2) | leap71/PicoGKRuntime @ `0f26321c` | `patching file 'Source/PicoGKVdbVoxels.h'` — **OK**, 0 fuzz; also **OK** onto the `patches/PicoGKRuntime/` -applied tree |
-| `picogkruntime-intersect-implicit-band.patch` | U1 | leap71/PicoGKRuntime @ `0f26321c` | `patching file 'Source/PicoGKVdbVoxels.h'` — **OK**, 0 fuzz; also **OK** onto the `patches/PicoGKRuntime/` -applied tree |
-| `picogkruntime-zslice-seal-units.patch` | U2 | leap71/PicoGKRuntime @ `0f26321c` | `patching file 'Source/PicoGKVdbVoxels.h'` — **OK**, 0 fuzz; also **OK** onto the `patches/PicoGKRuntime/` -applied tree |
+| Patch (applied)                                                   | Target and base                           | What it does                                                   |
+| ----------------------------------------------------------------- | ----------------------------------------- | -------------------------------------------------------------- |
+| `patches/PicoGKRuntime/0001-parallel-disjoint-mesh-flatten.patch` | PicoGKRuntime `0f26321c`                  | Parallel `roAsMesh` flatten; needs the openvdb flat-quad patch |
+| `patches/PicoGKRuntime/0002-post-fill-prune.patch`                | PicoGKRuntime `0f26321c`                  | Prunes after the dense-accessor fills                          |
+| `patches/PicoGKRuntime/0003-lattice-parameter-accessors.patch`    | PicoGKRuntime `0f26321c`                  | Seven const accessors on lattice spheres and beams             |
+| `patches/PicoGKRuntime/0004-lattice-beam-value-storage.patch`     | PicoGKRuntime `0f26321c`, after 0001–0003 | Lattice beams stored by value                                  |
+| `patches/openvdb/0001-flat-quad-output.patch`                     | openvdb `7c03e1f0`                        | Opt-in flat quad output from `VolumeToMesh`                    |
+| `patches/oneTBB/0001-wasm-substrate-edges.patch`                  | oneTBB `06ce6212`                         | The three oneTBB fixes above, as one file                      |
 
-### Applied to the vendored build (`patches/` — upstreamable as-is)
+## Dry runs
 
-| Patch | Row | Target tree | Dry-run |
-| --- | --- | --- | --- |
-| `patches/PicoGKRuntime/0001-parallel-disjoint-mesh-flatten.patch` | U19 | PicoGKRuntime @ `0f26321c` | `'Source/PicoGKMesh.h'` / `'Source/PicoGKVdbVoxels.h'` — **OK** |
-| `patches/PicoGKRuntime/0002-post-fill-prune.patch` | U21 | PicoGKRuntime @ `0f26321c`, after the flatten patch | `'Source/PicoGKVdbVoxels.h'` — **OK** |
-| `patches/PicoGKRuntime/0003-lattice-parameter-accessors.patch` | U5 (U18-adjacent) | PicoGKRuntime @ `0f26321c` | `'Source/PicoGKLattice.h'` — **OK** |
-| `patches/PicoGKRuntime/0004-lattice-beam-value-storage.patch` | U18 (ingest half) | PicoGKRuntime @ `0f26321c`, after 0001/0002 | `'Source/PicoGKLattice.h'` / `'Source/PicoGKVdbVoxels.h'` — **OK** (verified by full fetch-deps replay, byte-identical tree) |
-| `patches/openvdb/0001-flat-quad-output.patch` | U19 / U10 | AcademySoftwareFoundation/openvdb @ `7c03e1f0` | `'openvdb/openvdb/tools/VolumeToMesh.h'` — **OK** |
-| `patches/oneTBB/0001-wasm-substrate-edges.patch` | U13 (hunk 1) / U14 (hunk 2) / U15 (hunk 3) | uxlfoundation/oneTBB @ `06ce6212` | `'include/oneapi/tbb/detail/_machine.h'` / `'src/tbb/governor.cpp'` / `'cmake/compilers/Clang.cmake'` — **OK** |
+Every patch was checked with `patch -p1 --dry-run --fuzz=0` against its target at the commit in the index. An approximate context match counts as a failure.
 
-Patch order is the numeric prefix: `fetch-deps.sh` globs `patches/<dep>/*.patch`
-alphabetically, and since 2026-07-27 every series is uniquely numbered
-(0001…000N) so the ordering is explicit rather than a name tiebreak. Patches
-apply with `--fuzz=0`: an approximate context match is a hard conflict, never
-a silent application.
+On 2026-09-28, against a pristine PicoGKRuntime `0f26321c` extracted from the tarball `scripts/fetch-deps.sh` downloads, every `picogkruntime-*.patch` applied, both with `patch` and with `git apply --check`. These stacks also applied: `patches/PicoGKRuntime/0001`–`0004`, then each of the bulk mesh, bulk lattice, band, seal, renorm, round-cone and tube-complex patches; `0003`, then round-cone, then tube-complex; `0001`–`0004`, then round-cone, then tube-complex; bulk mesh, then bulk lattice; beam value storage, then tube-complex.
 
-### Issue and PR texts
+The openvdb, oneTBB, emscripten and Dawn proposals target upstream heads that picovoxel does not vendor. Each applied at fuzz 0 on 2026-09-27 against a snapshot of the commit in the index. On 2026-09-28, `emscripten-cwrap-bigint.patch` also applied to emscripten 5.0.1 as installed by emsdk. Two oneTBB proposals applied to the pinned `06ce6212`; the stack-size override does not, because its context changed on master.
 
-| Document | Target | Row |
-| --- | --- | --- |
-| `issue-b1-mesh-transform-scale.md` | leap71/PicoGK | B1 |
-| `issue-b2-mm-to-voxels.md` | leap71/PicoGK | B2 — **fixed upstream in `b54aef8c` (2026-08-22); do not file** |
-| `issue-b3-addbeam-overloads.md` | leap71/PicoGK | B3 |
-| `issue-b4-voxshell-discarded-results.md` | leap71/PicoGK | B4 |
-| `pr-bulk-mesh-transfer.md` | leap71/PicoGKRuntime (+ the C# half in leap71/PicoGK) | U4 — the C ABI half is now `picogkruntime-bulk-mesh-abi.patch`; this text carries the rationale and the C#-side change, which targets the other repo |
-| `pr-offset-renorm-default.md` | leap71/PicoGKRuntime | U22 (ask 2) — the ready-to-post body for `picogkruntime-offset-renorm-scheme.patch`; ask 1 (settings parameter) deliberately offered as a follow-up, not diffed |
+To reproduce, extract the target at the listed commit and run, from its root:
 
-## What a PR should ship with
-
-Under the geometry-parity regime (`NON-DETERMINISM.md`), the evidence a
-picovoxel patch carries is stronger than a byte diff and should be offered as
-such: the G0 identity tuple (canonical grid hash, volume as hex float64,
-active-voxel and triangle/vertex counts, order-invariant mesh multiset hash) as
-run-to-run triples and single≡multi differentials at fine cells (≤0.7 mm), plus
-the SK-0.8-shaped tolerance gates with `tools::checkLevelSet` EMPTY as a hard
-boolean wherever the patch is allowed to change values. Say which class the
-change is (0 = byte-identical, 1 = same geometry different order, 2 = bounded
-numeric drift) and show the oracle that establishes it.
+```bash
+patch -p1 --dry-run --fuzz=0 < /path/to/picovoxel/upstream/<file>.patch
+```

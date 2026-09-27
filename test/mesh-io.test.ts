@@ -152,7 +152,9 @@ test('toGlb: valid container with accessor counts (carried over)', () => {
   assert.equal(view.getUint32(4, true), 2, 'GLB version');
   assert.equal(view.getUint32(8, true), glb.byteLength, 'length header');
   const jsonLen = view.getUint32(12, true);
-  const gltf = JSON.parse(new TextDecoder().decode(glb.subarray(20, 20 + jsonLen)));
+  const gltf = JSON.parse(new TextDecoder().decode(glb.subarray(20, 20 + jsonLen))) as {
+    accessors: [{ count: number; max: number[] }, { count: number }];
+  };
   assert.equal(gltf.accessors[0].count, 4, 'POSITION accessor count');
   assert.equal(gltf.accessors[1].count, 12, 'index accessor count');
   assert.deepEqual(gltf.accessors[0].max, [10, 10, 10]);
@@ -163,7 +165,10 @@ test('toGlb: valid container with accessor counts (carried over)', () => {
 // (Tau's kernel used Uint8Array.from for exactly that). The assignment below is
 // the type-level check; the runtime checks pin the buffer kind and extent.
 test('meshToStlBytes returns Uint8Array<ArrayBuffer> that owns its whole buffer', () => {
-  const bytes: Uint8Array<ArrayBuffer> = meshToStlBytes(new Float32Array(TETRA.vertices), new Uint32Array(TETRA.triangles));
+  const bytes: Uint8Array<ArrayBuffer> = meshToStlBytes(
+    new Float32Array(TETRA.vertices),
+    new Uint32Array(TETRA.triangles),
+  );
   assert.ok(bytes.buffer instanceof ArrayBuffer);
   assert.equal(bytes.byteOffset, 0);
   assert.equal(bytes.byteLength, bytes.buffer.byteLength);

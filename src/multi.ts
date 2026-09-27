@@ -10,7 +10,7 @@
 // that means cross-origin isolation (COOP/COEP headers). Node needs nothing extra.
 //
 // The dispose-shim import is load-bearing and must stay first: it installs
-// Symbol.dispose (Safari 16.4–18.3) before any consumer `using` code can run.
+// Symbol.dispose (hosts without it, including every released Safari) before any consumer `using` code can run.
 import './dispose.ts';
 
 import createPicoMultiModuleUntyped from './pico-multi.mjs';
@@ -27,9 +27,12 @@ import {
 } from './session.ts';
 
 // The glue plus the export names it reads, so a caller's wasmModule is checked first.
-const glue: PicoGlueFactory = Object.assign((overrides?: object) => (createPicoMultiModuleUntyped as PicoGlueFactory)(overrides), {
-  wasmExports: WASM_EXPORTS,
-});
+const glue: PicoGlueFactory = Object.assign(
+  (overrides?: object) => (createPicoMultiModuleUntyped as PicoGlueFactory)(overrides),
+  {
+    wasmExports: WASM_EXPORTS,
+  },
+);
 
 /**
  * Creates a multithreaded (pthreads) PicoGK session. Resolves once the wasm

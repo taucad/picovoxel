@@ -162,7 +162,10 @@ test('should pair allocator A/B samples across blocks and name regressions hones
   });
 
   assert.match(out, /\| M \| win \| 100\.000 \| 50\.000 \| -50\.0% \| 2\.000× \|.*\| faster \|/);
-  assert.match(out, /\| M \| lose \| 10\.000 \| 20\.000 \| \+100\.0% \| 0\.500× \|.*\| \*\*REGRESSION\*\* \|/);
+  assert.match(
+    out,
+    /\| M \| lose \| 10\.000 \| 20\.000 \| \+100\.0% \| 0\.500× \|.*\| \*\*REGRESSION\*\* \|/,
+  );
   assert.match(out, /2 phases compared: 1 faster, 1 regressions/);
   assert.match(out, /REGRESSION M\/lose: 0\.500×/);
 });

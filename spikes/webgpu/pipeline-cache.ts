@@ -11,7 +11,9 @@ const compilationError = (shaderId: string, messages: readonly GPUCompilationMes
   const errors = messages.filter((message) => message.type === 'error');
   if (errors.length === 0) return null;
   return new Error(
-    errors.map((message) => `${shaderId}:${message.lineNum}:${message.linePos}: ${message.message}`).join('\n'),
+    errors
+      .map((message) => `${shaderId}:${message.lineNum}:${message.linePos}: ${message.message}`)
+      .join('\n'),
   );
 };
 
@@ -71,6 +73,7 @@ export class ComputePipelineCache {
     }
     const validationError = await this.#device.popErrorScope();
     if (validationError !== null) throw new Error(validationError.message);
+    // eslint-disable-next-line @typescript-eslint/only-throw-error -- rethrows the value createComputePipelineAsync rejected with, unchanged
     if (creationFailure !== undefined) throw creationFailure;
     if (pipeline === undefined) throw new Error('WebGPU pipeline creation returned no pipeline');
     return pipeline;

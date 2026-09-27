@@ -9,7 +9,11 @@ import { createHandleRegistry, freeHeld } from '../src/registry.ts';
 test('shim branch: a symbol-less target gets the registry symbol', () => {
   const bare: { dispose?: symbol } = {};
   const got = ensureDisposeSymbol(bare);
-  assert.equal(got, Symbol.for('Symbol.dispose'), 'polyfill must be the registered symbol (idempotent across copies)');
+  assert.equal(
+    got,
+    Symbol.for('Symbol.dispose'),
+    'polyfill must be the registered symbol (idempotent across copies)',
+  );
   assert.equal(bare.dispose, got, 'target must carry the assigned symbol');
 });
 

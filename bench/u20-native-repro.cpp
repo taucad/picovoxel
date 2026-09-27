@@ -1,4 +1,4 @@
-// SKv2-0 V0.7 / NON-DETERMINISM §11.3 — native stock-TBB reproducer for the
+// SKv2-0 V0.7 — native stock-TBB reproducer for the
 // U-SK05-a merge-based CSG defect class.
 //
 // The wasm 12-thread build dropped geometry nondeterministically at fine cells
@@ -20,7 +20,7 @@
 // (13,120,165..13,189,311 — dropped geometry, the wasm P0 class) while the
 // steal arm was bit-stable 5/5 at the merge arm's best-case value; capped to
 // 1 thread the merge arm is bit-stable and correct 3/3. Upstream defect;
-// substrate exonerated; novel report (see MIGRATING-FROM-CSHARP.md U20).
+// substrate exonerated; novel report (see upstream/LEDGER.md U20).
 //
 // Build (native, against the PicoGKRuntime vendored openvdb build):
 //   R=~/git/tau/repos/PicoGKRuntime

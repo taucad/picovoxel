@@ -24,7 +24,13 @@ export interface LatticeType {
 }
 
 /** One beam pt1→pt2, sampled into chained sub-beams when samples > 2 (C# `AddBeam`). */
-function addSampledBeam(lattice: Lattice, pt1: Vec3, pt2: Vec3, beamThickness: BeamThickness, samples: number): void {
+function addSampledBeam(
+  lattice: Lattice,
+  pt1: Vec3,
+  pt2: Vec3,
+  beamThickness: BeamThickness,
+  samples: number,
+): void {
   if (samples === 2) {
     lattice.addBeam({
       start: pt1,
@@ -133,7 +139,10 @@ export class RandomSplineLattice implements LatticeType {
           uf.randomLinear(-0.3 * size[1], 0.3 * size[1], this.random),
           uf.randomLinear(-0.3 * size[2], 0.3 * size[2], this.random),
         ];
-        const points = splineOps.nurbsSpline([corners[i]!, vec3.add(cell.cellCentre(), noise), corners[j]!], 20);
+        const points = splineOps.nurbsSpline(
+          [corners[i]!, vec3.add(cell.cellCentre(), noise), corners[j]!],
+          20,
+        );
         for (let k = 1; k < points.length; k += 1) {
           lattice.addBeam({
             start: points[k - 1]!,
