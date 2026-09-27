@@ -1,7 +1,9 @@
 import { defineConfig } from 'tsdown';
 
 // Bundles the browser-gate page module (test/browser/gate.ts) with the wasm pair
-// beside it, mirroring the main build's copied-asset rule.
+// beside it, mirroring the main build's copied-asset rule. The page imports the
+// package by name, so it bundles the built dist/ (in CI, the extracted candidate)
+// and takes the glue and wasm from there.
 export default defineConfig({
   entry: { gate: 'test/browser/gate.ts' },
   outDir: 'test/browser/gate-dist',
@@ -20,7 +22,7 @@ export default defineConfig({
     },
   ],
   copy: [
-    { from: 'src/pico.mjs', to: 'test/browser/gate-dist' },
-    { from: 'src/pico.wasm', to: 'test/browser/gate-dist' },
+    { from: 'dist/pico.mjs', to: 'test/browser/gate-dist' },
+    { from: 'dist/pico.wasm', to: 'test/browser/gate-dist' },
   ],
 });
