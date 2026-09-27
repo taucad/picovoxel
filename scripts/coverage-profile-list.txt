@@ -1,0 +1,8 @@
+# clang -fprofile-list for COVERAGE=1 builds (close-out T3.1/D8): instrument only
+# functions defined in the nine own TUs. Header code instantiated inside them
+# (OpenVDB, oneTBB, PicoGK, libc++, the ImGui shim) is outside the measured
+# domain. clang matches a function's own location first and falls back to the
+# main file, so the headers are skipped by name rather than via default:skip.
+[clang]
+source:*.h=skip
+source:*/include/*=skip

@@ -14,6 +14,8 @@ export default defineConfig({
     execArgv: ['--expose-gc'],
     testTimeout: 120_000,
     hookTimeout: 120_000,
+    // C++ coverage (T3.1): flushes each COVERAGE=1 module instance's profile after every file.
+    setupFiles: process.env.PICOVOXEL_CPP_COVERAGE_DIR ? ['test/cpp-coverage-setup.ts'] : [],
     coverage: {
       provider: 'v8',
       // The measured domain: everything that ships, plus the pure-logic modules

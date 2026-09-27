@@ -63,6 +63,28 @@ PREFIX="${PREFIX:-$OUT/wasm-prefix$MT}"
 source "$EMSDK/emsdk_env.sh" >/dev/null 2>&1
 mkdir -p "$OUT" "$OUT_JS"
 
+# COVERAGE=1 — source-based C++ coverage (close-out T3.1/D8). Only the nine own
+# TUs are instrumented; the generated core TU and the dep archives stay outside
+# the measured domain. The module is a library with EXIT_RUNTIME=0, so the
+# runtime's atexit writer never fires: the glue registers every instance
+# (scripts/coverage-post.js) and test/cpp-coverage-setup.ts copies each
+# instance's profile out through the two exported buffer writers. No NODERAWFS:
+# it would move the MEMFS scratch paths src/vdb.ts writes (/pico-tmp-N.vdb) onto
+# the host root. Use separate OUT/OUT_JS dirs; this build is never shipped.
+OWN_TU_FLAGS=()
+COVERAGE_LINK_FLAGS=()
+EXPORTS_FILE="$HERE/src/pico-exports.txt"
+if [ "${COVERAGE:-0}" = "1" ]; then
+  OWN_TU_FLAGS=(-fprofile-instr-generate -fcoverage-mapping "-fprofile-list=$HERE/scripts/coverage-profile-list.txt")
+  EXPORTS_FILE="$OUT/pico-exports-coverage.txt"
+  { cat "$HERE/src/pico-exports.txt"; printf '%s\n' ___llvm_profile_get_size_for_buffer ___llvm_profile_write_buffer; } \
+    > "$EXPORTS_FILE"
+  # -g2 keeps the name section: llvm-cov finds __llvm_prf_names by data-segment
+  # name, which a stripped -O3 link drops ("no coverage data found"). -g2 carries no
+  # DWARF, so binaryen still optimizes fully (-g would limit it).
+  COVERAGE_LINK_FLAGS=(-g2 -fprofile-instr-generate -fcoverage-mapping --post-js "$HERE/scripts/coverage-post.js")
+fi
+
 echo "=== generate headless core TU ==="
 bash "$HERE/scripts/make-core-tu.sh" \
   "$PICOGK_RUNTIME/Source/PicoGKLibrary.cpp" "$OUT/PicoGKLibraryCore.cpp"
@@ -94,15 +116,15 @@ compile() { # <source> <object> [extra flags...]
 
 echo "=== compile core + tape + bulk + props + offset + lattice + hash + boolean + zslice + query TUs (-j$JOBS) ==="
 compile "$OUT/PicoGKLibraryCore.cpp" "$OUT/pico_core_module$MT.o"
-compile "$HERE/src/pico-tape.cpp" "$OUT/pico_tape_module$MT.o"
-compile "$HERE/src/pico-bulk.cpp" "$OUT/pico_bulk_module$MT.o"
-compile "$HERE/src/pico-props.cpp" "$OUT/pico_props_module$MT.o"
-compile "$HERE/src/pico-offset.cpp" "$OUT/pico_offset_module$MT.o"
-compile "$HERE/src/pico-lattice.cpp" "$OUT/pico_lattice_module$MT.o"
-compile "$HERE/src/pico-hash.cpp" "$OUT/pico_hash_module$MT.o" -I"$HERE/vendor/xxhash"
-compile "$HERE/src/pico-boolean.cpp" "$OUT/pico_boolean_module$MT.o"
-compile "$HERE/src/pico-zslice.cpp" "$OUT/pico_zslice_module$MT.o"
-compile "$HERE/src/pico-query.cpp" "$OUT/pico_query_module$MT.o"
+compile "$HERE/src/pico-tape.cpp" "$OUT/pico_tape_module$MT.o" ${OWN_TU_FLAGS[@]+"${OWN_TU_FLAGS[@]}"}
+compile "$HERE/src/pico-bulk.cpp" "$OUT/pico_bulk_module$MT.o" ${OWN_TU_FLAGS[@]+"${OWN_TU_FLAGS[@]}"}
+compile "$HERE/src/pico-props.cpp" "$OUT/pico_props_module$MT.o" ${OWN_TU_FLAGS[@]+"${OWN_TU_FLAGS[@]}"}
+compile "$HERE/src/pico-offset.cpp" "$OUT/pico_offset_module$MT.o" ${OWN_TU_FLAGS[@]+"${OWN_TU_FLAGS[@]}"}
+compile "$HERE/src/pico-lattice.cpp" "$OUT/pico_lattice_module$MT.o" ${OWN_TU_FLAGS[@]+"${OWN_TU_FLAGS[@]}"}
+compile "$HERE/src/pico-hash.cpp" "$OUT/pico_hash_module$MT.o" -I"$HERE/vendor/xxhash" ${OWN_TU_FLAGS[@]+"${OWN_TU_FLAGS[@]}"}
+compile "$HERE/src/pico-boolean.cpp" "$OUT/pico_boolean_module$MT.o" ${OWN_TU_FLAGS[@]+"${OWN_TU_FLAGS[@]}"}
+compile "$HERE/src/pico-zslice.cpp" "$OUT/pico_zslice_module$MT.o" ${OWN_TU_FLAGS[@]+"${OWN_TU_FLAGS[@]}"}
+compile "$HERE/src/pico-query.cpp" "$OUT/pico_query_module$MT.o" ${OWN_TU_FLAGS[@]+"${OWN_TU_FLAGS[@]}"}
 for pid in ${PIDS[@]+"${PIDS[@]}"}; do wait "$pid"; done
 
 echo "=== link -> $VARIANT.mjs ==="
@@ -115,11 +137,12 @@ em++ -std=c++20 $WASM_FLAGS $EH_FLAGS "-ffile-prefix-map=$HERE=." \
   "$PREFIX/lib/libopenvdb.a" "$PREFIX/lib/libtbb.a" \
   -o "$OUT_JS/$VARIANT.mjs" \
   ${THREAD_LINK_FLAGS[@]+"${THREAD_LINK_FLAGS[@]}"} \
+  ${COVERAGE_LINK_FLAGS[@]+"${COVERAGE_LINK_FLAGS[@]}"} \
   -sMODULARIZE -sEXPORT_ES6=1 -sEXPORT_NAME=createPicoModule \
   -sMALLOC="$MALLOC" \
   -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=256MB -sMAXIMUM_MEMORY=4GB \
   -sSTACK_SIZE=8388608 -sALLOW_TABLE_GROWTH=1 \
-  -sEXPORTED_FUNCTIONS=@"$HERE/src/pico-exports.txt" \
+  -sEXPORTED_FUNCTIONS=@"$EXPORTS_FILE" \
   -sEXPORTED_RUNTIME_METHODS="$RUNTIME_METHODS"
 
 echo "$VARIANT.wasm: $(wc -c < "$OUT_JS/$VARIANT.wasm" | tr -d ' ') bytes; $VARIANT.mjs: $(wc -c < "$OUT_JS/$VARIANT.mjs" | tr -d ' ') bytes; malloc=$MALLOC"
