@@ -17,8 +17,9 @@
   ],
   "project": ["**/*.{ts,mjs,js}"],
   // TypeScript reads these declarations in place of prose-rules.js; knip
-  // follows the .js import itself.
-  "ignore": ["tools/eslint-plugin/prose-rules.d.ts"],
+  // follows the .js import itself. em++ reads coverage-post.js (--post-js in
+  // COVERAGE=1 builds of scripts/build-pico-module.sh); nothing imports it.
+  "ignore": ["tools/eslint-plugin/prose-rules.d.ts", "scripts/coverage-post.js"],
   // System tools the benchmark and spike scripts shell out to.
   "ignoreBinaries": ["gh", "pmset", "rustc"],
   // Nx loads @nx/js by name.

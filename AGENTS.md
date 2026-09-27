@@ -67,7 +67,9 @@ Emscripten and wraps it in an ESM TypeScript API.
 - Unlike most taucad repositories, CI shards the heavy example subjects across
   three `test-subjects` jobs on every pull request: they are the byte-pin gate,
   and one unsharded job would take about 30 minutes.
-- TypeScript coverage over `src/**/*.ts` stays at 100%.
+- TypeScript coverage over `src/**/*.ts` stays at 100%; each `src/pico-*.cpp`
+  stays at 100% lines and functions (`coverage-cpp`, exclusions audited in
+  `scripts/coverage-cpp-gate.mjs`).
 - Commit subjects are lowercase `type(scope): subject`; pull requests are
   squash-merged. Shipped changes carry a Version Plan.
 

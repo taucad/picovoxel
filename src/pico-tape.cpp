@@ -270,27 +270,23 @@ void EvalTapeIndicesV(  const uint32_t* pnInstructions,
             {
                 const v128_t vA = LANE(nA), vB = LANE(nB);
                 vResult = wasm_f64x2_sub(vA, wasm_f64x2_mul(vB, wasm_f64x2_floor(wasm_f64x2_div(vA, vB))));
-                break;
-            }
+            } break;
             case TAPE_MIN:
             {
                 const v128_t vA = LANE(nA), vB = LANE(nB);
                 vResult = wasm_v128_bitselect(vB, vA, wasm_f64x2_lt(vB, vA)); // (b<a)?b:a ≡ std::min
-                break;
-            }
+            } break;
             case TAPE_MAX:
             {
                 const v128_t vA = LANE(nA), vB = LANE(nB);
                 vResult = wasm_v128_bitselect(vB, vA, wasm_f64x2_lt(vA, vB)); // (a<b)?b:a ≡ std::max
-                break;
-            }
+            } break;
             case TAPE_POW:
             {
                 const v128_t vA = LANE(nA), vB = LANE(nB);
                 vResult = wasm_f64x2_make(  std::pow(wasm_f64x2_extract_lane(vA, 0), wasm_f64x2_extract_lane(vB, 0)),
                                             std::pow(wasm_f64x2_extract_lane(vA, 1), wasm_f64x2_extract_lane(vB, 1)));
-                break;
-            }
+            } break;
             case TAPE_EXP:   vResult = LIBM1(LANE(nA), std::exp);                   break;
             default:         vResult = LIBM1(LANE(nA), std::log);                   break; // TAPE_LOG
         }
@@ -586,8 +582,7 @@ Interval oEvalTapeInterval( const uint32_t* pnInstructions,
                     if (a.fHi < b.fLo)      pnChoice[i] = 1;
                     else if (b.fHi < a.fLo) pnChoice[i] = 2;
                 }
-                break;
-            }
+            } break;
             case TAPE_MAX:
             {
                 const Interval& a = poReg[nA];
@@ -598,8 +593,7 @@ Interval oEvalTapeInterval( const uint32_t* pnInstructions,
                     if (a.fLo > b.fHi)      pnChoice[i] = 1;
                     else if (b.fLo > a.fHi) pnChoice[i] = 2;
                 }
-                break;
-            }
+            } break;
             case TAPE_POW:   oResult = ivPow(poReg[nA], poReg[nB]);                 break;
             case TAPE_EXP:   oResult = ivExp(poReg[nA]);                            break;
             default:         oResult = ivLog(poReg[nA]);                            break; // TAPE_LOG

@@ -12,6 +12,13 @@ inputs:
   variant:
     description: serial (src/pico.*) or multi (THREADS=1, src/pico-multi.*).
     required: true
+  coverage:
+    description: >-
+      'true' instruments the own TUs for source-based C++ coverage (COVERAGE=1). The
+      result is a measurement build for the coverage-cpp job and is never shipped; it
+      shares the variant's caches, since only the module build differs.
+    required: false
+    default: 'false'
 runs:
   using: composite
   steps:
@@ -48,4 +55,5 @@ runs:
       shell: bash
       env:
         THREADS: ${{ inputs.variant == 'multi' && '1' || '0' }}
+        COVERAGE: ${{ inputs.coverage == 'true' && '1' || '0' }}
       run: bash scripts/build-pico-module.sh

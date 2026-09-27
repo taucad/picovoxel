@@ -1,0 +1,38 @@
+{
+  "src/pico-boolean.cpp": {
+    "regions": 100,
+    "branches": 84.37
+  },
+  "src/pico-bulk.cpp": {
+    "regions": 100,
+    "branches": 94.11
+  },
+  "src/pico-hash.cpp": {
+    "regions": 100,
+    "branches": 86.84
+  },
+  "src/pico-lattice.cpp": {
+    "regions": 100,
+    "branches": 85
+  },
+  "src/pico-offset.cpp": {
+    "regions": 100,
+    "branches": 100
+  },
+  "src/pico-props.cpp": {
+    "regions": 100,
+    "branches": 70
+  },
+  "src/pico-query.cpp": {
+    "regions": 85.71,
+    "branches": 80
+  },
+  "src/pico-tape.cpp": {
+    "regions": 98.88,
+    "branches": 94.56
+  },
+  "src/pico-zslice.cpp": {
+    "regions": 96.55,
+    "branches": 92
+  }
+}

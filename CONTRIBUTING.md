@@ -10,7 +10,9 @@
    from source" in the README, or copy the `wasm-serial` and `wasm-multi`
    artifacts of a green `ci.yml` run.
 5. Add tests that assert the changed public behavior. TypeScript coverage over
-   `src/` stays at 100%.
+   `src/` stays at 100%, and each C++ translation unit (`src/pico-*.cpp`) stays
+   at 100% lines and functions in the `coverage-cpp` job;
+   `scripts/coverage-cpp-gate.mjs` shows the local run.
 6. Run `pnpm nx run picovoxel:quality` and `pnpm run test:unit`. The whole suite
    (`pnpm nx run picovoxel:test`) takes about 33 minutes; CI runs it sharded on
    every pull request.
