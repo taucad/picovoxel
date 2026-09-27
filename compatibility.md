@@ -17,8 +17,8 @@ without a check mark is supported by design but not gated by CI; its note says w
   records, hex-float exact. The multithreaded entry runs in browsers only on a cross-origin isolated page
   ([threads](docs/threads-and-isolation.md)); no CI job serves such a page.
 - Browser floor by design: wasm SIMD and wasm exception handling set the floor at Safari 16.4, Chrome 95
-  and Firefox 100. The `Symbol.dispose` shim in `src/dispose.ts` covers Safari 16.4 to 18.3, which lack
-  explicit resource management. Only the current Playwright engines are tested.
+  and Firefox 100. The `Symbol.dispose` shim in `src/dispose.ts` defines the symbol where the host lacks it, which
+  includes every released Safari (MDN compatibility data, September 2026). Only the current Playwright engines are tested.
 - Node floor: `engines` is `>=22.14.0`. Building the package from source needs Node `^22.18.0 || >=24.11.0`,
   the range its build tools declare; CI builds on Node 26.
 - TypeScript: the declarations use `Symbol.dispose`, so a consumer's `lib` needs `esnext.disposable` (or
@@ -34,8 +34,8 @@ without a check mark is supported by design but not gated by CI; its note says w
 - **Closed internal cavities in `properties()`.** The volume and area come from a mesh round trip, which
   PicoGK users report can fill a closed internal cavity (PicoGK Discussion #118); picovoxel has not
   reproduced it. Check the results for parts with closed internal voids another way before relying on them.
-- **Deep implicit expressions.** The implicit tape evaluator recurses per node and has a ceiling of about
-  3,900 nodes; see [memory and limits](docs/memory-and-limits.md#known-limits).
+- **Deep implicit expressions.** The implicit tape evaluator recurses once per nesting level, so a very deep
+  expression overflows the JavaScript stack (about 6,900 levels on Node 24, fewer on other engines); see [memory and limits](docs/memory-and-limits.md#known-limits).
 - **4 GiB memory.** Both builds are wasm32 with a 4 GiB maximum heap, and memory grows quickly as the voxel
   size shrinks; `createPico({ memoryWarningBytes })` warns before the ceiling.
 - **GLB has no lane record.** A GLB cannot carry the `fast` lane stamp that STL and `.vdb` carry, so

@@ -1,137 +1,111 @@
-PicoGKRuntime 26.2 (0f26321c) — render lattices through openvdb's parallel
-tube-complex voxelizer instead of the serial dense-accessor loop.
+leap71/PicoGKRuntime @ 0f26321c (26.2): render lattices through openvdb's
+parallel tube-complex voxelizer instead of the serial dense-accessor loop.
 
-PROPOSAL, NOT APPLIED LOCALLY. picovoxel ships this as a sibling translation
-unit (src/pico-lattice.cpp -> Voxels_RenderLatticeTubes, the facade default
-since SK-0.4, with `createPico({ serialLattice: true })` as the escape hatch)
-so the vendored tree stays pristine and the old export stays reachable
-byte-for-byte. This file is the same algorithm shaped as a diff for
-leap71/PicoGKRuntime, where it belongs behind the existing entry point. Ledger
-row U5.
+Proposal only. picovoxel, an unofficial community TypeScript/WebAssembly binding
+of PicoGK (not affiliated with or endorsed by LEAP 71), ships this algorithm as
+a separate export (src/pico-lattice.cpp -> Voxels_RenderLatticeTubes), its
+default lattice renderer, with `createPico({ serialLattice: true })` selecting
+the original loop. This file is the same algorithm shaped as a diff behind the
+existing Voxels_RenderLattice entry point.
 
-PREREQUISITE — patches/PicoGKRuntime/0003-lattice-parameter-accessors.patch
-(seven `inline ... const` getters on LatticeSphere/LatticeBeam: vecCenter,
-fRadius, vecStart, vecEnd, fRadStart, fRadEnd, bRoundCap). That patch is a pure
-insertion, adds no member and changes no declaration, and is the other half of
-the same U5 ask. This diff APPLIES to a pristine tree but only COMPILES with
-those accessors present: without them `fSdValue()` is the only readable surface
-on a beam, which forces every renderer into exactly the per-sample shape being
-replaced here.
+PREREQUISITE: picovoxel's patches/PicoGKRuntime/0003-lattice-parameter-
+accessors.patch, seven `inline ... const` getters on LatticeSphere/LatticeBeam
+(vecCenter, fRadius, vecStart, vecEnd, fRadStart, fRadEnd, bRoundCap). It only
+inserts code and changes no declaration. This diff applies to a pristine tree
+but compiles only with those accessors: without them fSdValue() is the only
+readable surface on a beam, which forces every renderer into the per-sample
+shape this patch replaces.
 
 WHY. Voxels::RenderLattice walks every sphere and every beam in turn and, for
-each, walks its padded bounding box voxel by voxel through ONE
-FloatGrid::Accessor, taking min(element SDF, existing value). One thread, one
-accessor, one element at a time — and a lattice is authored in the hundreds of
-thousands of elements (one picovoxel fixture, LEAP71_HelixHeatX, renders
-1,197,460 beams across 37 lattices). openvdb has shipped the parallel
-replacement since 12.1: tools::createLevelSetTubeComplex (LevelSetTubes.h —
-already #included by this very file, line 49, unused) takes vertex, segment and
-radius ARRAYS and voxelizes them with a tbb reduce over spatially bucketed
-segments, each bucket driving ConvexVoxelizer's scanline walk over only the
-voxels the shape actually touches; per-thread trees are combined with a
-node-stealing csg union.
+each, walks its padded bounding box voxel by voxel through one
+FloatGrid::Accessor, taking min(element SDF, existing value): one thread, one
+element at a time. Lattices reach hundreds of thousands of elements
+(LEAP71_HelixHeatX renders 1,197,460 beams across 37 lattices). openvdb has
+shipped the parallel replacement since 12.1: tools::createLevelSetTubeComplex
+(LevelSetTubes.h, already #included by this file at line 49 and unused) takes
+vertex, segment and radius arrays and voxelizes them with a tbb reduce over
+spatially bucketed segments; each bucket drives ConvexVoxelizer's scanline walk
+over only the voxels the shape touches, and per-thread trees are combined with
+a node-stealing csg union.
 
-The mapping is exact rather than approximate, which is the point: a round-capped
-PicoGK beam IS the convex hull of its two end spheres, and so is a tapered
-capsule. The full case table, including the two cases that do not map, is in the
-doc comment on bRenderLatticeTubes() below.
+The mapping is exact: a round-capped PicoGK beam is the convex hull of its two
+end spheres, and so is a tapered capsule. The full case table, including the
+two cases that do not map, is in the doc comment on bRenderLatticeTubes() below.
 
-MEASURED (picovoxel SK-0.4, bench/results/webgpu-v2/SK-0.4.md; wasm/12T, paired
+MEASURED, WebAssembly (picovoxel, Apple M2 Pro, 12 threads, 2026-07-26; paired
 and order-alternated, 12 repeats, bootstrap CI on the median log ratio):
 
-  - HelixHeatX's two largest creation stages together (turning-fins 355.6k beams
-    + helical-void 65k beams): 8380.4 -> 1384.9 ms = 6.05x at 1.0 mm, and
-    13.2x at 0.5 mm. Per fixture at 1.0 mm: turning-fins 3.24x [3.18, 3.29],
-    straight-fins 3.38x, helical-void 19.11x [18.88, 19.23], a quasicrystal
-    wireframe 7.14x. At 0.5 mm: 5.55x / 6.03x / 34.97x / 14.26x;
-  - SINGLE-THREADED, the algorithmic delta alone is 2.57-4.23x — the scanline
+  - HelixHeatX's two largest creation stages together (355.6k + 65k beams):
+    8380.4 -> 1384.9 ms = 6.05x at 1.0 mm, and 13.2x at 0.5 mm;
+  - single-threaded, the algorithm alone is 2.57-4.23x faster: the scanline
     voxelizer beats the dense bounding-box walk before any thread is added;
-  - flat-capped lattices (the serial fallback) time at 1.00x [0.995, 0.997] —
-    the fallback costs nothing;
-  - memory is the price: +61.6 MiB peak at 10^5 beams (112.8 vs 51.2 MiB heap
-    growth at 0.25 mm), for the complex's own grid plus the per-thread trees and
-    the combine staging. That growth is identical single-vs-multi, because the
-    deterministic split tree fixes the number of intermediate trees regardless
-    of worker count.
+  - flat-capped lattices (the serial fallback) time at 1.00x;
+  - memory: +61.6 MiB peak at 10^5 beams (112.8 against 51.2 MiB heap growth at
+    0.25 mm), the same single- and multi-threaded.
 
-DETERMINISM IS BY CONSTRUCTION, NOT BY LUCK — and this is the one place the
-patch deliberately departs from upstream's own entry point. createLevelSetTube-
-Complex drives the voxelizer under tbb::parallel_reduce with the auto
-partitioner, so the number of body splits, and therefore the shape of the csg
-join tree, depends on how many workers turn up. csg union is a min, and min is
-exactly associative and commutative in IEEE, so the VALUES are order-free either
-way; the tree TOPOLOGY is not. This patch drives the same voxelizer under
-tbb::parallel_deterministic_reduce with a grain size derived only from the
-bucket count, so the split tree is a pure function of the input — identical at 1
-thread and at 12. Measured: 3/3 run-to-run stable AND single == multi identical
-(raw level-set volume as hex double, mesh vertex/triangle counts, FNV-1a over
-the vertex and triangle byte arrays) on all five fixtures at 0.5 mm. It costs
-nothing; the timings above are all on the deterministic driver.
+MEASURED, native (picovoxel's bench/native-heatx harness on the C# HelixHeatX
+fixture, Apple M2 Pro, .NET 9.0.16, 2026-08-09): the whole fixture wall,
+previews and STL export included, is 2.53x faster (geometric mean over six
+voxel sizes, 2.83x at 1.0 mm to 2.22x at 0.5 mm, median of 5 runs per size)
+than the same runtime build without this patch. Raw runs:
+bench/results/native/native-heatx-{patched,u5}-2026-08-09.jsonl. STL volume
+agrees within 2.6e-5 relative at every size, with identical bounds.
 
-DIVERGENCE CLASS (picovoxel's taxonomy, NON-DETERMINISM.md §1: 0 = byte
-identical, 1 = same geometry / permuted bytes, 2 = bounded numeric drift,
-X = wrong geometry):
+DETERMINISM. createLevelSetTubeComplex drives the voxelizer under
+tbb::parallel_reduce with the auto partitioner, so the csg join tree's shape
+depends on how many workers turn up. csg union is a min, so the values do not
+depend on order, but the tree topology does. This patch drives the same
+voxelizer under tbb::parallel_deterministic_reduce with a grain size derived
+only from the bucket count, so the split tree is a function of the input alone.
+Measured: 3/3 runs identical and 1 thread identical to 12 (level-set volume as
+hex double, mesh counts, FNV-1a over the vertex and triangle bytes) on five
+fixtures at 0.5 mm, at no measurable cost.
 
-  - run-to-run, and single-thread vs multi-thread: CLASS 0, byte-identical, by
-    the construction above and measured 3/3 at 0.5 mm;
-  - versus the serial lane it replaces: CLASS 2. The two lanes compute the same
-    shapes through different narrow-band constructions, so the fields are close
-    but not identical. Across 17 equivalence fixtures at 0.5 mm (SK-0.8 gate
-    shape: vol/area rel <= 3%, bounds <= 1 voxel, band SDF max <= 1 voxel /
-    mean <= 0.25 voxel, tools::checkLevelSet, mesh validity) every gate passes,
-    with max narrow-band SDF delta 9.8e-6 mm, mean 1.3e-7 mm, bounds delta 0,
-    and volume moves on picovoxel's byte-locked corpus of at most 2.3e-5
-    relative. Several cases (sphere, tapered r 3->1, zero-length round beam,
-    every flat-capped fixture) are bit-exact. A reviewer should expect a
-    byte-pinned corpus to move by that much, and to move once.
-  - tools::checkLevelSet, read correctly for lattices: the SERIAL reference is
-    not clean — the per-element min-splat leaves |grad(phi)| violations wherever
-    two elements overlap (turning-fins reference: 458,402 voxels). On every
-    fixture the tube complex's diagnosis is byte-identical to the reference's,
-    except on nested end spheres where the complex is EMPTY and the reference has
-    160 violations. The lane never makes the field worse, and once makes it
-    strictly better.
+OUTPUT VALUES change slightly against the serial loop. The two paths build the
+same shapes through different narrow-band constructions. Across 17 comparison
+fixtures at 0.5 mm: volume and area within 3%, bounds delta 0, narrow-band
+distance change max 9.8e-6 mm and mean 1.3e-7 mm, and volume moved at most
+2.3e-5 relative on picovoxel's pinned models. Several cases (sphere, tapered
+beam, zero-length round beam, every flat-capped fixture) are bit-exact. A
+byte-pinned corpus moves once, by about that much.
 
-ONE CORRECTNESS FIX RIDES ALONG (picovoxel ledger row U23), and it is not
-drift: when a beam's end spheres nest, (p0-p1)^2 <= (r0-r1)^2, fSdvRoundCone
-computes a2 = l^2 - (r0-r1)^2 as a negative number and takes sqrtf of a negative
-product. Against the closed form for r 6->1 the serial lane renders -90.7% of
-the true volume; the tube complex renders -0.37% and is checkLevelSet-clean.
-Where the two lanes disagree materially, the new one is the correct one.
+tools::checkLevelSet: the serial output is not clean where two elements overlap
+(the per-element min leaves gradient violations: 458,402 voxels on one fin
+lattice); the tube-complex result reports the identical diagnosis everywhere
+except nested end spheres, where it is clean and the serial output has 160
+violations.
 
-WHAT DOES NOT CHANGE. The exported C ABI is untouched: Voxels_RenderLattice
-keeps its signature and its semantics (union into the existing grid), so the
-PicoGK C# binding is a drop-in. No new dependency: LevelSetTubes.h is already
-included by this file, and Prune.h / the two tbb headers already arrive
-transitively through Composite.h — they are spelled out only so the file states
-what it uses.
+NESTED END SPHERES. When a beam's end spheres nest, (p0-p1)^2 <= (r0-r1)^2,
+fSdvRoundCone takes sqrtf of a negative product. For r 6 -> 1 the serial loop
+renders -90.7% of the true volume; the tube complex renders -0.37%. The
+separate fix picogkruntime-roundcone-nested-spheres.patch corrects the serial
+path; if it lands first, the two paths agree on this case as well.
 
-SHAPE OF THE CHANGE. RenderLattice gains a five-line dispatch at its head and
-keeps its serial body verbatim as the fallback; the new work is one private
-method. The recursion in that dispatch terminates at depth one by construction:
-the flat-capped remainder is authored with bRoundCap = false and contains no
-spheres, so the second call finds nothing the complex can express and takes the
-false branch. The remainder is rendered by exactly the loop that renders it
-today.
+WHAT DOES NOT CHANGE. Voxels_RenderLattice keeps its signature and its
+semantics (union into the existing grid), so the C# binding needs no change. No
+new dependency: LevelSetTubes.h is already included, and Prune.h and the two
+tbb headers already arrive through Composite.h; they are spelled out so the
+file states what it uses.
 
-COMPOSITION with the rest of the picovoxel series (all verified by
-`patch -p1 --fuzz=0` dry-run plus a full Release build of the composed tree):
+SHAPE. RenderLattice gains a five-line dispatch at its head and keeps its serial
+body verbatim as the fallback; the new work is one private method. The dispatch
+recurses at most once: the flat-capped remainder is authored with
+bRoundCap = false and holds no spheres, so the second call takes the serial
+branch.
 
-  - 0003 lattice parameter accessors — REQUIRED (see PREREQUISITE above);
-  - 0004 lattice beam value storage (std::vector<LatticeBeam::Ptr> becomes
-    std::vector<LatticeBeam>) — OPTIONAL, and deliberately so. This patch reads
-    the beam array through two `oBeamRef` overloads, one for the value form and
-    one for the shared_ptr form, so it compiles unchanged on either storage and
-    neither patch has to land before the other;
-  - 0001 parallel disjoint mesh flatten, 0002 post-fill prune — no interaction.
-    0002 appends PruneFill() to the end of the serial RenderLattice body; the
-    tube path returns before it and does not need it, because the complex is
-    pruned on construction and csgUnion prunes on exit. In the mixed
-    flat-capped case the recursive serial call reaches 0002's PruneFill()
-    normally.
+COMPOSITION with picovoxel's patches/PicoGKRuntime series (checked with
+`patch -p1 --fuzz=0` and a Release build of the composed tree):
+
+  - 0003 lattice parameter accessors: required (see above);
+  - 0004 lattice beam value storage: optional. This patch reads beams through
+    two oBeamRef overloads, one per storage form, so it compiles on either;
+  - 0001 parallel mesh flatten and 0002 post-fill prune: no interaction. The
+    tube path returns before 0002's PruneFill(); the complex is pruned on
+    construction and csgUnion prunes on exit.
 
 Applies with `patch -p1 --fuzz=0` to a pristine PicoGKRuntime 0f26321c tree, and
-onto that tree with picovoxel's patches/PicoGKRuntime/0001-0004 already applied.
+onto that tree with patches/PicoGKRuntime/0001-0004 applied.
+Not applied by picovoxel's build; see upstream/README.md.
 
 --- a/Source/PicoGKVdbVoxels.h
 +++ b/Source/PicoGKVdbVoxels.h

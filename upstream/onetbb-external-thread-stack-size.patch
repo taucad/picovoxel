@@ -1,0 +1,45 @@
+uxlfoundation/oneTBB @ 8976636cbd89 (master, 2026-09-23): derive the external
+thread's stack size from emscripten's real stack bounds.
+
+picovoxel, an unofficial community TypeScript/WebAssembly binding of LEAP 71's
+PicoGK, applies the same code change to its vendored oneTBB as the second hunk
+of patches/oneTBB/0001-wasm-substrate-edges.patch. That file does not apply to
+master (its Clang.cmake hunk lost its context), so this file carries the same
+code regenerated for master, with the comment reworded.
+
+The defect. get_stack_attributes' EMSCRIPTEN branch (src/tbb/governor.cpp:180-181)
+sets only stack_base, so stack_size keeps its fallback, the worker stack size.
+The external thread runs on -sSTACK_SIZE (8 MB by default), so its stealing
+threshold (base - size/2) is derived from the wrong stack, and it stops stealing
+once it is worker_stack_size/2 deep in its own, much larger stack.
+
+The fix: stack_size = stack_base - emscripten_stack_get_end().
+
+Output values: none; this changes which thread runs a task, not what the task
+computes.
+
+Measured (picovoxel, emscripten 5.0.1, Apple M2 Pro, 2026-07-26): at 72 KB of
+recursion depth, the external thread's task share went from 0.71x to 0.98x of
+its share at shallow depth, and it could steal again. All 12 threads took part
+before and after; the loss was in share, not participation.
+
+Applies with `patch -p1 --fuzz=0` at the root of a oneTBB master checkout.
+Independent of the other two oneTBB proposals.
+Not applied by picovoxel's build; see upstream/README.md.
+
+--- a/src/tbb/governor.cpp
++++ b/src/tbb/governor.cpp
+@@ -179,6 +179,13 @@
+     stack_base = reinterpret_cast<std::uintptr_t>(pteb->StackBase);
+ #elif defined(EMSCRIPTEN)
+     stack_base = reinterpret_cast<std::uintptr_t>(emscripten_stack_get_base());
++    // Emscripten knows the calling thread's real stack bounds, so fill in the
++    // size as well instead of keeping the fallback. The fallback is the worker
++    // stack size, but the external thread runs on -sSTACK_SIZE (8 MB by
++    // default), so the stealing threshold (base - size/2) was derived from the
++    // wrong stack and the external thread stopped stealing once it was
++    // worker_stack_size/2 deep in its own, much larger stack.
++    stack_size = stack_base - reinterpret_cast<std::uintptr_t>(emscripten_stack_get_end());
+ #else
+     // There is no portable way to get stack base address in Posix, so we use
+     // non-portable method (on all modern Linux) or the simplified approach

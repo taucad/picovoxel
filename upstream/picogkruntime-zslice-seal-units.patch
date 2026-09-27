@@ -1,23 +1,29 @@
-PicoGKRuntime 26.2 (0f26321c) — ProjectZSlice seal depth reads millimetres as
-a layer count (ledger row U2; PicoPie Fix 3 reached the same diagnosis
-independently).
+leap71/PicoGKRuntime @ 0f26321c (26.2): the ProjectZSlice seal depth reads
+millimetres as a layer count.
 
-Both end-cap seal loops use `(int)(0.5f + m_roGrid->background())` as a
-number of z-layers, but background() is the narrow-band half-width in WORLD
-units (mm). At 1.0 mm voxels the value coincides with the band (3); above
-1.0 mm it over-seals harmlessly (beyond-band layers average to background and
-prune away); below 1.0 mm it under-seals — 2 of 3 layers at 0.5-0.7 mm, and
-ZERO below ~0.167 mm, leaving projected end caps open. The fix converts to
-voxel units with the class's own fToVoxels — the same formula, units fixed.
+Proposal only. picovoxel, an unofficial community TypeScript/WebAssembly binding
+of PicoGK (not affiliated with or endorsed by LEAP 71), ships the fix in a
+separate export (Voxels_ProjectZSliceFast) so its vendored runtime stays
+unmodified and the original stays available for comparison. PicoGKRuntime PR #28
+fixes the same loops with m_nSdfNarrowBand; this variant derives the count from
+the grid's own background, which also covers grids whose background differs
+from the configured band, such as imported grids.
 
-Verification shape (picovoxel SKv2-0 V0.9): per-scale seal oracles at
-{1.5, 1.0, 0.5, 0.167} mm; at 1.0 mm the fixed path is value-identical to the
-original (proven at production scale: an unrelated HeatX 1.0 mm content pin
-held byte-for-byte across the change).
+Both end-cap seal loops use `(int)(0.5f + m_roGrid->background())` as a number
+of z-layers, but background() is the narrow-band half-width in millimetres. At
+1.0 mm voxels the value coincides with the band (3). Above 1.0 mm it over-seals
+harmlessly. Below 1.0 mm it under-seals: 2 of 3 layers at 0.5-0.7 mm, and none
+below about 0.167 mm, which leaves projected end caps open. The fix converts to
+voxels with the class's own fToVoxels: the same formula, with the units fixed.
 
-PROPOSAL, NOT APPLIED LOCALLY: picovoxel ships the fix in a sibling-TU export
-(Voxels_ProjectZSliceFast) so the vendored tree stays pristine and the
-original remains the differential oracle.
+Output values: unchanged at 1.0 mm (checked bit for bit); different at other
+voxel sizes, where the seal depth now matches the band.
+
+How picovoxel checks it (test/zslice.test.ts): seal-count checks at 1.5, 1.0,
+0.5 and 0.167 mm, and a bit-for-bit comparison with the original at 1.0 mm.
+
+Applies with `patch -p1 --fuzz=0` to a pristine PicoGKRuntime 0f26321c tree.
+Not applied by picovoxel's build; see upstream/README.md.
 
 --- a/Source/PicoGKVdbVoxels.h
 +++ b/Source/PicoGKVdbVoxels.h
