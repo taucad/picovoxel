@@ -400,12 +400,14 @@ jobs:
 
   # The one wall-clock gate (close-out D32; create-repo §5.2). bench/gated.mjs
   # times heatx-multi-fast-1.0mm-e2e-v1 on this run's candidate and on the base
-  # branch's (the newest green ci.yml run on it that still holds wasm-multi and
-  # npm-candidate), one warm-up and 15 iterations each, interleaved on this
-  # runner. bench/gates.mjs fails it on a G0 tuple change (admitted only by
-  # renaming the benchmark) and, once this runner class has an A/A calibration,
-  # on a median slowdown over its threshold; it updates one marker-keyed
-  # comment. A manual dispatch times this tree against itself: the A/A run that
+  # branch's: the green ci.yml run at the pull request's base commit, else the
+  # newest green one, holding wasm-multi and npm-candidate (only push runs when
+  # the base is the default branch; a stacked pull request's base branch has
+  # only pull request and manual runs). One warm-up and 15 iterations each,
+  # interleaved on this runner. bench/gates.mjs fails it on a G0 tuple change
+  # (admitted only by renaming the benchmark) and, once this runner class has an
+  # A/A calibration, on a median slowdown over its threshold; it updates one
+  # marker-keyed comment. A manual dispatch times this tree against itself: the A/A run that
   # calibrates the class. A push to main has nothing to compare and passes.
   benchmark:
     needs: [wasm, candidate]
@@ -424,22 +426,30 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           BASE_REF: ${{ github.base_ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
+          events=()
+          [[ "$BASE_REF" == "$DEFAULT_BRANCH" ]] && events=(--event push)
           found=''
+          newest=''
           while read -r run_id sha; do
             live="$(gh api "repos/$REPO/actions/runs/$run_id/artifacts?per_page=100" \
               --jq '[.artifacts[] | select((.expired | not) and (.name == "wasm-multi" or .name == "npm-candidate"))] | length')"
-            if [[ "$live" == 2 ]]; then
+            [[ "$live" == 2 ]] || continue
+            [[ -n "$newest" ]] || newest="$run_id $sha"
+            if [[ "$sha" == "$BASE_SHA" ]]; then
               found="$run_id $sha"
               break
             fi
-          done < <(gh run list --repo "$REPO" --workflow ci.yml --branch "$BASE_REF" --status success --limit 20 \
+          done < <(gh run list --repo "$REPO" --workflow ci.yml --branch "$BASE_REF" "${events[@]}" --status success --limit 20 \
             --json databaseId,headSha --jq '.[] | "\(.databaseId) \(.headSha)"')
+          found="${found:-$newest}"
           if [[ -n "$found" ]]; then
             read -r run_id sha <<< "$found"
-            echo "comparing against $BASE_REF at $sha (ci.yml run $run_id)"
+            echo "comparing against $BASE_REF at $sha (ci.yml run $run_id; the pull request's base is $BASE_SHA)"
             { echo "run-id=$run_id"; echo "sha=$sha"; } >> "$GITHUB_OUTPUT"
           else
             echo "::notice::no green $BASE_REF run holds wasm-multi and npm-candidate; the benchmark is admitted without a comparison"
@@ -504,7 +514,18 @@ jobs:
       - id: compare
         if: github.event_name != 'push'
         continue-on-error: true # Origin: the comment below must report a failed comparison before the gate closes.
-        run: node bench/gated.mjs --compare benchmark.json benchmark.md | tee -a "$GITHUB_STEP_SUMMARY"
+        env:
+          BASE: ${{ steps.base.outputs.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          status=0
+          node bench/gated.mjs --compare benchmark.json benchmark.md || status=$?
+          if [[ -n "$BASE" && "$BASE" != "$BASE_SHA" ]]; then
+            printf '\nNo green run holds the artifacts of the base commit %s yet, so the newest green one stands in; changes between the two count against this pull request.\n' \
+              "\`${BASE_SHA:0:7}\`" >> benchmark.md
+          fi
+          tee -a "$GITHUB_STEP_SUMMARY" < benchmark.md
+          exit "$status"
       - name: Update the benchmark comment
         if: always() && steps.compare.outcome != 'skipped' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         env:
