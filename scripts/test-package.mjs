@@ -3,9 +3,11 @@
 // the packed tarball into an empty npm project on the running Node, then, from
 // that project only:
 // - runs the README quick start through `picovoxel` and `picovoxel/multi` (the
-//   multi pool must engage and match serial byte for byte);
+//   multi pool must engage and match serial byte for byte), and runs the README
+//   fence itself, verbatim, on both entries to the same bytes;
 // - imports every JavaScript subpath, and resolves every asset subpath with
-//   `import.meta.resolve` to the sibling file the entry loads by default;
+//   `import.meta.resolve` to the sibling file the entry loads by default, then
+//   loads it: the glue files import as Emscripten factories, the wasm compiles;
 // - runs the README host overrides from the asset subpaths: `locateFile` on the
 //   serial entry, and `mainScriptUrlOrBlob` (a filesystem path in Node) plus
 //   `instantiateWasm` with a precompiled module on the multi entry;
@@ -15,13 +17,16 @@
 // - typechecks consumers with the pinned TypeScript: ESM on `nodenext` and on
 //   `bundler` compile against every script subpath, while a CommonJS
 //   `nodenext` consumer (`import x = require(...)`) fails with TS2339 on each,
-//   because the `require` condition's types are `never`.
-// Nothing is rebuilt and no repository file is imported.
+//   because the `require` condition's types are `never`;
+// - typechecks every JavaScript fence in README.md and docs/*.md as its own
+//   consumer module (checkJs, strict but for implicit any) against the installed package, with the
+//   Vite client types for the `?url` imports.
+// Nothing is rebuilt and no repository file is imported; the Markdown is read.
 //
 // Usage: node scripts/test-package.mjs <candidate-directory>
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -39,6 +44,33 @@ const exact = (name) => {
     throw new Error(`package.json must pin an exact ${name} devDependency`);
   return `${name}@${version}`;
 };
+
+const repository = new URL('../', import.meta.url);
+const readme = { name: 'README.md', text: readFileSync(new URL('README.md', repository), 'utf8') };
+const docs = readdirSync(new URL('docs/', repository))
+  .filter((name) => name.endsWith('.md'))
+  .map((name) => ({ name: `docs/${name}`, text: readFileSync(new URL(`docs/${name}`, repository), 'utf8') }));
+
+/** The JavaScript and TypeScript fences of one Markdown file, with their `##` heading. */
+function fences({ name, text }) {
+  const found = [];
+  let heading = '';
+  let fence = null;
+  for (const line of text.split('\n')) {
+    if (fence) {
+      if (line.startsWith('```')) {
+        found.push(fence);
+        fence = null;
+      } else fence.code += `${line}\n`;
+    } else if (line.startsWith('```')) {
+      const language = line.slice(3).trim();
+      if (['js', 'javascript', 'ts', 'typescript'].includes(language))
+        fence = { name, heading, typescript: language.startsWith('t'), code: '' };
+      else fence = { name, heading, skip: true, code: '' };
+    } else if (line.startsWith('## ')) heading = line.slice(3).trim();
+  }
+  return found.filter(({ skip }) => !skip);
+}
 
 const smoke = String.raw`
 import assert from 'node:assert/strict';
@@ -70,6 +102,12 @@ const multi = await quickStart('picovoxel/multi');
 assert.ok(multi.workers > 0, 'picovoxel/multi never engaged its worker pool');
 assert.ok(multi.stl.equals(serial.stl), 'picovoxel/multi and picovoxel disagree on the quick start');
 
+// The README fence verbatim (plus an export of its result), on both entries.
+for (const file of ['./quick-start.mjs', './quick-start-multi.mjs']) {
+  const { stl } = await import(file);
+  assert.ok(Buffer.from(stl).equals(serial.stl), 'the README quick start fence differs from the smoke in ' + file);
+}
+
 // Asset subpaths: each resolves to the sibling its entry loads by default, so a
 // host that relocates them and a host that does not load the same bytes.
 const assets = {
@@ -85,6 +123,9 @@ for (const [specifier, [entry, sibling]] of Object.entries(assets)) {
 }
 for (const specifier of ['picovoxel/wasm', 'picovoxel/multi/wasm']) {
   await WebAssembly.compile(readFileSync(fileURLToPath(import.meta.resolve(specifier))));
+}
+for (const specifier of ['picovoxel/glue', 'picovoxel/multi/worker']) {
+  assert.equal(typeof (await import(specifier)).default, 'function', specifier + ' is not an Emscripten factory');
 }
 
 // README host overrides, driven from the asset subpaths.
@@ -133,7 +174,8 @@ for (const specifier of Object.keys(assets)) {
 
 console.log('consumer smoke on Node ' + process.version + ': picovoxel@' + version + '; quick start '
   + serial.stl.byteLength + ' STL bytes; ' + multi.workers + ' multi workers; ' + scripts.length
-  + ' script subpaths imported; ' + Object.keys(assets).length + ' asset subpaths resolved; overrides honoured; '
+  + ' script subpaths imported; ' + Object.keys(assets).length + ' asset subpaths resolved and loaded; '
+  + 'README quick start verbatim on both entries; overrides honoured; '
   + 'CommonJS diagnostic on every script subpath');
 `;
 
@@ -148,13 +190,23 @@ try {
       '--no-audit',
       '--no-fund',
       join(candidate, root.filename),
-      ...['three', '@types/three', 'typescript'].map(exact),
+      ...['three', '@types/three', 'typescript', 'vite', '@types/node'].map(exact),
     ],
     { cwd: directory, stdio: 'inherit' },
+  );
+  const quickStartFence = fences(readme).find(({ heading }) => heading === 'Quick start');
+  if (!quickStartFence) throw new Error('README.md has no JavaScript fence under "## Quick start"');
+  // The README says to replace 'picovoxel' with 'picovoxel/multi' for threads.
+  const quickStart = `${quickStartFence.code}\nexport { stl };\n`;
+  writeFileSync(join(directory, 'quick-start.mjs'), quickStart);
+  writeFileSync(
+    join(directory, 'quick-start-multi.mjs'),
+    quickStart.replaceAll("'picovoxel'", "'picovoxel/multi'"),
   );
   writeFileSync(join(directory, 'smoke.mjs'), smoke);
   execFileSync(process.execPath, ['smoke.mjs'], { cwd: directory, stdio: 'inherit' });
   typecheckConsumers(directory);
+  typecheckFences(directory);
 } finally {
   rmSync(directory, { force: true, recursive: true });
 }
@@ -242,4 +294,51 @@ function typecheckConsumers(directory) {
     `TypeScript consumers: ESM nodenext and bundler compile against ${specifiers.length} script subpaths; ` +
       `CommonJS nodenext fails with ${expected.length} x TS2339 on never`,
   );
+}
+
+/**
+ * Typechecks every JavaScript and TypeScript fence in README.md and docs/*.md,
+ * each as its own ES module, against the installed package: checkJs, strict
+ * but for implicit `any` (JavaScript parameters carry no annotations),
+ * with the Node and Vite client types (the bundler forms import `?url`).
+ */
+function typecheckFences(directory) {
+  const all = [readme, ...docs].flatMap(fences);
+  if (all.length === 0) throw new Error('no JavaScript fences found in README.md or docs/*.md');
+  mkdirSync(join(directory, 'fences'));
+  const files = all.map(({ name, typescript }, index) => {
+    const file = `${name.replaceAll(/[^a-z0-9]+/giu, '-')}-${index}.${typescript ? 'mts' : 'mjs'}`;
+    writeFileSync(join(directory, 'fences', file), all[index].code);
+    return file;
+  });
+  writeFileSync(
+    join(directory, 'fences', 'tsconfig.json'),
+    JSON.stringify({
+      compilerOptions: {
+        strict: true,
+        // The fences are JavaScript, whose readers do not annotate parameters;
+        // everything else (names, options, return types) is checked strictly.
+        noImplicitAny: false,
+        noEmit: true,
+        allowJs: true,
+        checkJs: true,
+        skipLibCheck: true,
+        module: 'nodenext',
+        moduleResolution: 'nodenext',
+        target: 'es2022',
+        lib: ['es2023', 'dom', 'esnext.disposable'],
+        types: ['node', 'vite/client'],
+      },
+      files,
+    }),
+  );
+  try {
+    execFileSync(process.execPath, ['node_modules/typescript/bin/tsc', '-p', 'fences'], {
+      cwd: directory,
+      encoding: 'utf8',
+    });
+  } catch (error) {
+    throw new Error(`Markdown fences failed to typecheck:\n${error.stdout ?? ''}${error.stderr ?? ''}`);
+  }
+  console.log(`Markdown fences: ${all.length} JavaScript fences in README.md and docs/*.md typecheck`);
 }
