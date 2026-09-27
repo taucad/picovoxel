@@ -471,9 +471,10 @@ jobs:
   benchmark:
     needs: [wasm, candidate]
     runs-on: ubuntu-24.04
-    # Origin: ~35 s per iteration at 1.0 mm on 2 vCPU (close-out D32 estimate),
-    # 32 iterations plus two fingerprinted warm-ups.
-    timeout-minutes: 90
+    # Origin: 13.7-14.0 s per iteration on linux-x64-4cpu (the first run, 15
+    # head-only iterations in 4 min), so ~8 min for two trees with their
+    # fingerprinted warm-ups; the margin covers slower runners and cold caches.
+    timeout-minutes: 30
     permissions:
       actions: read
       contents: read

@@ -120,8 +120,8 @@ Scheduled and event-driven maintenance:
   `g0-nightly.yml` is manual while the repository is private; the public flip
   restores its nightly schedule (the cron line is in the file's header
   comment).
-- A new runner class, such as the 4-vCPU runners after the public flip, needs
-  two things: its first `bench.yml` record committed under `bench/results/`,
+- A new runner class (another platform, architecture or core count) needs two
+  things: its first `bench.yml` record committed under `bench/results/`,
   and an A/A run of the `benchmark` job (`gh workflow run ci.yml`) whose
   threshold goes into `CALIBRATION` in `bench/gates.mjs`. Until then the
   pull request benchmark only reports.

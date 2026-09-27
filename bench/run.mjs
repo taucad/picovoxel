@@ -508,7 +508,7 @@ fine.dispose();
 // ── M15 — HelixHeatX @ 0.5mm on multi, heap high-water (close-out D32) ──
 // The deep-heap cell: wasm memory only grows, so the fresh session's final
 // buffer size is its high-water. One measured run after the warm-up; a
-// 0.5 mm Task is minutes on a 2-vCPU runner.
+// 0.5 mm Task takes minutes on a hosted runner.
 {
   const { task: heatXTask } = await import('../examples/helixheatx/run.ts');
   const { createPico: createMulti } = await import('../src/multi.ts');
