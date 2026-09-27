@@ -1,4 +1,5 @@
-// PolyLine wrapper. Small vertex counts by nature, so per-element reads are fine. AddArrow/AddCross are viewer decoration — deliberately dropped.
+// PolyLine wrapper. Small vertex counts by nature, so per-element reads are fine.
+// AddArrow/AddCross are viewer decoration — deliberately dropped.
 
 import { adoptHandle, VEC3_BYTES, type SessionContext } from './context.ts';
 import { assertLive, guard } from './errors.ts';

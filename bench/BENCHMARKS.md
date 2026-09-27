@@ -4,13 +4,13 @@
 > **Absolute numbers are device-specific; treat ratios and phase splits as the portable signal.**
 > Reproduce with `pnpm run bench` (the harness refuses loaded machines). Source: `bench/results/2026-07-23-3622099.json`.
 >
-> Native-comparison figures (the ~1.95× PicoGK wasm cost, the 3–9% SDF callback overhead, the ~150×
-> bulk-readback win) come from earlier measured runs, not from this harness; native builds live outside
-> this repository's toolchain.
+> This harness does not measure native PicoGK: `bench/native-heatx/README.md` records same-machine native
+> timings. The 3–9% SDF callback overhead and the ~150× bulk-readback figures come from earlier measured
+> runs, not from this harness.
 
 | Metric     | Description                                                  | Phase                                    |       Median |       Min |       Max |
 | ---------- | ------------------------------------------------------------ | ---------------------------------------- | -----------: | --------: | --------: |
-| M1         | createPico() cold instantiate (5.8 MB module)                | instantiate                              |     9.223 ms |     8.395 |    10.225 |
+| M1         | createPico() re-instantiate, warm (first run discarded)      | instantiate                              |     9.223 ms |     8.395 |    10.225 |
 | M2@0.5     | sphere r=10 @ 0.5mm                                          | build                                    |     1.121 ms |     0.897 |     1.437 |
 |            |                                                              | volume                                   |     0.822 ms |     0.774 |      0.92 |
 | M2@0.25    | sphere r=10 @ 0.25mm                                         | build                                    |     3.223 ms |      3.05 |     3.365 |
@@ -141,9 +141,9 @@ sub-millisecond phases (e.g. M6 bulk readback) are timer-noise-dominated and may
 (~130 ns/sample at 0.25 mm including voxel work) is consistent with the earlier 3–9% JS-SDF callback overhead measurement;
 M9's raw10k is a deliberately retained emscripten ccall and the facade now runs on direct exports; the rows sit within a few percent because bIsEmpty on a real sphere field is ~1.6 µs of C++ against a ~65 ns boundary delta — the isolated per-call cost is measured by `bench/abi-call-cost.mjs`, not here.
 
-## Appendix — TP7: post-pruning evaluation program (2026-07-18)
+## Appendix — tape evaluation after interval pruning (2026-07-18)
 
-The TP6 re-profile (throwaway phase instrumentation on commit `80f9a68`; percentages stable
+A re-profile after interval pruning landed (throwaway phase instrumentation on commit `80f9a68`; percentages stable
 across repeats, single-variant rows) reframed where the pruned fill spends its time:
 
 | fixture (single) |     fill | classify |  **eval** | write | merge+tiles |
@@ -158,12 +158,12 @@ hold on the tape path, so this program attacks evaluation. Supporting counters: 
 shorten) and 4 of its 6 libm trig calls per voxel depend only on x or y — loop-invariant along z.
 union64's tape shortens 1,343 → 114.8 avg instructions.
 
-**Protocol**: every stage must be volume-hex + triangle-count identical to the TP6 baseline
+**Protocol**: every stage must be volume-hex + triangle-count identical to the pruning baseline
 (`bench/tape-prune-ab.mjs`, 1 warmup + 5 repeats, back-to-back against the previous stage's
 preserved module pair), suite-green, and browser-gated at the end. Numbers below are
 loaded-machine A/B pairs — **ratios are the signal** (header rule applies).
 
-### TP7a — loop-invariant hoisting (axis-dependency levels)
+### Stage 1 — loop-invariant hoisting (axis-dependency levels)
 
 **Approach**: tag each tape instruction with an axis-dependency mask (const / x-only / xy / z);
 evaluate each class at its loop depth in `DenseFill` — constants once per slab, x-only once per
@@ -175,7 +175,7 @@ interpreter-dispatch amortization for the hoisted share.
 (~2.3×); sphere ~1.5× (pow(x²), pow(y²) hoist); union64 ~1.8× (per-sphere x/y distance terms
 hoist, ≈⅔ of the pows).
 
-**Measured** (back-to-back vs the preserved TP6 pair, all cells volume-hex + tri-count
+**Measured** (back-to-back vs the preserved pruning-baseline pair, all cells volume-hex + tri-count
 identical): gyroid single 1,403 → **735 ms (1.91×)** / multi 215 → **95 ms (2.26×)**;
 sphere single 193 → **114 ms (1.69×)** / multi 31 → 17 ms (1.82×); union64 single
 471 → **247 ms (1.91×)** / multi 70 → **32 ms (2.19×)**. Close to prediction on every
@@ -184,7 +184,7 @@ targets); multi gains exceed single — the smaller working set also relieves me
 across 12 threads. New differential pins the empty-level-3 path (z-independent tape ⇒ result
 register hoists out of the voxel loop; STL-byte identical to its JS twin).
 
-### TP7b — f64x2 SIMD over z-pairs (exact-rounding subset)
+### Stage 2 — f64x2 SIMD over z-pairs (exact-rounding subset)
 
 **Approach**: evaluate the z-varying suffix two z-samples at a time with wasm SIMD128 `f64x2`
 for the exact-rounding ops (+, −, ×, ÷, sqrt, floor, mod, abs, neg) plus min/max rebuilt as
@@ -193,26 +193,26 @@ Transcendentals (sin/cos/pow/exp/log) stay scalar musl calls per lane — the ta
 because musl-wasm ≡ V8 fdlibm, and a vectorized polynomial libm would break it. Odd z-tail runs
 scalar.
 
-**Expected**: honest and modest on THESE fixtures — after TP7a the per-voxel residue is
+**Expected**: honest and modest on THESE fixtures — after stage 1 the per-voxel residue is
 libm-dominated (gyroid: sin/cos(z·s); sphere/union64: pow(z−c, 2)), so 1.05–1.2×. The real
 beneficiaries are pow-free arithmetic-heavy tapes (box/plane/CSG-of-quadrics style). Halving
 level-3 dispatch is the side benefit.
 
-**Measured** (back-to-back vs the preserved TP7a pair, identity exact; TP7a re-measured within
+**Measured** (back-to-back vs the preserved stage 1 pair, identity exact; stage 1 re-measured within
 1.5% of its own A/B — single-thread rows are load-robust): gyroid single 746 → **586 ms
 (1.27×)**; sphere single 113 → **94 ms (1.20×)**; union64 single 241 → **196 ms (1.23×)**.
 Slightly ahead of prediction — halved dispatch is worth as much as the lanes here. Multi rows
 were captured under a 30–43 loadavg spike and show no separable signal (gyroid 107 → 107 ms);
 the single ratios are the portable result for this stage.
 
-### TP7c — sincos fusion (gyroid-class fields)
+### Stage 3 — sincos fusion (gyroid-class fields)
 
 **Approach**: when a tape contains sin(a) and cos(a) of the same operand, evaluate both with one
 musl `sincos` call — one shared argument reduction (`__rem_pio2`) feeding the same `__sin`/`__cos`
 kernels the separate calls use, so results are bit-identical (pinned by the existing tape ≡ JS
 differentials and the cross-engine hex gate).
 
-**Expected**: gyroid-only ~1.1–1.3× (the z-pair is the only per-voxel pair left after TP7a);
+**Expected**: gyroid-only ~1.1–1.3× (the z-pair is the only per-voxel pair left after stage 1);
 nil for the distance fixtures.
 
 **Measured — NEGATIVE RESULT, REVERTED**: gyroid single 561 → 603 ms (**0.93×**), union64
@@ -227,15 +227,15 @@ per-instruction partner checks then push the balance negative even on the fixtur
 targeted.
 
 The implementation was verified bit-identical before removal, then reverted to the
-TP7b build (snapshot-restored byte-exact). Lesson recorded: on wasm32, fusing paired libm
+stage 2 build (snapshot-restored byte-exact). Lesson recorded: on wasm32, fusing paired libm
 calls is not worth a memory-out-param ABI — revisit only if a register-returning sincos
 becomes available.
 
-### TP7d — affine-arithmetic classification (measured ceiling)
+### Stage 4 — affine-arithmetic classification (measured ceiling)
 
 **Approach**: replace interval classification with reduced affine forms
 (c₀ + c₁εx + c₂εy + c₃εz + e·[−1,1]; conservative ulp accumulation into e; NaN flag and
-no-information collapse carried over from TP6; interval-semantics fallback for ops without an
+no-information collapse carried over from interval pruning; interval-semantics fallback for ops without an
 affine rule). Affine forms track the correlation that plain intervals lose on trig products —
 the reason the gyroid classifies only 20% of slabs.
 
@@ -246,7 +246,7 @@ measurement: kept only if a net win on the gyroid with no regression elsewhere.
 **Measured — NEGATIVE RESULT, REVERTED**: gyroid single 537 → 538 ms (**1.00× — the affine
 retry reclassified essentially nothing**), sphere 90 → 93 ms (−3%), union64 182 → **220 ms
 (−17%)** — its 144 IA-ambiguous columns each paid a 1,343-instruction affine sweep that never
-fired. Identity exact, suite green: the AF1 rules were sound but useless here.
+fired. Identity exact, suite green: the affine rules were sound but useless here.
 
 Structural
 diagnosis, not an implementation artifact: the gyroid's `abs(Σ sin·cos) − 0.4` needs the
@@ -255,15 +255,15 @@ mul cross-terms rad·rad ≈ 0.06 per product at 0.5 rad/block, plus the abs-str
 to a degenerate form — consumes the very margin correlation tracking recovers at 8³
 granularity.
 
-Reverted to the TP7b build (snapshot-restored byte-exact). Revisit only with
+Reverted to the stage 2 build (snapshot-restored byte-exact). Revisit only with
 finer blocks or a field without an abs-threshold root.
 
-### Program outcome (cumulative, vs TP6 `80f9a68`)
+### Program outcome (cumulative, vs the pruning baseline `80f9a68`)
 
 Two of four stages landed; two measured negative and were reverted with findings recorded.
-Cumulative landed effect (TP6 → TP7b, back-to-back pairs): **gyroid single 1,403 → 586 ms
+Cumulative landed effect (pruning baseline → stage 2, back-to-back pairs): **gyroid single 1,403 → 586 ms
 (2.4×) / multi 215 → 87 ms (2.5×); sphere single 193 → 94 ms (2.1×) / multi 31 → 17 ms
-(1.8×); union64 single 471 → 196 ms (2.4×) / multi 70 → 29 ms (2.4×)** — on top of TP6
+(1.8×); union64 single 471 → 196 ms (2.4×) / multi 70 → 29 ms (2.4×)** — on top of interval
 pruning's 1.2–13.3×, all bit-identical to the JS-callback path.
 
 ### HelixHeatX voxel sweep vs LEAP71's published table (2026-07-19)
@@ -295,7 +295,7 @@ application is thread-count-deterministic. Source:
 
 Readings:
 
-- **Geometry parity (the D5 signal): STL sizes match the published table to
+- **Geometry parity (the geometry-parity check): STL sizes match the published table to
   0.1–0.4% at both published cells** (502.4 vs 502 MB; 93.7 vs 94 MB decimal).
   Same tri counts ⇒ same part.
 - **Thread scaling grows with the workload**: 1.6× at 1.0 mm → 3.2× at 0.5 mm
@@ -375,3 +375,41 @@ changes together; against the quiet 298.069 ms measured after that change, batch
 
 Residual: 20.9 of the 39.2 ns/beam is C++-side ingest (`make_shared` per beam into upstream's
 `std::vector<LatticeBeam::Ptr>`).
+
+## Appendix — Chromium timing of picovoxel/multi (2026-09-28)
+
+Every other number in this file comes from Node. This section times the pthreads build in a browser.
+
+**Method.** `node bench/browser-timing.mjs --rounds 5` serves the repository with cross-origin isolation
+headers, loads `bench/browser-timing-cases.mjs` from `dist/` in headless Chromium through an import map,
+and runs the same module in a fresh Node process. Each round runs each case once on each host,
+alternating, so both hosts see the same machine load. Every run uses a fresh page or process, so the first
+`createPico()` is a cold start. The gyroid case is the tape gyroid of M10 at 0.25 mm (1 warmup and 5
+measured repeats per run, median). The HeatX case is the HelixHeatX example at 1.0 mm, one build per run.
+
+**Machine.** Apple M2 Pro (12 cores, 32 GiB), darwin 25.5.0, Node v24.10.0, Chromium 149.0.7827.55 (the
+Playwright headless shell), multi wasm `99e4eb5e1298` (6,127,793 B), commit `7ddade2`. The 1-minute load
+average was 17–44 during the run because other work shared the machine, so this is not a quiet baseline.
+Record: `bench/results/browser/2026-09-27-7ddade2.json` (the file name carries the UTC date).
+
+| Case                 | Phase      | Node, median of 5 (range) | Chromium, median of 5 (range) |
+| -------------------- | ---------- | ------------------------: | ----------------------------: |
+| gyroid tape @ 0.25mm | cold start |    117.7 ms (101.2–260.9) |          78.8 ms (68.4–159.1) |
+|                      | render     |       15.7 ms (12.3–19.8) |             9.5 ms (8.6–12.9) |
+|                      | mesh       |       31.0 ms (21.8–48.4) |           16.0 ms (14.6–20.8) |
+| HelixHeatX @ 1.0mm   | cold start |    141.0 ms (101.7–283.6) |          90.6 ms (65.2–175.1) |
+|                      | construct  |     15.14 s (11.29–18.40) |            6.32 s (6.25–6.88) |
+|                      | mesh       |      99.3 ms (76.5–215.4) |           46.5 ms (42.3–50.3) |
+
+Readings:
+
+- **Identity.** Both hosts produced the same volume (hex double) and triangle count on every run: gyroid
+  `40b0937560000000` and 538,668 triangles; HelixHeatX `41220895e0000000` and 1,873,340 triangles.
+- **Chromium was faster on this loaded machine**, by 2.4× on the HelixHeatX construct. The cause was not
+  investigated. One hypothesis is that macOS scheduled the Node child process at a lower priority than
+  Chromium's processes; lifting the Node process's background policy (`taskpolicy -B`) gave 10.9 s against
+  12.7 s in one trial, so that explains part of the gap at most. On a quiet machine, Node built the part in
+  about 8.4 s (README).
+- **One crash.** In an earlier attempt, the fifth Chromium HelixHeatX run crashed the page ("Target
+  crashed") after four clean rounds; no cause was found. The harness now records a crashed page and goes on.
+- Firefox and Safari are not measured.

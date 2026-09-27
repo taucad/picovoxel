@@ -11,6 +11,7 @@ rerun those numbers; it is not part of the package, the test suite or CI.
 | `NativeHeatX.csproj`                                    | Compiles PicoGK, ShapeKernel and HelixHeatX from sibling source checkouts and copies the osx-arm64 runtime dylibs beside the app         |
 | `Program.cs`                                            | One timed run per process: `Library.Go(voxelSize, HelixHeatX.Task)` as upstream's tutorial runs it, one JSONL record per run             |
 | `Cutaway.cs`                                            | `--view`: an interactive cutaway of the fixture; never timed                                                                             |
+| `U25Repro.cs`                                           | `--u25`: the headless closed-cavity check of `CalculateProperties` on hollow spheres; never timed                                        |
 | `run-sweep.sh`                                          | Round-robin sweep, 1.0 → 0.5 mm, 5 passes by default; `LABEL`, `PICOGK_DYLIB`, `ALLOC_DYLIB`, `ALLOC_LABEL`, `IDLE_LIMIT` select the arm |
 | `summarize.mjs`, `compare-arms.mjs`, `compare-best.mjs` | Tables over the recorded JSONL (bootstrap medians from `bench/stats.mjs`)                                                                |
 | `compare-stl.mjs`                                       | Streaming binary-STL parity (volume, area, bounds) between two arms                                                                      |
@@ -38,6 +39,22 @@ Regenerate the tables with `node bench/native-heatx/summarize.mjs`, `compare-arm
 The native task also requests ten screenshots and viewer previews and waits twice for 0.1 s; the TypeScript
 port in `examples/helixheatx/` leaves those out. Comparisons with the wasm build therefore favour the wasm
 build, most at coarse voxel sizes.
+
+## Closed-cavity check
+
+`--u25` builds hollow spheres (20 mm with a 5, 10 or 15 mm cavity, and the 15 mm cavity vented through a
+2- or 3-voxel channel) at 1.0 and 0.5 mm, headless, and records the closed-form volume,
+`CalculateProperties`, and the volume and area integrated over `Voxels → Mesh`. It needs no HeatX
+checkout beyond the build. The run recorded on 2026-09-28 against the published runtime
+(`bench/results/native/u25-closed-cavity-2026-09-28.jsonl`) shows `CalculateProperties` returning the
+solid sphere's volume for every sealed cavity and for the 2-voxel vent, and the right volume for the
+3-voxel vent.
+
+Native PicoGK therefore shares the `properties()` limitation that `docs/memory-and-limits.md` describes.
+
+```bash
+dotnet bin/Release/net9.0/NativeHeatX.dll --u25 --out u25.jsonl   # from bench/native-heatx after the build
+```
 
 ## Constraints
 

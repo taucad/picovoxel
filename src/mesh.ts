@@ -34,6 +34,21 @@ export interface Mesh {
   /** Bounding box; the empty-bounds sentinel (±FLT_MAX) for an empty mesh, never NaN. */
   bounds(): Bounds;
   /**
+   * Enclosed volume (mm³) and surface area (mm²) from the triangles: the
+   * divergence theorem for the volume (new), the triangle-area sum of
+   * ShapeKernel's `Measure.fGetSurfaceArea(Mesh)` for the area.
+   *
+   * No voxels are involved, so `voxels.toMesh().measure()` cross-checks
+   * `Voxels.properties()`, whose round trip fills sealed cavities and cavities
+   * behind passages about two voxels wide or narrower (see
+   * https://github.com/taucad/picovoxel/blob/main/docs/memory-and-limits.md#known-limits).
+   *
+   * The volume assumes a closed mesh and is negative when the triangles face
+   * inwards. Coincident duplicate faces count twice in the area. An empty mesh
+   * measures 0 and 0.
+   */
+  measure(): { volume: number; area: number };
+  /**
    * Pure transformed copy. `scale` is component-wise (`Vec3`) or uniform (number),
    * applied before `offset` — every vertex gets the same scale (upstream scales
    * each triangle corner by a different axis).
@@ -191,6 +206,41 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: LaneSet = EX
       live();
       ctx.raw.Mesh_GetBoundingBox(ctx.lib, handle, ctx.scratch);
       return { min: ctx.readVec3(ctx.scratch), max: ctx.readVec3(ctx.scratch + VEC3_BYTES) };
+    },
+    measure(): { volume: number; area: number } {
+      live();
+      const { vertices: v, triangles: t } = cached ?? readAll();
+      // Relative to the first vertex: a closed mesh's volume does not depend on the
+      // origin, and small coordinates keep the float64 sums well conditioned far from 0.
+      const [ox = 0, oy = 0, oz = 0] = v;
+      let volume = 0;
+      let area = 0;
+      for (let i = 0; i < t.length; i += 3) {
+        const a = t[i]! * 3;
+        const b = t[i + 1]! * 3;
+        const c = t[i + 2]! * 3;
+        const ax = v[a]! - ox;
+        const ay = v[a + 1]! - oy;
+        const az = v[a + 2]! - oz;
+        const bx = v[b]! - ox;
+        const by = v[b + 1]! - oy;
+        const bz = v[b + 2]! - oz;
+        const cx = v[c]! - ox;
+        const cy = v[c + 1]! - oy;
+        const cz = v[c + 2]! - oz;
+        volume += ax * (by * cz - bz * cy) + ay * (bz * cx - bx * cz) + az * (bx * cy - by * cx);
+        const ux = bx - ax;
+        const uy = by - ay;
+        const uz = bz - az;
+        const wx = cx - ax;
+        const wy = cy - ay;
+        const wz = cz - az;
+        const nx = uy * wz - uz * wy;
+        const ny = uz * wx - ux * wz;
+        const nz = ux * wy - uy * wx;
+        area += Math.sqrt(nx * nx + ny * ny + nz * nz);
+      }
+      return { volume: volume / 6, area: area / 2 };
     },
     transform(options: TransformOptions): Mesh {
       if ('matrix' in options) {
