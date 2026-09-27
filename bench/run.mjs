@@ -1,4 +1,4 @@
-// R27 — the benchmark harness (quality doc, Finding 5). The methodology is
+// The benchmark harness. The methodology is
 // MACHINERY, not discipline: the loadavg guard refuses noisy machines, every
 // metric runs 1 warmup + 5 measured repeats (median/min/max), phases are reported
 // separately so a skewed phase is visible, and identity oracles (hex-float
@@ -15,9 +15,9 @@
 // Usage: node bench/run.mjs [--allow-loaded] [--update]
 //   --allow-loaded  skip the loadavg guard (CI drift canaries only, never baselines)
 //   --update        regenerate bench/BENCHMARKS.md from this run
-//   BENCH_REPEATS=N measured repeats per metric (default 5). SK-0.1 runs at 10+:
-//                   a bootstrap CI over 5 samples resolves only gross differences,
-//                   and allocator deltas are expected in the tens of percent.
+//   BENCH_REPEATS=N measured repeats per metric (default 5). Allocator comparisons
+//                   run at 10+: a bootstrap CI over 5 samples resolves only gross
+//                   differences, and allocator deltas are expected in the tens of percent.
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -148,8 +148,12 @@ const gyroidSdf = (scale) => (x, y, z) =>
       Math.sin(z * scale) * Math.cos(x * scale),
   ) - 0.4;
 
-// ── M1 — cold instantiate ──
-await metric('M1', 'createPico() cold instantiate (5.8 MB module)', async () => {
+// ── M1 — re-instantiate ──
+// The runner discards the first of its runs, so this is a warm, in-process
+// re-instantiate, not a cold start. A cold createPico() from picovoxel/multi,
+// which also starts the thread pool, measured about 106 ms on the machine that
+// recorded this table's 9 ms.
+await metric('M1', 'createPico() re-instantiate, warm (first run discarded)', async () => {
   const t0 = now();
   const pk = await createPico();
   const instantiateMs = now() - t0;
@@ -513,12 +517,12 @@ if (UPDATE) {
   );
   lines.push('>');
   lines.push(
-    '> Native-comparison figures (the ~1.95× PicoGK wasm cost, the 3–9% SDF callback overhead, the ~150×',
+    '> This harness does not measure native PicoGK: `bench/native-heatx/README.md` records same-machine native',
   );
   lines.push(
-    '> bulk-readback win) come from earlier measured runs, not from this harness; native builds live outside',
+    '> timings. The 3–9% SDF callback overhead and the ~150× bulk-readback figures come from earlier measured',
   );
-  lines.push("> this repository's toolchain.");
+  lines.push('> runs, not from this harness.');
   lines.push('');
   lines.push('| Metric | Description | Phase | Median | Min | Max |');
   lines.push('| --- | --- | --- | ---: | ---: | ---: |');
