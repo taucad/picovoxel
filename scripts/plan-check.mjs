@@ -13,9 +13,34 @@ import { isDeepStrictEqual, parseArgs } from 'node:util';
  */
 const DEVELOPMENT_FIELDS = new Set(['devDependencies', 'packageManager', 'scripts']);
 
-const topLevelChanges = (before, after) =>
+/**
+ * Scripts that are not development-only although `scripts` is: the lifecycle
+ * hooks npm runs when a consumer installs the package (the prepare and pack
+ * hooks run for a git install), and `build`, the recipe for `dist/`.
+ */
+const SHIPPED_SCRIPTS = [
+  'preinstall',
+  'install',
+  'postinstall',
+  'preprepare',
+  'prepare',
+  'postprepare',
+  'prepack',
+  'postpack',
+  'build',
+];
+
+const changedKeys = (before = {}, after = {}) =>
   [...new Set([...Object.keys(before), ...Object.keys(after)])].filter(
     (key) => !isDeepStrictEqual(before[key], after[key]),
+  );
+
+const manifestNeedsPlan = (before, after) =>
+  changedKeys(before, after).some(
+    (key) =>
+      !DEVELOPMENT_FIELDS.has(key) ||
+      (key === 'scripts' &&
+        changedKeys(before.scripts, after.scripts).some((name) => SHIPPED_SCRIPTS.includes(name))),
   );
 
 /**
@@ -24,7 +49,8 @@ const topLevelChanges = (before, after) =>
  * One is needed when the change can reach what `npm install picovoxel` gets:
  * a shipped manifest field, a shipped document, or any source the package is
  * built from. It is not needed when every changed path is one of these:
- * - development-only `package.json` fields (a grouped devDependency update);
+ * - development-only `package.json` fields (a grouped devDependency update),
+ *   except the install hooks and `build` script;
  * - Markdown outside the package's `files` set;
  * - a path `nx.json` exempts from the plan check (tests, CI, the lockfile,
  *   repository tooling).
@@ -40,7 +66,7 @@ export const releaseAffectingPaths = ({
 }) =>
   changedFiles.filter((file) => {
     if (file === 'package.json') {
-      return topLevelChanges(baseManifest, headManifest).some((key) => !DEVELOPMENT_FIELDS.has(key));
+      return manifestNeedsPlan(baseManifest, headManifest);
     }
     if (file.endsWith('.md') && !packageFiles.includes(file)) return false;
     return !ignorePatterns.some((pattern) => matchesGlob(file, pattern));
@@ -53,7 +79,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const { values } = parseArgs({ options: { base: { type: 'string' }, head: { type: 'string' } } });
     if (!values.base || !values.head) throw new Error('usage: plan-check.mjs --base <ref> --head <ref>');
     const base = git('merge-base', values.base, values.head).trim();
-    const changedFiles = git('diff', '--name-only', base, values.head).split('\n').filter(Boolean);
+    // As nx does: a move lists its source too, so moving a file out of src/ counts.
+    const changedFiles = git('diff', '--name-only', '--no-renames', base, values.head)
+      .split('\n')
+      .filter(Boolean);
     const headManifest = JSON.parse(git('show', `${values.head}:package.json`));
     const affected = releaseAffectingPaths({
       changedFiles,

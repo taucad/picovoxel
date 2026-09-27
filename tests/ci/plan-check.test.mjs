@@ -44,16 +44,33 @@ describe('Version Plan requirement', () => {
     }
   });
 
+  it('needs a plan for an install hook or the build script, but not for other scripts', () => {
+    const withScripts = (scripts) => ({ ...manifest, scripts: { ...manifest.scripts, ...scripts } });
+    for (const hook of ['preinstall', 'install', 'postinstall', 'prepare', 'prepack']) {
+      assert.deepEqual(affected(['package.json'], withScripts({ [hook]: 'node evil.js' })), ['package.json']);
+    }
+    assert.deepEqual(affected(['package.json'], withScripts({ build: 'tsdown --minify' })), ['package.json']);
+    const withoutBuild = { ...manifest.scripts };
+    delete withoutBuild.build;
+    assert.deepEqual(affected(['package.json'], { ...manifest, scripts: withoutBuild }), ['package.json']);
+    assert.deepEqual(affected(['package.json'], withScripts({ lint: 'oxlint', bench: 'node bench' })), []);
+  });
+
   it('needs no plan for CI, tests, tooling or docs outside the tarball', () => {
     assert.deepEqual(
       affected([
         '.github/workflows/ci.yml',
         '.github/actions/setup/action.yml',
+        '.github/actions/download-verified-artifact/action.yml',
+        '.github/dependabot.yml',
+        '.github/ISSUE_TEMPLATE/bug.yml',
+        '.github/PULL_REQUEST_TEMPLATE.md',
         'tests/ci/plan-check.test.mjs',
         'test/mesh.test.ts',
         'scripts/ci-release.mjs',
         'scripts/plan-check.mjs',
         'scripts/coverage-cpp-gate.mjs',
+        'scripts/test-bundler.mjs',
         'eslint.config.mjs',
         'tools/eslint-plugin/index.js',
         '.vale/styles/Tau/NoEmojiBody.yml',
@@ -74,6 +91,7 @@ describe('Version Plan requirement', () => {
       'patches/openvdb/0001.patch',
       'scripts/build-pico-module.sh',
       'scripts/fetch-deps.sh',
+      '.github/actions/build-wasm/action.yml',
       'tsdown.config.ts',
       'README.md',
       'compatibility.md',
@@ -113,6 +131,27 @@ describe('Version Plan requirement', () => {
         },
       );
       assert.equal(output, 'No change reaches the published package, so no Version Plan is required.\n');
+      // A move out of src/ lists its source, as nx's own --no-renames diff does,
+      // and hands the range to nx.
+      mkdirSync(join(work, 'src'));
+      writeFileSync(join(work, 'src/context.ts'), 'export const context = 1;\n');
+      git('add', '--all');
+      git('commit', '--quiet', '-m', 'add a source');
+      mkdirSync(join(work, 'test'));
+      git('mv', 'src/context.ts', 'test/context.ts');
+      git('commit', '--quiet', '-m', 'move it out');
+      const bin = join(work, 'bin');
+      mkdirSync(bin);
+      writeFileSync(join(bin, 'pnpm'), '#!/usr/bin/env bash\necho "pnpm $*"\n', { mode: 0o755 });
+      const moved = execFileSync(
+        process.execPath,
+        ['scripts/plan-check.mjs', '--base', 'HEAD~1', '--head', 'HEAD'],
+        { cwd: work, encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env.PATH}` } },
+      );
+      assert.equal(
+        moved,
+        `Changes that reach the published package: src/context.ts\npnpm nx release plan:check --base=${git('rev-parse', 'HEAD~1').trim()} --head=HEAD\n`,
+      );
       assert.throws(
         () =>
           execFileSync(process.execPath, ['scripts/plan-check.mjs', '--base', 'HEAD~1'], {
