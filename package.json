@@ -33,52 +33,116 @@
   },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/cjs-error.cjs",
-      "default": "./dist/index.js"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs-error.d.cts",
+        "default": "./dist/cjs-error.cjs"
+      },
+      "default": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
     },
     "./multi": {
-      "types": "./dist/multi.d.ts",
-      "import": "./dist/multi.js",
-      "require": "./dist/cjs-error.cjs",
-      "default": "./dist/multi.js"
+      "import": {
+        "types": "./dist/multi.d.ts",
+        "default": "./dist/multi.js"
+      },
+      "require": {
+        "types": "./dist/cjs-error.d.cts",
+        "default": "./dist/cjs-error.cjs"
+      },
+      "default": {
+        "types": "./dist/multi.d.ts",
+        "default": "./dist/multi.js"
+      }
     },
     "./latticelibrary": {
-      "types": "./dist/latticelibrary.d.ts",
-      "import": "./dist/latticelibrary.js",
-      "require": "./dist/cjs-error.cjs",
-      "default": "./dist/latticelibrary.js"
+      "import": {
+        "types": "./dist/latticelibrary.d.ts",
+        "default": "./dist/latticelibrary.js"
+      },
+      "require": {
+        "types": "./dist/cjs-error.d.cts",
+        "default": "./dist/cjs-error.cjs"
+      },
+      "default": {
+        "types": "./dist/latticelibrary.d.ts",
+        "default": "./dist/latticelibrary.js"
+      }
     },
     "./numerics": {
-      "types": "./dist/numerics.d.ts",
-      "import": "./dist/numerics.js",
-      "require": "./dist/cjs-error.cjs",
-      "default": "./dist/numerics.js"
+      "import": {
+        "types": "./dist/numerics.d.ts",
+        "default": "./dist/numerics.js"
+      },
+      "require": {
+        "types": "./dist/cjs-error.d.cts",
+        "default": "./dist/cjs-error.cjs"
+      },
+      "default": {
+        "types": "./dist/numerics.d.ts",
+        "default": "./dist/numerics.js"
+      }
     },
     "./raw": {
-      "types": "./dist/raw.d.ts",
-      "import": "./dist/raw.js",
-      "require": "./dist/cjs-error.cjs",
-      "default": "./dist/raw.js"
+      "import": {
+        "types": "./dist/raw.d.ts",
+        "default": "./dist/raw.js"
+      },
+      "require": {
+        "types": "./dist/cjs-error.d.cts",
+        "default": "./dist/cjs-error.cjs"
+      },
+      "default": {
+        "types": "./dist/raw.d.ts",
+        "default": "./dist/raw.js"
+      }
     },
     "./shapekernel": {
-      "types": "./dist/shapekernel.d.ts",
-      "import": "./dist/shapekernel.js",
-      "require": "./dist/cjs-error.cjs",
-      "default": "./dist/shapekernel.js"
+      "import": {
+        "types": "./dist/shapekernel.d.ts",
+        "default": "./dist/shapekernel.js"
+      },
+      "require": {
+        "types": "./dist/cjs-error.d.cts",
+        "default": "./dist/cjs-error.cjs"
+      },
+      "default": {
+        "types": "./dist/shapekernel.d.ts",
+        "default": "./dist/shapekernel.js"
+      }
     },
     "./slicing": {
-      "types": "./dist/slicing.d.ts",
-      "import": "./dist/slicing.js",
-      "require": "./dist/cjs-error.cjs",
-      "default": "./dist/slicing.js"
+      "import": {
+        "types": "./dist/slicing.d.ts",
+        "default": "./dist/slicing.js"
+      },
+      "require": {
+        "types": "./dist/cjs-error.d.cts",
+        "default": "./dist/cjs-error.cjs"
+      },
+      "default": {
+        "types": "./dist/slicing.d.ts",
+        "default": "./dist/slicing.js"
+      }
     },
     "./three": {
-      "types": "./dist/three.d.ts",
-      "import": "./dist/three.js",
-      "require": "./dist/cjs-error.cjs",
-      "default": "./dist/three.js"
+      "import": {
+        "types": "./dist/three.d.ts",
+        "default": "./dist/three.js"
+      },
+      "require": {
+        "types": "./dist/cjs-error.d.cts",
+        "default": "./dist/cjs-error.cjs"
+      },
+      "default": {
+        "types": "./dist/three.d.ts",
+        "default": "./dist/three.js"
+      }
     },
     "./wasm": "./dist/pico.wasm",
     "./glue": "./dist/pico.mjs",

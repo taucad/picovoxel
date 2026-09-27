@@ -1,18 +1,16 @@
 #!/usr/bin/env node
 // Package-shape lint for the built tree: publint (strict) and
-// arethetypeswrong (ESM-only profile). Run after `validate-pack`, which owns
-// the exact file set. Two findings are excluded, each for a stated reason:
+// arethetypeswrong (ESM-only profile, no ignored rules). Run after
+// `validate-pack`, which owns the exact file set. One finding is excused:
 //
-// - publint FILE_INVALID_EXPLICIT_FORMAT on `./multi/worker`: publint guesses a file's
-//   format by regex, and the minified pthread glue writes `}export default`
-//   and `,import.meta` with no whitespace before the keyword, so only its
-//   guarded `require(` calls match. The file is an ES module; the consumer
-//   smoke imports it and spawns the pool from it.
-// - attw FalseESM: under the esm-only profile the CommonJS resolutions are
-//   out of scope, but attw still counts that rule toward the exit code. A
-//   CommonJS TypeScript consumer seeing ESM types is the intended diagnostic
-//   (TS1479, use a dynamic import), and at run time the `require` condition
-//   throws the ESM-only error.
+// - publint FILE_INVALID_EXPLICIT_FORMAT on `./multi/worker`: publint guesses
+//   a file's format by regex. In the minified pthread glue its ESM pattern
+//   misses `}export default` and every `import.meta` (each follows `,`, `(` or
+//   `=`), and its CommonJS pattern matches `;global.Worker=` in the Node
+//   branch, so it reports CommonJS. The file is an ES module; the consumer
+//   smoke imports it and spawns the pool from it. The serial glue matches
+//   neither pattern and passes as unknown, so if a future emcc adds such a
+//   token there, this gate fails rather than hiding it.
 //
 // Usage: node scripts/pkgcheck.mjs
 
@@ -47,8 +45,6 @@ execFileSync(
     '.',
     '--profile',
     'esm-only',
-    '--ignore-rules',
-    'false-esm',
     '--exclude-entrypoints',
     './wasm',
     './glue',

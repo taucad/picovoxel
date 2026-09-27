@@ -5,14 +5,15 @@ import path from 'node:path';
 // one .js per source module (unhashed), a .d.ts for every module a public
 // declaration reaches, the four copied Emscripten artifacts, the CommonJS
 // diagnostic and the docs. Change the list and the ceiling together in the
-// causing pull request.
-const PACKAGE_FILE_COUNT_CEILING = 131;
+// causing pull request. PR #8 review (R2 S1): +1 for dist/cjs-error.d.cts.
+const PACKAGE_FILE_COUNT_CEILING = 132;
 
 export const PACKAGE_FILES = [
   'MIGRATING-FROM-CSHARP.md',
   'NOTICE',
   'README.md',
   'dist/cjs-error.cjs',
+  'dist/cjs-error.d.cts',
   'dist/context.js',
   'dist/dispose.d.ts',
   'dist/dispose.js',

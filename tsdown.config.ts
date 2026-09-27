@@ -47,7 +47,9 @@ export default defineConfig({
     { from: 'src/pico-multi.mjs', to: 'dist' },
     { from: 'src/pico-multi.wasm', to: 'dist' },
     // The `require` export condition: a clear ESM-only diagnostic, ahead of
-    // `default`, so require(esm) on Node >=22.12 never loads the graph silently.
+    // `default`, so require(esm) on Node >=22.12 never loads the graph silently,
+    // and `never` types so a CommonJS TypeScript consumer fails to compile.
     { from: 'src/cjs-error.cjs', to: 'dist' },
+    { from: 'src/cjs-error.d.cts', to: 'dist' },
   ],
 });
