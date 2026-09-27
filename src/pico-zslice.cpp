@@ -12,7 +12,7 @@
 //
 // This TU keeps upstream's per-column value logic verbatim (min-propagation
 // down/up the slab, average-seal at the end cap, SetSdValue clamp+off
-// semantics, terminal pruneLevelSet) and changes exactly three things:
+// semantics, terminal PruneFill) and changes exactly three things:
 //   (1) F15 culling — only columns whose slab z-range intersects stored
 //       content are visited. Untouched columns differ from upstream only by
 //       writes SetSdValue makes at background value, which the terminal
@@ -32,7 +32,6 @@
 #include "PicoGKLibraryMgr.h"
 
 #include <openvdb/openvdb.h>
-#include <openvdb/tools/Prune.h>
 
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_for.h>
@@ -224,7 +223,8 @@ PICOGK_API void Voxels_ProjectZSliceFast(PKINSTANCE hLib, PKVOXELS hThis, float 
             });
     }
 
-    openvdb::tools::pruneLevelSet(oGrid.tree());
+    // Upstream's PruneFill (patch 0002), so both paths prune by one rule.
+    PicoGK::Voxels::PruneSignUniform(oGrid.tree());
 }
 
 

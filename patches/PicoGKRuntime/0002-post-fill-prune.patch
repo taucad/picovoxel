@@ -15,8 +15,16 @@ U-SK05-b  The fills that walk a dense accessor over a bounding box
           bit-identical raw levelSetVolume, bit-identical mesh-roundtrip volume
           and byte-identical STL output on every path.
 
-Value-neutral by construction: a leaf is only replaced when every voxel in it is
-already at +/-background, and the replacement tile carries that same value.
+Value-neutral: the prune is openvdb's pruneLevelSet restricted to nodes that hold
+no active value AND whose values all share one sign (PruneSignUniform). Every
+inactive voxel a fill writes is exactly +/-background, so the replacement tile
+carries the value each voxel already had. Plain pruneLevelSet is NOT value-neutral
+here: it signs every inactive node by its FIRST value, so a fill whose bounding
+box cuts solid interior deeper than the band (-background meeting +background
+with no band between) flipped whole 8^3/128^3/4096^3 regions to one sign. That
+broke the JS-callback render against the tape render and upstream PicoGK, which
+never prunes these fills. PruneSignUniform is public so src/pico-hash.cpp and
+src/pico-zslice.cpp apply the same rule.
 
 HISTORY — this patch used to carry a second change, U-SK05-a (merge-based CSG:
 csg* replaced by the Merge.h operators under a DeepCopy tag, to avoid the eager
@@ -53,7 +61,7 @@ re-attempt. Do not reintroduce the merge path without it.
      void IntersectImplicit(PKPFnfSdf pfn)
      {
          PKTRACE(Voxels_IntersectImplicit);
-@@ -491,10 +494,11 @@
+@@ -582,10 +585,11 @@
                  SetSdValue(&oAccess, xyz, fBackgroundMM(), fValue);
              }
          }
@@ -67,7 +75,7 @@ re-attempt. Do not reintroduce the merge path without it.
      void ProjectZSliceUp(   float fZStart,
                              float fZEnd)
      {
-@@ -532,7 +536,8 @@
+@@ -623,7 +627,8 @@
                  SetSdValue(&oAccess, xyz, fBackgroundMM(), fValue);
              }
          }
@@ -77,11 +85,11 @@ re-attempt. Do not reintroduce the merge path without it.
          RebuildGrid();
      }
  
-@@ -767,6 +772,25 @@
-     bool bLevelSetNeedsRebuild() const
+@@ -859,7 +864,110 @@
      {
          return strDiagnose().length() > 0;
-+    }
+     }
+-    
 +
 +    /// [picovoxel U-SK05-b] Collapse the dense leaves a per-voxel fill leaves behind.
 +    ///
@@ -92,14 +100,100 @@ re-attempt. Do not reintroduce the merge path without it.
 +    /// pruneLevelSet (Composite.h, prune=true), so only these fills ship the
 +    /// slack — and every downstream op then iterates it.
 +    ///
-+    /// Value-neutral by construction: a leaf is only replaced when every voxel
-+    /// in it is already at ±background, and the replacement tile carries that
-+    /// same value. Measured on the fills above: identical raw levelSetVolume,
-+    /// identical mesh-roundtrip volume, identical STL bytes; 5.5% (lattice),
-+    /// 36% (ProjectZSlice) and 68% (RenderImplicit) less tree.
++    /// Value-neutral: see PruneSignUniform. Measured on the fills above:
++    /// identical raw levelSetVolume, identical mesh-roundtrip volume,
++    /// identical STL bytes; 5.5% (lattice), 36% (ProjectZSlice) and 68%
++    /// (RenderImplicit) less tree.
 +    void PruneFill()
 +    {
-+        openvdb::tools::pruneLevelSet(m_roGrid->tree());
-     }
-     
++        PruneSignUniform(m_roGrid->tree());
++    }
++
++public:
++    /// [picovoxel U-SK05-b] openvdb::tools::pruneLevelSet, restricted to the
++    /// nodes it can collapse without changing a single value.
++    ///
++    /// pruneLevelSet replaces every node that holds no active value with a
++    /// ±background tile signed like the node's FIRST value. In a narrow-band
++    /// level set that is exact: a sign change always crosses active band
++    /// voxels, so an inactive node is uniformly inside or outside. A fill
++    /// clipped by its bounding box breaks that assumption. Where the box cuts
++    /// solid interior deeper than the band, −background voxels meet untouched
++    /// +background with no band between them, and pruneLevelSet flips the
++    /// whole node (and, bottom-up, its 128³ and 4096³ parents) to one sign.
++    ///
++    /// Here a node collapses only when it holds no active value AND every
++    /// value in it has one sign; a mixed-sign node stays as it is. Every
++    /// inactive voxel a fill writes is exactly ±background (SetSdValue clamps,
++    /// then turns off only |value| ≥ background), and the voxels it does not
++    /// write keep the level set's own ±background, so the tile carries the
++    /// value each voxel already had. Everywhere else this is pruneLevelSet:
++    /// same bottom-up pass, same tiles.
++    static void PruneSignUniform(FloatTree& oTree, bool bThreaded = true)
++    {
++        tree::NodeManager<FloatTree, FloatTree::DEPTH - 2> oNodes(oTree);
++        SignUniformPruneOp oOp(oTree);
++        oNodes.foreachBottomUp(oOp, bThreaded);
++    }
++
++protected:
++    /// The pruneLevelSet operator (tools/Prune.h LevelSetPruneOp) plus the
++    /// one-sign check.
++    struct SignUniformPruneOp
++    {
++        explicit SignUniformPruneOp(FloatTree& oTree)
++            : m_fOutside(oTree.background())
++            , m_fInside(math::negative(m_fOutside))
++        {
++            oTree.clearAllAccessors(); // cached nodes may be pruned
++        }
++
++        void operator()(FloatTree::LeafNodeType&) const {}
++
++        template<typename NodeT>
++        void operator()(NodeT& oNode) const
++        {
++            for (auto it = oNode.beginChildOn(); it; ++it)
++            {
++                bool bInside = false;
++                if (bCollapsible(*it, bInside))
++                    oNode.addTile(it.pos(), bInside ? m_fInside : m_fOutside, false);
++            }
++        }
++
++        void operator()(FloatTree::RootNodeType& oRoot) const
++        {
++            for (auto it = oRoot.beginChildOn(); it; ++it)
++            {
++                bool bInside = false;
++                if (bCollapsible(*it, bInside))
++                    oRoot.addTile(it.getCoord(), bInside ? m_fInside : m_fOutside, false);
++            }
++            oRoot.eraseBackgroundTiles();
++        }
++
++        /// No active value, and every value signed like the first. Children
++        /// are pruned first (bottom-up), so a node that still has a child
++        /// node is not inactive and never reaches the value scan.
++        template<typename ChildT>
++        static bool bCollapsible(const ChildT& oChild, bool& bInside)
++        {
++            if (!oChild.isInactive())
++                return false;
++
++            bInside = math::isNegative(oChild.getFirstValue());
++            for (auto it = oChild.cbeginValueAll(); it; ++it)
++            {
++                if (math::isNegative(*it) != bInside)
++                    return false;
++            }
++            return true;
++        }
++
++        const float m_fOutside;
++        const float m_fInside;
++    };
++
      /// Rebuilds the grid after possibly destructive changes to the signed distances
+     void RebuildGrid(float fDistanceMM = 0.0f)
+     {
