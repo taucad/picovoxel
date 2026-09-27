@@ -21,10 +21,10 @@
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { cpus, loadavg, platform, release, totalmem } from 'node:os';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { arch, cpus, loadavg, platform, release, tmpdir, totalmem } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createPico } from '../src/index.ts';
 import { buildGearMesh } from '../examples/pico/gear.ts';
 import { sliceVoxels } from '../src/slicing.ts';
@@ -60,6 +60,8 @@ const fingerprint = {
   cores,
   ramGiB: Math.round(totalmem() / 2 ** 30),
   os: `${platform()} ${release()}`,
+  // With `os` and `cores`, the hardware class the drift canary matches baselines on.
+  arch: arch(),
   node: process.version,
   wasmSha256: createHash('sha256').update(wasmBytes).digest('hex'),
   wasmBytes: wasmBytes.length,
@@ -83,19 +85,26 @@ const fnv1a = (typedArray) => {
   return (hash >>> 0).toString(16);
 };
 // ── Runner: 1 warmup + 5 measured; identity must be bit-stable across repeats ──
+// A body may also return `gauges` (byte counts such as the heap high-water); the
+// largest value over the measured repeats is recorded. `repeats` overrides
+// BENCH_REPEATS for metrics too slow to repeat five times.
 const REPEATS = Number(process.env.BENCH_REPEATS ?? 5);
 if (!Number.isInteger(REPEATS) || REPEATS < 1) {
   console.error(`REFUSED: BENCH_REPEATS must be a positive integer, got ${process.env.BENCH_REPEATS}`);
   process.exit(1);
 }
 const results = {};
-async function metric(id, description, body) {
+async function metric(id, description, body, { repeats = REPEATS } = {}) {
   const phaseSamples = {};
+  const gauges = {};
   let identity = null;
   const loadBefore = loadavg()[0];
-  for (let repeat = 0; repeat < REPEATS + 1; repeat++) {
+  for (let repeat = 0; repeat < repeats + 1; repeat++) {
     const run = await body();
     if (repeat === 0) continue; // warmup discarded (JIT/tier-up)
+    for (const [gauge, value] of Object.entries(run.gauges ?? {})) {
+      gauges[gauge] = Math.max(gauges[gauge] ?? 0, value);
+    }
     for (const [phase, ms] of Object.entries(run.phases)) {
       (phaseSamples[phase] ??= []).push(ms);
     }
@@ -130,6 +139,7 @@ async function metric(id, description, body) {
   results[id] = {
     description,
     phases,
+    ...(Object.keys(gauges).length > 0 && { gauges }),
     identity: identity ? JSON.parse(identity) : null,
     loadBefore,
     loadAfter,
@@ -408,9 +418,12 @@ fine.dispose();
 {
   const { task: heatXTask } = await import('../examples/helixheatx/run.ts');
   const { createPico: createMulti } = await import('../src/multi.ts');
+  // multi-fast: the viewer lane Tau renders in (close-out D5), the first
+  // fast-lane stage table (lane D K3). Its identity differs from the exact rows.
   for (const [suffix, make] of /** @type {const} */ ([
     ['single', () => createPico({ voxelSize: 1.0 })],
     ['multi', () => createMulti({ voxelSize: 1.0 })],
+    ['multi-fast', () => createMulti({ voxelSize: 1.0, lane: 'fast' })],
   ])) {
     await metric(`M12-v2@${suffix}`, `HelixHeatX @ 1.0mm (${suffix} entry)`, async () => {
       const session = await make();
@@ -486,6 +499,121 @@ fine.dispose();
     session.dispose();
     return { phases, identity };
   });
+}
+
+// ── M15 — HelixHeatX @ 0.5mm on multi, heap high-water (close-out D32) ──
+// The deep-heap cell: wasm memory only grows, so the fresh session's final
+// buffer size is its high-water. One measured run after the warm-up; a
+// 0.5 mm Task is minutes on a 2-vCPU runner.
+{
+  const { task: heatXTask } = await import('../examples/helixheatx/run.ts');
+  const { createPico: createMulti } = await import('../src/multi.ts');
+  await metric(
+    'M15',
+    'HelixHeatX @ 0.5mm (multi entry), heap high-water',
+    async () => {
+      const session = await createMulti({ voxelSize: 0.5 });
+      const { voxels, constructMs } = heatXTask(session);
+      const t1 = now();
+      const mesh = voxels.toMesh();
+      const meshMs = now() - t1;
+      const identity = { volume: hexFloat(voxels.volume), triangles: mesh.triangleCount };
+      const heapBytes = session.module.HEAPU8.buffer.byteLength;
+      session.dispose();
+      return { phases: { construct: constructMs, mesh: meshMs }, identity, gauges: { heapBytes } };
+    },
+    { repeats: 1 },
+  );
+}
+
+// ── M16 — true cold start on multi (close-out D32) ──
+// M1 is warm: its first run is discarded inside one process. Here every sample
+// is a fresh Node process timing module import, wasm compile, instantiation,
+// the pthread pool warm-up and the first operation separately. The instantiate
+// and pool phases go through the internal seam multi.ts wraps, so they split.
+{
+  const url = (path) => pathToFileURL(join(HERE, path)).href;
+  const probe = `
+    const t0 = performance.now();
+    const [{ default: createModule }, { WASM_EXPORTS }, { openPicoRuntime, warmPool }] = await Promise.all([
+      import(${JSON.stringify(url('src/pico-multi.mjs'))}),
+      import(${JSON.stringify(url('src/pico-multi.exports.ts'))}),
+      import(${JSON.stringify(url('src/session.ts'))}),
+    ]);
+    const { readFileSync } = await import('node:fs');
+    const t1 = performance.now();
+    const wasmModule = await WebAssembly.compile(readFileSync(new URL(${JSON.stringify(url('src/pico-multi.wasm'))})));
+    const t2 = performance.now();
+    const glue = Object.assign((overrides) => createModule(overrides), { wasmExports: WASM_EXPORTS });
+    const runtime = await openPicoRuntime(glue, { wasmModule });
+    const t3 = performance.now();
+    await warmPool(runtime);
+    const t4 = performance.now();
+    const session = await runtime.createPico({ voxelSize: 0.5 });
+    const volume = session.createVoxels({ shape: 'sphere', radius: 10 }).volume;
+    const t5 = performance.now();
+    runtime.dispose();
+    process.stdout.write(JSON.stringify({ phases: { import: t1 - t0, compile: t2 - t1, instantiate: t3 - t2, pool: t4 - t3, firstOp: t5 - t4 }, volume }));
+  `;
+  // A file, not --eval: the pthread workers inherit the parent's execArgv.
+  const probeDirectory = mkdtempSync(join(tmpdir(), 'picovoxel-cold-'));
+  const probeFile = join(probeDirectory, 'probe.mjs');
+  writeFileSync(probeFile, probe);
+  await metric(
+    'M16',
+    'cold start on multi: fresh process import, compile, instantiate, pool, first op',
+    () => {
+      const { phases, volume } = JSON.parse(
+        execFileSync(process.execPath, [probeFile], { cwd: HERE, encoding: 'utf8' }),
+      );
+      return { phases, identity: { volume: hexFloat(volume) } };
+    },
+  );
+  rmSync(probeDirectory, { recursive: true, force: true });
+}
+
+// ── M17 — warm-runtime render loop on multi (close-out D31, PG2) ──
+// Tau's steady state: one runtime, a fresh session per render. The session and
+// dispose phases are the per-render fixed overhead (target ≤10 ms).
+{
+  const { createPicoRuntime } = await import('../src/multi.ts');
+  const runtime = await createPicoRuntime();
+  await metric('M17', 'warm runtime: session, sphere r=10 @ 0.5mm, mesh, dispose (multi entry)', async () => {
+    const t0 = now();
+    const session = await runtime.createPico({ voxelSize: 0.5 });
+    const t1 = now();
+    const sphere = session.createVoxels({ shape: 'sphere', radius: 10 });
+    const t2 = now();
+    const mesh = sphere.toMesh();
+    void mesh.vertices.length;
+    const t3 = now();
+    const identity = { volume: hexFloat(sphere.volume), triangles: mesh.triangleCount };
+    const t4 = now();
+    session.dispose();
+    const t5 = now();
+    return { phases: { session: t1 - t0, build: t2 - t1, mesh: t3 - t2, dispose: t5 - t4 }, identity };
+  });
+  runtime.dispose();
+}
+
+// ── M18 — ThreadCutter flat caps @ 1.0mm on multi (PV-FC1 watch) ──
+// HeatX's own cutter parameters: roundCap:false throughout, so the whole helix
+// renders on the serial lattice fallback. The example no longer builds six of
+// these (PV-FC2); this row watches the fallback if parallel flat caps land.
+{
+  const { ThreadCutter } = await import('../examples/helixheatx/helpers.ts');
+  const { localFrame } = await import('../src/shapekernel.ts');
+  const { createPico: createMulti } = await import('../src/multi.ts');
+  const session = await createMulti({ voxelSize: 1.0 });
+  await metric('M18', 'HeatX ThreadCutter (flat caps) @ 1.0mm (multi entry)', () => {
+    const t0 = now();
+    const cutter = new ThreadCutter(localFrame.create([0, 0, -10]), 24, 6, 5, 1.3).voxConstruct(session);
+    const renderMs = now() - t0;
+    const identity = { volume: hexFloat(cutter.volume) };
+    cutter.dispose();
+    return { phases: { render: renderMs }, identity };
+  });
+  session.dispose();
 }
 
 // ── Persist ──
