@@ -1,0 +1,51 @@
+name: Build a wasm variant
+description: Build one wasm variant from pinned sources with the cache keys every workflow shares.
+# One definition for ci.yml's wasm job and for the bench and g0-nightly fallback
+# when no green main run still holds both wasm artifacts, so every path builds
+# the same bytes and reuses the same caches. The emsdk key hashes the file
+# holding the toolchain pins; each prefix key hashes every input that shapes it,
+# including patches/** (the oneTBB and OpenVDB patches), with no restore-keys: a
+# near miss is a wrong binary. There is no TU-object cache: the module build
+# compiles every TU in parallel and always links, which keeps the export list
+# honest per commit. Needs Node on PATH (the export-list generator).
+inputs:
+  variant:
+    description: serial (src/pico.*) or multi (THREADS=1, src/pico-multi.*).
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Reject an unknown variant
+      shell: bash
+      env:
+        VARIANT: ${{ inputs.variant }}
+      run: |
+        case "$VARIANT" in
+          serial | multi) ;;
+          *) echo "::error::unknown wasm variant '$VARIANT' (serial or multi)"; exit 1 ;;
+        esac
+    - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: vendor/emsdk
+        key: emsdk-${{ runner.os }}-${{ hashFiles('scripts/fetch-deps.sh') }}
+    - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      id: prefix
+      with:
+        path: build/wasm-prefix${{ inputs.variant == 'multi' && '-mt' || '' }}
+        key: prefix-${{ runner.os }}-${{ inputs.variant }}-${{ hashFiles('scripts/fetch-deps.sh', 'scripts/build-deps-wasm.sh', 'patches/**') }}
+    - name: Fetch pinned sources and the pinned emsdk
+      shell: bash
+      run: bash scripts/fetch-deps.sh
+    - name: Build the OpenVDB + oneTBB prefix (cache miss only)
+      if: steps.prefix.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        THREADS: ${{ inputs.variant == 'multi' && '1' || '0' }}
+      run: bash scripts/build-deps-wasm.sh
+    # Also writes src/<variant>.exports.ts, the minified export names the glue
+    # reads (createPicoRuntime's wasmModule pre-flight). Generated, never committed.
+    - name: Build the module (asserts the SIMD instruction count)
+      shell: bash
+      env:
+        THREADS: ${{ inputs.variant == 'multi' && '1' || '0' }}
+      run: bash scripts/build-pico-module.sh
