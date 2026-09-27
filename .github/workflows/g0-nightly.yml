@@ -60,6 +60,7 @@ jobs:
           path: .
           merge-multiple: 'true'
           run-id: ${{ steps.ci.outputs.run-id }}
+          github-token: ${{ github.token }}
           expect: src/pico.mjs src/pico.wasm src/pico-multi.mjs src/pico-multi.wasm
       # dist/ is needed at runtime: examples import the package by name.
       - run: npm run build

@@ -48,6 +48,7 @@ jobs:
           name: wasm-serial
           path: .
           run-id: ${{ steps.ci.outputs.run-id }}
+          github-token: ${{ github.token }}
           expect: src/pico.mjs src/pico.wasm
       - name: Run benchmarks (loadavg guard relaxed — CI numbers are drift canaries only)
         run: npm run bench -- --allow-loaded
