@@ -183,12 +183,17 @@ export policy is reserved for SK-2):
 
 | Session | STL (`toStl`) | `.vdb` (`toBytes`) | GLB (`toGlb`) |
 | --- | --- | --- | --- |
-| `'fast'`, or `'auto'` resolved to it | stamps `LANE=<set>`, never refuses | exports; the field tags are the stamp | refuses unless `acceptLane` (no slot until V0.18; acknowledged bytes record nothing) |
+| `'fast'`, or `'auto'` resolved to it | provenance exactly `fast`: stamps `LANE=fast`, never refuses; any other member: as `'open'` | same rule over the union of added fields; the field tags are the stamp | refuses unless `acceptLane` (no slot until V0.18; acknowledged bytes record nothing) |
 | `'open'` (lane omitted) | refuses unless `acceptLane`, then stamps | refuses unless `acceptLane` | refuses unless `acceptLane` |
 | `'exact'` | cannot hold fast handles (item 5) | same | same |
 
-`'auto'` counts as consent. The `'open'` refusal message names both remedies:
-acknowledge the one export, or declare `lane: 'fast'` on the session. Rider
+`'auto'` counts as consent. That consent is Class-2 only (rider ii): it covers a
+provenance set that is exactly `fast`. A set with any other member (a future
+`gpu-l1`, `unknown`, a malformed token) refuses in every session unless this
+export is acknowledged, because for consent "fast-like" would be the permissive
+direction. The `'open'` refusal message names both remedies: acknowledge the
+one export, or declare `lane: 'fast'` on the session. The second remedy is
+omitted when it would not help (members outside Class 2). Rider
 R2: the session-less `meshToStlBytes` keeps `'open'` semantics (a
 `lane: 'fast'` call refuses unless `options.acceptLane` is `'fast'`); its
 docstring says so, and it now also accepts `lane: 'exact'`. The ratchet
@@ -216,8 +221,11 @@ every `UPDATE_PINS` arm (`test/g0-gate.test.ts` and the six
 `test/examples-*.test.ts` subjects; `test/examples-pico.test.ts` has none) and
 on the exact reference records in `bench/g0-identity.mjs`'s sweep. G0 records
 gain `provenance` (`mesh.lane`) beside the session `lane`; the pinned tuple is
-unchanged. A static test in `test/lanes.test.ts` fails when an `UPDATE_PINS`
-arm appears without the guard.
+unchanged. The static backstop `unguardedPinArms` (also in
+`bench/pin-guard.mjs`) runs over every source under `test/`, `bench/` and
+`scripts/`. Each `UPDATE_PINS`/`UPDATE_SNAPSHOTS` arm must be preceded by its
+own `assertPinSource` call since the previous arm. Guards inside comments do not
+count, and a file that reads the flag without an `if` arm fails.
 
 **Item 4: the persisted set.** `PicoVoxel.Lane` holds a canonical
 comma-separated member set (`src/lanes.ts`): sorted, deduplicated, members

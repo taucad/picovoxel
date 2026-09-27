@@ -14,7 +14,8 @@
 //
 // No native touchpoints: the slicing subpath imports this module.
 
-import type { PicoLane } from './context.ts';
+import type { PicoLane, ResolvedLane } from './context.ts';
+import { PicoError } from './errors.ts';
 
 /** A handle's value-class provenance: canonical members, `[]` = exact. */
 export type LaneSet = readonly string[];
@@ -44,6 +45,48 @@ export function unionLaneSets(...sets: LaneSet[]): LaneSet {
 /** The TS surface collapse: empty = `'exact'`; any member, known or not, = `'fast'`. */
 export function laneOf(set: LaneSet): PicoLane {
   return set.length === 0 ? 'exact' : 'fast';
+}
+
+/**
+ * LANES item 1, rider (ii): a session's `lane: 'fast'` (or resolved `'auto'`)
+ * consent covers today's Class-2 lane — exactly the `fast` member. Any other
+ * member (a future `gpu-l1`, a relaxed-math Class-3 member, `unknown`) is
+ * outside it: Class-3 export policy is reserved for SK-2, so for consent an
+ * unknown member is NOT fast-like (that would be the permissive direction).
+ */
+export function withinFastConsent(set: LaneSet): boolean {
+  return set.every((member) => member === 'fast');
+}
+
+/**
+ * The §14.1 export boundary for stampable formats (STL, `.vdb`), keyed by the
+ * session's claim: exact provenance always exports; Class-2 provenance
+ * exports freely in a session that declared `lane: 'fast'`; everything else
+ * needs this export's `acceptLane: 'fast'`. The message names only remedies
+ * that actually apply.
+ */
+export function assertLaneExport(
+  where: string,
+  subject: string,
+  set: LaneSet,
+  sessionLane: ResolvedLane,
+  acceptLane: 'fast' | undefined,
+): void {
+  if (set.length === 0 || acceptLane === 'fast') return;
+  const class2 = withinFastConsent(set);
+  if (class2 && sessionLane === 'fast') return;
+  const why = class2
+    ? 'this session declared no lane, so nothing consented to exporting them'
+    : `members other than 'fast' are outside the Class-2 consent a lane: 'fast' session gives (their export ` +
+      'policy is reserved for SK-2), so this export must be acknowledged on its own';
+  throw new PicoError(
+    'PICO_LANE_EXPORT',
+    `${where}() on ${subject} with non-exact provenance (${set.join(',')}): its bytes are not L0/pin-comparable, ` +
+      `and ${why}. Either acknowledge this export with ${where}({ acceptLane: 'fast' })` +
+      (class2 ? ", or declare the lane once with createPico({ lane: 'fast' })" : '') +
+      ` — the lane set is recorded in the artifact either way. For pin-comparable bytes, rebuild it in a ` +
+      "lane: 'exact' session (a replay, not a conversion).",
+  );
 }
 
 /** The provenance token the STL header and the CLI header comment carry. */

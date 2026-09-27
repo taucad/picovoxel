@@ -16,7 +16,7 @@ import {
 } from './context.ts';
 import { assertLive, guard, PicoError } from './errors.ts';
 import { laneOf, type LaneSet } from './lanes.ts';
-import { settleProvenance, tagFieldClass, wrapMetadata, type Metadata } from './metadata.ts';
+import { recordProvenance, settleProvenance, tagFieldClass, wrapMetadata, type Metadata } from './metadata.ts';
 import type { Bounds, Vec3 } from './types.ts';
 import type { Voxels } from './voxels.ts';
 
@@ -187,6 +187,7 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint, provenance?
     },
   };
   tagFieldClass(ctx, ctx.raw.Metadata_hFromScalarField, handle, 'ScalarField'); // SG4
+  recordProvenance(field, lane);
   adoptHandle(ctx, field, handle, ctx.raw.ScalarField_Destroy);
   return field as ScalarField; // adoptHandle added [Symbol.dispose] (D6)
 }
@@ -262,6 +263,7 @@ export function wrapVectorField(ctx: SessionContext, handle: bigint, provenance?
     },
   };
   tagFieldClass(ctx, ctx.raw.Metadata_hFromVectorField, handle, 'VectorField'); // SG4
+  recordProvenance(field, lane);
   adoptHandle(ctx, field, handle, ctx.raw.VectorField_Destroy);
   return field as VectorField; // adoptHandle added [Symbol.dispose] (D6)
 }

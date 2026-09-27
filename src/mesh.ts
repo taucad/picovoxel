@@ -8,7 +8,7 @@
 import { adoptHandle, assertSameSession, checkedMalloc, expectHandle, TRI_BYTES, VEC3_BYTES, type SessionContext } from './context.ts';
 import { assertLive, guard, PicoError } from './errors.ts';
 import { createGlb } from './glb.ts';
-import { EXACT_LANE_SET, laneOf, unionLaneSets, type LaneSet } from './lanes.ts';
+import { assertLaneExport, EXACT_LANE_SET, laneOf, unionLaneSets, type LaneSet } from './lanes.ts';
 import { provenanceOf, recordProvenance } from './metadata.ts';
 import { writeStlBytes, type ToStlOptions } from './stl.ts';
 import type { Bounds, Mat4, Vec3 } from './types.ts';
@@ -51,8 +51,9 @@ export interface Mesh {
    * header (`LANE=fast`, read back by `meshFromStl`) and
    * - in a `lane: 'fast'` session (explicit, or resolved from `'auto'` —
    *   choosing "best available" is choosing acceleration) exports without
-   *   asking: declaring the lane was the consent;
-   * - in a session that declared no lane (`'open'`) refuses with
+   *   asking when every member is `fast`: declaring the lane was the consent;
+   * - otherwise — a session that declared no lane (`'open'`), or any member
+   *   outside Class 2 (`gpu-l1`, `unknown`, …) in any session — refuses with
    *   `PICO_LANE_EXPORT` unless acknowledged with `{ acceptLane: 'fast' }`.
    * A `lane: 'exact'` session never holds non-exact geometry. The stamp is a
    * best-effort audit, not security: third-party tools rewrite STL headers.
@@ -217,6 +218,7 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: LaneSet = EX
     merged(other: Mesh): Mesh {
       live();
       assertSameSession(ctx, other, 'merged operand');
+      const resultLane = unionLaneSets(lane, provenanceOf(other)); // throws on a non-mesh operand
       const a = cached ?? readAll();
       const b = { vertices: other.vertices, triangles: other.triangles };
       const vertices = new Float32Array(a.vertices.length + b.vertices.length);
@@ -226,7 +228,7 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: LaneSet = EX
       const triangles = new Uint32Array(a.triangles.length + b.triangles.length);
       triangles.set(a.triangles, 0);
       for (let i = 0; i < b.triangles.length; i++) triangles[a.triangles.length + i] = b.triangles[i]! + offset;
-      return wrapMesh(ctx, bulkCreateMesh(ctx, vertices, triangles), unionLaneSets(lane, provenanceOf(other)));
+      return wrapMesh(ctx, bulkCreateMesh(ctx, vertices, triangles), resultLane);
     },
     toVoxels(): Voxels {
       const target = expectHandle('Voxels_hCreate', ctx.raw.Voxels_hCreate(ctx.lib));
@@ -245,17 +247,7 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: LaneSet = EX
     },
     toStl(options: ToStlOptions = {}): Uint8Array {
       live();
-      // The hybrid: only a session that never declared a lane still has to be asked.
-      if (lane.length > 0 && ctx.lane !== 'fast' && options.acceptLane !== 'fast') {
-        throw new PicoError(
-          'PICO_LANE_EXPORT',
-          `toStl() on a mesh with non-exact provenance (${lane.join(',')}): at least one Class-2 op (e.g. ` +
-            'fastRenorm) fed this geometry, so its bytes are not L0/pin-comparable, and this session declared no lane, ' +
-            "so nothing consented to exporting them. Either acknowledge this export with toStl({ acceptLane: 'fast' }), " +
-            "or declare the lane once with createPico({ lane: 'fast' }) — both stamp LANE=fast into the header. For " +
-            "pin-comparable bytes, rebuild the chain in a lane: 'exact' session (a replay, not a conversion).",
-        );
-      }
+      assertLaneExport('toStl', 'a mesh', lane, ctx.lane, options.acceptLane);
       const data = cached ?? readAll();
       return writeStlBytes(data.vertices, data.triangles, options, lane);
     },

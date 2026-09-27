@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, beforeAll, test } from 'vitest';
-import { assertPinSource } from '../bench/pin-guard.mjs';
+import { assertPinSource, unguardedPinArms } from '../bench/pin-guard.mjs';
 import { createPico, PicoError, type Mesh, type Pico, type Voxels } from '../src/index.ts';
 import { bindPicoRaw } from '../src/raw.ts';
 import { sliceToSvg, sliceVoxels, slicesFromCli, slicesToCli, type Slice, type SliceStack } from '../src/slicing.ts';
@@ -402,6 +402,67 @@ test("rider R2: meshToStlBytes has no session, so it keeps 'open' semantics", ()
   assert.deepEqual(stamped.subarray(80), historical.subarray(80), 'the stamp changes the header only');
 });
 
+test("rider (ii): a lane: 'fast' session consents to Class-2 'fast' only — gpu-l1 and unknown still need acceptLane", () => {
+  const mm = openS.createMesh(TETRA).toStl();
+  const outsideConsent = (error: unknown) =>
+    isCode('PICO_LANE_EXPORT')(error) &&
+    /outside the Class-2 consent/.test((error as Error).message) &&
+    /acceptLane: 'fast'/.test((error as Error).message) &&
+    !/createPico\(\{ lane: 'fast' \}\)/.test((error as Error).message); // declaring the lane would not help
+
+  for (const p of [fastS, autoS]) {
+    // STL: an ingested set with a member other than 'fast'.
+    for (const [header, stamp] of [
+      ['PicoGK UNITS=mm LANE=gpu-l1', 'LANE=gpu-l1'],
+      ['PicoGK UNITS=mm LANE=fast,gpu-l1', 'LANE=fast,gpu-l1'],
+      ['PicoGK UNITS=mm LANE=unknown', 'LANE=unknown'],
+      ['PicoGK UNITS=mm LANE=FAST', 'LANE=unknown'], // malformed → unknown
+    ] as const) {
+      const mesh = p.meshFromStl(withHeader(mm, header));
+      assert.throws(() => mesh.toStl(), outsideConsent, `${p.lane}: ${header} must not ride the fast consent`);
+      assert.ok(latin1(mesh.toStl({ acceptLane: 'fast' })).includes(` ${stamp} `), `${p.lane}: acknowledged export stamps ${stamp}`);
+      // Class-2 geometry merged with it inherits the wider set, and the refusal.
+      assert.throws(() => mesh.merged(fastPart(p).toMesh()).toStl(), outsideConsent);
+    }
+    assert.doesNotThrow(() => p.meshFromStl(withHeader(mm, 'PicoGK UNITS=mm LANE=fast')).toStl(), 'Class-2 fast still needs nothing');
+
+    // .vdb: fields added from foreign gpu-l1 / float-tagged (unknown) grids.
+    for (const value of ['gpu-l1', 'fast,gpu-l1', 1] as const) {
+      const container = p.createVdb();
+      container.add(p.voxelsFromVdb(foreignVdb(value)), 'foreign');
+      assert.throws(() => container.toBytes(), outsideConsent, `${p.lane}: vdb tag '${value}' must not ride the fast consent`);
+      assert.ok(container.toBytes({ acceptLane: 'fast' }).length > 0);
+    }
+    // Union across fields: one fast field plus one gpu-l1 field refuses; fast alone does not.
+    const mixed = p.createVdb();
+    mixed.add(fastPart(p), 'fast');
+    assert.ok(mixed.toBytes().length > 0, 'a Class-2-only container exports on the session consent');
+    mixed.add(p.voxelsFromVdb(foreignVdb('gpu-l1')), 'gpu');
+    assert.throws(() => mixed.toBytes(), outsideConsent);
+  }
+
+  // In an 'open' session the same refusal applies, again without the useless "declare the lane" remedy.
+  assert.throws(() => openS.meshFromStl(withHeader(mm, 'PicoGK UNITS=mm LANE=gpu-l1')).toStl(), outsideConsent);
+});
+
+test('provenance lookups refuse same-session wrappers that carry no geometry provenance (before any native call)', () => {
+  const lattice = openS.createLattice();
+  const polyLine = openS.createPolyLine();
+  const container = openS.createVdb();
+  const invalid = isCode('PICO_INVALID_ARGUMENT');
+  const before = openS.allocated;
+  for (const operand of [lattice, polyLine, container] as unknown as Voxels[]) {
+    assert.throws(() => openS.createScalarField({ from: operand }), invalid);
+    assert.throws(() => openS.createVectorField({ from: operand, value: [1, 0, 0] }), invalid);
+    assert.throws(() => body(openS).union(operand), invalid);
+    assert.throws(() => openS.createMesh(TETRA).merged(operand as unknown as Mesh), invalid);
+    assert.throws(() => openS.createVdb().add(operand), invalid);
+  }
+  const after = openS.allocated;
+  assert.equal(after.scalarFields, before.scalarFields, 'no field was created from a non-geometry operand');
+  assert.equal(after.vectorFields, before.vectorFields);
+});
+
 // ── Item 2 — the CLI/SVG stamp (never refuse) ──
 
 test('item 2: fast slice stacks stamp a CLI v2.0 header remark and an SVG <metadata>; exact bytes do not move', () => {
@@ -468,28 +529,50 @@ test('item 3: assertPinSource admits exact sources only', () => {
   assert.throws(() => assertPinSource(undefined, 'legacy record'), /refusing to pin/, 'a record without provenance is unpinnable');
 });
 
-test('item 3: every UPDATE_PINS arm and the g0 reference path call the shared guard (static backstop)', () => {
-  const testDir = import.meta.dirname;
-  const pinWriters = readdirSync(testDir)
-    .filter((name) => /\.test\.(ts|mjs)$/.test(name) && name !== 'lanes.test.ts')
-    .filter((name) => readFileSync(join(testDir, name), 'utf8').includes('UPDATE_PINS'))
-    .sort();
-  assert.deepEqual(pinWriters, [
-    'examples-helixheatx.test.ts',
-    'examples-latticelibrary.test.ts',
-    'examples-quasicrystals.test.ts',
-    'examples-roverwheel.test.ts',
-    'examples-shapekernel.test.ts',
-    'examples-simulation.test.ts',
-    'g0-gate.test.ts',
-  ], 'a new UPDATE_PINS arm must be added here — and must call assertPinSource');
-  for (const name of pinWriters) {
-    const source = readFileSync(join(testDir, name), 'utf8');
-    const guardAt = source.indexOf('assertPinSource(');
-    assert.ok(guardAt !== -1, `${name}: UPDATE_PINS arm without assertPinSource`);
-    assert.ok(guardAt < source.indexOf('if (updatePins)'), `${name}: the guard must run before the compare-or-write branch`);
-  }
-  const harness = readFileSync(join(testDir, '..', 'bench', 'g0-identity.mjs'), 'utf8');
+test('item 3: unguardedPinArms flags every unguarded arm, and comments never count as a guard', () => {
+  const guarded = "assertPinSource(v.lane, 'a');\nif (updatePins) write();\n";
+  assert.deepEqual(unguardedPinArms(guarded), []);
+  assert.deepEqual(unguardedPinArms("if (updatePins) write();\nassertPinSource(v.lane, 'a');\n"), [1], 'guard after the arm');
+  assert.deepEqual(unguardedPinArms(`${guarded}if (updatePins) writeAgain();\n`), [3], 'a second arm needs its own guard');
+  assert.deepEqual(unguardedPinArms(`${guarded}assertPinSource(w.lane, 'b');\nif (updatePins) writeAgain();\n`), []);
+  assert.deepEqual(unguardedPinArms("// assertPinSource(v.lane, 'a');\nif (updatePins) write();\n"), [2], 'line comment');
+  assert.deepEqual(unguardedPinArms("/* assertPinSource(v.lane) */\nif (updatePins) write();\n"), [2], 'block comment');
+  assert.deepEqual(unguardedPinArms("if (process.env.UPDATE_SNAPSHOTS === '1') write();\n"), [1], 'env-keyed arm');
+  assert.deepEqual(unguardedPinArms("if (!updateSnapshots) compare();\n"), [1], 'UPDATE_SNAPSHOTS naming');
+  assert.deepEqual(unguardedPinArms("const pins = process.env.UPDATE_PINS;\nwhile (pins) write();\n"), [0], 'writer keyed some other way');
+  assert.deepEqual(unguardedPinArms('// mentions UPDATE_PINS only in prose\n'), []);
+});
+
+test('item 3: every pin-writing arm under test/, bench/ and scripts/ calls the shared guard first (static backstop)', () => {
+  const root = join(import.meta.dirname, '..');
+  const walk = (dir: string): string[] =>
+    readdirSync(join(root, dir), { withFileTypes: true }).flatMap((entry) => {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) return ['results', 'fixtures', 'node_modules'].includes(entry.name) ? [] : walk(path);
+      return /\.(ts|mts|mjs|js|cjs)$/.test(entry.name) ? [path] : [];
+    });
+  // This file is excluded: it is the checker's own test and holds synthetic unguarded arms.
+  const sources = ['test', 'bench', 'scripts'].flatMap(walk).filter((path) => path !== join('test', 'lanes.test.ts'));
+  const failures = sources.flatMap((path) =>
+    unguardedPinArms(readFileSync(join(root, path), 'utf8')).map((line) => `${path}:${line}`),
+  );
+  assert.deepEqual(failures, [], 'pin-writing arms without a preceding assertPinSource (line 0 = flag used without an if-arm)');
+
+  const pinWriters = sources.filter((path) => /\bif\s*\(\s*updatePins\s*\)/.test(readFileSync(join(root, path), 'utf8'))).sort();
+  assert.deepEqual(
+    pinWriters,
+    [
+      'test/examples-helixheatx.test.ts',
+      'test/examples-latticelibrary.test.ts',
+      'test/examples-quasicrystals.test.ts',
+      'test/examples-roverwheel.test.ts',
+      'test/examples-shapekernel.test.ts',
+      'test/examples-simulation.test.ts',
+      'test/g0-gate.test.ts',
+    ].map((path) => join(...path.split('/'))),
+    'the known pin writers (a new one is fine once it is guarded — add it here)',
+  );
+  const harness = readFileSync(join(root, 'bench', 'g0-identity.mjs'), 'utf8');
   assert.match(harness, /assertPinSource\(firstOf\[build\]\.provenance/, 'the g0 exact reference path is guarded');
   assert.match(harness, /provenance: mesh\.lane/, 'g0 records carry value provenance, not just the session lane');
 });
@@ -549,10 +632,10 @@ test('defects 2+3: anchored case-exact STL lane token, byte-wise UNITS=, set gra
 
   // The token carries the set: canonical on re-export, overflow degrades to `unknown`.
   const set = fastS.meshFromStl(withHeader(mm, 'PicoGK UNITS=mm LANE=gpu-l1,fast,fast'));
-  assert.match(latin1(set.toStl()), /^PicoGK UNITS=mm LANE=fast,gpu-l1 /);
+  assert.match(latin1(set.toStl({ acceptLane: 'fast' })), /^PicoGK UNITS=mm LANE=fast,gpu-l1 /);
   const long = fastS.meshFromStl(withHeader(mm, `LANE=${'a'.repeat(70)}`));
   assert.equal(long.lane, 'fast');
-  assert.match(latin1(long.toStl()), /^PicoGK UNITS=mm LANE=unknown /, 'a set too long for 80 bytes stamps unknown');
+  assert.match(latin1(long.toStl({ acceptLane: 'fast' })), /^PicoGK UNITS=mm LANE=unknown /, 'a set too long for 80 bytes stamps unknown');
 });
 
 // ── Defect 4 — foreign .vdb pass-through ──

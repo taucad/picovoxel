@@ -24,7 +24,8 @@ export interface Slice {
   z: number;
   contours: SliceContour[];
   /**
-   * §14.1 value-class provenance of the sliced voxels (absent = `'exact'`).
+   * §14.1 value-class provenance of the sliced voxels (`'exact'` or absent = exact;
+   * `sliceVoxels` and `slicesFromCli` always set it).
    * `sliceToSvg` stamps `'fast'` into the SVG's `<metadata>`.
    */
   lane?: 'exact' | 'fast';
@@ -35,7 +36,7 @@ export interface SliceStack {
   /** XY bounds over every contour + Z from first/last layer. */
   bounds: { min: readonly [number, number, number]; max: readonly [number, number, number] };
   /**
-   * §14.1 value-class provenance (absent = `'exact'`): `sliceVoxels` copies
+   * §14.1 value-class provenance (`'exact'` or absent = exact): `sliceVoxels` copies
    * `voxels.lane`, `slicesFromCli` restores it from the header stamp, and
    * `slicesToCli` stamps `'fast'` — manufacturing bytes are stamped, never
    * refused (LANES item 2).

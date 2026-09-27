@@ -278,6 +278,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     what: string,
     others: Voxels[],
   ): Voxels => {
+    const resultLane = unionLaneSets(lane, ...others.map(provenanceOf)); // refuses non-geometry operands up front
     let current = live();
     let owned = false; // the receiver is never ours to destroy
     try {
@@ -289,7 +290,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       }
       // Zero operands: stay pure — hand back an independent copy, as before.
       if (!owned) current = expectHandle('Voxels_hCreateCopy', ctx.raw.Voxels_hCreateCopy(ctx.lib, current));
-      return wrapVoxels(ctx, current, unionLaneSets(lane, ...others.map(provenanceOf)));
+      return wrapVoxels(ctx, current, resultLane);
     } catch (error) {
       if (owned) ctx.raw.Voxels_Destroy(ctx.lib, current);
       throw error;

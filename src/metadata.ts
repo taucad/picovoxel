@@ -101,9 +101,20 @@ export function recordProvenance(handle: object, set: LaneSet): void {
   provenance.set(handle, set);
 }
 
-/** The provenance set of a wrapper created by this library (same-session operands only). */
+/**
+ * The provenance set of a Voxels/Mesh/ScalarField/VectorField wrapper. Other
+ * same-session wrappers (Lattice, PolyLine, VdbFile) pass `assertSameSession`
+ * but carry no value provenance: they are refused here, before any native call.
+ */
 export function provenanceOf(handle: object): LaneSet {
-  return provenance.get(handle)!;
+  const set = provenance.get(handle);
+  if (set === undefined) {
+    throw new PicoError(
+      'PICO_INVALID_ARGUMENT',
+      'Expected a Voxels, Mesh, ScalarField or VectorField operand — this wrapper carries no geometry provenance.',
+    );
+  }
+  return set;
 }
 
 /**

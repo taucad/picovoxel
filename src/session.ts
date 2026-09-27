@@ -418,6 +418,7 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
       ctx.maybeWarnMemory();
       if ('from' in options && options.from) {
         const from = assertVoxelsOperand(ctx, options.from, 'createScalarField from');
+        const lane = provenanceOf(options.from); // refuses a non-geometry operand before the native call
         if (options.value !== undefined) {
           return wrapScalarField(
             ctx,
@@ -425,13 +426,13 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
               'ScalarField_hBuildFromVoxels',
               guard('ScalarField_hBuildFromVoxels', () => raw.ScalarField_hBuildFromVoxels(lib, from, options.value!, options.sdThreshold ?? 0.5))(),
             ),
-            provenanceOf(options.from),
+            lane,
           );
         }
         return wrapScalarField(
           ctx,
           expectHandle('ScalarField_hCreateFromVoxels', guard('ScalarField_hCreateFromVoxels', () => raw.ScalarField_hCreateFromVoxels(lib, from))()),
-          provenanceOf(options.from),
+          lane,
         );
       }
       return wrapScalarField(ctx, expectHandle('ScalarField_hCreate', raw.ScalarField_hCreate(lib)), EXACT_LANE_SET);
@@ -442,6 +443,7 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
       ctx.maybeWarnMemory();
       if ('from' in options && options.from) {
         const from = assertVoxelsOperand(ctx, options.from, 'createVectorField from');
+        const lane = provenanceOf(options.from); // refuses a non-geometry operand before the native call
         if (options.value !== undefined) {
           ctx.writeVec3(scratch, options.value);
           return wrapVectorField(
@@ -450,13 +452,13 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
               'VectorField_hBuildFromVoxels',
               guard('VectorField_hBuildFromVoxels', () => raw.VectorField_hBuildFromVoxels(lib, from, scratch, options.sdThreshold ?? 0.5))(),
             ),
-            provenanceOf(options.from),
+            lane,
           );
         }
         return wrapVectorField(
           ctx,
           expectHandle('VectorField_hCreateFromVoxels', guard('VectorField_hCreateFromVoxels', () => raw.VectorField_hCreateFromVoxels(lib, from))()),
-          provenanceOf(options.from),
+          lane,
         );
       }
       return wrapVectorField(ctx, expectHandle('VectorField_hCreate', raw.VectorField_hCreate(lib)), EXACT_LANE_SET);
