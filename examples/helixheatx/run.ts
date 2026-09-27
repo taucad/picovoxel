@@ -23,11 +23,6 @@ export function task(pk: Pico): HeatXResult {
   const heatX = new HelixHeatX(pk);
   const voxels = heatX.voxConstruct();
   const constructMs = performance.now() - started;
-  // Throwaway (never merged): a deliberate 15% slowdown of the Task, to prove the benchmark gate fails.
-  const spinUntil = performance.now() + 0.15 * constructMs;
-  while (performance.now() < spinUntil) {
-    // spin
-  }
   const kernelTimings = heatX.kernelTimings;
   const kernelMs = kernelTimings.reduce((total, timing) => total + timing.ms, 0);
   const unattributedMs = constructMs - heatX.authorMs - kernelMs;
