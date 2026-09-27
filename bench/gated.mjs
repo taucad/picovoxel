@@ -31,7 +31,7 @@ import { compareGated, hardwareClass } from './gates.mjs';
 import { stlIdentity } from './stl-multiset.mjs';
 
 /** The gated benchmark's identity: rename it on any semantic change to the body below. */
-export const NAME = 'heatx-multi-fast-1.0mm-e2e-v1';
+export const NAME = 'heatx-multi-fast-1.0mm-e2e-v2';
 
 const ITERATIONS = Number(process.env.BENCH_GATED_ITERATIONS ?? 15);
 const VOXEL_SIZE = Number(process.env.BENCH_GATED_SIZE ?? 1.0);
