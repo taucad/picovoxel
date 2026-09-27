@@ -15,7 +15,7 @@ without a check mark is supported by design but not gated by CI; its note says w
 
 - The browser jobs load the serial entry from the packed candidate and compare pure-wasm results with Node
   records, hex-float exact. The multithreaded entry runs in browsers only on a cross-origin isolated page
-  ([threads](docs/threads-and-isolation.md)); no CI job serves such a page.
+  ([threads](https://github.com/taucad/picovoxel/blob/main/docs/threads-and-isolation.md)); no CI job serves such a page.
 - Browser floor by design: wasm SIMD and wasm exception handling set the floor at Safari 16.4, Chrome 95
   and Firefox 100. The `Symbol.dispose` shim in `src/dispose.ts` defines the symbol where the host lacks it, which
   includes every released Safari (MDN compatibility data, September 2026). Only the current Playwright engines are tested.
@@ -33,17 +33,17 @@ without a check mark is supported by design but not gated by CI; its note says w
   "Illegal instruction".
 - **One unexplained trap on the pthreads build.** On 2026-07-27, one of two HelixHeatX runs at 0.6 mm on
   the pthreads (mimalloc) build aborted mid-run with "Illegal instruction". Five later runs completed, and
-  no cause was found. See [memory and limits](docs/memory-and-limits.md#known-limits).
+  no cause was found. See [memory and limits](https://github.com/taucad/picovoxel/blob/main/docs/memory-and-limits.md#known-limits).
 - **Closed internal cavities in `properties()`.** The volume and area come from a mesh round trip, which
   PicoGK users report can fill a closed internal cavity (PicoGK Discussion #118); picovoxel has not
   reproduced it. Check the results for parts with closed internal voids another way before relying on them.
 - **Deep implicit expressions.** The expression compiler recurses once per nesting level, so a very deep
   expression overflows the JavaScript stack: on Node 24.10.0, about 6,800–6,900 levels for binary chains
-  and 4,400–5,200 for unary ones; see [memory and limits](docs/memory-and-limits.md#known-limits).
+  and 4,400–5,200 for unary ones; see [memory and limits](https://github.com/taucad/picovoxel/blob/main/docs/memory-and-limits.md#known-limits).
 - **4 GiB memory.** Both builds are wasm32 with a 4 GiB maximum heap, and memory grows quickly as the voxel
   size shrinks; `createPico({ memoryWarningBytes })` warns before the ceiling.
 - **The memory warning is per session.** Sessions on one `createPicoRuntime()` share a heap, but each
   session's warning counts only its own objects, so none of them sees the shared total; see
-  [sessions sharing a runtime](docs/memory-and-limits.md#sessions-sharing-a-runtime).
+  [sessions sharing a runtime](https://github.com/taucad/picovoxel/blob/main/docs/memory-and-limits.md#sessions-sharing-a-runtime).
 - **GLB has no lane record.** A GLB cannot carry the `fast` lane stamp that STL and `.vdb` carry, so
-  `toGlb()` refuses fast-lane geometry unless you pass `{ acceptLane: 'fast' }` ([lanes](docs/lanes.md)).
+  `toGlb()` refuses fast-lane geometry unless you pass `{ acceptLane: 'fast' }` ([lanes](https://github.com/taucad/picovoxel/blob/main/docs/lanes.md)).

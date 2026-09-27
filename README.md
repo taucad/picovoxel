@@ -1,4 +1,4 @@
-<img src="assets/logo.svg" alt="" width="88" height="88" />
+<img src="https://raw.githubusercontent.com/taucad/picovoxel/main/assets/logo.svg" alt="" width="88" height="88" />
 
 # picovoxel
 
@@ -15,16 +15,16 @@ multithreaded one with the same API.
 > patch series (listed in [NOTICE](NOTICE)); the API, packaging and package name are ours. File issues
 > [on this repository](https://github.com/taucad/picovoxel/issues), not with the PicoGK team.
 
-| I want to…                         | Start here                                                          |
-| ---------------------------------- | ------------------------------------------------------------------- |
-| Install the package                | [Install](#install)                                                 |
-| Run the smallest example           | [Quick start](#quick-start)                                         |
-| Use threads or bundle the wasm     | [docs/threads-and-isolation.md](docs/threads-and-isolation.md)      |
-| Choose exact or fast results       | [docs/lanes.md](docs/lanes.md)                                      |
-| Understand memory and known limits | [docs/memory-and-limits.md](docs/memory-and-limits.md)              |
-| Port C# PicoGK code                | [MIGRATING-FROM-CSHARP.md](MIGRATING-FROM-CSHARP.md)                |
-| Choose a supported host            | [compatibility.md](compatibility.md)                                |
-| Contribute or release              | [CONTRIBUTING.md](CONTRIBUTING.md) / [MAINTAINER.md](MAINTAINER.md) |
+| I want to…                         | Start here                                                                                                                                                      |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Install the package                | [Install](#install)                                                                                                                                             |
+| Run the smallest example           | [Quick start](#quick-start)                                                                                                                                     |
+| Use threads or bundle the wasm     | [docs/threads-and-isolation.md](https://github.com/taucad/picovoxel/blob/main/docs/threads-and-isolation.md)                                                    |
+| Choose exact or fast results       | [docs/lanes.md](https://github.com/taucad/picovoxel/blob/main/docs/lanes.md)                                                                                    |
+| Understand memory and known limits | [docs/memory-and-limits.md](https://github.com/taucad/picovoxel/blob/main/docs/memory-and-limits.md)                                                            |
+| Port C# PicoGK code                | [MIGRATING-FROM-CSHARP.md](MIGRATING-FROM-CSHARP.md)                                                                                                            |
+| Choose a supported host            | [compatibility.md](compatibility.md)                                                                                                                            |
+| Contribute or release              | [CONTRIBUTING.md](https://github.com/taucad/picovoxel/blob/main/CONTRIBUTING.md) / [MAINTAINER.md](https://github.com/taucad/picovoxel/blob/main/MAINTAINER.md) |
 
 ## Install
 
@@ -52,7 +52,7 @@ pico.dispose();
 ```
 
 Objects need no per-handle cleanup: the garbage collector frees them, and `pico.dispose()` frees the whole
-session at once ([memory](docs/memory-and-limits.md)). Replace `'picovoxel'` with `'picovoxel/multi'` for
+session at once ([memory](https://github.com/taucad/picovoxel/blob/main/docs/memory-and-limits.md)). Replace `'picovoxel'` with `'picovoxel/multi'` for
 the multithreaded build.
 
 ## What you get
@@ -60,7 +60,7 @@ the multithreaded build.
 | Entry                      | Contents                                                                                                                                                                                                                                       |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `picovoxel`                | The PicoGK surface without the viewer: voxel CSG, offsets, fillets, shells and trims, implicit rendering from JavaScript SDF callbacks, meshes with bulk transfer, STL, GLB and VDB input and output, lattices, polylines, fields and metadata |
-| `picovoxel/multi`          | The same API on the pthreads build ([threads](docs/threads-and-isolation.md))                                                                                                                                                                  |
+| `picovoxel/multi`          | The same API on the pthreads build ([threads](https://github.com/taucad/picovoxel/blob/main/docs/threads-and-isolation.md))                                                                                                                    |
 | `picovoxel/slicing`        | Voxel slices to closed contours, SVG, and CLI (Common Layer Interface) files for powder-bed printers                                                                                                                                           |
 | `picovoxel/three`          | `toBufferGeometry` and `meshFromBufferGeometry` for three.js (an optional peer dependency)                                                                                                                                                     |
 | `picovoxel/numerics`       | Vectors, matrices, quaternions and frames: the System.Numerics and `PicoGK.Numerics` layer, pure TypeScript                                                                                                                                    |
@@ -69,7 +69,7 @@ the multithreaded build.
 | `picovoxel/raw`            | The generated, typed binding for all 163 C-ABI exports (140 from PicoGKRuntime, 23 from picovoxel)                                                                                                                                             |
 
 Every session has a lane: `exact` reproduces the reference results byte for byte, `fast` allows faster
-algorithms that change values slightly and marks what they produce. See [docs/lanes.md](docs/lanes.md).
+algorithms that change values slightly and marks what they produce. See [docs/lanes.md](https://github.com/taucad/picovoxel/blob/main/docs/lanes.md).
 
 ## Browser and Node
 
@@ -106,7 +106,7 @@ const pico = await createPico({
 ```
 
 The multithreaded overrides (`mainScriptUrlOrBlob`, `instantiateWasm` with one compiled module per worker)
-are in [docs/threads-and-isolation.md](docs/threads-and-isolation.md).
+are in [docs/threads-and-isolation.md](https://github.com/taucad/picovoxel/blob/main/docs/threads-and-isolation.md).
 
 ## Reusing one module across sessions
 
@@ -124,7 +124,7 @@ runtime.dispose(); // disposes open sessions, then stops the pool
 
 Each session keeps its own voxel size, lane and objects, but all of them share one heap and its 4 GiB
 ceiling, while the memory warning counts one session at a time
-([memory](docs/memory-and-limits.md#sessions-sharing-a-runtime)).
+([memory](https://github.com/taucad/picovoxel/blob/main/docs/memory-and-limits.md#sessions-sharing-a-runtime)).
 
 ## Compatibility
 
@@ -137,9 +137,10 @@ Measured on an Apple M2 Pro (12 cores) in July and August 2026 with LEAP 71's He
 `picovoxel/multi` built the part in about 8.4 s at 1.0 mm and 32.9 s at 0.5 mm, where the prebuilt native
 PicoGK runtime took 19.8 s and 65.4 s on the same machine. The native runs include preview and screenshot
 work that the TypeScript port leaves out, which favours picovoxel at coarse voxel sizes. A native build
-with the parallel lattice change that picovoxel offers upstream took 6.9 s and 28.8 s. Methods and the
-harness: [bench/BENCHMARKS.md](bench/BENCHMARKS.md) and
-[bench/native-heatx](bench/native-heatx/README.md).
+with the parallel lattice change that picovoxel offers upstream took 6.9 s and 28.8 s.
+
+Methods and the harness: [bench/BENCHMARKS.md](https://github.com/taucad/picovoxel/blob/main/bench/BENCHMARKS.md) and
+[bench/native-heatx](https://github.com/taucad/picovoxel/blob/main/bench/native-heatx/README.md).
 
 ## Migrating from C# PicoGK
 
@@ -184,13 +185,13 @@ Each build also writes `src/<variant>.exports.ts`, the export names its glue rea
 in from elsewhere, run `node scripts/generate-wasm-exports.mjs pico` (and `pico-multi`).
 The C++ this repository owns is nine translation units in `src/` that add exports; the patches that
 change PicoGKRuntime, OpenVDB and oneTBB are in `patches/`, and fixes offered upstream are in
-[`upstream/`](upstream/README.md).
+[`upstream/`](https://github.com/taucad/picovoxel/blob/main/upstream/README.md).
 
 ## Documentation
 
-- [Lanes and exact results](docs/lanes.md)
-- [Threads and cross-origin isolation](docs/threads-and-isolation.md)
-- [Memory and limits](docs/memory-and-limits.md)
+- [Lanes and exact results](https://github.com/taucad/picovoxel/blob/main/docs/lanes.md)
+- [Threads and cross-origin isolation](https://github.com/taucad/picovoxel/blob/main/docs/threads-and-isolation.md)
+- [Memory and limits](https://github.com/taucad/picovoxel/blob/main/docs/memory-and-limits.md)
 - [Migrating from C#](MIGRATING-FROM-CSHARP.md)
 - [Changelog](CHANGELOG.md)
 - [Source](https://github.com/taucad/picovoxel) and [issues](https://github.com/taucad/picovoxel/issues)

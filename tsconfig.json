@@ -29,7 +29,8 @@
     "tsdown.webgpu.config.ts",
     "vitest.config.ts",
     "prose-quality.test.ts",
-    "readme-shape.test.ts"
+    "readme-shape.test.ts",
+    "docs-links.test.ts"
   ],
   "exclude": ["src/pico.mjs", "src/pico-multi.mjs", "node_modules", "dist", "build", "vendor"]
 }
