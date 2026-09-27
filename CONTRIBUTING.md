@@ -1,10 +1,11 @@
 # Contributing
 
 1. Fork or branch from `main`.
-2. Use Node `^22.18.0 || >=24.11.0`, the range the build tools (tsdown,
-   size-limit) declare. The published package supports Node 22.14.0 and later;
-   CI tests that floor against the packed tarball, so contributors do not need
-   it locally.
+2. Use Node `^22.18.0 || ^24.11.0 || >=26.0.0`, where the ranges the build
+   tools declare meet (tsdown `^22.18.0 || >=24.11.0`, size-limit
+   `^22.18.0 || ^24.0.0 || >=26.0.0`). The published package supports Node
+   22.14.0 and later; CI tests that floor against the packed tarball, so
+   contributors do not need it locally.
 3. Install with `pnpm install --frozen-lockfile`.
 4. Put both wasm pairs in `src/`: build them with the commands under "Building
    from source" in the README, or copy the `wasm-serial` and `wasm-multi`

@@ -21,8 +21,8 @@ without a check mark is supported by design but not gated by CI; its note says w
 - Browser floor by design: wasm SIMD and wasm exception handling set the floor at Safari 16.4, Chrome 95
   and Firefox 100. The `Symbol.dispose` shim in `src/dispose.ts` defines the symbol where the host lacks it, which
   includes every released Safari (MDN compatibility data, September 2026). Only the current Playwright engines are tested.
-- Node floor: `engines` is `>=22.14.0`. Building the package from source needs Node `^22.18.0 || >=24.11.0`,
-  the range its build tools declare; CI builds on Node 26.
+- Node floor: `engines` is `>=22.14.0`. Building the package from source needs Node
+  `^22.18.0 || ^24.11.0 || >=26.0.0`, where the ranges its build tools declare meet; CI builds on Node 26.
 - TypeScript: consumers need TypeScript 5.7 or later, because the declarations use typed-array generics
   such as `Uint8Array<ArrayBuffer>`. They also use `Symbol.dispose`, so a consumer's `lib` needs
   `esnext.disposable` (or `esnext`). The repository compiles with TypeScript 6.0.3.
