@@ -13,7 +13,8 @@
 // raw samples and confidence statistics.
 //
 // Usage: node bench/run.mjs [--allow-loaded] [--update]
-//   --allow-loaded  skip the loadavg guard (CI drift canaries only, never baselines)
+//   --allow-loaded  skip the loadavg guard (CI drift canaries, whose records are
+//                   the drift baseline of their runner class; never --update)
 //   --update        regenerate bench/BENCHMARKS.md from this run
 //   BENCH_REPEATS=N measured repeats per metric (default 5). Allocator comparisons
 //                   run at 10+: a bootstrap CI over 5 samples resolves only gross
