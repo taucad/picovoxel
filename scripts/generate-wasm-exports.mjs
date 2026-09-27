@@ -8,8 +8,11 @@
 // multi glue, where a missing export surfaces as an unhandled rejection after
 // instantiation and the runtime promise never settles.
 //
-// build-pico-module.sh runs this after each link; test/wasm-exports.test.ts fails
-// when a committed list no longer matches its artifact.
+// The lists are build output, not source: gitignored beside the untracked wasm,
+// written by build-pico-module.sh after each link, and carried in CI's wasm-*
+// artifacts with the glue and wasm they describe. With a wasm pair copied in from
+// elsewhere, run this once per variant. test/wasm-exports.test.ts fails when a list
+// does not match its artifact.
 //
 // Usage: node scripts/generate-wasm-exports.mjs <pico|pico-multi> [wasm dir, default src]
 

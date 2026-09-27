@@ -1,8 +1,9 @@
-// The committed export lists (src/<variant>.exports.ts) must match the wasm they
-// describe: createPicoRuntime({ wasmModule }) pre-flights caller modules against
-// them, so a stale list would refuse the right module or admit a wrong one.
-// Regenerate with `node scripts/generate-wasm-exports.mjs <variant>` (the build
-// script does it after every link).
+// The generated export lists (src/<variant>.exports.ts, build output beside the
+// wasm) must match the wasm they describe: createPicoRuntime({ wasmModule })
+// pre-flights caller modules against them, so a stale list would refuse the right
+// module or admit a wrong one. Regenerate with
+// `node scripts/generate-wasm-exports.mjs <variant>` (build-pico-module.sh does it
+// after every link).
 
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

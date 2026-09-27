@@ -17,6 +17,10 @@ src/pico.mjs
 src/pico.wasm
 src/pico-multi.mjs
 src/pico-multi.wasm
+# The export names each built wasm carries (scripts/generate-wasm-exports.mjs, run
+# by build-pico-module.sh): they belong to the untracked artifact they describe.
+src/pico.exports.ts
+src/pico-multi.exports.ts
 test/browser/vendor/
 .DS_Store
 coverage/

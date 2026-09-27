@@ -111,6 +111,8 @@ jobs:
       - name: Build the OpenVDB + oneTBB prefix (cache miss only)
         if: steps.prefix.outputs.cache-hit != 'true'
         run: bash scripts/build-deps-wasm.sh
+      # Also writes src/<variant>.exports.ts, the minified export names the glue
+      # reads (createPicoRuntime's wasmModule pre-flight). Generated, never committed.
       - name: Build the module (asserts the SIMD instruction count)
         run: bash scripts/build-pico-module.sh
       - name: The committed ABI manifest matches the pinned header
@@ -132,6 +134,7 @@ jobs:
           path: |
             src/pico${{ matrix.variant == 'multi' && '-multi' || '' }}.mjs
             src/pico${{ matrix.variant == 'multi' && '-multi' || '' }}.wasm
+            src/pico${{ matrix.variant == 'multi' && '-multi' || '' }}.exports.ts
             build/wasm-${{ matrix.variant }}.json
           if-no-files-found: error
 
@@ -150,7 +153,7 @@ jobs:
           pattern: wasm-*
           path: .
           merge-multiple: 'true'
-          expect: src/pico.mjs src/pico.wasm src/pico-multi.mjs src/pico-multi.wasm
+          expect: src/pico.mjs src/pico.wasm src/pico.exports.ts src/pico-multi.mjs src/pico-multi.wasm src/pico-multi.exports.ts
       # The fan-in: build (which fails on a runtime import cycle), typecheck
       # (after build: examples import the package by name), script tests, bash
       # syntax, JS size budgets, the exact file set, publint and attw. The suite
@@ -176,7 +179,7 @@ jobs:
           pattern: wasm-*
           path: .
           merge-multiple: 'true'
-          expect: src/pico.mjs src/pico.wasm src/pico-multi.mjs src/pico-multi.wasm
+          expect: src/pico.mjs src/pico.wasm src/pico.exports.ts src/pico-multi.mjs src/pico-multi.wasm src/pico-multi.exports.ts
       - run: pnpm run build
       - id: pack
         run: |
@@ -217,7 +220,7 @@ jobs:
           pattern: wasm-*
           path: .
           merge-multiple: 'true'
-          expect: src/pico.mjs src/pico.wasm src/pico-multi.mjs src/pico-multi.wasm
+          expect: src/pico.mjs src/pico.wasm src/pico.exports.ts src/pico-multi.mjs src/pico-multi.wasm src/pico-multi.exports.ts
       - name: Light files (coverage blob on the latest leg)
         env:
           COVERAGE: ${{ matrix.node == env.NODE_LATEST }}
@@ -267,7 +270,7 @@ jobs:
           pattern: wasm-*
           path: .
           merge-multiple: 'true'
-          expect: src/pico.mjs src/pico.wasm src/pico-multi.mjs src/pico-multi.wasm
+          expect: src/pico.mjs src/pico.wasm src/pico.exports.ts src/pico-multi.mjs src/pico-multi.wasm src/pico-multi.exports.ts
       - uses: ./.github/actions/download-verified-artifact
         with:
           name: npm-candidate
