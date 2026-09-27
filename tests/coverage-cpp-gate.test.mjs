@@ -30,7 +30,7 @@ const ratchet = {
   'src/a.cpp': { regions: 90.5, branches: 75 },
   'src/b.cpp': { regions: 100, branches: 100 },
 };
-const exclusion = { file: 'src/a.cpp', anchor: 'int f() {', count: 2, reason: 'test' };
+const exclusion = { file: 'src/a.cpp', anchor: 'int f() {', block: ['if (!p)', 'return 0;'], reason: 'test' };
 
 const run = (overrides = {}) =>
   evaluate({
@@ -81,9 +81,22 @@ describe('coverage-cpp gate', () => {
     assert.match(run({ lcov: covered }).failures.join('\n'), /src\/a\.cpp:2 is excluded but covered/u);
     const moved = { ...exclusion, anchor: 'int g() {' };
     assert.match(run({ exclusions: [moved] }).failures.join('\n'), /matches 0 lines/u);
-    const past = { ...exclusion, count: 5 };
+    // A reachable line inserted inside the block, or an edited block line, fails the entry.
+    const inserted = ['int f() {', '    if (!p)', '        log();', '        return 0;', '}'];
     assert.match(
-      run({ exclusions: [past] }).failures.join('\n'),
+      run({ source: () => inserted }).failures.join('\n'),
+      /the block after 'int f\(\) \{' changed/u,
+    );
+    const edited = ['int f() {', '    if (!q)', '        return 0;', '}'];
+    assert.match(
+      run({ source: () => edited }).failures.join('\n'),
+      /the block after 'int f\(\) \{' changed/u,
+    );
+    const longer = { ...exclusion, block: [...exclusion.block, '}'] };
+    assert.match(run({ exclusions: [longer] }).failures.join('\n'), /src\/a\.cpp:4 is excluded but covered/u);
+    const past = { ...exclusion, anchor: '}', block: ['x'] };
+    assert.match(
+      run({ exclusions: [past], source: () => [...sourceA, 'x'] }).failures.join('\n'),
       /src\/a\.cpp:5 is excluded but has no coverage record/u,
     );
   });
@@ -105,6 +118,18 @@ describe('coverage-cpp gate', () => {
       run({ ratchet: partial }).failures.join('\n'),
       /src\/b\.cpp: missing from scripts\/coverage-cpp-ratchet\.json/u,
     );
+  });
+
+  it('never lowers the ratchet: an update keeps the higher of the old floor and the new figure', () => {
+    const previous = { 'src/a.cpp': { regions: 95, branches: 80 } };
+    const worse = {
+      'src/a.cpp': { regions: 90.12, branches: 85.678 },
+      'src/n.cpp': { regions: 50, branches: 40 },
+    };
+    assert.deepEqual(ratchetFrom(worse, previous), {
+      'src/a.cpp': { regions: 95, branches: 85.67 },
+      'src/n.cpp': { regions: 50, branches: 40 },
+    });
   });
 
   it('floors the ratchet to two decimals and reads the llvm-cov summary shape', () => {

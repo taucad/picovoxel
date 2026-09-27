@@ -3,8 +3,8 @@
 // regions and branches may not fall below scripts/coverage-cpp-ratchet.json.
 //
 // Usage: node scripts/coverage-cpp-gate.mjs <lcov.info> <summary.json> [--update-ratchet]
-// --update-ratchet rewrites the ratchet to this run's region and branch figures; commit
-// it when coverage rises, so the floor follows.
+// --update-ratchet raises the ratchet to this run's region and branch figures where they
+// are higher and never lowers it; commit it when coverage rises, so the floor follows.
 //
 // Locally, with the multi pair already in src/ (the light files load both variants):
 //   COVERAGE=1 bash scripts/build-pico-module.sh        # instrumented serial into src/
@@ -21,16 +21,17 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const RATCHET = join(ROOT, 'scripts/coverage-cpp-ratchet.json');
 
 /**
- * Lines no test can execute. Each entry excludes the `count` lines after the one source
- * line that reads `anchor`, so an entry follows its code across edits and fails the gate
- * when the anchor moves away or the lines become covered. Keep this list short: every
- * entry needs a reason a reviewer can verify in the code.
+ * Lines no test can execute. Each entry excludes the lines after the one source line that
+ * reads `anchor`, and `block` is their exact trimmed text: an entry follows its code across
+ * edits, and the gate fails when the anchor moves away, when any line inside the block is
+ * edited, added or removed, or when an excluded line becomes covered. Keep this list short:
+ * every entry needs a reason a reviewer can verify in the code.
  */
 export const EXCLUSIONS = [
   {
     file: 'src/pico-query.cpp',
     anchor: 'if (!roIndex)',
-    count: 5,
+    block: ['{', 'for (int32_t i = 0; i < nCount; i++)', 'pbFound[i] = 0;', 'return 0;', '}'],
     reason:
       'ClosestSurfacePoint::create returns null only when an interrupter reports an ' +
       'interruption, and Voxels_ClosestPointBatch passes none; the guard keeps the ' +
@@ -77,14 +78,21 @@ export function evaluate({ lcov, summary, ratchet, exclusions, source }) {
   const failures = [];
   const rows = [];
   const excluded = new Map();
-  for (const { file, anchor, count } of exclusions) {
-    const at = source(file).flatMap((line, index) => (line.trim() === anchor ? [index + 1] : []));
+  for (const { file, anchor, block } of exclusions) {
+    const text = source(file);
+    const at = text.flatMap((line, index) => (line.trim() === anchor ? [index + 1] : []));
     if (at.length !== 1) {
       failures.push(
         `${file}: the exclusion anchor '${anchor}' matches ${at.length} lines, not 1; re-audit it`,
       );
       continue;
     }
+    const actual = text.slice(at[0], at[0] + block.length).map((line) => line.trim());
+    if (actual.join('\n') !== block.join('\n')) {
+      failures.push(`${file}: the block after '${anchor}' changed; re-audit the exclusion`);
+      continue;
+    }
+    const count = block.length;
     const set = excluded.get(file) ?? new Set();
     for (let number = at[0] + 1; number <= at[0] + count; number++) {
       const hits = lcov.get(file)?.get(number);
@@ -141,13 +149,20 @@ export function evaluate({ lcov, summary, ratchet, exclusions, source }) {
   return { rows, failures };
 }
 
-/** The ratchet a run supports: each percentage floored to two decimals. */
-export function ratchetFrom(summary) {
+/**
+ * The ratchet after a run: each percentage floored to two decimals, never below the
+ * `previous` floor for the same file, so an update can only raise it.
+ */
+export function ratchetFrom(summary, previous = {}) {
   const floor = (value) => Math.floor(value * 100) / 100;
+  const keep = (file, metric, value) => Math.max(previous[file]?.[metric] ?? 0, floor(value));
   return Object.fromEntries(
     Object.entries(summary)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([file, { regions, branches }]) => [file, { regions: floor(regions), branches: floor(branches) }]),
+      .map(([file, { regions, branches }]) => [
+        file,
+        { regions: keep(file, 'regions', regions), branches: keep(file, 'branches', branches) },
+      ]),
   );
 }
 
@@ -172,7 +187,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
   const summary = parseSummary(JSON.parse(readFileSync(summaryPath, 'utf8')));
   if (flag === '--update-ratchet') {
-    writeFileSync(RATCHET, `${JSON.stringify(ratchetFrom(summary), null, 2)}\n`);
+    const previous = JSON.parse(readFileSync(RATCHET, 'utf8'));
+    writeFileSync(RATCHET, `${JSON.stringify(ratchetFrom(summary, previous), null, 2)}\n`);
   }
   const { rows, failures } = evaluate({
     lcov: parseLcov(readFileSync(lcovPath, 'utf8')),
