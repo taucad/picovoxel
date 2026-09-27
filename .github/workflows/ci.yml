@@ -11,8 +11,13 @@
 #
 # OSV scanning is its own workflow (osv-scan.yml: report-only on pull requests,
 # blocking on main). Still to come, by owner: ci-release.mjs, the Version Plan
-# check, publish and registry verification (PR5, T1.6); the benchmark job, the
-# hard wasm byte ceilings and the 2.0 mm candidate G0 pin (W4).
+# check, publish and registry verification (PR5, T1.6).
+#
+# Performance and identity admission (close-out D32): the wasm job fails on a
+# wasm byte ceiling (scripts/wasm-manifest.mjs), quality on a JavaScript size
+# budget (.size-limit.json), g0 on a G0 identity break of the CI-built pthread
+# artifact, consumer on the packed candidate's 2.0 mm HeatX G0 pin, and
+# benchmark on the one wall-clock gate.
 name: CI
 
 on:
@@ -106,7 +111,7 @@ jobs:
             echo "::error::a shipped wasm artifact embeds the build path $GITHUB_WORKSPACE"
             exit 1
           fi
-      - name: Record sizes, digests and byte ceilings
+      - name: Record sizes and digests, and enforce the byte ceilings
         run: |
           source vendor/emsdk/emsdk_env.sh >/dev/null 2>&1
           EMCC_VERSION="$(emcc --version | head -n1)" node scripts/wasm-manifest.mjs '${{ matrix.variant }}'
@@ -298,17 +303,17 @@ jobs:
 
   # The heavy subjects (~1,833 s of the suite) are the pin-protection gate, so
   # they run on every pull request (close-out D28), sharded because roverwheel
-  # alone takes ~754 s: roverwheel | g0-gate | every other examples-* file. The
-  # shards and test-unit partition the suite by construction. They run against
-  # the candidate: dist/ is the extracted tarball (examples import the package
-  # by name) and src/ holds the same CI-built wasm the tests import directly.
+  # alone takes ~754 s: roverwheel | every other examples-* file. The shards,
+  # g0 and test-unit partition the suite by construction. They run against the
+  # candidate: dist/ is the extracted tarball (examples import the package by
+  # name) and src/ holds the same CI-built wasm the tests import directly.
   test-subjects:
     name: test-subjects (${{ matrix.shard }})
     needs: [wasm, candidate]
     strategy:
       fail-fast: false
       matrix:
-        shard: [roverwheel, g0-gate, examples]
+        shard: [roverwheel, examples]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -337,7 +342,6 @@ jobs:
         run: |
           case "$SHARD" in
             roverwheel) files=(test/examples-roverwheel.test.ts) ;;
-            g0-gate) files=(test/g0-gate.test.ts) ;;
             examples)
               files=()
               for file in test/examples-*.test.ts; do
@@ -355,8 +359,179 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
 
+  # The per-commit G0 identity gate (close-out D32, §3.4): N=2 run-to-run
+  # identity plus the pinned reference, HeatX on the pthread build at 1.0 and
+  # 0.7 mm (test/g0-gate.test.ts). It certifies the CI-built wasm-multi, the
+  # only artifact it downloads, in its own job beside the other subjects; the
+  # nightly rotation (g0-nightly.yml) stays as it is.
+  g0:
+    needs: [wasm, candidate]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          node-version: ${{ env.NODE_LATEST }}
+      - uses: ./.github/actions/download-verified-artifact
+        with:
+          name: wasm-multi
+          path: .
+          expect: src/pico-multi.mjs src/pico-multi.wasm src/pico-multi.exports.ts
+      - uses: ./.github/actions/download-verified-artifact
+        with:
+          name: npm-candidate
+          path: candidate
+          expect: manifest.json
+      - name: Use the candidate's dist/
+        run: tar -xzf candidate/*.tgz --strip-components=1 package/dist
+      - name: G0 identity and reference on the pthread artifact
+        run: |
+          # shellcheck disable=SC2086 # the flags are a word list by design
+          pnpm exec vitest run test/g0-gate.test.ts $VITEST_BLOB_FLAGS --outputFile.blob=.vitest-reports/blob-g0-gate.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vitest-blob-g0-gate
+          path: .vitest-reports/
+          include-hidden-files: true
+          if-no-files-found: error
+
+  # The one wall-clock gate (close-out D32; create-repo §5.2). bench/gated.mjs
+  # times heatx-multi-fast-1.0mm-e2e-v1 on this run's candidate and on the base
+  # branch's (the newest green ci.yml run on it that still holds wasm-multi and
+  # npm-candidate), one warm-up and 15 iterations each, interleaved on this
+  # runner. bench/gates.mjs fails it on a G0 tuple change (admitted only by
+  # renaming the benchmark) and, once this runner class has an A/A calibration,
+  # on a median slowdown over its threshold; it updates one marker-keyed
+  # comment. A manual dispatch times this tree against itself: the A/A run that
+  # calibrates the class. A push to main has nothing to compare and passes.
+  benchmark:
+    needs: [wasm, candidate]
+    runs-on: ubuntu-24.04
+    # Origin: ~35 s per iteration at 1.0 mm on 2 vCPU (close-out D32 estimate),
+    # 32 iterations plus two fingerprinted warm-ups.
+    timeout-minutes: 90
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Find the base branch's tested artifacts
+        id: base
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          found=''
+          while read -r run_id sha; do
+            live="$(gh api "repos/$REPO/actions/runs/$run_id/artifacts?per_page=100" \
+              --jq '[.artifacts[] | select((.expired | not) and (.name == "wasm-multi" or .name == "npm-candidate"))] | length')"
+            if [[ "$live" == 2 ]]; then
+              found="$run_id $sha"
+              break
+            fi
+          done < <(gh run list --repo "$REPO" --workflow ci.yml --branch "$BASE_REF" --status success --limit 20 \
+            --json databaseId,headSha --jq '.[] | "\(.databaseId) \(.headSha)"')
+          if [[ -n "$found" ]]; then
+            read -r run_id sha <<< "$found"
+            echo "comparing against $BASE_REF at $sha (ci.yml run $run_id)"
+            { echo "run-id=$run_id"; echo "sha=$sha"; } >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::no green $BASE_REF run holds wasm-multi and npm-candidate; the benchmark is admitted without a comparison"
+          fi
+      - if: github.event_name != 'push'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - if: github.event_name != 'push'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_LATEST }}
+      - if: github.event_name != 'push'
+        uses: ./.github/actions/download-verified-artifact
+        with:
+          name: wasm-multi
+          path: .
+          expect: src/pico-multi.mjs src/pico-multi.wasm src/pico-multi.exports.ts
+      - if: github.event_name != 'push'
+        uses: ./.github/actions/download-verified-artifact
+        with:
+          name: npm-candidate
+          path: candidate
+          expect: manifest.json
+      - if: steps.base.outputs.sha
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.base.outputs.sha }}
+          path: base-tree
+          persist-credentials: false
+      - if: steps.base.outputs.sha
+        uses: ./.github/actions/download-verified-artifact
+        with:
+          name: wasm-multi
+          path: base-tree
+          run-id: ${{ steps.base.outputs.run-id }}
+          github-token: ${{ github.token }}
+          expect: src/pico-multi.mjs src/pico-multi.wasm src/pico-multi.exports.ts
+      - if: steps.base.outputs.sha
+        uses: ./.github/actions/download-verified-artifact
+        with:
+          name: npm-candidate
+          path: base-tree/candidate
+          run-id: ${{ steps.base.outputs.run-id }}
+          github-token: ${{ github.token }}
+          expect: manifest.json
+      - name: Time both trees
+        if: github.event_name != 'push'
+        env:
+          BASE: ${{ steps.base.outputs.sha }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          tar -xzf candidate/*.tgz --strip-components=1 package/dist
+          arguments=(--head .)
+          if [[ "$EVENT" != pull_request ]]; then
+            arguments+=(--aa)
+          elif [[ -n "$BASE" ]]; then
+            tar -xzf base-tree/candidate/*.tgz -C base-tree --strip-components=1 package/dist
+            arguments+=(--base base-tree)
+          fi
+          node bench/gated.mjs "${arguments[@]}" --out benchmark.json
+      - id: compare
+        if: github.event_name != 'push'
+        continue-on-error: true # Origin: the comment below must report a failed comparison before the gate closes.
+        run: node bench/gated.mjs --compare benchmark.json benchmark.md | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Update the benchmark comment
+        if: always() && steps.compare.outcome != 'skipped' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          comment="$(gh api --paginate "repos/$REPO/issues/$PR/comments" \
+            --jq '.[] | select(.body | contains("<!-- picovoxel-benchmark -->")) | .id')"
+          comment="${comment%%$'\n'*}"
+          if [[ -n "$comment" ]]; then
+            gh api --method PATCH "repos/$REPO/issues/comments/$comment" -F body=@benchmark.md >/dev/null
+          else
+            gh api "repos/$REPO/issues/$PR/comments" -F body=@benchmark.md >/dev/null
+          fi
+      - if: always() && steps.compare.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: benchmark
+          path: benchmark.json
+          if-no-files-found: warn
+      - if: steps.compare.outcome == 'failure'
+        run: exit 1
+      - if: github.event_name == 'push'
+        run: echo 'A push to main has no base to compare; pull requests and manual runs time the benchmark.'
+
   coverage:
-    needs: [test-unit, test-subjects]
+    needs: [test-unit, test-subjects, g0]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -618,6 +793,8 @@ jobs:
         candidate,
         test-unit,
         test-subjects,
+        g0,
+        benchmark,
         coverage,
         coverage-cpp,
         consumer,
@@ -639,8 +816,8 @@ jobs:
           node <<'NODE'
           const needs = JSON.parse(process.env.RESULTS);
           const required = [
-            'preflight', 'wasm', 'quality', 'docs-prose', 'candidate', 'test-unit', 'test-subjects',
-            'coverage', 'coverage-cpp', 'consumer', 'browser', 'security',
+            'preflight', 'wasm', 'quality', 'docs-prose', 'candidate', 'test-unit', 'test-subjects', 'g0',
+            'benchmark', 'coverage', 'coverage-cpp', 'consumer', 'browser', 'security',
           ];
           const skipped = [];
           if (needs.preflight?.result === 'success' && process.env.PUBLISH === 'true') {

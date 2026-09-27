@@ -23,8 +23,11 @@
    intentional (`.size-limit.json`, the file-count ceiling in
    `scripts/package-files.mjs`, the wasm ceilings in `scripts/wasm-manifest.mjs`).
    Explain the measured origin beside the threshold.
-9. Rename a benchmark metric when its semantics change (for example `M12` to
-   `M12-v2`); do not overwrite its identity to hide a new workload.
+9. Rename a benchmark when its semantics change: a `bench/run.mjs` metric (for
+   example `M12` to `M12-v2`), or `NAME` in `bench/gated.mjs` when a pull
+   request changes the HeatX geometry on purpose, since the `benchmark` job
+   fails when the G0 tuple differs from `main`. Do not overwrite an identity
+   to hide a new workload.
 10. Never regenerate a byte-locked fixture to make a test pass. A change to the
     bytes an `exact` session produces is a breaking change: explain its cause in
     the pull request and record it in `BREAKING_CHANGES.md`.
