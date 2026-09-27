@@ -45,7 +45,7 @@ const EXPECTED_KERNEL_STAGES = [
   'inner-volume.union',
   'splitters.union',
   'outer-volume.offset',
-  'flange.create',
+  'flange.create-v2', // renamed when the preview-only thread cutters were dropped (PV-FC2)
   'finished-flange.fillet',
   'finished-flange.smoothen',
   'outer-volume.union-flange',

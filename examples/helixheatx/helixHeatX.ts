@@ -107,7 +107,9 @@ export class HelixHeatX {
     const splitters = this.measureKernel('splitters.union', () => hot.splitters.union(cool.splitters));
     let outerVolume = this.measureKernel('outer-volume.offset', () => innerVolume.offset({ distance: 0.9 }));
 
-    const { flange, screwHoles } = this.measureKernel('flange.create', () => this.flange());
+    // '-v2': the stage no longer builds the preview-only thread cutters (see flange()),
+    // so its timings are a new series, not a step change in the old one.
+    const { flange, screwHoles } = this.measureKernel('flange.create-v2', () => this.flange());
 
     const filletedFlange = this.measureKernel('finished-flange.fillet', () => flange.fillet({ rounding: 5 }));
     const finishedFlange = this.measureKernel('finished-flange.smoothen', () =>
@@ -448,10 +450,10 @@ export class HelixHeatX {
    * unions them into `voxFlangeScrewCutters`, a preview-only stage whose result
    * never enters the part. This port omits that stage, so its composition diverges
    * from the C# Task while the output is unchanged (D33 / PV-FC2 of the picovoxel
-   * production close-out). The cutters were ≈82% of `flange.create`: flat caps
-   * have no tube-complex form and render on the serial lattice fallback
-   * (`src/pico-lattice.cpp`). `ThreadCutter` stays in `helpers.ts` for the
-   * flat-cap lattice benchmark.
+   * production close-out). The cutters were ≈82% of the old `flange.create`
+   * stage, now timed as `flange.create-v2`: flat caps have no tube-complex form
+   * and render on the serial lattice fallback (`src/pico-lattice.cpp`).
+   * `ThreadCutter` stays in `helpers.ts` for the flat-cap lattice benchmark.
    */
   private flange(): { flange: Voxels; screwHoles: Voxels } {
     const screwThreadRadius = 3.5;
