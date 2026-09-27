@@ -17,14 +17,13 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
-# Sources resolve vendor-first (scripts/fetch-deps.sh); siblings are the fallback.
-if [ -z "${EMSDK:-}" ]; then
-  if [ -x "$HERE/vendor/emsdk/emsdk" ]; then EMSDK="$HERE/vendor/emsdk"
-  else EMSDK="$HOME/git/tau/repos/opencascade.js/deps/emsdk"; fi
-fi
-if [ -z "${PICOGK_RUNTIME:-}" ]; then
-  if [ -d "$HERE/vendor/PicoGKRuntime/Source" ]; then PICOGK_RUNTIME="$HERE/vendor/PicoGKRuntime"
-  else PICOGK_RUNTIME="$HOME/git/tau/repos/PicoGKRuntime"; fi
+# Sources come from vendor/ (scripts/fetch-deps.sh); EMSDK/PICOGK_RUNTIME may point
+# elsewhere deliberately, but there is no silent fallback to an unpatched checkout.
+EMSDK="${EMSDK:-$HERE/vendor/emsdk}"
+PICOGK_RUNTIME="${PICOGK_RUNTIME:-$HERE/vendor/PicoGKRuntime}"
+if ! { [ -x "$EMSDK/emsdk" ] && [ -d "$PICOGK_RUNTIME/Source" ] && [ -f "$HERE/vendor/xxhash/xxhash.h" ]; }; then
+  echo "build-pico-module: missing vendor/ sources; run scripts/fetch-deps.sh first" >&2
+  exit 1
 fi
 OUT="${OUT:-$HERE/build}"
 OUT_JS="${OUT_JS:-$HERE/src}"
@@ -70,31 +69,45 @@ bash "$HERE/scripts/make-core-tu.sh" \
   "$PICOGK_RUNTIME/Source/PicoGKLibrary.cpp" "$OUT/PicoGKLibraryCore.cpp"
 
 INCLUDES=(-I"$HERE/shim" -I"$PICOGK_RUNTIME/API" -I"$PICOGK_RUNTIME/Source" -I"$PREFIX/include")
+# D27: -ffile-prefix-map (which implies -fmacro-prefix-map) rewrites the builder's
+# checkout path to "." in every __FILE__ the live assert()s embed. The asserts
+# stay live on purpose (no -DNDEBUG): an abort on a violated precondition is
+# safer than undefined behaviour in the L0 oracle lane.
+# shellcheck disable=SC2206 # WASM_FLAGS/EH_FLAGS are space-separated flag lists by contract
+CXXFLAGS=(-std=c++20 $WASM_FLAGS $EH_FLAGS "-ffile-prefix-map=$HERE=." "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY)
 
-echo "=== compile core + bulk + tape + props + offset + lattice + hash TUs ==="
-em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$OUT/PicoGKLibraryCore.cpp" \
-  -o "$OUT/pico_core_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
-em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$HERE/src/pico-bulk.cpp" \
-  -o "$OUT/pico_bulk_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
-em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$HERE/src/pico-tape.cpp" \
-  -o "$OUT/pico_tape_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
-em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$HERE/src/pico-props.cpp" \
-  -o "$OUT/pico_props_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
-em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$HERE/src/pico-offset.cpp" \
-  -o "$OUT/pico_offset_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
-em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$HERE/src/pico-lattice.cpp" \
-  -o "$OUT/pico_lattice_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
-em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$HERE/src/pico-hash.cpp" \
-  -o "$OUT/pico_hash_module$MT.o" "${INCLUDES[@]}" -I"$HERE/vendor/xxhash" -DPICOGK_BUILD_LIBRARY
-em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$HERE/src/pico-boolean.cpp" \
-  -o "$OUT/pico_boolean_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
-em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$HERE/src/pico-zslice.cpp" \
-  -o "$OUT/pico_zslice_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
-em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$HERE/src/pico-query.cpp" \
-  -o "$OUT/pico_query_module$MT.o" "${INCLUDES[@]}" -DPICOGK_BUILD_LIBRARY
+# The TUs are independent, so they compile in parallel, bounded by the core count
+# (each em++ at -O3 holds ~1 GB). Bash 3.2-compatible limiter: when the window is
+# full, wait for the oldest job; `set -e` turns any failed compile into a failed
+# build. The two heaviest TUs (core, tape) start first.
+JOBS="${JOBS:-$(getconf _NPROCESSORS_ONLN)}"
+PIDS=()
+compile() { # <source> <object> [extra flags...]
+  local source="$1" object="$2"
+  shift 2
+  em++ "${CXXFLAGS[@]}" "$@" -c "$source" -o "$object" &
+  PIDS+=("$!")
+  if [ "${#PIDS[@]}" -ge "$JOBS" ]; then
+    wait "${PIDS[0]}"
+    PIDS=("${PIDS[@]:1}")
+  fi
+}
+
+echo "=== compile core + tape + bulk + props + offset + lattice + hash + boolean + zslice + query TUs (-j$JOBS) ==="
+compile "$OUT/PicoGKLibraryCore.cpp" "$OUT/pico_core_module$MT.o"
+compile "$HERE/src/pico-tape.cpp" "$OUT/pico_tape_module$MT.o"
+compile "$HERE/src/pico-bulk.cpp" "$OUT/pico_bulk_module$MT.o"
+compile "$HERE/src/pico-props.cpp" "$OUT/pico_props_module$MT.o"
+compile "$HERE/src/pico-offset.cpp" "$OUT/pico_offset_module$MT.o"
+compile "$HERE/src/pico-lattice.cpp" "$OUT/pico_lattice_module$MT.o"
+compile "$HERE/src/pico-hash.cpp" "$OUT/pico_hash_module$MT.o" -I"$HERE/vendor/xxhash"
+compile "$HERE/src/pico-boolean.cpp" "$OUT/pico_boolean_module$MT.o"
+compile "$HERE/src/pico-zslice.cpp" "$OUT/pico_zslice_module$MT.o"
+compile "$HERE/src/pico-query.cpp" "$OUT/pico_query_module$MT.o"
+for pid in ${PIDS[@]+"${PIDS[@]}"}; do wait "$pid"; done
 
 echo "=== link -> $VARIANT.mjs ==="
-em++ -std=c++20 $WASM_FLAGS $EH_FLAGS \
+em++ -std=c++20 $WASM_FLAGS $EH_FLAGS "-ffile-prefix-map=$HERE=." \
   "$OUT/pico_core_module$MT.o" "$OUT/pico_bulk_module$MT.o" "$OUT/pico_tape_module$MT.o" \
   "$OUT/pico_props_module$MT.o" "$OUT/pico_offset_module$MT.o" \
   "$OUT/pico_lattice_module$MT.o" "$OUT/pico_hash_module$MT.o" "$OUT/pico_boolean_module$MT.o" \
@@ -109,7 +122,7 @@ em++ -std=c++20 $WASM_FLAGS $EH_FLAGS \
   -sEXPORTED_FUNCTIONS=@"$HERE/src/pico-exports.txt" \
   -sEXPORTED_RUNTIME_METHODS="$RUNTIME_METHODS"
 
-echo "$VARIANT.wasm: $(stat -f%z "$OUT_JS/$VARIANT.wasm") bytes; $VARIANT.mjs: $(stat -f%z "$OUT_JS/$VARIANT.mjs") bytes; malloc=$MALLOC"
+echo "$VARIANT.wasm: $(wc -c < "$OUT_JS/$VARIANT.wasm" | tr -d ' ') bytes; $VARIANT.mjs: $(wc -c < "$OUT_JS/$VARIANT.mjs" | tr -d ' ') bytes; malloc=$MALLOC"
 
 N=$("$EMSDK/upstream/bin/wasm-dis" "$OUT_JS/$VARIANT.wasm" | grep -cE '\b(f32x4|i32x4|v128)\.' || true)
 echo "SIMD instructions: $N"

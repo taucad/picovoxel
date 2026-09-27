@@ -4,8 +4,8 @@
 # as the workload grows). -O3 BOTH sides; arm64 native has NEON baseline-on, so a
 # scalar wasm build makes the tax look ~26% worse AND fakes a flat curve.
 #
-# Prereqs: emsdk, a native oneTBB (brew install tbb), and a clone of PicoGKRuntime
-# (which vendors openvdb as a submodule). Override paths via env.
+# Prereqs: scripts/fetch-deps.sh (vendor/: emsdk, PicoGKRuntime with its openvdb) and
+# a native oneTBB (brew install tbb). Override paths via env.
 set -euo pipefail
 
 # The only flag with measured value (1.26x). NOT a default, and it must reach the
@@ -15,8 +15,10 @@ set -euo pipefail
 WASM_FLAGS="${WASM_FLAGS:--O3 -msimd128}"
 EH_FLAGS="${EH_FLAGS:--fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=1}"  # must match dep archives; see scripts/build-deps-wasm.sh
 
-EMSDK="${EMSDK:-$HOME/git/tau/repos/opencascade.js/deps/emsdk}"
-PICOGK_RUNTIME="${PICOGK_RUNTIME:-$HOME/git/tau/repos/PicoGKRuntime}"
+HERE="$(cd "$(dirname "$0")/.." && pwd)"
+# vendor/ comes from scripts/fetch-deps.sh (pinned emsdk + acorn, patched sources).
+EMSDK="${EMSDK:-$HERE/vendor/emsdk}"
+PICOGK_RUNTIME="${PICOGK_RUNTIME:-$HERE/vendor/PicoGKRuntime}"
 ONETBB_SRC="${ONETBB_SRC:?set ONETBB_SRC to a oneTBB checkout}"
 OUT="${OUT:-$PWD/build}"
 PREFIX="$OUT/wasm-prefix"
@@ -25,9 +27,12 @@ source "$EMSDK/emsdk_env.sh" >/dev/null 2>&1   # emsdk vendors python 3.13 + nod
 NODE="$EMSDK/node/22.16.0_64bit/bin/node"
 
 # emcc's acorn-optimizer runs the unsignPointers pass at EVERY -O level, so a
-# missing acorn fails the link after the wasm is already emitted. Not dodgeable via -O0.
-[ -d "$EMSDK/upstream/emscripten/node_modules/acorn" ] || \
-  (cd "$EMSDK/upstream/emscripten" && npm install acorn --no-save --no-audit --no-fund)
+# missing acorn fails the link after the wasm is already emitted. Not dodgeable via
+# -O0. scripts/fetch-deps.sh installs the pinned version; fail early without it.
+[ -d "$EMSDK/upstream/emscripten/node_modules/acorn" ] || {
+  echo "bench/build.sh: acorn missing from $EMSDK; run scripts/fetch-deps.sh first" >&2
+  exit 1
+}
 
 echo "=== oneTBB -> wasm (serial; EMSCRIPTEN_WITHOUT_PTHREAD is the whole threading ladder) ==="
 emcmake cmake -B "$OUT/tbb-wasm" -S "$ONETBB_SRC" -DCMAKE_BUILD_TYPE=Release \
@@ -36,7 +41,7 @@ emcmake cmake -B "$OUT/tbb-wasm" -S "$ONETBB_SRC" -DCMAKE_BUILD_TYPE=Release \
   -DTBB_TEST=OFF -DTBB_EXAMPLES=OFF -DEMSCRIPTEN_WITHOUT_PTHREAD=true \
   -DCMAKE_CXX_FLAGS="-Wno-unused-command-line-argument $WASM_FLAGS $EH_FLAGS" \
   -DCMAKE_INSTALL_PREFIX="$PREFIX"
-cmake --build "$OUT/tbb-wasm" -j"$(sysctl -n hw.ncpu)" --target install
+cmake --build "$OUT/tbb-wasm" -j"$(getconf _NPROCESSORS_ONLN)" --target install
 
 echo "=== OpenVDB -> wasm (deps collapsed to TBB alone) ==="
 # TBB_ROOT: OpenVDB uses its own module-mode FindTBB.cmake and ignores TBBConfig.cmake.
@@ -50,7 +55,7 @@ emcmake cmake -B "$OUT/ovdb-wasm" -S "$PICOGK_RUNTIME/openvdb" -DCMAKE_BUILD_TYP
   -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH \
   -DCMAKE_CXX_FLAGS="$WASM_FLAGS $EH_FLAGS" \
   -DCMAKE_INSTALL_PREFIX="$PREFIX"
-cmake --build "$OUT/ovdb-wasm" -j"$(sysctl -n hw.ncpu)"
+cmake --build "$OUT/ovdb-wasm" -j"$(getconf _NPROCESSORS_ONLN)"
 cmake --install "$OUT/ovdb-wasm" --prefix "$PREFIX"   # version.h is generated; the source tree alone won't compile
 
 echo "=== bench: wasm + native ==="

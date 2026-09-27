@@ -13,14 +13,13 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
-# Sources resolve vendor-first (scripts/fetch-deps.sh); siblings are the fallback.
-if [ -z "${EMSDK:-}" ]; then
-  if [ -x "$HERE/vendor/emsdk/emsdk" ]; then EMSDK="$HERE/vendor/emsdk"
-  else EMSDK="$HOME/git/tau/repos/opencascade.js/deps/emsdk"; fi
-fi
-if [ -z "${PICOGK_RUNTIME:-}" ]; then
-  if [ -d "$HERE/vendor/PicoGKRuntime/Source" ]; then PICOGK_RUNTIME="$HERE/vendor/PicoGKRuntime"
-  else PICOGK_RUNTIME="$HOME/git/tau/repos/PicoGKRuntime"; fi
+# Sources come from vendor/ (scripts/fetch-deps.sh); EMSDK/PICOGK_RUNTIME may point
+# elsewhere deliberately, but there is no silent fallback to an unpatched checkout.
+EMSDK="${EMSDK:-$HERE/vendor/emsdk}"
+PICOGK_RUNTIME="${PICOGK_RUNTIME:-$HERE/vendor/PicoGKRuntime}"
+if ! { [ -x "$EMSDK/emsdk" ] && [ -d "$PICOGK_RUNTIME/Source" ]; }; then
+  echo "build-pico-wasm: missing vendor/ sources; run scripts/fetch-deps.sh first" >&2
+  exit 1
 fi
 PREFIX="${PREFIX:-$HERE/build/wasm-prefix}"
 OUT="${OUT:-$HERE/build}"

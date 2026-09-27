@@ -6,10 +6,15 @@
 // rather than silently escaping the suite. Upstream drift becomes a failing test.
 //
 // Usage: node scripts/parse-abi.mjs [path/to/PicoGK.h] > src/abi.json
+// The default is the pinned, patched header scripts/fetch-deps.sh vendors; the
+// manifest records the header path relative to the repository root.
 
 import { readFile } from 'node:fs/promises';
+import { dirname, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const DEFAULT_HEADER = '/Users/rifont/git/tau/repos/PicoGKRuntime/API/PicoGK.h';
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const DEFAULT_HEADER = resolve(ROOT, 'vendor/PicoGKRuntime/API/PicoGK.h');
 
 // Every PK* handle is uint64_t (PicoGK.h:73-88) except PKVIEWER/PKGUI/PKGPUTEX, which
 // are viewer-side pointers and excluded with the rest of the viewer surface.
@@ -81,7 +86,7 @@ export async function parseAbi(headerPath = DEFAULT_HEADER) {
 
   const core = functions.filter((f) => !f.viewer);
   return {
-    header: headerPath,
+    header: relative(ROOT, resolve(headerPath)),
     total: functions.length,
     viewer: functions.length - core.length,
     core: core.length,

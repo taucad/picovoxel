@@ -31,6 +31,6 @@ echo "make-core-tu: cut at line $BOUNDARY — $CORE core exports kept, $VIEW Vie
 
 # Finding 4 predicted exactly 140/33. A drift here means re-reading the source, not
 # adjusting the number.
-[ "$CORE" -eq 140 ] || echo "make-core-tu: WARNING expected 140 core exports, got $CORE (upstream drift?)" >&2
+[ "$CORE" -eq 140 ] || { echo "make-core-tu: FAIL expected 140 core exports, got $CORE (upstream drift)" >&2; exit 1; }
 grep -q "Viewer_" "$OUT" && { echo "make-core-tu: FAIL viewer code leaked into core TU" >&2; exit 1; }
 exit 0
