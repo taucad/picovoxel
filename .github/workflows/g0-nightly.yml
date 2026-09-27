@@ -17,16 +17,17 @@
 # what the per-commit suite tests against.
 name: g0-nightly
 
+# Manual only while the repository is private: the nightly schedule returns when it
+# goes public (PicoVoxel production close-out D2), so it spends no private minutes.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '43 3 * * *' # nightly
 
 jobs:
   g0-identity:
     runs-on: ubuntu-latest
     timeout-minutes: 350
     permissions:
+      contents: read
       issues: write
     steps:
       - uses: actions/checkout@v4
