@@ -290,6 +290,33 @@ function moduleExporting(names: readonly string[], unlinkable: boolean): Promise
 
 const wasmFile = (name: string) => readFileSync(join(import.meta.dirname, '..', 'src', name));
 
+test('wasm overrides are typed: the documented forms compile under strict mode and a misspelt key does not', () => {
+  // Compile-time checks (tsc covers this file); the runtime assertion only keeps
+  // the values used. The multi form is the one in docs/threads-and-isolation.md,
+  // pasted with its parameters unannotated.
+  const documented = (
+    module: WebAssembly.Module,
+    workerUrl: string,
+  ): multiEntry.CreatePicoRuntimeOptions => ({
+    wasm: {
+      mainScriptUrlOrBlob: workerUrl,
+      instantiateWasm: (imports, receive) => {
+        void WebAssembly.instantiate(module, imports).then((instance) => receive(instance, module));
+        return {};
+      },
+    },
+  });
+  const located: serialEntry.CreatePicoOptions = { wasm: { locateFile: (file) => `/assets/${file}` } };
+  const bytes: serialEntry.PicoWasmOverrides = { wasmBinary: readFileSync(join('src', 'pico.wasm')) };
+  // @ts-expect-error -- a misspelt override is a type error, not a key the glue silently ignores
+  const misspelt: serialEntry.CreatePicoOptions = { wasm: { locatefile: () => 'pico.wasm' } };
+  const wrongReturn: multiEntry.CreatePicoRuntimeOptions = {
+    // @ts-expect-error -- locateFile returns a URL string or path
+    wasm: { locateFile: () => new URL('file:///pico.wasm') },
+  };
+  assert.ok([documented, located, bytes, misspelt, wrongReturn].every(Boolean));
+});
+
 test('compile once: contradictory and non-module inputs are refused before instantiation', async () => {
   const compiled = await WebAssembly.compile(wasmFile('pico.wasm'));
   await assert.rejects(

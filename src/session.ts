@@ -99,10 +99,43 @@ export interface MemoryUsage {
 
 export type AllocatedCounts = Omit<MemoryUsage, 'total'>;
 
+/**
+ * The Emscripten Module overrides picovoxel forwards to its glue. Both entries
+ * take the same keys; `mainScriptUrlOrBlob` only has an effect on
+ * `picovoxel/multi`. No other Emscripten Module key is supported.
+ */
+export interface PicoWasmOverrides {
+  /**
+   * Returns the URL of the wasm file (a filesystem path also works in Node).
+   * Called with `pico.wasm` or `pico-multi.wasm` and the glue's own directory;
+   * not consulted when `instantiateWasm` is given.
+   */
+  locateFile?: (file: string, scriptDirectory: string) => string;
+  /**
+   * The pthread worker script (`picovoxel/multi/worker`), loaded by every worker
+   * as a module. In Node it must be a filesystem path, because `worker_threads`
+   * treats a string as a path. The serial entry ignores it.
+   */
+  mainScriptUrlOrBlob?: string | Blob;
+  /**
+   * Instantiates the module yourself: instantiate with `imports`, then call
+   * `receive` with the instance and the compiled module. On `picovoxel/multi`
+   * every pthread worker then instantiates that module instead of fetching the
+   * wasm. The return value is ignored; return `{}`. Cannot be combined with
+   * `wasmModule`.
+   */
+  instantiateWasm?: (
+    imports: WebAssembly.Imports,
+    receive: (instance: WebAssembly.Instance, module?: WebAssembly.Module) => void,
+  ) => unknown;
+  /** The wasm file's bytes, compiled in place of fetching the file. */
+  wasmBinary?: ArrayBuffer | Uint8Array;
+}
+
 /** Options that shape a runtime: how the wasm module is instantiated. */
 export interface CreatePicoRuntimeOptions {
-  /** Emscripten Module overrides (e.g. locateFile, instantiateWasm) forwarded to instantiation. */
-  wasm?: object;
+  /** Emscripten Module overrides forwarded to instantiation. */
+  wasm?: PicoWasmOverrides;
   /**
    * A compiled `WebAssembly.Module` of this entry's wasm (`pico.wasm` for the base
    * entry, `pico-multi.wasm` for `picovoxel/multi`). It is instantiated directly —
