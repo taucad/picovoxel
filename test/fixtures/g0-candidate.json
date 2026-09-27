@@ -1,0 +1,12 @@
+{
+ "heatx@2mm": {
+  "gridHash": "bc813a650cdda5aa4a74d19e52b5d96b",
+  "activeVoxels": 220037,
+  "insideTiles": 0,
+  "insideOffVoxels": 0,
+  "volumeHex": "41232aa8e0000000",
+  "triangles": 285548,
+  "vertices": 139834,
+  "multiset": "7093100c6bd4d1f4f6cdb7ef8987b79a792fed105e2133f60483d7126f839542"
+ }
+}
