@@ -19,6 +19,13 @@ standing pull request on `release/next`; with none pending it closes the pull
 request. Review it and squash-merge it with the title unchanged; that is the
 entire release act. Do not push to `release/next` or enable auto-merge on it.
 
+The bot regenerates at the commit the CI run tested, with that run's wasm
+artifacts, and skips a run that `main` has already moved past. Preparation runs
+the release gate (format, lint, typecheck, pkgcheck) once; the release pull
+request's own CI run is the full pipeline. When a bot run fails, for example
+before the `release-pr` environment holds its credentials, run `release-pr.yml`
+by hand with the id of the green CI run at the tip of `main`.
+
 GitHub Actions owns npm OIDC publication, provenance, registry verification,
 tags, and GitHub Releases. Do not publish from a workstation. The published
 wasm pair is the one the release run built and tested.
@@ -59,8 +66,10 @@ moves it.
 
 npm publication is not transactional. Re-running the `publish` job of the same
 workflow run is safe: it skips a version the registry already serves with the
-candidate's integrity and fails on any other integrity. Never rebuild or amend a
-published version; deprecate it and release a patch.
+candidate's integrity and fails on any other integrity. Re-running
+`registry-verify` is safe too: it accepts provenance from any attempt of the
+same run, and it creates the GitHub release only when none exists. Never
+rebuild or amend a published version; deprecate it and release a patch.
 
 ## Repository operations
 

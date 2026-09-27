@@ -38,8 +38,8 @@ for a broken bot.
    environment. Never replace a correct binding.
 4. Put both CI-built wasm pairs in `src/` (the `wasm-serial` and `wasm-multi`
    artifacts of the green `main` run); the release tarball ships them.
-5. Run `pnpm release:prepare -- <version> --dry-run`, then the real run. Both
-   run the `quality` gate once.
+5. Run `pnpm release:prepare -- <version> --dry-run`, then the real run. Each
+   runs the release gate (format, lint, typecheck, pkgcheck) once.
 6. Require changes only to `package.json`, `CHANGELOG.md`, and consumed
    `.nx/version-plans/*.md` files (`pnpm-lock.yaml` is permitted, never
    required).

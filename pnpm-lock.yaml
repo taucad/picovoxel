@@ -64,6 +64,9 @@ importers:
       publint:
         specifier: 0.3.23
         version: 0.3.23
+      semver:
+        specifier: 7.8.5
+        version: 7.8.5
       size-limit:
         specifier: 13.0.3
         version: 13.0.3
