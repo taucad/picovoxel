@@ -30,13 +30,16 @@ without a check mark is supported by design but not gated by CI; its note says w
 
 - **Dispose pthreads sessions before a Node process exits.** `pico.dispose()` stops the thread pool. Pool
   workers left running while the process tears down shared memory were seen to abort the process with
-  "Illegal instruction"; one such abort at 0.6 mm voxels (one of two runs, July 2026) has no confirmed
-  cause and did not recur in five later runs. See [memory and limits](docs/memory-and-limits.md#known-limits).
+  "Illegal instruction".
+- **One unexplained trap on the pthreads build.** On 2026-07-27, one of two HelixHeatX runs at 0.6 mm on
+  the pthreads (mimalloc) build aborted mid-run with "Illegal instruction". Five later runs completed, and
+  no cause was found. See [memory and limits](docs/memory-and-limits.md#known-limits).
 - **Closed internal cavities in `properties()`.** The volume and area come from a mesh round trip, which
   PicoGK users report can fill a closed internal cavity (PicoGK Discussion #118); picovoxel has not
   reproduced it. Check the results for parts with closed internal voids another way before relying on them.
-- **Deep implicit expressions.** The implicit tape evaluator recurses once per nesting level, so a very deep
-  expression overflows the JavaScript stack (about 6,900 levels on Node 24, fewer on other engines); see [memory and limits](docs/memory-and-limits.md#known-limits).
+- **Deep implicit expressions.** The expression compiler recurses once per nesting level, so a very deep
+  expression overflows the JavaScript stack: on Node 24.10.0, about 6,800–6,900 levels for binary chains
+  and 4,400–5,200 for unary ones; see [memory and limits](docs/memory-and-limits.md#known-limits).
 - **4 GiB memory.** Both builds are wasm32 with a 4 GiB maximum heap, and memory grows quickly as the voxel
   size shrinks; `createPico({ memoryWarningBytes })` warns before the ceiling.
 - **The memory warning is per session.** Sessions on one `createPicoRuntime()` share a heap, but each
