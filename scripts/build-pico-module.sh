@@ -63,7 +63,7 @@ PREFIX="${PREFIX:-$OUT/wasm-prefix$MT}"
 source "$EMSDK/emsdk_env.sh" >/dev/null 2>&1
 mkdir -p "$OUT" "$OUT_JS"
 
-# COVERAGE=1 — source-based C++ coverage (close-out T3.1/D8). Only the nine own
+# COVERAGE=1 — source-based C++ coverage. Only the nine own
 # TUs are instrumented; the generated core TU and the dep archives stay outside
 # the measured domain. The module is a library with EXIT_RUNTIME=0, so the
 # runtime's atexit writer never fires: the glue registers every instance

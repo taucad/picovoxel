@@ -11,9 +11,8 @@
 #
 # OSV scanning is its own workflow (osv-scan.yml: report-only on pull requests,
 # blocking on main). Still to come, by owner: ci-release.mjs, the Version Plan
-# check, publish and registry verification (PR5, T1.6); the C++ coverage job
-# (W3); the benchmark job, the hard wasm byte ceilings and the 2.0 mm candidate
-# G0 pin (W4).
+# check, publish and registry verification (PR5, T1.6); the benchmark job, the
+# hard wasm byte ceilings and the 2.0 mm candidate G0 pin (W4).
 name: CI
 
 on:
@@ -74,9 +73,11 @@ jobs:
             echo "version=$(node -p "require('./package.json').version")"
           } >> "$GITHUB_OUTPUT"
 
-  # The only place a pull request builds wasm. The build steps, and the cache
-  # keys that make a near miss impossible, live in .github/actions/build-wasm,
-  # which the bench and g0-nightly workflows share for their fallback build.
+  # The only place a pull request builds shipped wasm (coverage-cpp builds an
+  # instrumented serial variant that never leaves its job). The build steps, and
+  # the cache keys that make a near miss impossible, live in
+  # .github/actions/build-wasm, which the bench and g0-nightly workflows share
+  # for their fallback build.
   wasm:
     name: wasm (${{ matrix.variant }})
     needs: preflight
@@ -248,6 +249,53 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
 
+  # The own C++ TUs at 100% lines and functions each, measured by source-based
+  # coverage (COVERAGE=1: clang profile instrumentation of the nine TUs only) over
+  # the light files. The instrumented serial build replaces src/pico.* in this job
+  # alone; the pthread pair comes from `wasm`, because the light files load both.
+  # The gate script holds the audited exclusions; regions and branches may not
+  # fall below scripts/coverage-cpp-ratchet.json.
+  coverage-cpp:
+    needs: [preflight, wasm]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          node-version: ${{ env.NODE_LATEST }}
+      - uses: ./.github/actions/build-wasm
+        with:
+          variant: serial
+          coverage: 'true'
+      - uses: ./.github/actions/download-verified-artifact
+        with:
+          name: wasm-multi
+          path: .
+          expect: src/pico-multi.mjs src/pico-multi.wasm src/pico-multi.exports.ts
+      - name: Light files against the instrumented serial build
+        env:
+          PICOVOXEL_CPP_COVERAGE_DIR: ${{ runner.temp }}/profraw
+        run: pnpm run test:unit
+      - name: Merge the profiles into lcov and the llvm-cov summary
+        env:
+          PROFILE_DIR: ${{ runner.temp }}/profraw
+          OUT_DIR: coverage/cpp
+        run: bash scripts/coverage-cpp-report.sh
+      - name: 100% lines and functions per TU; regions and branches ratcheted
+        run: node scripts/coverage-cpp-gate.mjs coverage/cpp/lcov.info coverage/cpp/summary.json
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: lcov-cpp
+          path: |
+            coverage/cpp/lcov.info
+            coverage/cpp/report.txt
+            coverage/cpp/summary.json
+          if-no-files-found: error
+
   # The heavy subjects (~1,833 s of the suite) are the pin-protection gate, so
   # they run on every pull request (close-out D28), sharded because roverwheel
   # alone takes ~754 s: roverwheel | g0-gate | every other examples-* file. The
@@ -407,7 +455,7 @@ jobs:
   # locked pkg-pr-new invocation. Fork pull requests skip both preview jobs.
   preview:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    needs: [candidate, test-unit, test-subjects, coverage, consumer, browser, security]
+    needs: [candidate, test-unit, test-subjects, coverage, coverage-cpp, consumer, browser, security]
     runs-on: ubuntu-24.04
     outputs:
       sha: ${{ steps.publish.outputs.sha }}
@@ -479,7 +527,8 @@ jobs:
   # scripts/registry-wait.mjs and scripts/verify-release-attestations.mjs.
   publish:
     if: needs.preflight.outputs.npm-publish == 'true'
-    needs: [preflight, candidate, test-unit, test-subjects, coverage, consumer, browser, security]
+    needs:
+      [preflight, candidate, test-unit, test-subjects, coverage, coverage-cpp, consumer, browser, security]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -570,6 +619,7 @@ jobs:
         test-unit,
         test-subjects,
         coverage,
+        coverage-cpp,
         consumer,
         browser,
         security,
@@ -590,7 +640,7 @@ jobs:
           const needs = JSON.parse(process.env.RESULTS);
           const required = [
             'preflight', 'wasm', 'quality', 'docs-prose', 'candidate', 'test-unit', 'test-subjects',
-            'coverage', 'consumer', 'browser', 'security',
+            'coverage', 'coverage-cpp', 'consumer', 'browser', 'security',
           ];
           const skipped = [];
           if (needs.preflight?.result === 'success' && process.env.PUBLISH === 'true') {

@@ -1,4 +1,4 @@
-// C++ coverage flush (close-out T3.1/D8), active only when vitest.config.ts sees
+// C++ coverage flush, active only when vitest.config.ts sees
 // PICOVOXEL_CPP_COVERAGE_DIR and src/pico.mjs is a COVERAGE=1 build. The module is a
 // library (no main, EXIT_RUNTIME=0), so the profile runtime's atexit writer never
 // runs; instead, after each test file, every instance scripts/coverage-post.js
@@ -21,7 +21,9 @@ interface CoverageModule {
 }
 
 const directory = process.env.PICOVOXEL_CPP_COVERAGE_DIR as string;
-const registry = ((globalThis as { __picovoxelCoverageModules?: CoverageModule[] }).__picovoxelCoverageModules ??= []);
+const registry = ((
+  globalThis as { __picovoxelCoverageModules?: CoverageModule[] }
+).__picovoxelCoverageModules ??= []);
 
 afterAll(() => {
   mkdirSync(directory, { recursive: true });
