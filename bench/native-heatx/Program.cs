@@ -31,6 +31,9 @@ internal static class Program
         // the benchmark path below is exactly what it was.
         if (Array.IndexOf(args, "--view") >= 0)
             return Cutaway.Run(args);
+        // --u25 is the headless closed-cavity repro (U25Repro.cs), also untimed.
+        if (Array.IndexOf(args, "--u25") >= 0)
+            return U25Repro.Run(args);
 
         float fVoxelMM = float.Parse(Arg(args, "--voxel") ?? "1.0", CultureInfo.InvariantCulture);
         int nRun = int.Parse(Arg(args, "--run") ?? "1", CultureInfo.InvariantCulture);
