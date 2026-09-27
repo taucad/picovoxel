@@ -38,7 +38,7 @@ const linkTargets = (markdown: string): string[] => {
     ...text.matchAll(/\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/gu),
     ...text.matchAll(/^\s*\[[^\]]+\]:\s*<?([^\s>]+)>?/gmu),
     ...text.matchAll(/(?<![\w-])(?:src|href)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gu),
-  ].map((match) => match.slice(1).find((value) => value !== undefined)!);
+  ].map((match) => match.slice(1).find(Boolean) ?? '');
 };
 
 /** GitHub's heading anchors (github-slugger), plus explicit HTML ids, for one document. */
