@@ -4,13 +4,13 @@ on:
   pull_request_target:
     types: [closed]
 
-permissions:
-  contents: read
-  actions: write
+permissions: {}
 
 jobs:
   cleanup:
     runs-on: ubuntu-24.04
+    permissions:
+      actions: write
     steps:
       - name: Delete closed pull request caches
         env:

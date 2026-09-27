@@ -4,8 +4,10 @@
 # move the exact-lane byte pins, so it stays a reviewed pull request.
 version: 2
 updates:
+  # `/` covers .github/workflows and a root action.yml only; the composite
+  # actions each hold their own action.yml, so they are listed by glob.
   - package-ecosystem: github-actions
-    directory: /
+    directories: ['/', '/.github/actions/*']
     schedule:
       interval: weekly
     cooldown:
