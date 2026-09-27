@@ -22,6 +22,13 @@
   "engines": {
     "node": ">=22.14.0"
   },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^22.18.0 || >=24.11.0",
+      "onFail": "warn"
+    }
+  },
   "packageManager": "pnpm@11.7.0",
   "repository": {
     "type": "git",
@@ -172,11 +179,15 @@
     "test:scripts": "node --test tests/*.test.mjs",
     "test:package": "node scripts/test-package.mjs candidate",
     "check": "nx run picovoxel:quality",
-    "check:shell": "for script in scripts/*.sh bench/*.sh .github/actions/*/*.sh; do bash -n \"$script\" || exit 1; done",
     "check:size": "size-limit",
+    "check:dead-code": "knip",
+    "format:check": "oxfmt --check .",
+    "lint": "oxlint --deny-warnings --type-aware && eslint .",
     "pkgcheck": "pnpm run validate-pack && node scripts/pkgcheck.mjs",
     "plan:check": "nx release plan:check",
+    "prose": "./scripts/check-prose.sh",
     "validate-pack": "node scripts/validate-pack.mjs",
+    "workflows": "./scripts/check-workflows.sh",
     "prepublishOnly": "node scripts/validate-pack.mjs",
     "bench": "node bench/run.mjs",
     "build:demo": "tsdown --config tsdown.demo.config.ts",
@@ -199,12 +210,19 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
+    "@eslint/js": "9.32.0",
     "@nx/js": "23.1.1",
     "@size-limit/file": "13.0.3",
     "@types/node": "26.1.1",
     "@types/three": "0.185.1",
     "@vitest/coverage-v8": "4.1.10",
+    "eslint": "9.32.0",
+    "globals": "17.11.0",
+    "knip": "6.17.1",
     "nx": "23.1.1",
+    "oxfmt": "0.36.0",
+    "oxlint": "1.70.0",
+    "oxlint-tsgolint": "0.22.1",
     "pkg-pr-new": "0.0.88",
     "playwright": "1.61.1",
     "publint": "0.3.23",
@@ -212,6 +230,7 @@
     "three": "0.185.1",
     "tsdown": "0.22.14",
     "typescript": "6.0.3",
+    "typescript-eslint": "8.61.1",
     "vitest": "4.1.10"
   }
 }

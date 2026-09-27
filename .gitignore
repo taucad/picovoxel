@@ -41,3 +41,6 @@ candidate/
 preview-packages/
 preview.json
 .vitest-reports/
+
+# Checksum-pinned CI tools (DEPS.json, scripts/install-ci-tool.sh).
+.ci-tools/

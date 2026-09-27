@@ -1,0 +1,3 @@
+# emsdk_env.sh is fetched into vendor/emsdk by scripts/fetch-deps.sh, so shellcheck
+# cannot follow the `source` lines that load it.
+disable=SC1091

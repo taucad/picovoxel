@@ -6,7 +6,7 @@ import { defineConfig } from 'vitest/config';
 // vitest 4 note: execArgv is a top-level test option now (poolOptions was vitest 3).
 export default defineConfig({
   test: {
-    include: ['test/**/*.test.{ts,mjs}'],
+    include: ['test/**/*.test.{ts,mjs}', 'prose-quality.test.ts', 'readme-shape.test.ts'],
     pool: 'forks',
     execArgv: ['--expose-gc'],
     testTimeout: 120_000,

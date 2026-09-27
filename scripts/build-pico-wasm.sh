@@ -41,11 +41,13 @@ echo "=== R7: compile PicoGK core -> wasm ==="
 # PicoGKLibrary.cpp has zero try/catch — without it one bad handle kills the module.
 # -fwasm-exceptions (2026-07-18): native wasm EH, replacing JS-EH -fexceptions —
 # −8.1% wasm size and 1.1–4.5× on EH-sensitive paths, differential byte-identical.
+# shellcheck disable=SC2086 # WASM_FLAGS and EH_FLAGS are flag lists, split on purpose.
 em++ -std=c++20 $WASM_FLAGS $EH_FLAGS -c "$OUT/PicoGKLibraryCore.cpp" -o "$OUT/pico_core.o" \
   -I"$HERE/shim" -I"$PICOGK_RUNTIME/API" -I"$PICOGK_RUNTIME/Source" -I"$PREFIX/include" \
   -DPICOGK_BUILD_LIBRARY
 
 echo "=== R7: link -> pico.wasm ==="
+# shellcheck disable=SC2086 # WASM_FLAGS and EH_FLAGS are flag lists, split on purpose.
 em++ -std=c++20 $WASM_FLAGS $EH_FLAGS "$HERE/bench/pico-parity.cpp" "$OUT/pico_core.o" \
   -o "$OUT/pico.cjs" -I"$HERE/shim" -I"$PICOGK_RUNTIME/API" \
   "$PREFIX/lib/libopenvdb.a" "$PREFIX/lib/libtbb.a" \
@@ -80,4 +82,4 @@ for V in 1.0 0.5 0.25; do
   if [ "$hw" = "$hn" ]; then echo "  ${V}mm  MATCH  $hw"
   else echo "  ${V}mm  DIFFER wasm=$hw native=$hn"; fail=1; fi
 done
-[ "$fail" -eq 0 ] && echo "D5 PASS — bit-exact" || { echo "D5 FAIL"; exit 1; }
+if [ "$fail" -eq 0 ]; then echo "D5 PASS — bit-exact"; else echo "D5 FAIL"; exit 1; fi
