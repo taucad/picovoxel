@@ -1,6 +1,6 @@
 // picovoxel/raw — the generated, typed, complete ABI surface.
 //
-// loadPicoRaw gives you every core export as a cwrap keyed by ABI name; you own
+// loadPicoRaw gives you every core export as a direct wasm call keyed by ABI name; you own
 // pointers, scratch buffers, and handle lifetimes. The main entry is the supported
 // API — this subpath is the escape hatch and the conformance suite's substrate.
 //

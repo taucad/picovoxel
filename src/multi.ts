@@ -2,6 +2,10 @@
 // names as the base entry, bound to pico-multi.mjs: switching variants is a
 // one-specifier change, and neither glue ever appears in the other's graph.
 //
+// Allocator: this artifact links mimalloc (SKv2-0 V0.3, per the SK-0-EXIT
+// decision table — construct 2.164×, byte-identical to dlmalloc). The serial
+// entry stays dlmalloc: it is the L0 oracle lane and byte-locked.
+//
 // Runtime requirements beyond the serial build: SharedArrayBuffer — in browsers
 // that means cross-origin isolation (COOP/COEP headers). Node needs nothing extra.
 //
@@ -30,9 +34,21 @@ export async function createPico(options: CreatePicoOptions = {}): Promise<Pico>
   const warm = session.createVoxels({ shape: 'sphere', radius: 2 });
   warm.offset({ distance: 0.5 });
   warm.dispose();
-  // ponytail: fixed ramp-up yield (11ms measured on 12 cores; 100ms for slow
-  // machines/browsers). Poll module.PThread.runningWorkers if this ever flakes.
-  await new Promise((resume) => setTimeout(resume, 100));
+  // The yielding is load-bearing (the handshake needs the main thread off the
+  // wasm stack) but the *duration* never was: poll the pool instead of sleeping
+  // a flat 100 ms. TBB wants one worker per core besides this thread, and a
+  // 12-core machine gets there in 2–4 ms. The deadline is the old constant, so
+  // a slow host — or one whose browser caps workers below hardwareConcurrency —
+  // is never worse off than it was, it just stops being the common case.
+  // No fallbacks on the two lookups: navigator.hardwareConcurrency exists in
+  // every supported engine (Node >=21, all three gated browsers) and PThread is
+  // unconditionally present in the -pthread glue this entry is bound to.
+  const pool = session.module.PThread!;
+  const wanted = navigator.hardwareConcurrency - 1;
+  const deadline = Date.now() + 100;
+  while (pool.runningWorkers.length < wanted && Date.now() < deadline) {
+    await new Promise((resume) => setTimeout(resume, 0));
+  }
   return session;
 }
 
@@ -47,6 +63,7 @@ export type {
 } from './session.ts';
 export type { GetSliceOptions, ShellOptions, SliceAxis, SliceMode, Voxels, VoxelSlice } from './voxels.ts';
 export type { Mesh, TransformOptions } from './mesh.ts';
+export { meshToStlBytes } from './stl.ts';
 export type { FromStlOptions, StlUnit, ToStlOptions } from './stl.ts';
 export type { AddBeamOptions, Lattice } from './lattice.ts';
 export type { PolyLine } from './polyline.ts';

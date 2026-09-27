@@ -25,6 +25,49 @@ const hexFloat = (value: number): string => Buffer.from(Float64Array.of(value).b
 /** LEAP71's published STL size at 1.0 mm (README table): 94 MB. */
 const PUBLISHED_STL_BYTES_AT_1MM = 94 * 2 ** 20;
 
+const EXPECTED_KERNEL_STAGES = [
+  'bounding.create',
+  'turning-fins.hot',
+  'turning-fins.cool',
+  'corner-fins.union',
+  'straight-fins.hot',
+  'straight-fins.cool',
+  'straight-fins.union',
+  'fins.union',
+  'outer-structure.create',
+  'helical-void.hot',
+  'helical-void.cool',
+  'cool-inner.offset',
+  'hot-fluid-void.subtract',
+  'hot-inner.offset',
+  'cool-fluid-void.subtract',
+  'inner-volume.union',
+  'splitters.union',
+  'outer-volume.offset',
+  'flange.create',
+  'finished-flange.fillet',
+  'finished-flange.smoothen',
+  'outer-volume.union-flange',
+  'io-supports.create',
+  'outer-volume.union-supports',
+  'outer-volume.fillet',
+  'outer-volume.smoothen',
+  'centre-piece.add',
+  'outer-volume.union-structure',
+  'outer-volume.subtract-screw-holes',
+  'outer-volume.project-z-slice',
+  'print-web.create',
+  'outer-volume.subtract-print-web',
+  'result.subtract-inner-volume',
+  'result.union-fins',
+  'result.union-splitters',
+  'result.intersect-bounding',
+  'io-threads.create',
+  'result.union-threads',
+  'io-cuts.create',
+  'result.subtract-io-cuts',
+] as const;
+
 test('HelixHeatX @ 1.0 mm: pinned result, STL-size parity, single↔multi identity', async () => {
   const { task } = await import('../examples/helixheatx/run.ts');
 
@@ -45,6 +88,29 @@ test('HelixHeatX @ 1.0 mm: pinned result, STL-size parity, single↔multi identi
 
     // Authoring stays a sliver of wall time (Finding 8's premise, sanity-level).
     assert.ok(singleRun.authorMs < 10_000, `authoring ${singleRun.authorMs.toFixed(0)} ms is JS-cheap`);
+
+    assert.deepEqual(
+      singleRun.kernelTimings.map(({ stage }) => stage),
+      EXPECTED_KERNEL_STAGES,
+      'every HeatX kernel stage is timed in execution order',
+    );
+    assert.ok(Object.isFrozen(singleRun.kernelTimings), 'kernel timing collection is immutable');
+    for (const timing of singleRun.kernelTimings) {
+      assert.ok(Object.isFrozen(timing), `${timing.stage} timing is immutable`);
+      assert.ok(Number.isFinite(timing.ms) && timing.ms >= 0, `${timing.stage} has a finite non-negative duration`);
+    }
+    const accountedMs =
+      singleRun.authorMs +
+      singleRun.unattributedMs +
+      singleRun.kernelTimings.reduce((total, timing) => total + timing.ms, 0);
+    assert.ok(
+      Math.abs(accountedMs - singleRun.constructMs) < 1e-6,
+      `HeatX timing accounts for the full construct: ${accountedMs} vs ${singleRun.constructMs}`,
+    );
+    assert.ok(
+      singleRun.unattributedMs >= 0 && singleRun.unattributedMs <= singleRun.constructMs * 0.01,
+      `unattributed ${singleRun.unattributedMs.toFixed(1)} ms stays below 1% of construct time`,
+    );
 
     const recorded = {
       volumeHex: hexFloat(singleRun.voxels.volume),
@@ -74,6 +140,53 @@ test('HelixHeatX @ 1.0 mm: pinned result, STL-size parity, single↔multi identi
     multi.dispose();
   }
 }, 600_000);
+
+// ── Fine-cell MT identity gate (SK-0 P0) ──
+//
+// LIVE GATE. The 1.0 mm differential above passes and always has; the P0 only
+// appeared on FINER cells, so 1.0 mm was exactly the one voxel size structurally
+// unable to see it — the suite was green through the whole defect. This gate is
+// what closes that blind spot, and it stays regardless of the fix that motivated
+// it. See bench/results/webgpu-v2/SK-0-P0-finecell.md.
+//
+// History: on `webgpu` @ff68494 the multi build dropped geometry
+// nondeterministically at every size below 1.0 mm (0.7 mm seen at 3,632,560 …
+// 4,524,940 tris vs the 4,542,736 reference, a different volume each run). Cause
+// was U-SK05-a, merge-based CSG under a DeepCopy tag; reverted in the commit that
+// enabled this test.
+//
+// Pinned against the single build rather than running one: single is stable and
+// already pinned at 1.0 mm, so re-deriving it here would cost ~126 s to re-learn a
+// known value. This shape is ~47 s and still catches both failure modes — wrong
+// geometry AND run-to-run variance — because a nondeterministic multi build cannot
+// hit a fixed pin. Reference: bench/results/webgpu-v2/sk-0.1-heatx-sweep-dlmalloc.json
+// (0.7 mm, where single ≡ multi still held).
+// SK-0.4 pin move (tube-complex lattice default): volume hex UNCHANGED, +8
+// triangles (band-edge meshing difference; contrast the P0 failure mode —
+// FEWER triangles with per-run variance). Old serial-lane value: 4,542,736,
+// still reproduced under PICOVOXEL_SERIAL_LATTICE=1. See SK-0.4.md §8/§10.
+const FINE_CELL_MM = 0.7;
+const FINE_CELL_VOLUME_HEX = '000000a0e5ff2141'; // 589810.8125
+const FINE_CELL_TRIANGLES = 4_542_744;
+
+test(
+  `HelixHeatX @ ${FINE_CELL_MM} mm: multi build reproduces the pinned fine-cell geometry`,
+  async () => {
+    const { task } = await import('../examples/helixheatx/run.ts');
+    const multi = await createMulti({ voxelSize: FINE_CELL_MM });
+    try {
+      const run = task(multi);
+      assert.deepEqual(
+        { volumeHex: hexFloat(run.voxels.volume), triangles: run.voxels.toMesh().triangleCount },
+        { volumeHex: FINE_CELL_VOLUME_HEX, triangles: FINE_CELL_TRIANGLES },
+        'multi build drops geometry on fine cells — see bench/results/webgpu-v2/SK-0-P0-finecell.md',
+      );
+    } finally {
+      multi.dispose();
+    }
+  },
+  600_000,
+);
 
 function expectIdentical(actual: number, expected: number): void {
   assert.ok(Object.is(actual, expected), `volumes bit-identical: ${actual} vs ${expected}`);

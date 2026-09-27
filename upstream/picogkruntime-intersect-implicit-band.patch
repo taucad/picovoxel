@@ -1,0 +1,32 @@
+PicoGKRuntime 26.2 (0f26321c) — IntersectImplicit passes MILLIMETRES into an
+int narrow-band parameter (ledger row U1; PicoPie Fix 2 reached the same
+diagnosis independently).
+
+`Voxels oVox(oVoxelSize(), fBackgroundMM())` sends the background distance in
+world units (mm) into the constructor's `int nNarrowBand`. The implicit
+float->int truncation narrows the fresh grid's band: 3 at 1.0 mm voxels by
+coincidence, 1 at 0.4-0.7 mm, and 0 below ~1/3 mm — where
+FloatGrid::create(0) yields a zero-background "level set" and the call THROWS.
+The intended value is simply the member the class already holds:
+m_nSdfNarrowBand. One line.
+
+Verification shape (picovoxel SKv2-0 V0.10): at 1.0 mm the fixed and original
+paths are value-identical (the truncation lands on 3 there); at 0.25 mm the
+original throws while the fix matches a reference construction built from
+never-truncated paths, classification-identical with identical meshes.
+
+PROPOSAL, NOT APPLIED LOCALLY: picovoxel ships the fix as sibling-TU exports
+(Voxels_IntersectImplicit{,Tape}Fast) so the vendored tree stays pristine and
+the original remains the differential oracle.
+
+--- a/Source/PicoGKVdbVoxels.h
++++ b/Source/PicoGKVdbVoxels.h
+@@ -387,7 +387,7 @@
+     {
+         PKTRACE(Voxels_IntersectImplicit);
+         
+-        Voxels oVox(oVoxelSize(), fBackgroundMM());
++        Voxels oVox(oVoxelSize(), m_nSdfNarrowBand);
+         
+         CoordBBox oBBox = m_roGrid->evalActiveVoxelBoundingBox();
+         

@@ -1,0 +1,64 @@
+PicoGKRuntime 26.2 (0f26321c) — store LatticeBeam by value (U18 ingest half).
+
+Lattice keeps std::vector<LatticeBeam::Ptr>: one make_shared (control block +
+~64 B object) and one pointer chase per beam. LatticeBeam is a value type with
+no polymorphism and no shared ownership anywhere in the runtime; value storage
+removes the per-beam allocation (SK-0.3: 20.9 of 39.2 ns/beam ingest is
+C++-side allocation) and makes the beam array contiguous — the seam a GPU
+upload needs (32 B/beam as a vec4 pair). Class 0 by construction: identical
+values, identical iteration order; the picovoxel G0 gates hold unchanged.
+
+--- a/Source/PicoGKLattice.h
++++ b/Source/PicoGKLattice.h
+@@ -238,13 +238,12 @@
+             return;
+         }
+         
+-        LatticeBeam::Ptr roBeam = std::make_shared<LatticeBeam>(    vecS,
+-                                                                    vecE,
+-                                                                    fRadS,
+-                                                                    fRadE,
+-                                                                    bRoundCap);
+-        m_oBBox.Include(roBeam->oBBox());
+-        m_oBeams.push_back(roBeam);
++        m_oBeams.emplace_back(  vecS,
++                                vecE,
++                                fRadS,
++                                fRadE,
++                                bRoundCap);
++        m_oBBox.Include(m_oBeams.back().oBBox());
+     }
+     
+     inline const BBox3& oBBox() const
+@@ -252,7 +251,7 @@
+         return m_oBBox;
+     }
+     
+-    inline const std::vector<LatticeBeam::Ptr>& oBeams() const
++    inline const std::vector<LatticeBeam>& oBeams() const
+     {
+         return m_oBeams;
+     }
+@@ -263,7 +262,7 @@
+     }
+     
+ protected:
+-    std::vector<LatticeBeam::Ptr>   m_oBeams;
++    std::vector<LatticeBeam>        m_oBeams;
+     std::vector<LatticeSphere::Ptr> m_oSpheres;
+     BBox3                           m_oBBox;
+ };
+--- a/Source/PicoGKVdbVoxels.h
++++ b/Source/PicoGKVdbVoxels.h
+@@ -351,9 +351,9 @@
+             DoRenderLattice(&oAccess, *roSphere, oVoxelSize(), m_nSdfNarrowBand);
+         }
+         
+-        for (auto roBeam : oLattice.oBeams())
++        for (const auto& oBeam : oLattice.oBeams())
+         {
+-            DoRenderLattice(&oAccess, *roBeam, oVoxelSize(), m_nSdfNarrowBand);
++            DoRenderLattice(&oAccess, oBeam, oVoxelSize(), m_nSdfNarrowBand);
+         }
+ 
+         PruneFill();

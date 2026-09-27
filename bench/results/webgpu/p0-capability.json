@@ -1,0 +1,71 @@
+{
+  "capturedAt": "2026-07-23T05:56:55.204Z",
+  "command": "npm run spike:webgpu",
+  "environment": {
+    "browser": "Google Chrome 150.0.7871.182",
+    "cpu": "Apple M2 Pro",
+    "node": "v26.5.0",
+    "os": "darwin 25.5.0"
+  },
+  "status": "available",
+  "adapter": {
+    "architecture": "metal-3",
+    "subgroupMaxSize": 32,
+    "subgroupMinSize": 32,
+    "vendor": "apple"
+  },
+  "features": {
+    "requested": [
+      "shader-f16",
+      "timestamp-query",
+      "subgroups"
+    ],
+    "adapter": [
+      "bgra8unorm-storage",
+      "clip-distances",
+      "core-features-and-limits",
+      "depth-clip-control",
+      "depth32float-stencil8",
+      "dual-source-blending",
+      "float32-blendable",
+      "float32-filterable",
+      "indirect-first-instance",
+      "primitive-index",
+      "rg11b10ufloat-renderable",
+      "shader-f16",
+      "subgroups",
+      "texture-component-swizzle",
+      "texture-compression-astc",
+      "texture-compression-astc-sliced-3d",
+      "texture-compression-bc",
+      "texture-compression-bc-sliced-3d",
+      "texture-compression-etc2",
+      "texture-formats-tier1",
+      "texture-formats-tier2",
+      "timestamp-query"
+    ]
+  },
+  "limits": {
+    "adapter": {
+      "maxBufferSize": 4294967292,
+      "maxComputeInvocationsPerWorkgroup": 1024,
+      "maxComputeWorkgroupsPerDimension": 65535,
+      "maxComputeWorkgroupStorageSize": 32768,
+      "maxStorageBufferBindingSize": 4294967292
+    },
+    "desired": {
+      "maxBufferSize": 536870912,
+      "maxComputeInvocationsPerWorkgroup": 256,
+      "maxComputeWorkgroupsPerDimension": 65535,
+      "maxComputeWorkgroupStorageSize": 32768,
+      "maxStorageBufferBindingSize": 268435456
+    },
+    "required": {
+      "maxBufferSize": 536870912,
+      "maxComputeInvocationsPerWorkgroup": 256,
+      "maxComputeWorkgroupsPerDimension": 65535,
+      "maxComputeWorkgroupStorageSize": 32768,
+      "maxStorageBufferBindingSize": 268435456
+    }
+  }
+}

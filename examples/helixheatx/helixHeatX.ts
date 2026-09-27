@@ -29,6 +29,11 @@ import { ScrewHole, ThreadCutter, ThreadReinforcement } from './helpers.ts';
 
 type Fluid = 'hot' | 'cool';
 
+export interface HeatXKernelTiming {
+  readonly stage: string;
+  readonly ms: number;
+}
+
 export class HelixHeatX {
   private readonly pk: Pico;
   private readonly firstInletFrame: Frame;
@@ -43,6 +48,12 @@ export class HelixHeatX {
 
   /** Pure-JS authoring milliseconds accumulated across the lattice loops. */
   authorMs = 0;
+
+  private readonly timingRecords: HeatXKernelTiming[] = [];
+
+  get kernelTimings(): readonly HeatXKernelTiming[] {
+    return Object.freeze(this.timingRecords.map((timing) => Object.freeze({ ...timing })));
+  }
 
   /** C# `Task()` — construct with preset defaults and return the result. */
   static task(pk: Pico): Voxels {
@@ -60,7 +71,7 @@ export class HelixHeatX {
     // (The C# ctor also builds wireframe preview boxes/cylinders — viewer-only.)
     this.centreBottomFrame = localFrame.createZX([-50, 0, 50], [1, 0, 0], [0, 0, 1]);
     const outerBox = new BaseBox(localFrame.create([0, 0, -4]), 107, 2 * halfIOLengthSpacing + 24, 104);
-    this.voxBounding = outerBox.voxConstruct(pk);
+    this.voxBounding = this.measureKernel('bounding.create', () => outerBox.voxConstruct(pk));
     this.plateThickness = 3.5;
     this.wallThickness = 0.8;
     this.ioRadius = 7;
@@ -68,52 +79,76 @@ export class HelixHeatX {
 
   /** C# `voxConstruct` — the whole assembly; screenshots dropped. */
   voxConstruct(): Voxels {
-    const hotCornerFins = this.turningFins('hot');
-    const coolCornerFins = this.turningFins('cool');
-    const allCornerFins = hotCornerFins.union(coolCornerFins);
+    const hotCornerFins = this.measureKernel('turning-fins.hot', () => this.turningFins('hot'));
+    const coolCornerFins = this.measureKernel('turning-fins.cool', () => this.turningFins('cool'));
+    const allCornerFins = this.measureKernel('corner-fins.union', () => hotCornerFins.union(coolCornerFins));
 
-    const hotStraightFins = this.straightFins('hot');
-    const coolStraightFins = this.straightFins('cool');
-    const allStraightFins = hotStraightFins.union(coolStraightFins);
+    const hotStraightFins = this.measureKernel('straight-fins.hot', () => this.straightFins('hot'));
+    const coolStraightFins = this.measureKernel('straight-fins.cool', () => this.straightFins('cool'));
+    const allStraightFins = this.measureKernel('straight-fins.union', () => hotStraightFins.union(coolStraightFins));
 
-    const fins = allCornerFins.union(allStraightFins);
+    const fins = this.measureKernel('fins.union', () => allCornerFins.union(allStraightFins));
 
-    const structure = this.outerStructure();
+    const structure = this.measureKernel('outer-structure.create', () => this.outerStructure());
 
-    const hot = this.helicalVoid('hot');
-    const cool = this.helicalVoid('cool');
+    const hot = this.measureKernel('helical-void.hot', () => this.helicalVoid('hot'));
+    const cool = this.measureKernel('helical-void.cool', () => this.helicalVoid('cool'));
 
-    const hotFluidVoid = hot.innerVolume.subtract(cool.innerVolume.offset({ distance: this.wallThickness }));
-    const coolFluidVoid = cool.innerVolume.subtract(hot.innerVolume.offset({ distance: this.wallThickness }));
+    const coolInner = this.measureKernel('cool-inner.offset', () =>
+      cool.innerVolume.offset({ distance: this.wallThickness }),
+    );
+    const hotFluidVoid = this.measureKernel('hot-fluid-void.subtract', () => hot.innerVolume.subtract(coolInner));
+    const hotInner = this.measureKernel('hot-inner.offset', () =>
+      hot.innerVolume.offset({ distance: this.wallThickness }),
+    );
+    const coolFluidVoid = this.measureKernel('cool-fluid-void.subtract', () => cool.innerVolume.subtract(hotInner));
 
-    const innerVolume = hotFluidVoid.union(coolFluidVoid);
-    const splitters = hot.splitters.union(cool.splitters);
-    let outerVolume = innerVolume.offset({ distance: 0.9 });
+    const innerVolume = this.measureKernel('inner-volume.union', () => hotFluidVoid.union(coolFluidVoid));
+    const splitters = this.measureKernel('splitters.union', () => hot.splitters.union(cool.splitters));
+    let outerVolume = this.measureKernel('outer-volume.offset', () => innerVolume.offset({ distance: 0.9 }));
 
-    const { flange, screwHoles } = this.flange();
+    const { flange, screwHoles } = this.measureKernel('flange.create', () => this.flange());
     // (voxFlangeScrewCutters is preview-only in the C# Task.)
 
-    const finishedFlange = flange.fillet({ rounding: 5 }).smoothen({ distance: 0.5 });
+    const filletedFlange = this.measureKernel('finished-flange.fillet', () => flange.fillet({ rounding: 5 }));
+    const finishedFlange = this.measureKernel('finished-flange.smoothen', () =>
+      filletedFlange.smoothen({ distance: 0.5 }),
+    );
 
-    outerVolume = outerVolume.union(finishedFlange);
-    outerVolume = outerVolume.union(this.ioSupports());
-    outerVolume = outerVolume.fillet({ rounding: 5 }).smoothen({ distance: 0.5 });
+    outerVolume = this.measureKernel('outer-volume.union-flange', () => outerVolume.union(finishedFlange));
+    const ioSupports = this.measureKernel('io-supports.create', () => this.ioSupports());
+    outerVolume = this.measureKernel('outer-volume.union-supports', () => outerVolume.union(ioSupports));
+    outerVolume = this.measureKernel('outer-volume.fillet', () => outerVolume.fillet({ rounding: 5 }));
+    outerVolume = this.measureKernel('outer-volume.smoothen', () => outerVolume.smoothen({ distance: 0.5 }));
 
-    outerVolume = this.withCentrePiece(outerVolume);
+    outerVolume = this.measureKernel('centre-piece.add', () => this.withCentrePiece(outerVolume));
 
-    outerVolume = outerVolume.union(structure);
-    outerVolume = outerVolume.subtract(screwHoles);
-    outerVolume = outerVolume.projectZSlice({ startZ: 4, endZ: -4 });
-    outerVolume = outerVolume.subtract(this.printWeb());
+    outerVolume = this.measureKernel('outer-volume.union-structure', () => outerVolume.union(structure));
+    outerVolume = this.measureKernel('outer-volume.subtract-screw-holes', () => outerVolume.subtract(screwHoles));
+    outerVolume = this.measureKernel('outer-volume.project-z-slice', () =>
+      outerVolume.projectZSlice({ startZ: 4, endZ: -4 }),
+    );
+    const printWeb = this.measureKernel('print-web.create', () => this.printWeb());
+    outerVolume = this.measureKernel('outer-volume.subtract-print-web', () => outerVolume.subtract(printWeb));
 
-    let result = outerVolume.subtract(innerVolume);
-    result = result.union(fins);
-    result = result.union(splitters);
-    result = result.intersect(this.voxBounding);
+    let result = this.measureKernel('result.subtract-inner-volume', () => outerVolume.subtract(innerVolume));
+    result = this.measureKernel('result.union-fins', () => result.union(fins));
+    result = this.measureKernel('result.union-splitters', () => result.union(splitters));
+    result = this.measureKernel('result.intersect-bounding', () => result.intersect(this.voxBounding));
 
-    const threads = this.ioThreads();
-    result = result.union(threads);
-    result = result.subtract(this.ioCuts());
+    const threads = this.measureKernel('io-threads.create', () => this.ioThreads());
+    result = this.measureKernel('result.union-threads', () => result.union(threads));
+    const ioCuts = this.measureKernel('io-cuts.create', () => this.ioCuts());
+    result = this.measureKernel('result.subtract-io-cuts', () => result.subtract(ioCuts));
+    return result;
+  }
+
+  private measureKernel<T>(stage: string, run: () => T): T {
+    const authorBefore = this.authorMs;
+    const started = performance.now();
+    const result = run();
+    const authorMs = this.authorMs - authorBefore;
+    this.timingRecords.push({ stage, ms: Math.max(0, performance.now() - started - authorMs) });
     return result;
   }
 
@@ -199,10 +234,7 @@ export class HelixHeatX {
         (phiDeg > 180 - dAngle && phiDeg < 180 + dAngle)
       ) {
         this.addFinBurst(lattice, 8, phi, lengthRatio, z, beam);
-      } else if (
-        (phiDeg > 90 - dAngle && phiDeg < 90 + dAngle) ||
-        (phiDeg > 270 - dAngle && phiDeg < 270 + dAngle)
-      ) {
+      } else if ((phiDeg > 90 - dAngle && phiDeg < 90 + dAngle) || (phiDeg > 270 - dAngle && phiDeg < 270 + dAngle)) {
         this.addFinBurst(lattice, 8, phi, lengthRatio, z, beam, phiDeg, dAngle);
       }
     }
@@ -504,14 +536,7 @@ export class HelixHeatX {
       const shifted = localFrame.translated(f, vec3.scale(f.lz, cutLength + 2));
       list.push(
         sh
-          .latFromTaperedBeam(
-            this.pk,
-            shifted.pos,
-            vec3.sub(shifted.pos, vec3.scale(shifted.lz, 4)),
-            7,
-            2,
-            false,
-          )
+          .latFromTaperedBeam(this.pk, shifted.pos, vec3.sub(shifted.pos, vec3.scale(shifted.lz, 4)), 7, 2, false)
           .toVoxels(),
       );
     }

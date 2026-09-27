@@ -32,8 +32,8 @@ const builds = (argValue('--builds') ?? 'single,multi').split(',');
 
 /** The published cells we can quote from context (the full table is pixels in upstream's README). */
 const PUBLISHED = {
-  '1': { seconds: 34, stlMB: 94 },
-  '0.5': { seconds: 98, stlMB: 502 },
+  1: { seconds: 34, stlMB: 94 },
+  0.5: { seconds: 98, stlMB: 502 },
 };
 
 const hexFloat = (value) => {
@@ -65,8 +65,12 @@ const fingerprint = {
   startLoad: loadavg()[0],
 };
 
-console.log(`HelixHeatX sweep on ${fingerprint.cpu} (${fingerprint.cores} cores), load ${fingerprint.startLoad.toFixed(2)}`);
-console.log('size(mm)  build   task(s)  author(ms)  mesh(s)  stl(s)  stl(MB)  volumeHex        published(s/MB)');
+console.log(
+  `HelixHeatX sweep on ${fingerprint.cpu} (${fingerprint.cores} cores), load ${fingerprint.startLoad.toFixed(2)}`,
+);
+console.log(
+  'size(mm)  build   task(s)  author(ms)  mesh(s)  stl(s)  stl(MB)  heap(GiB) volumeHex        published(s/MB)',
+);
 
 const rows = [];
 for (const voxelSize of sizes) {
@@ -75,7 +79,7 @@ for (const voxelSize of sizes) {
     const make = build === 'multi' ? createMulti : createSingle;
     const session = await make({ voxelSize });
     const t0 = now();
-    const { voxels, authorMs } = task(session);
+    const { voxels, authorMs, constructMs, kernelTimings, unattributedMs } = task(session);
     const taskMs = now() - t0;
     const t1 = now();
     const mesh = voxels.toMesh();
@@ -88,10 +92,17 @@ for (const voxelSize of sizes) {
       build,
       threads: (session.module.PThread?.runningWorkers.length ?? 0) + 1,
       taskMs,
+      constructMs,
       authorMs,
+      kernelTimings,
+      unattributedMs,
       meshMs,
       stlMs,
       stlBytes: stl.length,
+      // B6 (SK-0.1): wasm linear memory never shrinks, so its size here IS the
+      // run's peak. The allocator changes effective capacity (mimalloc's segment
+      // caching holds freed spans), which moves the 4 GB wasm32 OOM boundary.
+      peakHeapBytes: session.module.HEAPU32.buffer.byteLength,
       volumeHex: hexFloat(voxels.volume),
       stlFnv: fnv1a(stl),
       triangles: mesh.triangleCount,
@@ -103,14 +114,17 @@ for (const voxelSize of sizes) {
     console.log(
       `${voxelSize.toFixed(1).padEnd(9)} ${build.padEnd(7)} ${(taskMs / 1000).toFixed(1).padEnd(8)} ` +
         `${authorMs.toFixed(0).padEnd(11)} ${(meshMs / 1000).toFixed(1).padEnd(8)} ${(stlMs / 1000).toFixed(1).padEnd(7)} ` +
-        `${(row.stlBytes / 1e6).toFixed(1).padEnd(8)} ${row.volumeHex.padEnd(16)} ` +
+        `${(row.stlBytes / 1e6).toFixed(1).padEnd(8)} ${(row.peakHeapBytes / 2 ** 30).toFixed(2).padEnd(7)} ` +
+        `${row.volumeHex.padEnd(16)} ` +
         (published ? `${published.seconds}s / ${published.stlMB}MB` : '—'),
     );
   }
   if (identities.single && identities.multi) {
     const same = JSON.stringify(identities.single) === JSON.stringify(identities.multi);
     if (!same) {
-      console.error(`IDENTITY DRIFT at ${voxelSize}mm: single ${JSON.stringify(identities.single)} vs multi ${JSON.stringify(identities.multi)}`);
+      console.error(
+        `IDENTITY DRIFT at ${voxelSize}mm: single ${JSON.stringify(identities.single)} vs multi ${JSON.stringify(identities.multi)}`,
+      );
       process.exit(1);
     }
     console.log(`          identity single≡multi OK`);

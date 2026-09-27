@@ -18,7 +18,11 @@ const HANDLE_TYPES = new Set([
   'PKSCALARFIELD', 'PKVECTORFIELD', 'PKVDBFILE', 'PKMETADATA',
 ]);
 
-/** Maps a C type to the cwrap type. Pointers and enums cross as i32. */
+/**
+ * Maps a C type to how the value crosses the boundary. Pointers and enums cross as i32.
+ * The `cwrap`/`cwrapReturn` field names are historical — the bindings stopped being cwraps
+ * in SK-0.2 — and are kept so the 4,000-line `src/abi.json` does not churn for a rename.
+ */
 function cwrapType(cType) {
   const t = cType.replace(/\bconst\b/g, '').replace(/\s+/g, ' ').trim();
   if (t === 'void') return null;

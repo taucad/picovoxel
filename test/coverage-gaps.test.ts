@@ -406,3 +406,7 @@ test('checkedMalloc: a failed wasm allocation throws the typed OOM error, not a 
   // A zero-byte request may legitimately return 0 without throwing.
   assert.equal(checkedMalloc(failing, 0, 'nothing'), 0);
 });
+
+// The serial-lattice escape hatch is now a keyed `createPico({ serialLattice })`
+// init option (SKv2-0 V0.5/V0.6 — the env read was deleted per §14.1); its
+// behavioral differential lives in test/lanes.test.ts.

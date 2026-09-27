@@ -1,0 +1,57 @@
+emscripten 5.0.1 (as installed by emsdk) — cwrap's fast path: accept 'bigint'
+args, and agree with ccall on a boolean return.
+
+PROPOSAL, NOT APPLIED LOCALLY. picovoxel works around this by binding the raw
+exports directly instead of using cwrap; this file is the fix shaped as a diff
+for emscripten-core/emscripten. Ledger row U16.
+
+Defect 1 (src/lib/libccall.js:148). `numericArgs` accepts only 'number' and
+'boolean', so a single 'bigint' argument demotes the whole binding from the
+fast path (the raw export) to `ccall` — string-keyed `getCFunc` re-resolution, a
+per-argument converter loop, and stack save/restore on every call. A BigInt
+needs no marshalling at all under -sWASM_BIGINT, which is default-on
+(src/settings.js:1475): ccall's own `toC` table has no 'bigint' entry, so the
+value already falls through unconverted. The fix is one term.
+
+Defect 2 (same block, vs :59). `numericRet` is `returnType !== 'string'`, so a
+boolean-returning export with numeric args takes the fast path and returns the
+raw i32, while the identical `ccall` returns `Boolean(ret)` via
+`convertReturnValue`. cwrap and ccall disagree on one signature. Fixed here by
+coercing in the fast path rather than by dropping to ccall, so the perf property
+the fast path exists for is kept.
+
+Not changed, deliberately: the whole block is `#if !ASSERTIONS`, so debug builds
+marshal every call through ccall and get different per-call semantics from
+release builds. That is a policy question for maintainers, not a two-token fix.
+
+Measured motivation (picovoxel WebAssembly port, emsdk 5.0.1): 143 of 147
+PicoGK exports take a handle argument and were therefore all on the slow path;
+`Lattice_AddBeam` 154.3 ns via cwrap->ccall vs 56.4 ns calling the export
+directly, `Voxels_bIsEmpty` 99.4 -> 34.7 ns — a 2.7-2.9x per-call tax on a
+binding that needed no conversion. Evidence:
+bench/results/webgpu-v2/SK-0.2.md.
+
+Target file sha256 (emscripten-version.txt = 5.0.1):
+0cad844a39bb1f8dcc0e0fa361b09cc956334ba73635b244db32dc11ba33b260  src/lib/libccall.js
+
+Applies with `patch -p1` at the root of the emscripten checkout.
+
+--- a/src/lib/libccall.js
++++ b/src/lib/libccall.js
+@@ -145,10 +145,14 @@
+ #if !ASSERTIONS
+     // When the function takes numbers and returns a number, we can just return
+     // the original function
+-    var numericArgs = !argTypes || argTypes.every((type) => type === 'number' || type === 'boolean');
++    var numericArgs = !argTypes || argTypes.every((type) => type === 'number' || type === 'boolean' || type === 'bigint');
+     var numericRet = returnType !== 'string';
+     if (numericRet && numericArgs && !opts) {
+-      return getCFunc(ident);
++      var func = getCFunc(ident);
++      // ccall coerces a boolean return value (convertReturnValue, above). The
++      // fast path must agree, or cwrap and ccall return different things for
++      // the same signature: a raw i32 here, `true`/`false` there.
++      return returnType === 'boolean' ? (...args) => Boolean(func(...args)) : func;
+     }
+ #endif
+     return (...args) => ccall(ident, returnType, argTypes, args, opts);

@@ -4,6 +4,8 @@
 // the API surface spec tables) move together.
 
 import assert from 'node:assert/strict';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { test } from 'vitest';
 import * as picoModule from '../src/index.ts';
 import { createPico } from '../src/index.ts';
@@ -36,4 +38,27 @@ test('every wrapper key set matches the checked-in manifest exactly', async () =
     );
   }
   pk.dispose();
+});
+
+// SK-0.10 — the same shape of backstop for a defect coverage also cannot see:
+// a heap view indexed with the SIGNED shift. Above 2 GiB `pointer >> 2` goes
+// negative, `subarray` clamps rather than throws, and the read silently returns
+// a window one to two gigabytes away — geometry that still has the right
+// triangle count. Reproducing it needs a 2.8 GiB heap, which no unit test can
+// afford, so the invariant is pinned at the source instead.
+test('no wasm pointer is indexed with a signed shift', () => {
+  const walk = (dir: string): string[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const path = join(dir, entry.name);
+      return entry.isDirectory() ? walk(path) : path.endsWith('.ts') ? [path] : [];
+    });
+  const offenders = [...walk('src'), ...walk(join('spikes', 'webgpu'))]
+    .filter((path) => path !== join('src', 'raw.generated.ts'))
+    .flatMap((path) =>
+      readFileSync(path, 'utf8')
+        .split('\n')
+        .map((line, i) => ({ where: `${path}:${i + 1}`, line }))
+        .filter(({ line }) => /[^>]>>\s*[23]\b/.test(line)),
+    );
+  assert.deepEqual(offenders, [], 'use `>>> 2` / `>>> 3` — see checkedMalloc in src/context.ts');
 });

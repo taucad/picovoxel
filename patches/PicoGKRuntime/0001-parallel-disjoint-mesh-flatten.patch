@@ -1,0 +1,237 @@
+PicoGKRuntime 26.2 (0f26321c) — parallel disjoint-slot mesh flattening,
+upstreamable to leap71/PicoGKRuntime verbatim.
+
+Applied to vendor/PicoGKRuntime by scripts/fetch-deps.sh. Kept as a patch
+because it modifies dependency source; no flag-level override exists.
+
+1. Source/PicoGKMesh.h — adds a bulk-construction seam (BulkResize /
+   aVertexData / aTriangleData / FinalizeBulk) so a caller can pre-size the
+   vertex and triangle arrays and fill disjoint slots in parallel, then
+   restore the bbox/memusage invariants in one step. nAddVertex/nAddTriangle
+   remain the incremental path.
+2. Source/PicoGKVdbVoxels.h — roAsMesh() drives openvdb's VolumeToMesh class
+   directly instead of tools::volumeToMesh: the vector adapter behind that
+   entry point copies primitives one element at a time on one thread, and the
+   facade then re-copied points and triangles element-wise a second time
+   (per-vertex bbox updates, per-triangle asserts, no reserve). Replaced by
+   pool-indexed count -> prefix sum -> parallel emission into pre-sized
+   disjoint slots, plus a parallel point copy + bbox reduce. Output bytes are
+   identical to the serial path: same point order, same pool-order primitive
+   concatenation, same winding reversal; Include() is pure per-axis min/max
+   so the bbox reduction is order-independent bit-for-bit. This also makes
+   emission order independent of allocation order — the property the mimalloc
+   NO-GO (bench/results/webgpu-v2/SK-0.1.md) was missing.
+
+Evidence: docs/research/picogk-runtime-performance-deficiency-audit.md
+(F16 cluster), docs/research/gpu-surface-extraction-survey.md (disjoint-slot
+polygon discipline), bench/results/webgpu-v2/SK-0.6.md.
+
+Updated for flat-mode: roAsMesh() now calls enableFlatQuadOutput() and
+consumes flatQuads()+leaf offsets/counts when active (see the sibling
+patches/openvdb/0001-flat-quad-output.patch); the pool path remains as the
+generic fallback.
+--- a/Source/PicoGKMesh.h	2026-06-06 01:43:03
++++ b/Source/PicoGKMesh.h	2026-07-26 16:47:19
+@@ -155,7 +155,38 @@
+     {
+         return m_oBBox;
+     }
+-    
++
++    // Bulk-construction seam: pre-size both arrays, let the caller fill
++    // disjoint slots in parallel through aVertexData()/aTriangleData(), then
++    // FinalizeBulk() restores the invariants nAddVertex/nAddTriangle maintain
++    // incrementally (bounding box and memory accounting). Intended for a
++    // freshly constructed Mesh; counts must not change after BulkResize.
++    inline void BulkResize( size_t nVertices,
++                            size_t nTriangles)
++    {
++        // Vector3 has no default constructor; fill-resize needs only the
++        // copy constructor and every slot is overwritten by the bulk writer.
++        m_oVertices.resize(nVertices, Vector3(0.0f, 0.0f, 0.0f));
++        m_oTriangles.resize(nTriangles);
++    }
++
++    inline Vector3* aVertexData()
++    {
++        return m_oVertices.data();
++    }
++
++    inline Triangle* aTriangleData()
++    {
++        return m_oTriangles.data();
++    }
++
++    inline void FinalizeBulk(const BBox3& oBBox)
++    {
++        m_oBBox.Include(oBBox);
++        m_nMemUsage =   (int64_t) (m_oVertices.size()  * sizeof(Vector3))
++                      + (int64_t) (m_oTriangles.size() * sizeof(Triangle));
++    }
++
+ public:
+     
+     const std::vector<Vector3>& vVertices() const
+--- a/Source/PicoGKVdbVoxels.h	2026-06-06 01:43:03
++++ b/Source/PicoGKVdbVoxels.h	2026-07-26 16:48:50
+@@ -414,42 +414,133 @@
+     Mesh::Ptr roAsMesh() const
+     {
+         PKTRACE(Voxels_roAsMesh);
+-        
++
+         Mesh::Ptr roMesh = std::make_shared<Mesh>();
+-        
+-    	std::vector< openvdb::Vec3s > oPoints;
+-    	std::vector< openvdb::Vec3I > oTriangles;
+-    	std::vector< openvdb::Vec4I > oQuads;
+-		
+-        openvdb::tools::volumeToMesh<openvdb::FloatGrid>(*m_roGrid,
+-                                                         oPoints,
+-                                                         oTriangles,
+-                                                         oQuads,
+-                                                         0.0f,
+-                                                         0.0,
+-                                                         false);
+ 
+-        for (const openvdb::Vec4I oQuad : oQuads)
+-        {
+-            openvdb::Vec3I o1(oQuad[0], oQuad[1], oQuad[2]);
+-            oTriangles.push_back(o1);
++        // Drive the mesher class directly instead of tools::volumeToMesh: the
++        // vector adapter behind that entry point copies primitives serially,
++        // and this facade then re-copied points and triangles element-wise a
++        // second time (per-vertex bbox updates, per-triangle asserts, no
++        // reserve). Working from the mesher's own arrays lets every copy run
++        // in parallel into pre-sized disjoint slots while preserving the
++        // serial path's output bytes exactly: points in point-list order,
++        // native triangles in pool order, then the two split triangles per
++        // quad in pool order — the same concatenation as before, with the
++        // same winding reversal.
++        openvdb::tools::VolumeToMesh oMesher(0.0, 0.0, false);
++        oMesher.enableFlatQuadOutput();
++        oMesher(*m_roGrid);
+ 
+-            openvdb::Vec3I o2(oQuad[2], oQuad[3], oQuad[0]);
+-            oTriangles.push_back(o2);
+-        }
+-	    
+-        for (const openvdb::Vec3s& v : oPoints)
++        const size_t nPools = oMesher.polygonPoolListSize();
++        const openvdb::tools::PolygonPoolList& roPools = oMesher.polygonPoolList();
++        const bool bFlat = oMesher.flatQuadOutputActive();
++
++        // Leaf-indexed count -> prefix sum -> disjoint-slot emission. The
++        // leaf-indexed offset layout is the same shape the GPU port consumes.
++        // Flat mode (uniform path): quads sit in one shared array at per-leaf
++        // upper-bound offsets with exact per-leaf counts; no native triangles
++        // exist. Pool mode (generic fallback): per-leaf pools of quads + tris.
++        std::vector<size_t> anTriBase(nPools + 1, 0);
++        std::vector<size_t> anQuadBase(nPools + 1, 0);
++        if (bFlat)
+         {
+-            roMesh->nAddVertex(Vector3(v.x(), v.y(), v.z()));
++            const std::vector<size_t>& anCounts = oMesher.flatQuadLeafCounts();
++            for (size_t n = 0; n < nPools; n++)
++                anQuadBase[n+1] = anQuadBase[n] + anCounts[n];
+         }
++        else
++        {
++            for (size_t n = 0; n < nPools; n++)
++            {
++                anTriBase[n+1]  = anTriBase[n]  + roPools[n].numTriangles();
++                anQuadBase[n+1] = anQuadBase[n] + roPools[n].numQuads();
++            }
++        }
+ 
+-        for (const openvdb::Vec3I oTri : oTriangles)
++        const size_t nPoints     = oMesher.pointListSize();
++        const size_t nNativeTris = anTriBase[nPools];
++        const size_t nQuads      = anQuadBase[nPools];
++
++        roMesh->BulkResize(nPoints, nNativeTris + 2 * nQuads);
++
++        const openvdb::Vec3s* aPoints = oMesher.pointList().get();
++        Vector3*  aVerts = roMesh->aVertexData();
++        Triangle* aTris  = roMesh->aTriangleData();
++
++        // Points: parallel copy + bbox reduce. Include() is pure per-axis
++        // min/max, so the reduction is order-independent bit-for-bit.
++        BBox3 oBBox = tbb::parallel_reduce(
++            tbb::blocked_range<size_t>(0, nPoints),
++            BBox3(),
++            [aPoints, aVerts](const tbb::blocked_range<size_t>& oRange, BBox3 oBB)
++            {
++                for (size_t n = oRange.begin(); n != oRange.end(); n++)
++                {
++                    const openvdb::Vec3s& v = aPoints[n];
++                    aVerts[n] = Vector3(v.x(), v.y(), v.z());
++                    oBB.Include(aVerts[n]);
++                }
++                return oBB;
++            },
++            [](BBox3 oA, const BBox3& oB)
++            {
++                oA.Include(oB);
++                return oA;
++            });
++
++        // Primitives: each leaf writes its own precomputed slot ranges.
++        if (bFlat)
+         {
+-            roMesh->nAddTriangle(   PicoGK::Triangle(   oTri[2],
+-                                                        oTri[1],
+-                                                        oTri[0]));
++            const openvdb::Vec4I* aQuads = oMesher.flatQuads();
++            const size_t* anSlotOffsets = oMesher.flatQuadLeafOffsets().data();
++            const size_t* anCounts = oMesher.flatQuadLeafCounts().data();
++
++            tbb::parallel_for(tbb::blocked_range<size_t>(0, nPools),
++                [aQuads, anSlotOffsets, anCounts, &anQuadBase, aTris]
++                (const tbb::blocked_range<size_t>& oRange)
++                {
++                    for (size_t n = oRange.begin(); n != oRange.end(); n++)
++                    {
++                        const openvdb::Vec4I* aSrc = aQuads + anSlotOffsets[n];
++                        Triangle* aDst = aTris + 2 * anQuadBase[n];
++                        for (size_t i = 0, I = anCounts[n]; i < I; i++)
++                        {
++                            const openvdb::Vec4I& q = aSrc[i];
++                            aDst[2*i]   = Triangle(q[2], q[1], q[0]);
++                            aDst[2*i+1] = Triangle(q[0], q[3], q[2]);
++                        }
++                    }
++                });
+         }
++        else
++        {
++            tbb::parallel_for(tbb::blocked_range<size_t>(0, nPools),
++                [&roPools, &anTriBase, &anQuadBase, nNativeTris, aTris]
++                (const tbb::blocked_range<size_t>& oRange)
++                {
++                    for (size_t n = oRange.begin(); n != oRange.end(); n++)
++                    {
++                        const openvdb::tools::PolygonPool& roPool = roPools[n];
+ 
++                        Triangle* aDst = aTris + anTriBase[n];
++                        for (size_t i = 0, I = roPool.numTriangles(); i < I; i++)
++                        {
++                            const openvdb::Vec3I& t = roPool.triangle(i);
++                            aDst[i] = Triangle(t[2], t[1], t[0]);
++                        }
++
++                        aDst = aTris + nNativeTris + 2 * anQuadBase[n];
++                        for (size_t i = 0, I = roPool.numQuads(); i < I; i++)
++                        {
++                            const openvdb::Vec4I& q = roPool.quad(i);
++                            aDst[2*i]   = Triangle(q[2], q[1], q[0]);
++                            aDst[2*i+1] = Triangle(q[0], q[3], q[2]);
++                        }
++                    }
++                });
++        }
++
++        roMesh->FinalizeBulk(oBBox);
+         return roMesh;
+     }
+     

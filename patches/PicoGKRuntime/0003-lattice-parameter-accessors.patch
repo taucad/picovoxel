@@ -1,0 +1,63 @@
+PicoGKRuntime 26.2 (0f26321c) — read access to LatticeBeam / LatticeSphere
+parameters, upstreamable to leap71/PicoGKRuntime verbatim.
+
+Applied to vendor/PicoGKRuntime by scripts/fetch-deps.sh. Kept as a patch
+because it modifies dependency source; no flag-level override exists.
+
+Source/PicoGKLattice.h — seven inline const accessors. LatticeBeam and
+LatticeSphere expose only fSdValue() and a bounding box, so the ONLY way to
+render a lattice is to ask each element for a signed distance at a point. That
+forces every renderer into the shape Voxels::RenderLattice already has: a
+serial dense-accessor loop over per-beam bounding boxes
+(PicoGKVdbVoxels.h:343-358). An alternative renderer needs the defining
+parameters instead — openvdb's own tube-complex voxelizer
+(tools::createLevelSetTubeComplex, LevelSetTubes.h) takes vertex, segment and
+radius ARRAYS and voxelizes them with TBB, and a GPU lane wants the same flat
+arrays for upload.
+
+Value-neutral by construction: seven `inline ... const` getters returning
+members, no member added, no member changed, no existing declaration touched
+(a pure insertion — `diff` shows only `+` lines). The class layouts, the
+`protected:` sections and nMemUsage()'s sizeof arithmetic are all unchanged.
+
+Consumer: src/pico-lattice.cpp (SK-0.4). Evidence:
+bench/results/webgpu-v2/SK-0.4.md, WORKLOAD-EXECUTORS.md `Voxels_RenderLattice`
+row, and U5 (the serial-lattice ledger row this unblocks).
+
+--- a/Source/PicoGKLattice.h
++++ b/Source/PicoGKLattice.h
+@@ -70,6 +70,13 @@
+     
+     inline const BBox3& oBBox() const       {return m_oBBox;}
+     
++    // Read access to the defining parameters. fSdValue() is the only way to ask
++    // this sphere anything, which forces every renderer into a per-sample query.
++    // An alternative renderer needs the parameters themselves.
++    inline const Vector3& vecCenter() const {return m_vecC;}
++    
++    inline float fRadius() const            {return m_fRad;}
++    
+ protected:
+     
+     Vector3 m_vecC;
+@@ -113,6 +120,20 @@
+     
+     inline const BBox3& oBBox() const       {return m_oBBox;}
+     
++    // Read access to the defining parameters -- see the note on LatticeSphere.
++    // A round-capped beam is exactly the convex hull of the two end spheres, so
++    // (vecStart, vecEnd, fRadStart, fRadEnd) is all a vectorised or GPU renderer
++    // needs; bRoundCap() tells it whether the flat-cone form applies instead.
++    inline const Vector3& vecStart() const  {return m_vecS;}
++    
++    inline const Vector3& vecEnd() const    {return m_vecE;}
++    
++    inline float fRadStart() const          {return m_fRadS;}
++    
++    inline float fRadEnd() const            {return m_fRadE;}
++    
++    inline bool bRoundCap() const           {return m_bRoundCap;}
++    
+ protected:
+     
+     float fSdvRoundCone(const Vector3& p) const

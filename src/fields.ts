@@ -12,10 +12,11 @@ import {
   checkedMalloc,
   expectHandle,
   VEC3_BYTES,
+  type PicoLane,
   type SessionContext,
 } from './context.ts';
 import { assertLive, guard, PicoError } from './errors.ts';
-import { tagFieldClass, wrapMetadata, type Metadata } from './metadata.ts';
+import { readLaneTag, tagFieldClass, tagLaneFast, wrapMetadata, type Metadata } from './metadata.ts';
 import type { Bounds, Vec3 } from './types.ts';
 import type { Voxels } from './voxels.ts';
 
@@ -31,6 +32,8 @@ interface FieldBase {
   readonly handle: bigint;
   readonly memUsage: number;
   readonly metadata: Metadata;
+  /** §14.1 value-class provenance, inherited from the source voxels chain. */
+  readonly lane: 'exact' | 'fast';
   /** Optional: GC reclaims un-disposed fields. Idempotent. */
   dispose(): void;
   [Symbol.dispose](): void;
@@ -74,9 +77,12 @@ function withCallback<T>(ctx: SessionContext, signature: string, fn: (...args: n
   }
 }
 
-export function wrapScalarField(ctx: SessionContext, handle: bigint): ScalarField {
+export function wrapScalarField(ctx: SessionContext, handle: bigint, laneIn?: PicoLane): ScalarField {
   let disposed = false;
   let metadataCache: Metadata | null = null;
+  // §14.1 provenance — same persisted-tag scheme as wrapVoxels.
+  const lane: PicoLane = laneIn ?? readLaneTag(ctx, ctx.raw.Metadata_hFromScalarField, handle) ?? 'exact';
+  if (lane === 'fast') tagLaneFast(ctx, ctx.raw.Metadata_hFromScalarField, handle);
   const live = () => {
     assertLive(disposed, 'ScalarField');
     return handle;
@@ -85,7 +91,7 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint): ScalarFiel
     const p = checkedMalloc(ctx.module, 24, 'a dimensions scratch buffer');
     try {
       ctx.raw.ScalarField_GetVoxelDimensions(ctx.lib, live(), p, p + 4, p + 8, p + 12, p + 16, p + 20);
-      const i32 = (offset: number) => ctx.module.HEAP32[(p + offset) >> 2]!;
+      const i32 = (offset: number) => ctx.module.HEAP32[(p + offset) >>> 2]!;
       return { origin: [i32(0), i32(4), i32(8)] as Vec3, size: [i32(12), i32(16), i32(20)] as Vec3 };
     } finally {
       ctx.module._free(p);
@@ -101,7 +107,7 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint): ScalarFiel
       ctx.writeVec3(ctx.scratch, position);
       const out = ctx.scratch + VEC3_BYTES;
       const found = guard('ScalarField_bGetValue', () => ctx.raw.ScalarField_bGetValue(ctx.lib, live(), ctx.scratch, out))();
-      return found ? ctx.module.HEAPF32[out >> 2]! : null;
+      return found ? ctx.module.HEAPF32[out >>> 2]! : null;
     },
     remove(position: Vec3) {
       ctx.writeVec3(ctx.scratch, position);
@@ -112,7 +118,7 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint): ScalarFiel
       // C signature: void(const PKVector3*, float) — 'vif'.
       withCallback(ctx, 'vif', (positionPointer: number, value: number) => {
         const f32 = ctx.module.HEAPF32;
-        const i = positionPointer! >> 2;
+        const i = positionPointer! >>> 2;
         callback(f32[i]!, f32[i + 1]!, f32[i + 2]!, value!);
       }, (pointer) => guard('ScalarField_TraverseActive', () => ctx.raw.ScalarField_TraverseActive(ctx.lib, handle, pointer))());
     },
@@ -126,7 +132,7 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint): ScalarFiel
       const buffer = checkedMalloc(ctx.module, width * height * 4, 'a slice image buffer');
       try {
         ctx.raw.ScalarField_GetSlice(ctx.lib, handle, index, buffer);
-        return { width, height, data: new Float32Array(ctx.module.HEAPF32.subarray(buffer >> 2, (buffer >> 2) + width * height)) };
+        return { width, height, data: new Float32Array(ctx.module.HEAPF32.subarray(buffer >>> 2, (buffer >>> 2) + width * height)) };
       } finally {
         ctx.module._free(buffer);
       }
@@ -148,7 +154,10 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint): ScalarFiel
       return value === null ? null : value * ctx.voxelSize; // SG6
     },
     clone(): ScalarField {
-      return wrapScalarField(ctx, expectHandle('ScalarField_hCreateCopy', ctx.raw.ScalarField_hCreateCopy(ctx.lib, live())));
+      return wrapScalarField(ctx, expectHandle('ScalarField_hCreateCopy', ctx.raw.ScalarField_hCreateCopy(ctx.lib, live())), lane);
+    },
+    get lane() {
+      return lane;
     },
     get memUsage() {
       return Number(guard('ScalarField_nMemUsage', () => ctx.raw.ScalarField_nMemUsage(ctx.lib, live()))());
@@ -176,9 +185,12 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint): ScalarFiel
   return field as ScalarField; // adoptHandle added [Symbol.dispose] (D6)
 }
 
-export function wrapVectorField(ctx: SessionContext, handle: bigint): VectorField {
+export function wrapVectorField(ctx: SessionContext, handle: bigint, laneIn?: PicoLane): VectorField {
   let disposed = false;
   let metadataCache: Metadata | null = null;
+  // §14.1 provenance — same persisted-tag scheme as wrapVoxels.
+  const lane: PicoLane = laneIn ?? readLaneTag(ctx, ctx.raw.Metadata_hFromVectorField, handle) ?? 'exact';
+  if (lane === 'fast') tagLaneFast(ctx, ctx.raw.Metadata_hFromVectorField, handle);
   const live = () => {
     assertLive(disposed, 'VectorField');
     return handle;
@@ -205,13 +217,16 @@ export function wrapVectorField(ctx: SessionContext, handle: bigint): VectorFiel
       // C signature: void(const PKVector3*, const PKVector3*) — 'vii'.
       withCallback(ctx, 'vii', (positionPointer: number, valuePointer: number) => {
         const f32 = ctx.module.HEAPF32;
-        const i = positionPointer! >> 2;
-        const j = valuePointer! >> 2;
+        const i = positionPointer! >>> 2;
+        const j = valuePointer! >>> 2;
         callback(f32[i]!, f32[i + 1]!, f32[i + 2]!, f32[j]!, f32[j + 1]!, f32[j + 2]!);
       }, (pointer) => guard('VectorField_TraverseActive', () => ctx.raw.VectorField_TraverseActive(ctx.lib, handle, pointer))());
     },
     clone(): VectorField {
-      return wrapVectorField(ctx, expectHandle('VectorField_hCreateCopy', ctx.raw.VectorField_hCreateCopy(ctx.lib, live())));
+      return wrapVectorField(ctx, expectHandle('VectorField_hCreateCopy', ctx.raw.VectorField_hCreateCopy(ctx.lib, live())), lane);
+    },
+    get lane() {
+      return lane;
     },
     get memUsage() {
       return Number(guard('VectorField_nMemUsage', () => ctx.raw.VectorField_nMemUsage(ctx.lib, live()))());

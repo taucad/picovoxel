@@ -34,6 +34,12 @@ export interface ToStlOptions {
   scale?: number;
   /** Offset in mm, applied first. */
   offset?: Vec3;
+  /**
+   * §14.1 — acknowledges exporting `'fast'`-provenance geometry across the
+   * L0 boundary. Required (throws `PICO_LANE_EXPORT` otherwise) when the
+   * mesh's lane is `'fast'`; the header then records `LANE=fast`.
+   */
+  acceptLane?: 'fast';
 }
 
 export interface FromStlOptions {
@@ -52,6 +58,7 @@ export function meshToStlBytes(
   vertices: Float32Array,
   triangles: Uint32Array,
   options: ToStlOptions = {},
+  lane?: 'fast',
 ): Uint8Array {
   const { unit = 'mm', scale = 1, offset = [0, 0, 0] } = options;
   if (unit === 'auto') {
@@ -62,7 +69,9 @@ export function meshToStlBytes(
 
   const bytes = new Uint8Array(84 + triangleCount * 50);
   const view = new DataView(bytes.buffer);
-  const header = `PicoGK ${UNIT_HEADER[unit]}`.padEnd(80, ' ');
+  // §14.1 — the lane stamp only ever appears on acknowledged fast exports, so
+  // every byte-locked exact fixture keeps its exact historical header.
+  const header = `PicoGK ${UNIT_HEADER[unit]}${lane === 'fast' ? ' LANE=fast' : ''}`.padEnd(80, ' ');
   for (let i = 0; i < 80; i++) bytes[i] = header.charCodeAt(i);
   view.setUint32(80, triangleCount, true);
 
@@ -102,7 +111,7 @@ export function meshToStlBytes(
 export function meshFromStlBytes(
   bytes: Uint8Array,
   options: FromStlOptions = {},
-): { vertices: Float32Array; triangles: Uint32Array } {
+): { vertices: Float32Array; triangles: Uint32Array; lane: 'exact' | 'fast' } {
   const { unit = 'auto', scale = 1, offset = [0, 0, 0] } = options;
   if (bytes.length < 84) {
     throw new PicoError('PICO_INVALID_ARGUMENT', `STL too short: ${bytes.length} bytes cannot hold the 80-byte header + count.`);
@@ -167,5 +176,6 @@ export function meshFromStlBytes(
       triangles[t * 3 + c] = t * 3 + c;
     }
   }
-  return { vertices, triangles };
+  // §14.1 — restore provenance stamped by an acknowledged fast export.
+  return { vertices, triangles, lane: header.toUpperCase().includes('LANE=FAST') ? 'fast' : 'exact' };
 }

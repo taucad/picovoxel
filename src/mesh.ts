@@ -5,7 +5,7 @@
 // write back through the bulk imports, preserving indexing — and fixing upstream B1
 // (mshCreateTransformed scales each triangle corner by a DIFFERENT axis component).
 
-import { adoptHandle, assertSameSession, checkedMalloc, expectHandle, TRI_BYTES, VEC3_BYTES, type SessionContext } from './context.ts';
+import { adoptHandle, assertSameSession, checkedMalloc, expectHandle, TRI_BYTES, VEC3_BYTES, type PicoLane, type SessionContext } from './context.ts';
 import { assertLive, guard, PicoError } from './errors.ts';
 import { createGlb } from './glb.ts';
 import { meshToStlBytes, type ToStlOptions } from './stl.ts';
@@ -39,10 +39,17 @@ export interface Mesh {
   toVoxels(): Voxels;
   /** SG13 — offset in ALL directions from a not-necessarily-closed mesh. */
   shellVoxels(options: { radius: number }): Voxels;
-  /** SG7 — binary STL bytes with the UNITS= header convention. */
+  /**
+   * SG7 — binary STL bytes with the UNITS= header convention. §14.1: a
+   * `'fast'`-provenance mesh refuses this L0 export boundary unless
+   * acknowledged with `{ acceptLane: 'fast' }`; acknowledged exports stamp
+   * `LANE=fast` into the 80-byte header (read back by `meshFromStl`).
+   */
   toStl(options?: ToStlOptions): Uint8Array;
-  /** GLB container (positions + indices). */
-  toGlb(): Uint8Array;
+  /** GLB container (positions + indices). Same §14.1 refusal as `toStl`. */
+  toGlb(options?: { acceptLane?: 'fast' }): Uint8Array;
+  /** §14.1 value-class provenance, inherited from the producing voxels/mesh chain. */
+  readonly lane: 'exact' | 'fast';
   /** Raw ABI handle — escape hatch (§10). */
   readonly handle: bigint;
   /** Optional: GC reclaims un-disposed meshes. Idempotent. */
@@ -76,7 +83,7 @@ export function bulkCreateMesh(ctx: SessionContext, vertices: ArrayLike<number>,
   if (vertexCount > 0) {
     const vertexPointer = checkedMalloc(module, vertexCount * VEC3_BYTES, 'mesh vertices');
     try {
-      module.HEAPF32.set(vertices as ArrayLike<number> & { length: number }, vertexPointer >> 2);
+      module.HEAPF32.set(vertices as ArrayLike<number> & { length: number }, vertexPointer >>> 2);
       raw.Mesh_AddVertices(lib, mesh, vertexPointer, vertexCount);
     } finally {
       module._free(vertexPointer);
@@ -85,7 +92,7 @@ export function bulkCreateMesh(ctx: SessionContext, vertices: ArrayLike<number>,
   if (triangleCount > 0) {
     const trianglePointer = checkedMalloc(module, triangleCount * TRI_BYTES, 'mesh triangles');
     try {
-      module.HEAPU32.set(triangles as ArrayLike<number> & { length: number }, trianglePointer >> 2);
+      module.HEAPU32.set(triangles as ArrayLike<number> & { length: number }, trianglePointer >>> 2);
       raw.Mesh_AddTriangles(lib, mesh, trianglePointer, triangleCount);
     } finally {
       module._free(trianglePointer);
@@ -94,12 +101,24 @@ export function bulkCreateMesh(ctx: SessionContext, vertices: ArrayLike<number>,
   return mesh;
 }
 
-export function wrapMesh(ctx: SessionContext, handle: bigint): Mesh {
+export function wrapMesh(ctx: SessionContext, handle: bigint, lane: PicoLane = 'exact'): Mesh {
   let disposed = false;
   let cached: { vertices: Float32Array; triangles: Uint32Array } | null = null;
   const live = () => {
     assertLive(disposed, 'Mesh');
     return handle;
+  };
+
+  /** §14.1 — the refusing L0 export boundary: fast provenance must be acknowledged. */
+  const rejectLaneExport = (where: string, acceptLane: 'fast' | undefined): void => {
+    if (lane === 'fast' && acceptLane !== 'fast') {
+      throw new PicoError(
+        'PICO_LANE_EXPORT',
+        `${where}() on a 'fast'-provenance mesh: at least one Class-2 op (e.g. fastRenorm) fed this geometry, ` +
+          `so its bytes are not L0/pin-comparable. Acknowledge with ${where}({ acceptLane: 'fast' }) — the export ` +
+          `records the lane — or rebuild the chain in a lane: 'exact' session (a replay, not a conversion).`,
+      );
+    }
   };
 
   const readAll = guard('Mesh_GetVertices/GetTriangles', () => {
@@ -112,8 +131,8 @@ export function wrapMesh(ctx: SessionContext, handle: bigint): Mesh {
       raw.Mesh_GetVertices(lib, handle, vertexPointer, vertexCount);
       raw.Mesh_GetTriangles(lib, handle, trianglePointer, triangleCount);
       return {
-        vertices: new Float32Array(module.HEAPF32.subarray(vertexPointer >> 2, (vertexPointer >> 2) + vertexCount * 3)),
-        triangles: new Uint32Array(module.HEAPU32.subarray(trianglePointer >> 2, (trianglePointer >> 2) + triangleCount * 3)),
+        vertices: new Float32Array(module.HEAPF32.subarray(vertexPointer >>> 2, (vertexPointer >>> 2) + vertexCount * 3)),
+        triangles: new Uint32Array(module.HEAPU32.subarray(trianglePointer >>> 2, (trianglePointer >>> 2) + triangleCount * 3)),
       };
     } finally {
       module._free(vertexPointer);
@@ -129,7 +148,7 @@ export function wrapMesh(ctx: SessionContext, handle: bigint): Mesh {
     for (let i = 0; i < source.vertices.length; i += 3) {
       remap(source.vertices[i]!, source.vertices[i + 1]!, source.vertices[i + 2]!, transformed, i);
     }
-    return wrapMesh(ctx, bulkCreateMesh(ctx, transformed, source.triangles));
+    return wrapMesh(ctx, bulkCreateMesh(ctx, transformed, source.triangles), lane);
   };
 
   const mesh = {
@@ -201,12 +220,12 @@ export function wrapMesh(ctx: SessionContext, handle: bigint): Mesh {
       const triangles = new Uint32Array(a.triangles.length + b.triangles.length);
       triangles.set(a.triangles, 0);
       for (let i = 0; i < b.triangles.length; i++) triangles[a.triangles.length + i] = b.triangles[i]! + offset;
-      return wrapMesh(ctx, bulkCreateMesh(ctx, vertices, triangles));
+      return wrapMesh(ctx, bulkCreateMesh(ctx, vertices, triangles), lane === 'fast' || other.lane === 'fast' ? 'fast' : 'exact');
     },
     toVoxels(): Voxels {
       const target = expectHandle('Voxels_hCreate', ctx.raw.Voxels_hCreate(ctx.lib));
       guard('Voxels_RenderMesh', () => ctx.raw.Voxels_RenderMesh(ctx.lib, target, live()))();
-      return wrapVoxels(ctx, target);
+      return wrapVoxels(ctx, target, lane);
     },
     shellVoxels({ radius }: { radius: number }): Voxels {
       if (!(radius > 0)) {
@@ -215,17 +234,23 @@ export function wrapMesh(ctx: SessionContext, handle: bigint): Mesh {
       return wrapVoxels(
         ctx,
         expectHandle('Voxels_hCreateMeshShell', guard('Voxels_hCreateMeshShell', () => ctx.raw.Voxels_hCreateMeshShell(ctx.lib, live(), radius))()),
+        lane,
       );
     },
     toStl(options: ToStlOptions = {}): Uint8Array {
       live();
+      rejectLaneExport('toStl', options.acceptLane);
       const data = cached ?? readAll();
-      return meshToStlBytes(data.vertices, data.triangles, options);
+      return meshToStlBytes(data.vertices, data.triangles, options, lane === 'fast' ? 'fast' : undefined);
     },
-    toGlb(): Uint8Array {
+    toGlb(options: { acceptLane?: 'fast' } = {}): Uint8Array {
       live();
+      rejectLaneExport('toGlb', options.acceptLane);
       const data = cached ?? readAll();
       return createGlb(data.vertices, data.triangles);
+    },
+    get lane() {
+      return lane;
     },
     get handle() {
       return handle;

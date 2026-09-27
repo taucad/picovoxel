@@ -57,6 +57,7 @@ export interface PicoWasmModule {
   HEAPF64: Float64Array;
   HEAP32: Int32Array;
   HEAPU32: Uint32Array;
+  HEAPU8: Uint8Array;
   FS: {
     writeFile(path: string, data: Uint8Array): void;
     readFile(path: string): Uint8Array;
@@ -64,6 +65,11 @@ export interface PicoWasmModule {
     stat(path: string): { size: number };
   };
   wasmTable?: { length: number };
-  /** Pthread pool state — present on the multi glue only (exported for observability). */
-  PThread?: { runningWorkers: readonly unknown[]; unusedWorkers: readonly unknown[] };
+  /** Pthread pool state — present on the multi glue only (exported for observability,
+   *  and for the dispose-time pool join — see session.dispose()). */
+  PThread?: {
+    runningWorkers: readonly unknown[];
+    unusedWorkers: readonly unknown[];
+    terminateAllThreads(): void;
+  };
 }

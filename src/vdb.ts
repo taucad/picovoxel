@@ -21,8 +21,13 @@ export interface VdbFile {
   getVoxels(indexOrName: number | string): Voxels;
   getScalarField(indexOrName: number | string): ScalarField;
   getVectorField(indexOrName: number | string): VectorField;
-  /** Serialises the container to .vdb bytes. */
-  toBytes(): Uint8Array;
+  /**
+   * Serialises the container to .vdb bytes. §14.1: refuses when a
+   * `'fast'`-provenance field was added, unless acknowledged with
+   * `{ acceptLane: 'fast' }` — provenance itself always rides each field's
+   * `PicoVoxel.Lane` metadata inside the bytes.
+   */
+  toBytes(options?: { acceptLane?: 'fast' }): Uint8Array;
   /** Raw ABI handle — escape hatch (§10). */
   readonly handle: bigint;
   /** Optional: GC reclaims un-disposed files. Idempotent. */
@@ -49,6 +54,10 @@ export function withVdbBytes<T>(ctx: SessionContext, bytes: Uint8Array, body: (p
 
 export function wrapVdbFile(ctx: SessionContext, handle: bigint): VdbFile {
   let disposed = false;
+  // §14.1 — LUB over fields add()-ed to this container. Fields loaded from
+  // foreign bytes keep their in-band PicoVoxel.Lane tags either way; this
+  // tracker is what arms the toBytes() refusal for locally-added fast fields.
+  let addedLane: 'exact' | 'fast' = 'exact';
   const live = () => {
     assertLive(disposed, 'VdbFile');
     return handle;
@@ -109,6 +118,7 @@ export function wrapVdbFile(ctx: SessionContext, handle: bigint): VdbFile {
     add(field: Voxels | ScalarField | VectorField, name = ''): number {
       live();
       assertSameSession(ctx, field, 'vdb.add field');
+      if (field.lane === 'fast') addedLane = 'fast'; // tag already rides the grid
       const kind = fieldKind(ctx, field);
       return withStrings(ctx, [name], (namePtr) => {
         if (kind === 'voxels') return ctx.raw.VdbFile_nAddVoxels(ctx.lib, handle, namePtr, field.handle);
@@ -128,8 +138,16 @@ export function wrapVdbFile(ctx: SessionContext, handle: bigint): VdbFile {
       const index = resolveIndex(indexOrName, 'vectorField');
       return wrapVectorField(ctx, expectHandle('VdbFile_hGetVectorField', ctx.raw.VdbFile_hGetVectorField(ctx.lib, handle, index)));
     },
-    toBytes(): Uint8Array {
+    toBytes(options: { acceptLane?: 'fast' } = {}): Uint8Array {
       live();
+      if (addedLane === 'fast' && options.acceptLane !== 'fast') {
+        throw new PicoError(
+          'PICO_LANE_EXPORT',
+          "toBytes() on a container holding 'fast'-provenance fields: acknowledge with " +
+            "toBytes({ acceptLane: 'fast' }) — each field's lane is recorded in its PicoVoxel.Lane metadata — " +
+            "or rebuild the fields in a lane: 'exact' session.",
+        );
+      }
       stampPicoMetadata(ctx, handle);
       const path = temporaryVdbPath();
       const saved = withStrings(ctx, [path], (pathPtr) => ctx.raw.VdbFile_bSaveToFile(ctx.lib, handle, pathPtr));

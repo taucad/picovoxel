@@ -61,6 +61,17 @@ test('C1 — voxel creation: sphere/capsule/copy/mesh-shell vs analytic volume',
     assert.equal(fns.Voxels_fCalculateVolume(lib, copy), volume, 'copy has a different volume');
     assert.ok(fns.Voxels_bIsEqual(lib, copy, sphere), 'copy not equal to source');
 
+    // Voxels_GetProperties (src/pico-props.cpp) — volume, area and the iso-surface
+    // box in one crossing. Oracles are analytic: 4πr² for the sphere's area, and
+    // the box is the sphere's own extent.
+    fns.Voxels_GetProperties(lib, sphere, scratch, scratch + 4, scratch + 8);
+    const [propVolume, propArea] = [module.HEAPF32[scratch >> 2], module.HEAPF32[(scratch + 4) >> 2]];
+    assert.ok(Math.abs(propVolume - analytic) / analytic < 0.02, `properties volume ${propVolume} vs ${analytic}`);
+    const areaAnalytic = 4 * Math.PI * 100;
+    assert.ok(Math.abs(propArea - areaAnalytic) / areaAnalytic < 0.02, `properties area ${propArea} vs ${areaAnalytic}`);
+    assert.deepEqual(readVec(scratch + 8).map(Math.round), [-10, -10, -10], 'properties box min');
+    assert.deepEqual(readVec(scratch + 8 + VEC3).map(Math.round), [10, 10, 10], 'properties box max');
+
     vec(scratch, -10, 0, 0); vec(scratch + VEC3, 10, 0, 0);
     const capsule = fns.Voxels_hCreateCapsule(lib, scratch, scratch + VEC3, 4, 4);
     const capsuleAnalytic = Math.PI * 16 * 20 + (4 / 3) * Math.PI * 64; // cylinder + 2 hemispheres
@@ -148,7 +159,25 @@ test('C3 — offsets: analytic growth; double/triple offset', () => {
     fns.Voxels_TripleOffset(lib, tripled, 1);
     assert.ok(fns.Voxels_fCalculateVolume(lib, tripled) > 0, 'triple offset emptied the body');
 
-    for (const v of [base, grown, shrunk, closed, tripled]) fns.Voxels_Destroy(lib, v);
+    // Voxels_OffsetTuned (src/pico-offset.cpp) — the same offset with the level-set
+    // tracker's renormalization knobs reachable. Two oracles: (scheme, count) < 0 must
+    // reproduce Voxels_Offset bit-for-bit, and the tuned setting must still land on the
+    // analytic radius (a knob that silently emptied the band would pass neither).
+    const p = _malloc(4);
+    module.HEAPF32[p >> 2] = 2;
+    const asDefault = fns.Voxels_hCreateCopy(lib, base);
+    fns.Voxels_OffsetTuned(lib, asDefault, p, 1, -1, -1);
+    assert.ok(fns.Voxels_bIsEqual(lib, asDefault, grown), 'OffsetTuned(-1,-1) is not Voxels_Offset');
+    assert.equal(fns.Voxels_fCalculateVolume(lib, asDefault), v1, 'OffsetTuned(-1,-1) volume drifted');
+
+    const tuned = fns.Voxels_hCreateCopy(lib, base);
+    fns.Voxels_OffsetTuned(lib, tuned, p, 1, 0 /* FIRST_BIAS */, -1);
+    const v4 = fns.Voxels_fCalculateVolume(lib, tuned);
+    assert.ok(!fns.Voxels_bIsEqual(lib, tuned, grown), 'FIRST_BIAS must change the result');
+    assert.ok(Math.abs(v4 - analytic) / analytic < 0.03, `tuned offset sphere ${v4} vs ${analytic}`);
+    _free(p);
+
+    for (const v of [base, grown, shrunk, closed, tripled, asDefault, tuned]) fns.Voxels_Destroy(lib, v);
   });
 });
 
@@ -287,6 +316,155 @@ test('C6 — lattice: beams and spheres render to voxels', () => {
 
     fns.Lattice_Destroy(lib, lattice);
     fns.Voxels_Destroy(lib, voxels);
+  });
+});
+
+// SK-0.4 tube-complex lattice lane (src/pico-lattice.cpp) — the lane the facade now
+// takes by default; Voxels_RenderLattice above stays bound as the serial arm. Geometry
+// equivalence is certified per fixture in bench/results/webgpu-v2/SK-0.4.md; here it is
+// an ABI-level differential plus the closed form, over one lattice that hits every beam
+// case at once: capsule, tapered capsule, sphere, and a FLAT-capped beam, which has no
+// tube-complex expression and falls back to the serial lane inside the export. A lane
+// that silently dropped the fallback subset would fail this. (The fifth case, nested end
+// spheres, is where the two lanes genuinely disagree — see the test below.)
+test('C6 — tube-complex lattice lane agrees with the serial lane on every beam case', () => {
+  withLib(0.5, (lib) => {
+    const lattice = fns.Lattice_hCreate(lib);
+    const beam = (y, r0, r1, round) => {
+      vec(scratch, -10, y, 0);
+      vec(scratch + VEC3, 10, y, 0);
+      fns.Lattice_AddBeam(lib, lattice, scratch, scratch + VEC3, r0, r1, round);
+    };
+    beam(0, 2, 2, true); // capsule (equal radii)
+    beam(20, 3, 1, true); // tapered capsule
+    beam(40, 2, 2, false); // FLAT cone — serial fallback
+    vec(scratch, 0, -20, 0);
+    fns.Lattice_AddSphere(lib, lattice, scratch, 3);
+
+    const serial = fns.Voxels_hCreate(lib);
+    const tubes = fns.Voxels_hCreate(lib);
+    fns.Voxels_RenderLattice(lib, serial, lattice);
+    fns.Voxels_RenderLatticeTubes(lib, tubes, lattice);
+
+    const vSerial = fns.Voxels_fCalculateVolume(lib, serial);
+    const vTubes = fns.Voxels_fCalculateVolume(lib, tubes);
+    assert.ok(vTubes > 0, 'tube lane produced an empty grid');
+    assert.ok(
+      Math.abs(vTubes - vSerial) / vSerial < 0.03,
+      `tube lane ${vTubes} vs serial ${vSerial} (>3% apart)`,
+    );
+
+    // The bounds have to cover all five elements in both lanes — the fallback subset
+    // sits at y=40, so a dropped fallback shows up here as a shrunken box.
+    for (const [name, handle] of [
+      ['serial', serial],
+      ['tubes', tubes],
+    ]) {
+      fns.Voxels_GetProperties(lib, handle, scratch, scratch + 4, scratch + 8);
+      const [, yMin] = readVec(scratch + 8);
+      const [, yMax] = readVec(scratch + 8 + VEC3);
+      assert.ok(yMin < -20, `${name} lane lost the sphere at y=-20 (yMin ${yMin})`);
+      assert.ok(yMax > 40, `${name} lane lost the flat-capped beam at y=40 (yMax ${yMax})`);
+    }
+
+    for (const v of [serial, tubes]) fns.Voxels_Destroy(lib, v);
+    fns.Lattice_Destroy(lib, lattice);
+  });
+});
+
+// SK-0.4 / U23 — the one beam case where the two lanes DISAGREE, and the serial lane is
+// the wrong one. A round-capped beam whose end spheres nest (|p0-p1|^2 <= (r0-r1)^2) is
+// by definition the larger sphere; PicoGK's fSdvRoundCone (PicoGKLattice.h:115-148, iq's
+// sdRoundCone) computes a2 = l^2 - (r0-r1)^2, which is NEGATIVE here, and then takes
+// sqrtf(x2 * a2 * il2). openvdb's tube complex dispatches the case explicitly
+// (LevelSetTubesImpl.h:1191) and emits the larger sphere. Pinned against the closed form
+// so the direction of the disagreement is recorded, not just its existence.
+test('C6 — nested-radius beam: the tube lane is right and the serial lane is not (U23)', () => {
+  withLib(0.5, (lib) => {
+    const lattice = fns.Lattice_hCreate(lib);
+    vec(scratch, -1, 0, 0);
+    vec(scratch + VEC3, 1, 0, 0);
+    fns.Lattice_AddBeam(lib, lattice, scratch, scratch + VEC3, 6, 1, true);
+
+    const analytic = (4 / 3) * Math.PI * 6 ** 3; // the r=6 sphere swallows the r=1 sphere
+    const render = (fn) => {
+      const h = fns.Voxels_hCreate(lib);
+      fn(lib, h, lattice);
+      fns.Voxels_GetProperties(lib, h, scratch, scratch + 4, scratch + 8);
+      const volume = module.HEAPF32[scratch >> 2];
+      fns.Voxels_Destroy(lib, h);
+      return volume;
+    };
+
+    const tubes = render(fns.Voxels_RenderLatticeTubes);
+    const serial = render(fns.Voxels_RenderLattice);
+    assert.ok(
+      Math.abs(tubes - analytic) / analytic < 0.01,
+      `tube lane ${tubes} is not the r=6 sphere ${analytic}`,
+    );
+    assert.ok(serial < 0.5 * analytic, `serial lane ${serial} unexpectedly close to ${analytic} — U23 fixed upstream?`);
+
+    fns.Lattice_Destroy(lib, lattice);
+  });
+});
+
+// SK-0.3 bulk lattice authoring (src/pico-bulk.cpp): the flat 8-float-per-beam
+// wire format must reconstruct EXACTLY what the per-element exports build — same
+// field order, same stride, same round-cap flags, same order of arrival.
+test('C6 — bulk lattice authoring reconstructs the per-element lattice exactly', () => {
+  withLib(0.5, (lib) => {
+    const N = 40;
+    const beam = (i) => [
+      Math.cos(i) * 10, Math.sin(i) * 10, i * 0.2 - 4, 0.5 + (i % 4) * 0.1,        // x0 y0 z0 r0
+      Math.cos(i + 1) * 10, Math.sin(i + 1) * 10, i * 0.2 - 3.8, 0.5 + (i % 3) * 0.1, // x1 y1 z1 r1
+    ];
+    const cap = (i) => (i % 3 === 0 ? 0 : 1);
+    const sphere = (i) => [Math.cos(i) * 15, Math.sin(i) * 15, i * 0.1 - 2, 0.7];
+
+    const perElement = fns.Lattice_hCreate(lib);
+    for (let i = 0; i < N; i++) {
+      const b = beam(i);
+      vec(scratch, b[0], b[1], b[2]); vec(scratch + VEC3, b[4], b[5], b[6]);
+      fns.Lattice_AddBeam(lib, perElement, scratch, scratch + VEC3, b[3], b[7], cap(i) !== 0);
+    }
+    for (let i = 0; i < N; i++) {
+      const s = sphere(i);
+      vec(scratch, s[0], s[1], s[2]);
+      fns.Lattice_AddSphere(lib, perElement, scratch, s[3]);
+    }
+
+    const bulk = fns.Lattice_hCreate(lib);
+    const buffer = _malloc(N * 8 * 4 + N * 4);
+    try {
+      const beamFloats = [];
+      for (let i = 0; i < N; i++) beamFloats.push(...beam(i));
+      module.HEAPF32.set(beamFloats, buffer >> 2);
+      module.HEAPU32.set(Array.from({ length: N }, (_, i) => cap(i)), (buffer >> 2) + N * 8);
+      assert.equal(fns.Lattice_AddBeams(lib, bulk, buffer, buffer + N * 8 * 4, N), N);
+
+      const sphereFloats = [];
+      for (let i = 0; i < N; i++) sphereFloats.push(...sphere(i));
+      module.HEAPF32.set(sphereFloats, buffer >> 2);
+      assert.equal(fns.Lattice_AddSpheres(lib, bulk, buffer, N), N);
+
+      // Guard rails: a null pointer or a non-positive count is a no-op, never a trap.
+      assert.equal(fns.Lattice_AddBeams(lib, bulk, 0, buffer, N), 0);
+      assert.equal(fns.Lattice_AddBeams(lib, bulk, buffer, buffer, 0), 0);
+      assert.equal(fns.Lattice_AddSpheres(lib, bulk, 0, N), 0);
+    } finally {
+      _free(buffer);
+    }
+
+    assert.equal(fns.Lattice_nMemUsage(lib, bulk), fns.Lattice_nMemUsage(lib, perElement), 'same element counts');
+
+    const a = fns.Voxels_hCreate(lib);
+    const b = fns.Voxels_hCreate(lib);
+    fns.Voxels_RenderLattice(lib, a, perElement);
+    fns.Voxels_RenderLattice(lib, b, bulk);
+    assert.equal(fns.Voxels_fCalculateVolume(lib, b), fns.Voxels_fCalculateVolume(lib, a), 'bulk lattice differs');
+
+    for (const v of [a, b]) fns.Voxels_Destroy(lib, v);
+    for (const l of [perElement, bulk]) fns.Lattice_Destroy(lib, l);
   });
 });
 
@@ -667,6 +845,205 @@ test('C15 — every allocation counter returns to zero', () => {
 
   for (const [name, n] of Object.entries(read())) assert.equal(n, 0, `${name} leaked: ${n} still allocated`);
   fns.Library_DestroyInstance(lib);
+});
+
+// ── C17 — the G0 grid-hash oracle (SKv2-0 V0.1, src/pico-hash.cpp) ─────────────
+test('C17 — grid hash: stable, representation-blind, content-sensitive', () => {
+  withLib(0.4, (lib) => {
+    const hash = _malloc(48); // 16 B digest + 3 × u64 counts, 8-aligned
+    const digest = () => Array.from({ length: 4 }, (_, i) => module.HEAPU32[(hash >> 2) + i]).join('-');
+    const counts = () => Array.from({ length: 6 }, (_, i) => module.HEAPU32[((hash + 16) >> 2) + i]).join('-');
+    const sphere = sphereOf(lib, 8);
+
+    fns.Voxels_GetGridHash(lib, sphere, hash, hash + 16, hash + 24, hash + 32);
+    const [first, firstCounts] = [digest(), counts()];
+    const active = module.HEAPU32[(hash + 16) >> 2];
+    assert.ok(active > 0, 'a real level set has active voxels');
+
+    fns.Voxels_GetGridHash(lib, sphere, hash, hash + 16, hash + 24, hash + 32);
+    assert.equal(digest(), first, 'repeated hashing is bit-stable');
+
+    // Densify a copy: same field, dense-leaf representation — the hash and
+    // every count must hold while memUsage proves the tree changed.
+    const dense = fns.Voxels_hCreateCopy(lib, sphere);
+    const memBefore = Number(fns.Voxels_nMemUsage(lib, dense));
+    fns.Voxels_DensifyInterior(lib, dense);
+    assert.ok(Number(fns.Voxels_nMemUsage(lib, dense)) > memBefore, 'densify must change the representation');
+    fns.Voxels_GetGridHash(lib, dense, hash, hash + 16, hash + 24, hash + 32);
+    assert.equal(digest(), first, 'tile vs dense-leaf encodings of one field hash equal');
+    assert.equal(counts(), firstCounts, 'post-prune counts are representation-invariant too');
+
+    const other = sphereOf(lib, 9);
+    fns.Voxels_GetGridHash(lib, other, hash, hash + 16, hash + 24, hash + 32);
+    assert.notEqual(digest(), first, 'different content is a different hash');
+
+    fns.Voxels_Destroy(lib, dense);
+    fns.Voxels_Destroy(lib, other);
+    fns.Voxels_Destroy(lib, sphere);
+    _free(hash);
+  });
+});
+
+// ── C18 — shared-nothing csg*Copy booleans (SKv2-0 V0.7, src/pico-boolean.cpp) ──
+test('C18 — csg*Copy: value-identical to the mutating path, inputs untouched', () => {
+  withLib(0.4, (lib) => {
+    const hash = _malloc(48);
+    const digest = () => Array.from({ length: 4 }, (_, i) => module.HEAPU32[(hash >> 2) + i]).join('-');
+    const hashOf = (voxels) => {
+      fns.Voxels_GetGridHash(lib, voxels, hash, hash + 16, hash + 24, hash + 32);
+      return digest();
+    };
+    const a = sphereOf(lib, 8);
+    const b = sphereOf(lib, 6, [5, 0, 0]);
+    const aBefore = hashOf(a);
+    const bBefore = hashOf(b);
+
+    const pairs = [
+      ['Voxels_hBoolAddCopy', 'Voxels_BoolAdd'],
+      ['Voxels_hBoolSubtractCopy', 'Voxels_BoolSubtract'],
+      ['Voxels_hBoolIntersectCopy', 'Voxels_BoolIntersect'],
+    ];
+    for (const [copyName, mutateName] of pairs) {
+      const fresh = fns[copyName](lib, a, b);
+      const reference = fns.Voxels_hCreateCopy(lib, a);
+      fns[mutateName](lib, reference, b);
+      assert.equal(hashOf(fresh), hashOf(reference), `${copyName} must be value-identical to ${mutateName}`);
+      fns.Voxels_Destroy(lib, fresh);
+      fns.Voxels_Destroy(lib, reference);
+    }
+
+    // Shared-nothing means const inputs: neither operand may move.
+    assert.equal(hashOf(a), aBefore, 'input A must be untouched');
+    assert.equal(hashOf(b), bBefore, 'input B must be untouched');
+
+    // V0.8 (T11): the O(stored) equality agrees with the dense upstream scan.
+    assert.equal(fns.Voxels_bIsEqualFast(lib, a, b), fns.Voxels_bIsEqual(lib, a, b), 'a vs b');
+    const aCopy = fns.Voxels_hCreateCopy(lib, a);
+    assert.equal(fns.Voxels_bIsEqualFast(lib, a, aCopy), true, 'a vs copy(a)');
+    assert.equal(fns.Voxels_bIsEqual(lib, a, aCopy), true, 'upstream agrees');
+    fns.Voxels_Destroy(lib, aCopy);
+
+    fns.Voxels_Destroy(lib, a);
+    fns.Voxels_Destroy(lib, b);
+    _free(hash);
+  });
+});
+
+// ── C19 — column-culled ProjectZSlice + U2 seal fix (SKv2-0 V0.9) ──────────────
+test('C19 — ProjectZSliceFast: upstream-identical at 1.0 mm, corrected seal elsewhere', () => {
+  withLib(1.0, (lib) => {
+    const hash = _malloc(48);
+    const digest = () => Array.from({ length: 4 }, (_, i) => module.HEAPU32[(hash >> 2) + i]).join('-');
+    const hashOf = (voxels) => {
+      fns.Voxels_GetGridHash(lib, voxels, hash, hash + 16, hash + 24, hash + 32);
+      return digest();
+    };
+    const sphere = sphereOf(lib, 8);
+    const fast = fns.Voxels_hCreateCopy(lib, sphere);
+    fns.Voxels_ProjectZSliceFast(lib, fast, 6, -6);
+    const reference = fns.Voxels_hCreateCopy(lib, sphere);
+    fns.Voxels_ProjectZSlice(lib, reference, 6, -6);
+    // At 1.0 mm voxels upstream's mm-as-layer-count seal coincides with the
+    // corrected voxel-unit count, so the two exports are value-identical.
+    assert.equal(hashOf(fast), hashOf(reference), '1.0 mm must coincide');
+    for (const h of [fast, reference, sphere]) fns.Voxels_Destroy(lib, h);
+    _free(hash);
+  });
+  withLib(0.4, (lib) => {
+    const hash = _malloc(48);
+    const digest = () => Array.from({ length: 4 }, (_, i) => module.HEAPU32[(hash >> 2) + i]).join('-');
+    const hashOf = (voxels) => {
+      fns.Voxels_GetGridHash(lib, voxels, hash, hash + 16, hash + 24, hash + 32);
+      return digest();
+    };
+    const sphere = sphereOf(lib, 8);
+    const fast = fns.Voxels_hCreateCopy(lib, sphere);
+    fns.Voxels_ProjectZSliceFast(lib, fast, 6, -6);
+    const reference = fns.Voxels_hCreateCopy(lib, sphere);
+    fns.Voxels_ProjectZSlice(lib, reference, 6, -6);
+    // At 0.4 mm upstream seals round(3·0.4)=1 layer instead of the full
+    // 3-voxel band — the U2 defect; the corrected export legitimately differs.
+    assert.notEqual(hashOf(fast), hashOf(reference), '0.4 mm must show the U2 correction');
+    for (const h of [fast, reference, sphere]) fns.Voxels_Destroy(lib, h);
+    _free(hash);
+  });
+});
+
+// ── C20 — F17+U1 IntersectImplicit pair (SKv2-0 V0.10) ─────────────────────────
+test('C20 — IntersectImplicit{,Tape}Fast: cross-path exact, content-sensitive', () => {
+  withLib(1.0, (lib) => {
+    const hash = _malloc(48);
+    const digest = () => Array.from({ length: 4 }, (_, i) => module.HEAPU32[(hash >> 2) + i]).join('-');
+    const hashOf = (voxels) => {
+      fns.Voxels_GetGridHash(lib, voxels, hash, hash + 16, hash + 24, hash + 32);
+      return digest();
+    };
+    const sphere = sphereOf(lib, 8);
+
+    // Plane tape: z + 0.3 (const at index 0). Ops: CONST=0? use the compiled
+    // form from the TS compiler via a fixed literal tape is brittle — instead
+    // exercise the callback export against the tape export through the facade
+    // in test/intersect-implicit.test.ts; here R14 needs the raw exports
+    // touched with meaningful assertions.
+    const pointer = module.addFunction((vecPtr) => module.HEAPF32[(vecPtr + 8) >> 2] + 0.3, 'fi');
+    const viaCallback = fns.Voxels_hCreateCopy(lib, sphere);
+    fns.Voxels_IntersectImplicitFast(lib, viaCallback, pointer);
+    module.removeFunction(pointer);
+    const callbackHash = hashOf(viaCallback);
+    assert.notEqual(callbackHash, hashOf(sphere), 'the cut must change the field');
+
+    // Tape: [CONST 0.3][Z][ADD 1,0] — mirror src/tape.ts opcode layout via
+    // the generated raw table is overkill here; drive the tape export with
+    // the facade-compiled plane from the zslice test instead: keep this to
+    // the callback export plus a second callback invocation determinism check.
+    const again = fns.Voxels_hCreateCopy(lib, sphere);
+    const pointer2 = module.addFunction((vecPtr) => module.HEAPF32[(vecPtr + 8) >> 2] + 0.3, 'fi');
+    fns.Voxels_IntersectImplicitFast(lib, again, pointer2);
+    module.removeFunction(pointer2);
+    assert.equal(hashOf(again), callbackHash, 'deterministic across invocations');
+
+    // Tape leg: z + 0.3 as raw tape words — [CONST c0][Z][ADD r1,r0], packed
+    // ab = (a << 16) | b as EvalTapeIndices decodes. Must match the callback
+    // leg exactly (the V0.10 pair shares fill semantics end to end).
+    const instr = _malloc(6 * 4);
+    module.HEAPU32.set([0, 0, 3, 0, 4, (1 << 16) | 0], instr >> 2);
+    const consts = _malloc(8);
+    module.HEAPF64[consts >> 3] = 0.3;
+    const viaTape = fns.Voxels_hCreateCopy(lib, sphere);
+    fns.Voxels_IntersectImplicitTapeFast(lib, viaTape, instr, 3, consts, 1);
+    assert.equal(hashOf(viaTape), callbackHash, 'tape leg must equal the callback leg exactly');
+    _free(instr);
+    _free(consts);
+
+    for (const h of [viaCallback, again, viaTape, sphere]) fns.Voxels_Destroy(lib, h);
+    _free(hash);
+  });
+});
+
+// ── C21 — P8 batched queries (SKv2-0 V0.11) ────────────────────────────────────
+test('C21 — RayCastBatch/ClosestPointBatch: counts and content sane', () => {
+  withLib(0.5, (lib) => {
+    const sphere = sphereOf(lib, 8);
+    const n = 2;
+    const origins = _malloc(n * 12), dirs = _malloc(n * 12), hits = _malloc(n * 12), mask = _malloc(n);
+    // Ray 0: from +x inward (hit). Ray 1: from +x outward (miss).
+    module.HEAPF32.set([14, 0, 0, 14, 0, 0], origins >> 2);
+    module.HEAPF32.set([-1, 0, 0, 1, 0, 0], dirs >> 2);
+    const hitCount = fns.Voxels_RayCastBatch(lib, sphere, origins, dirs, n, hits, mask);
+    assert.equal(hitCount, 1, 'one hit, one miss');
+    const surfaceX = module.HEAPF32[hits >> 2];
+    assert.ok(Math.abs(surfaceX - 8) <= 1.0, `hit lands on the +x surface (got ${surfaceX})`);
+
+    const queries = _malloc(12), out = _malloc(12), found = _malloc(4);
+    module.HEAPF32.set([12, 0, 0], queries >> 2);
+    const foundCount = fns.Voxels_ClosestPointBatch(lib, sphere, queries, 1, out, found);
+    assert.equal(foundCount, 1);
+    const cx = module.HEAPF32[out >> 2];
+    assert.ok(Math.abs(cx - 8) <= 0.5, `closest point on the +x surface (got ${cx})`);
+
+    for (const p of [origins, dirs, hits, mask, queries, out, found]) _free(p);
+    fns.Voxels_Destroy(lib, sphere);
+  });
 });
 
 // ── C16 — negative tests (R16) ─────────────────────────────────────────────────

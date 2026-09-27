@@ -1,0 +1,125 @@
+PicoGKRuntime 26.2 (0f26321c) — bulk lattice authoring in the C ABI.
+
+PROPOSAL, NOT APPLIED LOCALLY. picovoxel ships this as a sibling translation
+unit (src/pico-bulk.cpp) so the vendored tree stays pristine; this file is the
+same code shaped as a diff against upstream, for leap71/PicoGKRuntime. Ledger
+row U17.
+
+REPO SPLIT: this patch is the C ABI half only. The C# binding half —
+Lattice.AddBeam/AddSphere accumulating into a flat float array and flushing once
+per lattice instead of a P/Invoke per element — targets a DIFFERENT repository
+(leap71/PicoGK) and is described in the U17 ledger row rather than diffed here.
+
+Why: Lattice_AddBeam is the hottest ABI site in the port. One picovoxel fixture
+(HelixHeatX) crosses it 1,197,460 times across 37 lattices; bulk transfer turns
+that into 37 crossings. Facade cost 50.1 -> 39.2 ns/beam, `author` stage
+238.7 -> 150.8 ms (paired ABAB x5), voxelization byte-identical. Evidence:
+bench/results/webgpu-v2/SK-0.3.md. The C# binding has the same shape of problem.
+
+Wire format is chosen for the GPU upload seam, not for this loop: 8 floats per
+beam as (x, y, z, radius) per endpoint is two vec4 lanes at a 32-byte stride,
+no padding under std140 or std430, so the same buffer a binding accumulates can
+be handed to a GPU writeBuffer unrepacked. Round-cap flags ride in a parallel
+uint32 array (WGSL has no u8, so a byte array would have to be widened anyway).
+
+Elements still route through Lattice::AddBeam/AddSphere, which preserves the
+bounding-box update and the degenerate round-cap rule — a zero-length
+round-capped beam becomes a sphere (PicoGKLattice.h:213-218). Bulk-inserting
+behind their back would change what gets rendered.
+
+Note this patch does NOT change the storage: upstream keeps
+std::vector<LatticeBeam::Ptr>, one make_shared per beam. That allocator cost is
+20.9 ns/beam of the remaining 39.2 and is filed separately as ledger row U18.
+
+Applies with `patch -p1` to a pristine PicoGKRuntime 0f26321c tree.
+
+--- a/API/PicoGK.h
++++ b/API/PicoGK.h
+@@ -201,6 +201,24 @@
+                                                             float               fRadiusA,
+                                                             float               fRadiusB,
+                                                             bool                bRoundCap);
++
++// Bulk lattice authoring. pfBeams is a flat float array, 8 floats per beam:
++// (x0, y0, z0, r0, x1, y1, z1, r1) -- endpoint A then endpoint B, radius in the
++// w lane of each, so one beam is two vec4 lanes at a 32-byte stride and the same
++// buffer can be uploaded to a GPU unrepacked. pnRoundCap is one uint32 per beam
++// (0 = flat cone). pfSpheres is 4 floats per sphere, (x, y, z, radius) -- the
++// same lane shape as one beam endpoint. Both return the number appended.
++
++PICOGK_API int32_t          Lattice_AddBeams(               PKINSTANCE          hInstance,
++                                                            PKLATTICE           hThis,
++                                                            const float*        pfBeams,
++                                                            const uint32_t*     pnRoundCap,
++                                                            int32_t             nCount);
++
++PICOGK_API int32_t          Lattice_AddSpheres(             PKINSTANCE          hInstance,
++                                                            PKLATTICE           hThis,
++                                                            const float*        pfSpheres,
++                                                            int32_t             nCount);
+ 
+ // VOXELS
+ 
+--- a/Source/PicoGKLibrary.cpp
++++ b/Source/PicoGKLibrary.cpp
+@@ -392,6 +392,60 @@
+                     fRadiusA,
+                     fRadiusB,
+                     bRoundCap);
++}
++
++// Bulk lattice authoring -- the import mirror of the bulk mesh entry points.
++//
++// Lattice_AddBeam is a per-element ABI crossing, and a lattice is authored in
++// the hundreds of thousands of beams. Elements still route through
++// Lattice::AddBeam / AddSphere so the bounding box and the degenerate round-cap
++// rule (a zero-length round-capped beam becomes a sphere) are unchanged; the win
++// is not the loop, it is not crossing the ABI once per beam.
++
++PICOGK_API int32_t Lattice_AddBeams( PKINSTANCE hLib,
++                                     PKLATTICE hThis,
++                                     const float* pfBeams,
++                                     const uint32_t* pnRoundCap,
++                                     int32_t nCount)
++{
++    if (pfBeams == nullptr || pnRoundCap == nullptr || nCount <= 0)
++        return 0;
++
++    Library::Instance::Ptr roLib = Library::oLib().roGetInstance(hLib);
++    Lattice::Ptr roLattice = roLib->m_oLattices.roGet(hThis);
++
++    for (int32_t n = 0; n < nCount; n++)
++    {
++        const float* pf = pfBeams + n * 8;
++
++        roLattice->AddBeam( Vector3(pf[0], pf[1], pf[2]),
++                            Vector3(pf[4], pf[5], pf[6]),
++                            pf[3],
++                            pf[7],
++                            pnRoundCap[n] != 0);
++    }
++
++    return nCount;
++}
++
++PICOGK_API int32_t Lattice_AddSpheres(  PKINSTANCE hLib,
++                                        PKLATTICE hThis,
++                                        const float* pfSpheres,
++                                        int32_t nCount)
++{
++    if (pfSpheres == nullptr || nCount <= 0)
++        return 0;
++
++    Library::Instance::Ptr roLib = Library::oLib().roGetInstance(hLib);
++    Lattice::Ptr roLattice = roLib->m_oLattices.roGet(hThis);
++
++    for (int32_t n = 0; n < nCount; n++)
++    {
++        const float* pf = pfSpheres + n * 4;
++        roLattice->AddSphere(Vector3(pf[0], pf[1], pf[2]), pf[3]);
++    }
++
++    return nCount;
+ }
+ 
+ PICOGK_API PKVOXELS Voxels_hCreate(PKINSTANCE hLib)
