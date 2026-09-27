@@ -1,0 +1,63 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "defaultBase": "main",
+  "namedInputs": {
+    "default": ["{projectRoot}/**/*", "runtime"],
+    "runtime": [
+      { "runtime": "node --version" },
+      { "runtime": "pnpm --version" },
+      { "runtime": "command -v emcc >/dev/null 2>&1 && emcc --version | head -n1 || echo emcc-absent" }
+    ]
+  },
+  "analytics": false,
+  "release": {
+    "projects": ["picovoxel"],
+    "projectsRelationship": "fixed",
+    "version": {
+      "specifierSource": "version-plans",
+      "adjustSemverBumpsForZeroMajorVersion": false
+    },
+    "versionPlans": {
+      "ignorePatternsForPlanCheck": [
+        "**/*.test.*",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "CONTRIBUTING.md",
+        "MAINTAINER.md",
+        "SECURITY.md",
+        "LANES.md",
+        "NON-DETERMINISM.md",
+        "WASM-RUNTIME.md",
+        "WORKLOAD-EXECUTORS.md",
+        ".agents/**",
+        ".claude/**",
+        ".github/**",
+        "bench/**",
+        "demo/**",
+        "docs-site/**",
+        "examples/**",
+        "spikes/**",
+        "test/**",
+        "tests/**",
+        "upstream/**"
+      ]
+    },
+    "changelog": {
+      "projectChangelogs": {
+        "file": "CHANGELOG.md",
+        "renderOptions": {
+          "authors": true,
+          "commitReferences": true,
+          "versionTitleDate": true
+        }
+      }
+    },
+    "releaseTag": { "pattern": "v{version}" },
+    "git": {
+      "commit": false,
+      "push": false,
+      "stageChanges": false,
+      "tag": false
+    }
+  }
+}

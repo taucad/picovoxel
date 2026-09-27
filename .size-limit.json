@@ -1,0 +1,37 @@
+[
+  {
+    "name": "core: picovoxel, /multi, /raw, /slicing, /three (25,715 B brotli at T1.2 on 38bdac8, 2026-09-27)",
+    "path": ["dist/*.js", "!dist/shapekernel.js", "!dist/latticelibrary.js", "!dist/numerics.js"],
+    "limit": "26 kB"
+  },
+  {
+    "name": "picovoxel/shapekernel (13,309 B brotli at T1.2, 2026-09-27)",
+    "path": ["dist/shapekernel.js", "dist/shapekernel/*.js"],
+    "limit": "13.5 kB"
+  },
+  {
+    "name": "picovoxel/latticelibrary (5,039 B brotli at T1.2, 2026-09-27)",
+    "path": ["dist/latticelibrary.js", "dist/latticelibrary/*.js"],
+    "limit": "5.1 kB"
+  },
+  {
+    "name": "picovoxel/numerics (4,561 B brotli at T1.2, 2026-09-27)",
+    "path": ["dist/numerics.js", "dist/numerics/*.js"],
+    "limit": "4.65 kB"
+  },
+  {
+    "name": "serial glue picovoxel/glue (emcc 5.0.1: 18,981 B brotli in CI run 36306325041)",
+    "path": "dist/pico.mjs",
+    "limit": "19.2 kB"
+  },
+  {
+    "name": "pthread glue picovoxel/multi/worker (emcc 5.0.1: 22,926 B brotli in CI run 36306325041)",
+    "path": "dist/pico-multi.mjs",
+    "limit": "23.2 kB"
+  },
+  {
+    "name": "CommonJS diagnostic (97 B brotli at T1.2, 2026-09-27)",
+    "path": "dist/cjs-error.cjs",
+    "limit": "100 B"
+  }
+]
