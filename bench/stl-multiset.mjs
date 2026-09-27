@@ -97,9 +97,9 @@ export function stlIdentity(bytes) {
     }
     if (view.getUint16(at + ATTR, true) !== 0) attrNonZero++;
   }
-  // FNV-1a over the whole stream: weak, but it is the identifier every prior
-  // earlier benchmark record quotes (`0ccaa277`/`38cad381`), so it is carried for
-  // cross-referencing only — sha256 is the byte oracle.
+  // FNV-1a over the whole stream: weak, but earlier benchmark records quote it
+  // (`0ccaa277`/`38cad381`), so it is carried for cross-referencing only —
+  // sha256 is the byte oracle.
   let fnv = 0x811c9dc5;
   for (let i = 0; i < bytes.length; i++) {
     fnv = Math.imul(fnv ^ bytes[i], 0x01000193) >>> 0;
