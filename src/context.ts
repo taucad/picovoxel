@@ -7,10 +7,12 @@
 import { DISPOSE } from './dispose.ts';
 import { PicoError } from './errors.ts';
 import type { PicoRaw } from './raw.generated.ts';
+import type { LaneSet } from './lanes.ts';
 import type { HandleRegistry } from './registry.ts';
 import { compileSdfExpression } from './tape.ts';
 import type { SdfExpression } from './tape.ts';
 import type { PicoWasmModule, SdfFunction, Vec3 } from './types.ts';
+import type { Voxels } from './voxels.ts';
 
 /**
  * SK-0.4 / SKv2-0 V0.5-V0.6 — which export renders a lattice into voxels.
@@ -71,6 +73,12 @@ export interface SessionContext {
   readVec3(pointer: number): Vec3;
   /** Samples PicoGK's own memory counter, warns once past the threshold. */
   maybeWarnMemory(): void;
+  /**
+   * The Voxels wrapper factory, injected by the session so mesh.ts never
+   * imports voxels.ts at run time: voxels.ts imports mesh.ts for `toMesh`, and
+   * the build fails on a runtime import cycle.
+   */
+  wrapVoxels(handle: bigint, provenance?: LaneSet): Voxels;
 }
 
 /** Anything the facade hands out: disposable, optionally so (GC is the backstop). */
