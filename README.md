@@ -30,9 +30,54 @@ No cleanup calls in sight — that is the API contract, not an oversight (see [M
 
 ## Browser and node
 
-The same wasm pair serves both. In node (≥ 20) it just works. In the browser, serve `pico.wasm` next to `pico.mjs` (both ship in `dist/`) with `Content-Type: application/wasm`; no COOP/COEP headers are needed — the build is single-threaded by design (PicoGK's implicit loop is serial, so JS SDF callbacks are exact, not racy).
+Two entries share one API: `picovoxel` is the serial build and `picovoxel/multi` is the pthreads build, so switching is a one-specifier change. Node needs 22.14.0 or later.
 
-**Bundlers**: the Emscripten glue locates `pico.wasm` via `import.meta.url`. If your bundler inlines the glue, copy `pico.wasm` next to your bundle output — that is the whole integration.
+- **Node**: both entries work with no configuration. The multi entry spawns its pool with `worker_threads`, and idle pool workers never keep the process alive.
+- **Browser, serial**: serve `pico.wasm` next to `pico.mjs` with `Content-Type: application/wasm`. No COOP/COEP headers are needed.
+- **Browser, multi**: the shared wasm memory needs `SharedArrayBuffer`, so the page must be cross-origin isolated: `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` (or `credentialless`). `pico-multi.mjs` is also the module script of every pthread worker, so serve it and `pico-multi.wasm` from the same origin. `createPico` starts one worker per `navigator.hardwareConcurrency` before it resolves.
+
+The relocatable assets have their own subpaths, so a host can resolve, copy or precompile them:
+
+| Subpath | File | Loaded by |
+| --- | --- | --- |
+| `picovoxel/wasm` | `dist/pico.wasm` | the serial glue |
+| `picovoxel/glue` | `dist/pico.mjs` | `picovoxel` (static import) |
+| `picovoxel/multi/wasm` | `dist/pico-multi.wasm` | the pthreads glue |
+| `picovoxel/multi/worker` | `dist/pico-multi.mjs` | `picovoxel/multi` and every pthread worker |
+
+**Bundlers**: each glue finds its wasm, and the multi glue finds its worker script, with `new URL(file, import.meta.url)`. A bundler that emits those files as siblings needs nothing more. Otherwise pass Emscripten overrides through `createPico({ wasm })`:
+
+```js
+import { createPico } from 'picovoxel';
+
+// Serial: tell the glue where the wasm lives.
+const pico = await createPico({
+  wasm: { locateFile: () => import.meta.resolve('picovoxel/wasm') },
+});
+```
+
+```js
+import { createPico } from 'picovoxel/multi';
+
+// Multi: compile once, reuse the module for every session, and name the worker script.
+const module = await WebAssembly.compileStreaming(fetch(import.meta.resolve('picovoxel/multi/wasm')));
+const pico = await createPico({
+  wasm: {
+    // In Node this must be a filesystem path: fileURLToPath(import.meta.resolve('picovoxel/multi/worker')).
+    mainScriptUrlOrBlob: import.meta.resolve('picovoxel/multi/worker'),
+    instantiateWasm: (imports, receive) => {
+      WebAssembly.instantiate(module, imports).then((instance) => receive(instance, module));
+      return {};
+    },
+  },
+});
+```
+
+- `locateFile(file)` receives `pico.wasm` or `pico-multi.wasm` and returns its URL (a path also works in Node). It is not consulted when `instantiateWasm` is given.
+- `mainScriptUrlOrBlob` is handed to `new Worker(...)` for each pthread. Node's `worker_threads` rejects `file:` URL strings, so pass a path there.
+- `instantiateWasm(imports, receive)` lets the host supply a precompiled `WebAssembly.Module`. Pass the module as the second argument: the pthread workers receive it from the main thread and never fetch the wasm themselves.
+
+The CI consumer job exercises both overrides against the installed tarball on Node (the multi case with the path form and a module compiled from the file bytes).
 
 **Safari**: supported from 16.4 (the wasm-SIMD floor). `Symbol.dispose` is self-shimmed on engines that lack it (Safari 16.4–18.3), so `using` in *your* transpiled code works there too. The shim assigns only when the native symbol is missing; nothing is patched on modern engines. Proven per-release by a Playwright gate that runs the full suite on Chromium, WebKit, and Firefox — pure-wasm results are bit-identical across all three.
 
@@ -84,9 +129,10 @@ bash scripts/build-deps-wasm.sh              # OpenVDB + oneTBB wasm prefix (~5 
 THREADS=1 bash scripts/build-deps-wasm.sh    # the same prefix for the pthread variant
 bash scripts/build-pico-module.sh            # -> src/pico.{mjs,wasm}
 THREADS=1 bash scripts/build-pico-module.sh  # -> src/pico-multi.{mjs,wasm}
-npm ci && npm test                           # vitest, 100% coverage enforced
-npm run build && npm run test:browser        # Playwright: chromium + webkit + firefox, against dist/
-npm run bench                                # refuses loaded machines by design
+pnpm install && pnpm test                    # vitest, 100% coverage enforced
+pnpm run build && pnpm run test:browser      # Playwright: chromium + webkit + firefox, against dist/
+pnpm nx run picovoxel:quality                # build, typecheck, package shape, size budgets
+pnpm run bench                               # refuses loaded machines by design
 ```
 
 Neither wasm pair is committed: CI builds both from the pinned sources, and the published binaries come from that run.

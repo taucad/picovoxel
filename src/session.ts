@@ -258,6 +258,7 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
       now: now ?? (() => Date.now()),
       totalMemUsage: () => raw.Library_nTotalMemUsage(lib),
     }),
+    wrapVoxels: (handle, provenance) => wrapVoxels(ctx, handle, provenance),
   };
 
   const readInfo = (fn: 'Library_GetName' | 'Library_GetVersion' | 'Library_GetBuildInfo'): string => {

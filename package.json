@@ -1,9 +1,7 @@
 {
   "name": "picovoxel",
-  "version": "0.1.0",
-  "type": "module",
-  "description": "PicoGK — voxel/implicit computational geometry on OpenVDB — compiled to WebAssembly, with an idiomatic TypeScript API",
-  "license": "Apache-2.0",
+  "version": "0.0.0",
+  "description": "PicoGK voxel and implicit geometry on OpenVDB, compiled to WebAssembly with a typed TypeScript API.",
   "keywords": [
     "picogk",
     "openvdb",
@@ -15,50 +13,153 @@
     "webassembly",
     "wasm"
   ],
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./multi": {
-      "types": "./dist/multi.d.ts",
-      "import": "./dist/multi.js"
-    },
-    "./latticelibrary": {
-      "types": "./dist/latticelibrary.d.ts",
-      "import": "./dist/latticelibrary.js"
-    },
-    "./numerics": {
-      "types": "./dist/numerics.d.ts",
-      "import": "./dist/numerics.js"
-    },
-    "./raw": {
-      "types": "./dist/raw.d.ts",
-      "import": "./dist/raw.js"
-    },
-    "./shapekernel": {
-      "types": "./dist/shapekernel.d.ts",
-      "import": "./dist/shapekernel.js"
-    },
-    "./slicing": {
-      "types": "./dist/slicing.d.ts",
-      "import": "./dist/slicing.js"
-    },
-    "./three": {
-      "types": "./dist/three.d.ts",
-      "import": "./dist/three.js"
-    }
-  },
-  "files": [
-    "dist",
-    "MIGRATING-FROM-CSHARP.md",
-    "NOTICE"
-  ],
+  "author": "Richard Fontein",
+  "license": "Apache-2.0",
+  "type": "module",
   "sideEffects": [
     "./dist/dispose.js"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22.14.0"
+  },
+  "packageManager": "pnpm@11.7.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/taucad/picovoxel.git"
+  },
+  "homepage": "https://tau.new",
+  "bugs": {
+    "url": "https://github.com/taucad/picovoxel/issues"
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs-error.d.cts",
+        "default": "./dist/cjs-error.cjs"
+      },
+      "default": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "./multi": {
+      "import": {
+        "types": "./dist/multi.d.ts",
+        "default": "./dist/multi.js"
+      },
+      "require": {
+        "types": "./dist/cjs-error.d.cts",
+        "default": "./dist/cjs-error.cjs"
+      },
+      "default": {
+        "types": "./dist/multi.d.ts",
+        "default": "./dist/multi.js"
+      }
+    },
+    "./latticelibrary": {
+      "import": {
+        "types": "./dist/latticelibrary.d.ts",
+        "default": "./dist/latticelibrary.js"
+      },
+      "require": {
+        "types": "./dist/cjs-error.d.cts",
+        "default": "./dist/cjs-error.cjs"
+      },
+      "default": {
+        "types": "./dist/latticelibrary.d.ts",
+        "default": "./dist/latticelibrary.js"
+      }
+    },
+    "./numerics": {
+      "import": {
+        "types": "./dist/numerics.d.ts",
+        "default": "./dist/numerics.js"
+      },
+      "require": {
+        "types": "./dist/cjs-error.d.cts",
+        "default": "./dist/cjs-error.cjs"
+      },
+      "default": {
+        "types": "./dist/numerics.d.ts",
+        "default": "./dist/numerics.js"
+      }
+    },
+    "./raw": {
+      "import": {
+        "types": "./dist/raw.d.ts",
+        "default": "./dist/raw.js"
+      },
+      "require": {
+        "types": "./dist/cjs-error.d.cts",
+        "default": "./dist/cjs-error.cjs"
+      },
+      "default": {
+        "types": "./dist/raw.d.ts",
+        "default": "./dist/raw.js"
+      }
+    },
+    "./shapekernel": {
+      "import": {
+        "types": "./dist/shapekernel.d.ts",
+        "default": "./dist/shapekernel.js"
+      },
+      "require": {
+        "types": "./dist/cjs-error.d.cts",
+        "default": "./dist/cjs-error.cjs"
+      },
+      "default": {
+        "types": "./dist/shapekernel.d.ts",
+        "default": "./dist/shapekernel.js"
+      }
+    },
+    "./slicing": {
+      "import": {
+        "types": "./dist/slicing.d.ts",
+        "default": "./dist/slicing.js"
+      },
+      "require": {
+        "types": "./dist/cjs-error.d.cts",
+        "default": "./dist/cjs-error.cjs"
+      },
+      "default": {
+        "types": "./dist/slicing.d.ts",
+        "default": "./dist/slicing.js"
+      }
+    },
+    "./three": {
+      "import": {
+        "types": "./dist/three.d.ts",
+        "default": "./dist/three.js"
+      },
+      "require": {
+        "types": "./dist/cjs-error.d.cts",
+        "default": "./dist/cjs-error.cjs"
+      },
+      "default": {
+        "types": "./dist/three.d.ts",
+        "default": "./dist/three.js"
+      }
+    },
+    "./wasm": "./dist/pico.wasm",
+    "./glue": "./dist/pico.mjs",
+    "./multi/wasm": "./dist/pico-multi.wasm",
+    "./multi/worker": "./dist/pico-multi.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "MIGRATING-FROM-CSHARP.md",
+    "NOTICE",
+    "license"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "scripts": {
     "build": "tsdown",
@@ -68,6 +169,15 @@
     "test:unit": "vitest run --exclude 'test/examples-*.test.ts' --exclude test/g0-gate.test.ts",
     "test:watch": "vitest",
     "test:browser": "node scripts/browser-gate.mjs",
+    "test:scripts": "node --test tests/*.test.mjs",
+    "test:package": "node scripts/test-package.mjs candidate",
+    "check": "nx run picovoxel:quality",
+    "check:shell": "for script in scripts/*.sh bench/*.sh .github/actions/*/*.sh; do bash -n \"$script\" || exit 1; done",
+    "check:size": "size-limit",
+    "pkgcheck": "pnpm run validate-pack && node scripts/pkgcheck.mjs",
+    "plan:check": "nx release plan:check",
+    "validate-pack": "node scripts/validate-pack.mjs",
+    "prepublishOnly": "node scripts/validate-pack.mjs",
     "bench": "node bench/run.mjs",
     "build:demo": "tsdown --config tsdown.demo.config.ts",
     "build:emdawnwebgpu-spike": "bash scripts/build-emdawnwebgpu-spike.sh",
@@ -88,22 +198,20 @@
     }
   },
   "devDependencies": {
-    "@types/node": "^26.1.1",
-    "@types/three": "^0.185.1",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@arethetypeswrong/cli": "0.18.5",
+    "@nx/js": "23.1.1",
+    "@size-limit/file": "13.0.3",
+    "@types/node": "26.1.1",
+    "@types/three": "0.185.1",
+    "@vitest/coverage-v8": "4.1.10",
+    "nx": "23.1.1",
     "pkg-pr-new": "0.0.88",
-    "playwright": "^1.61.1",
-    "three": "^0.185.1",
-    "tsdown": "^0.22.2",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.10"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/taucad/picovoxel.git"
-  },
-  "homepage": "https://github.com/taucad/picovoxel#readme",
-  "bugs": {
-    "url": "https://github.com/taucad/picovoxel/issues"
+    "playwright": "1.61.1",
+    "publint": "0.3.23",
+    "size-limit": "13.0.3",
+    "three": "0.185.1",
+    "tsdown": "0.22.14",
+    "typescript": "6.0.3",
+    "vitest": "4.1.10"
   }
 }

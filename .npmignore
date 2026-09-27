@@ -1,0 +1,9 @@
+# package.json#files is authoritative; this is a second deny-by-default boundary.
+*
+!dist/
+!dist/**
+!README.md
+!MIGRATING-FROM-CSHARP.md
+!NOTICE
+!license
+!package.json

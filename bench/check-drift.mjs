@@ -53,7 +53,7 @@ if (drifts.length === 0) {
 const body = `Benchmark drift >2x vs the committed baseline (${baselineFile}):\n\n` +
   drifts.map((d) => `- ${d}`).join('\n') +
   `\n\nLatest: ${latestFile} on ${latest.fingerprint.cpu}. ` +
-  'CI numbers are canaries, not certification — reproduce on a quiet machine with `npm run bench`.';
+  'CI numbers are canaries, not certification — reproduce on a quiet machine with `pnpm run bench`.';
 console.error(body);
 
 if (process.argv.includes('--open-issue')) {

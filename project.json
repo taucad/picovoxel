@@ -1,0 +1,83 @@
+{
+  "name": "picovoxel",
+  "$schema": "./node_modules/nx/schemas/project-schema.json",
+  "root": ".",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm run build"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "build"
+      ],
+      "options": {
+        "command": "pnpm run typecheck"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "build"
+      ],
+      "options": {
+        "command": "pnpm run test"
+      }
+    },
+    "test:scripts": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm run test:scripts"
+      }
+    },
+    "check:shell": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm run check:shell"
+      }
+    },
+    "check:size": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "build"
+      ],
+      "options": {
+        "command": "pnpm run check:size"
+      }
+    },
+    "validate-pack": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "build"
+      ],
+      "options": {
+        "command": "pnpm run validate-pack"
+      }
+    },
+    "pkgcheck": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "build"
+      ],
+      "options": {
+        "command": "pnpm run pkgcheck"
+      }
+    },
+    "quality": {
+      "executor": "nx:noop",
+      "dependsOn": [
+        "build",
+        "check:shell",
+        "check:size",
+        "pkgcheck",
+        "test:scripts",
+        "typecheck",
+        "validate-pack"
+      ]
+    }
+  }
+}

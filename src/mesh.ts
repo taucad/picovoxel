@@ -12,7 +12,7 @@ import { assertLaneExport, EXACT_LANE_SET, laneOf, unionLaneSets, type LaneSet }
 import { provenanceOf, recordProvenance } from './metadata.ts';
 import { writeStlBytes, type ToStlOptions } from './stl.ts';
 import type { Bounds, Mat4, Vec3 } from './types.ts';
-import { wrapVoxels, type Voxels } from './voxels.ts';
+import type { Voxels } from './voxels.ts';
 
 export type TransformOptions =
   | { matrix: Mat4 }
@@ -233,14 +233,13 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: LaneSet = EX
     toVoxels(): Voxels {
       const target = expectHandle('Voxels_hCreate', ctx.raw.Voxels_hCreate(ctx.lib));
       guard('Voxels_RenderMesh', () => ctx.raw.Voxels_RenderMesh(ctx.lib, target, live()))();
-      return wrapVoxels(ctx, target, lane);
+      return ctx.wrapVoxels(target, lane);
     },
     shellVoxels({ radius }: { radius: number }): Voxels {
       if (!(radius > 0)) {
         throw new PicoError('PICO_INVALID_ARGUMENT', `shellVoxels needs a positive radius in millimetres, got ${radius}.`);
       }
-      return wrapVoxels(
-        ctx,
+      return ctx.wrapVoxels(
         expectHandle('Voxels_hCreateMeshShell', guard('Voxels_hCreateMeshShell', () => ctx.raw.Voxels_hCreateMeshShell(ctx.lib, live(), radius))()),
         lane,
       );

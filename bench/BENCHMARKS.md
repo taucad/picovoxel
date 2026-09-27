@@ -2,7 +2,7 @@
 
 > Measured on Apple M2 Pro (12 cores, 32 GiB), darwin 25.5.0, node v26.5.0, wasm 70304cfe70a0 (5,835,133 B), commit 3622099, 2026-07-23.
 > **Absolute numbers are device-specific; treat ratios and phase splits as the portable signal.**
-> Reproduce with `npm run bench` (the harness refuses loaded machines). Source: `bench/results/2026-07-23-3622099.json`.
+> Reproduce with `pnpm run bench` (the harness refuses loaded machines). Source: `bench/results/2026-07-23-3622099.json`.
 >
 > Native-comparison figures (the ~1.95× PicoGK wasm tax, R20's 3–9% SDF callback overhead, R11's ~150×
 > bulk-readback win) are imported by reference from the measured records in the research docs
@@ -295,7 +295,7 @@ Readings:
   the 0.3/0.2 mm cells are R12's memory-gated territory.
 
 M11 (RoverWheel Wheel_02) and M12 (HelixHeatX @ 1.0 mm single/multi) join the
-generated metric table on the next `npm run bench -- --update` run.
+generated metric table on the next `pnpm run bench -- --update` run.
 
 ### R12 — fine-voxel ceiling (0.3/0.2 mm), documented (2026-07-19)
 

@@ -2,6 +2,10 @@ build/
 dist/
 vendor/
 node_modules/
+# Nx workspace data and cache; only Version Plans are tracked.
+.nx/*
+!.nx/version-plans/
+!.nx/version-plans/*.md
 *.png
 *.glb
 
