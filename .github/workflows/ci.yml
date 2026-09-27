@@ -9,10 +9,10 @@
 # (WebKit), arm64 native parity is a local harness (bench/), and macOS minutes
 # cost 10x on a private repository.
 #
-# Still to come, by owner: validate-pack/publint/attw/size-limit and the pnpm/Nx
-# switch (PR2, T1.2); lint, prose and actionlint (PR3/PR4); ci-release.mjs,
-# publish and registry verification (PR5, T1.6); the C++ coverage job (W3); the
-# benchmark job, the hard byte ceilings and the 2.0 mm candidate G0 pin (W4).
+# Still to come, by owner: lint, prose and actionlint (PR3/PR4); ci-release.mjs,
+# the Version Plan check, publish and registry verification (PR5, T1.6); the C++
+# coverage job (W3); the benchmark job, the hard wasm byte ceilings and the
+# 2.0 mm candidate G0 pin (W4).
 name: CI
 
 on:
@@ -151,12 +151,11 @@ jobs:
           path: .
           merge-multiple: 'true'
           expect: src/pico.mjs src/pico.wasm src/pico-multi.mjs src/pico-multi.wasm
-      # Build before typecheck: examples import the package by name, so their
-      # types resolve from dist/*.d.ts.
-      - run: npm run build
-      - run: npm run typecheck
-      - run: node --test tests/*.test.mjs
-      - run: for script in scripts/*.sh bench/*.sh .github/actions/*/*.sh; do bash -n "$script"; done
+      # The fan-in: build (which fails on a runtime import cycle), typecheck
+      # (after build: examples import the package by name), script tests, bash
+      # syntax, JS size budgets, the exact file set, publint and attw. The suite
+      # itself runs sharded below (D28), not here.
+      - run: pnpm nx run picovoxel:quality
 
   candidate:
     needs: [preflight, quality, wasm]
@@ -178,18 +177,14 @@ jobs:
           path: .
           merge-multiple: 'true'
           expect: src/pico.mjs src/pico.wasm src/pico-multi.mjs src/pico-multi.wasm
-      - run: npm run build
+      - run: pnpm run build
       - id: pack
         run: |
           mkdir -p candidate
           npm pack --ignore-scripts --pack-destination candidate
           node scripts/candidate-manifest.mjs candidate
-          for file in pico.mjs pico.wasm pico-multi.mjs pico-multi.wasm; do
-            tar -tzf candidate/*.tgz | grep -qx "package/dist/$file" || {
-              echo "::error::the candidate is missing dist/$file"
-              exit 1
-            }
-          done
+          # The tarball's real entries equal PACKAGE_FILES, CI-built wasm included.
+          node scripts/validate-pack.mjs candidate/*.tgz
           node -e "const m=require('./candidate/manifest.json');for(const p of m.packages)console.log(p.name+'@'+p.version, p.filename, p.integrity)" \
             | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -229,12 +224,12 @@ jobs:
         run: |
           if [[ "$COVERAGE" == true ]]; then
             # shellcheck disable=SC2086 # the flags are a word list by design
-            npm run test:unit -- $VITEST_BLOB_FLAGS --outputFile.blob=.vitest-reports/blob-unit.json
+            pnpm run test:unit $VITEST_BLOB_FLAGS --outputFile.blob=.vitest-reports/blob-unit.json
           else
-            npm run test:unit
+            pnpm run test:unit
           fi
       - name: R14 on the pthread artifact
-        run: npx vitest run test/tier2.test.mjs
+        run: pnpm exec vitest run test/tier2.test.mjs
         env:
           PICOVOXEL_R14_ARTIFACT: multi
       - if: matrix.node == env.NODE_LATEST
@@ -296,7 +291,7 @@ jobs:
           esac
           echo "shard $SHARD: ${files[*]}"
           # shellcheck disable=SC2086 # the flags are a word list by design
-          npx vitest run "${files[@]}" $VITEST_BLOB_FLAGS --outputFile.blob=".vitest-reports/blob-$SHARD.json"
+          pnpm exec vitest run "${files[@]}" $VITEST_BLOB_FLAGS --outputFile.blob=".vitest-reports/blob-$SHARD.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: vitest-blob-${{ matrix.shard }}
@@ -321,7 +316,7 @@ jobs:
           merge-multiple: 'true'
           expect: blob-unit.json blob-roverwheel.json blob-g0-gate.json blob-examples.json
       - name: Enforce 100% TypeScript coverage over every test file
-        run: npx vitest run --merge-reports --coverage
+        run: pnpm exec vitest run --merge-reports --coverage
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: lcov
@@ -381,12 +376,12 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ matrix.browser }}-${{ steps.playwright.outputs.version }}
-      - run: npx playwright install --with-deps '${{ matrix.browser }}'
-      - run: npm run test:browser
+      - run: pnpm exec playwright install --with-deps '${{ matrix.browser }}'
+      - run: pnpm run test:browser
         env:
           BROWSER: ${{ matrix.browser }}
 
-  # npm audit until PR4 brings OSV (report-only on pull requests there).
+  # pnpm audit until PR4 brings OSV (report-only on pull requests there).
   security:
     needs: preflight
     runs-on: ubuntu-24.04
@@ -394,10 +389,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: ./.github/actions/setup
         with:
           node-version: ${{ env.NODE_LATEST }}
-      - run: npm audit --audit-level=high
+      - run: pnpm audit --audit-level high
 
   # Same-repository pull requests only: the tested candidate, expanded, in one
   # locked pkg-pr-new invocation. Fork pull requests skip both preview jobs.
@@ -424,7 +419,7 @@ jobs:
       - run: node scripts/extract-candidate-packages.mjs --from candidate --out preview-packages
       - id: publish
         run: >-
-          npx --no pkg-pr-new publish
+          pnpm exec pkg-pr-new publish
           --previewVersion
           --comment=update
           --commentWithSha

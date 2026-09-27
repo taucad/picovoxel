@@ -1,7 +1,5 @@
 name: Setup repository
-description: Install the pinned Node and the locked npm dependencies.
-# PR2 (close-out T1.2) swaps npm for pnpm here; every job calls this action, so
-# the package-manager switch touches one file.
+description: Install the pinned Node and pnpm, then the locked dependencies with bounded retries.
 inputs:
   node-version:
     description: Exact Node version or supported major alias.
@@ -9,14 +7,18 @@ inputs:
 runs:
   using: composite
   steps:
+    - uses: pnpm/action-setup@f2b2b233b538f500472c7274c7012f57857d8ce0 # v4.1.0
+      with:
+        run_install: false
+        version: '11.7.0'
     - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: ${{ inputs.node-version }}
-        cache: npm
+        cache: pnpm
     - shell: bash
       run: |
         for attempt in 1 2 3; do
-          npm ci --no-audit --no-fund && exit 0
+          pnpm install --frozen-lockfile && exit 0
           test "$attempt" = 3 && exit 1
           sleep "$((attempt * 5))"
         done

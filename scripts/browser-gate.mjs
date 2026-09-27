@@ -33,9 +33,9 @@ if (offenders.length > 0) {
   process.exit(1);
 }
 
-// ── 1. Build the gate bundle from dist/ (npm run build, or the CI candidate) ──
+// ── 1. Build the gate bundle from dist/ (pnpm run build, or the CI candidate) ──
 if (!existsSync(join(HERE, 'dist/index.js'))) {
-  console.error('dist/ is missing: run `npm run build` (CI extracts the candidate tarball there)');
+  console.error('dist/ is missing: run `pnpm run build` (CI extracts the candidate tarball there)');
   process.exit(1);
 }
 console.log('building gate bundle…');
