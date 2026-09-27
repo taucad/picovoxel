@@ -22,6 +22,7 @@ import { freeHeld } from '../src/registry.ts';
 import {
   createPicoSession,
   openPicoRuntime,
+  warmPool,
   warmUpOp,
   WARM_OFFSET_VOXELS,
   WARM_RADIUS_VOXELS,
@@ -477,4 +478,35 @@ test('multi runtime from a compiled module: the module reaches every pthread', a
     serial.dispose();
     runtime.dispose();
   }
+});
+
+// The pool poll after the warm-up op: deterministic stand-ins for both exits,
+// because on a real pool whether the loop body runs at all depends on how fast
+// the host's workers launch (CI runners are often ready before the first check).
+test('warmPool yields until the pool fills, and stops at the deadline when it never does', async () => {
+  const fakeRuntime = (pool: { runningWorkers: unknown[] }) =>
+    ({
+      createPico: async () =>
+        ({
+          voxelSize: 1,
+          module: { PThread: pool },
+          createVoxels: () => ({ offset: () => ({ dispose() {} }), dispose() {} }),
+          dispose() {},
+        }) as unknown as Pico,
+    }) as unknown as PicoRuntime;
+
+  const wanted = navigator.hardwareConcurrency - 1;
+  let checks = 0;
+  const filling = {
+    get runningWorkers() {
+      checks += 1;
+      return checks > 2 ? Array.from({ length: wanted }) : [];
+    },
+  };
+  await warmPool(fakeRuntime(filling));
+  assert.ok(checks >= 3, 'the poll yielded to the event loop until the workers were running');
+
+  const started = Date.now();
+  await warmPool(fakeRuntime({ runningWorkers: [] }));
+  assert.ok(Date.now() - started >= 100, 'a pool that never fills releases the caller at the 100 ms deadline');
 });
