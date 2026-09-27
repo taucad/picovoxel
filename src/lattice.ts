@@ -22,6 +22,7 @@
 
 import { adoptHandle, checkedMalloc, expectHandle, type SessionContext } from './context.ts';
 import { assertLive, guard, PicoError } from './errors.ts';
+import { EXACT_LANE_SET } from './lanes.ts';
 import type { Vec3 } from './types.ts';
 import { wrapVoxels, type Voxels } from './voxels.ts';
 
@@ -179,7 +180,7 @@ export function wrapLattice(ctx: SessionContext, handle: bigint): Lattice {
       const renderLattice = ctx.renderLatticeExport;
       const target = expectHandle('Voxels_hCreate', ctx.raw.Voxels_hCreate(ctx.lib));
       guard(renderLattice, () => ctx.raw[renderLattice](ctx.lib, target, handle))();
-      return wrapVoxels(ctx, target);
+      return wrapVoxels(ctx, target, EXACT_LANE_SET);
     },
     get memUsage() {
       live();

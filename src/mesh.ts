@@ -5,10 +5,12 @@
 // write back through the bulk imports, preserving indexing — and fixing upstream B1
 // (mshCreateTransformed scales each triangle corner by a DIFFERENT axis component).
 
-import { adoptHandle, assertSameSession, checkedMalloc, expectHandle, TRI_BYTES, VEC3_BYTES, type PicoLane, type SessionContext } from './context.ts';
+import { adoptHandle, assertSameSession, checkedMalloc, expectHandle, TRI_BYTES, VEC3_BYTES, type SessionContext } from './context.ts';
 import { assertLive, guard, PicoError } from './errors.ts';
 import { createGlb } from './glb.ts';
-import { meshToStlBytes, type ToStlOptions } from './stl.ts';
+import { EXACT_LANE_SET, laneOf, unionLaneSets, type LaneSet } from './lanes.ts';
+import { provenanceOf, recordProvenance } from './metadata.ts';
+import { writeStlBytes, type ToStlOptions } from './stl.ts';
 import type { Bounds, Mat4, Vec3 } from './types.ts';
 import { wrapVoxels, type Voxels } from './voxels.ts';
 
@@ -40,13 +42,28 @@ export interface Mesh {
   /** SG13 — offset in ALL directions from a not-necessarily-closed mesh. */
   shellVoxels(options: { radius: number }): Voxels;
   /**
-   * SG7 — binary STL bytes with the UNITS= header convention. §14.1: a
-   * `'fast'`-provenance mesh refuses this L0 export boundary unless
-   * acknowledged with `{ acceptLane: 'fast' }`; acknowledged exports stamp
-   * `LANE=fast` into the 80-byte header (read back by `meshFromStl`).
+   * SG7 — binary STL bytes with the UNITS= header convention.
+   *
+   * §14.1 export boundary, keyed by the session's claim (LANES item 1, the
+   * D2+D3 hybrid ratified 2026-09-27; Class-2 provenance only — Class-3
+   * policy is reserved for SK-2): exact provenance always exports with the
+   * historical header. Non-exact provenance is stamped into the 80-byte
+   * header (`LANE=fast`, read back by `meshFromStl`) and
+   * - in a `lane: 'fast'` session (explicit, or resolved from `'auto'` —
+   *   choosing "best available" is choosing acceleration) exports without
+   *   asking: declaring the lane was the consent;
+   * - in a session that declared no lane (`'open'`) refuses with
+   *   `PICO_LANE_EXPORT` unless acknowledged with `{ acceptLane: 'fast' }`.
+   * A `lane: 'exact'` session never holds non-exact geometry. The stamp is a
+   * best-effort audit, not security: third-party tools rewrite STL headers.
    */
   toStl(options?: ToStlOptions): Uint8Array;
-  /** GLB container (positions + indices). Same §14.1 refusal as `toStl`. */
+  /**
+   * GLB container (positions + indices). GLB has no provenance slot until
+   * V0.18, so non-exact provenance refuses with `PICO_LANE_EXPORT` in EVERY
+   * session — including `lane: 'fast'` — unless acknowledged with
+   * `{ acceptLane: 'fast' }`, and the acknowledged bytes record nothing.
+   */
   toGlb(options?: { acceptLane?: 'fast' }): Uint8Array;
   /** §14.1 value-class provenance, inherited from the producing voxels/mesh chain. */
   readonly lane: 'exact' | 'fast';
@@ -101,24 +118,13 @@ export function bulkCreateMesh(ctx: SessionContext, vertices: ArrayLike<number>,
   return mesh;
 }
 
-export function wrapMesh(ctx: SessionContext, handle: bigint, lane: PicoLane = 'exact'): Mesh {
+/** Meshes carry provenance TS-side only (the ABI has no mesh metadata slot). */
+export function wrapMesh(ctx: SessionContext, handle: bigint, lane: LaneSet = EXACT_LANE_SET): Mesh {
   let disposed = false;
   let cached: { vertices: Float32Array; triangles: Uint32Array } | null = null;
   const live = () => {
     assertLive(disposed, 'Mesh');
     return handle;
-  };
-
-  /** §14.1 — the refusing L0 export boundary: fast provenance must be acknowledged. */
-  const rejectLaneExport = (where: string, acceptLane: 'fast' | undefined): void => {
-    if (lane === 'fast' && acceptLane !== 'fast') {
-      throw new PicoError(
-        'PICO_LANE_EXPORT',
-        `${where}() on a 'fast'-provenance mesh: at least one Class-2 op (e.g. fastRenorm) fed this geometry, ` +
-          `so its bytes are not L0/pin-comparable. Acknowledge with ${where}({ acceptLane: 'fast' }) — the export ` +
-          `records the lane — or rebuild the chain in a lane: 'exact' session (a replay, not a conversion).`,
-      );
-    }
   };
 
   const readAll = guard('Mesh_GetVertices/GetTriangles', () => {
@@ -220,7 +226,7 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: PicoLane = '
       const triangles = new Uint32Array(a.triangles.length + b.triangles.length);
       triangles.set(a.triangles, 0);
       for (let i = 0; i < b.triangles.length; i++) triangles[a.triangles.length + i] = b.triangles[i]! + offset;
-      return wrapMesh(ctx, bulkCreateMesh(ctx, vertices, triangles), lane === 'fast' || other.lane === 'fast' ? 'fast' : 'exact');
+      return wrapMesh(ctx, bulkCreateMesh(ctx, vertices, triangles), unionLaneSets(lane, provenanceOf(other)));
     },
     toVoxels(): Voxels {
       const target = expectHandle('Voxels_hCreate', ctx.raw.Voxels_hCreate(ctx.lib));
@@ -239,18 +245,36 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: PicoLane = '
     },
     toStl(options: ToStlOptions = {}): Uint8Array {
       live();
-      rejectLaneExport('toStl', options.acceptLane);
+      // The hybrid: only a session that never declared a lane still has to be asked.
+      if (lane.length > 0 && ctx.lane !== 'fast' && options.acceptLane !== 'fast') {
+        throw new PicoError(
+          'PICO_LANE_EXPORT',
+          `toStl() on a mesh with non-exact provenance (${lane.join(',')}): at least one Class-2 op (e.g. ` +
+            'fastRenorm) fed this geometry, so its bytes are not L0/pin-comparable, and this session declared no lane, ' +
+            "so nothing consented to exporting them. Either acknowledge this export with toStl({ acceptLane: 'fast' }), " +
+            "or declare the lane once with createPico({ lane: 'fast' }) — both stamp LANE=fast into the header. For " +
+            "pin-comparable bytes, rebuild the chain in a lane: 'exact' session (a replay, not a conversion).",
+        );
+      }
       const data = cached ?? readAll();
-      return meshToStlBytes(data.vertices, data.triangles, options, lane === 'fast' ? 'fast' : undefined);
+      return writeStlBytes(data.vertices, data.triangles, options, lane);
     },
     toGlb(options: { acceptLane?: 'fast' } = {}): Uint8Array {
       live();
-      rejectLaneExport('toGlb', options.acceptLane);
+      if (lane.length > 0 && options.acceptLane !== 'fast') {
+        throw new PicoError(
+          'PICO_LANE_EXPORT',
+          `toGlb() on a mesh with non-exact provenance (${lane.join(',')}): GLB has no provenance slot yet, so ` +
+            "the export cannot record the lane — it refuses in every session, including lane: 'fast'. Acknowledge " +
+            "with toGlb({ acceptLane: 'fast' }) (the bytes record nothing), export STL (which stamps the lane), or " +
+            "rebuild the chain in a lane: 'exact' session.",
+        );
+      }
       const data = cached ?? readAll();
       return createGlb(data.vertices, data.triangles);
     },
     get lane() {
-      return lane;
+      return laneOf(lane);
     },
     get handle() {
       return handle;
@@ -263,6 +287,7 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: PicoLane = '
       if (!ctx.dead.value) ctx.raw.Mesh_Destroy(ctx.lib, handle); // D4
     },
   };
+  recordProvenance(mesh, lane);
   adoptHandle(ctx, mesh, handle, ctx.raw.Mesh_Destroy);
   return mesh as Mesh; // adoptHandle added [Symbol.dispose] (D6)
 }

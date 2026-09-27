@@ -15,13 +15,13 @@ import {
   VEC3_BYTES,
   withSdfPointer,
   withSdfTape,
-  type PicoLane,
   type SessionContext,
 } from './context.ts';
 import { assertLive, guard, PicoError } from './errors.ts';
 import { wrapScalarField, type ScalarField } from './fields.ts';
+import { FAST_LANE_SET, laneOf, unionLaneSets, type LaneSet } from './lanes.ts';
 import type { Lattice } from './lattice.ts';
-import { readLaneTag, tagFieldClass, tagLaneFast, wrapMetadata, type Metadata } from './metadata.ts';
+import { provenanceOf, recordProvenance, settleProvenance, tagFieldClass, wrapMetadata, type Metadata } from './metadata.ts';
 import { wrapMesh, type Mesh } from './mesh.ts';
 import type { SdfExpression } from './tape.ts';
 import type { Bounds, SdfFunction, Vec3 } from './types.ts';
@@ -194,10 +194,11 @@ export interface Voxels {
   readonly memUsage: number;
   /**
    * §14.1 value-class provenance: least upper bound over this handle's
-   * ancestry ('fast' = at least one Class-2 op — e.g. `fastRenorm` — fed it).
-   * Persisted on the grid as `PicoVoxel.Lane` metadata, so it survives
-   * copies and `.vdb` interchange. Non-exact provenance refuses the STL/GLB
-   * export boundary unless acknowledged with `acceptLane`.
+   * ancestry ('fast' = at least one Class-2 op — e.g. `fastRenorm` — fed it,
+   * or it was loaded from bytes tagged with provenance this build treats as
+   * fast-like). Persisted on the grid as the `PicoVoxel.Lane` member set, so
+   * it survives copies and `.vdb` interchange. See `Mesh.toStl` for what the
+   * export boundary does with it.
    */
   readonly lane: 'exact' | 'fast';
   /** Raw ABI handle — escape hatch (§10). */
@@ -207,25 +208,26 @@ export interface Voxels {
   [Symbol.dispose](): void;
 }
 
-export function wrapVoxels(ctx: SessionContext, handle: bigint, laneIn?: PicoLane): Voxels {
+/**
+ * Wraps a raw voxels handle. `provenance` is the lane set a creating or
+ * deriving op establishes (`[]` for fresh geometry); omit it only for loads
+ * from `.vdb` bytes, where the persisted tag is authoritative (see
+ * `settleProvenance`: loads never rewrite the tag, and the exact-session
+ * ingest lock applies).
+ */
+export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: LaneSet): Voxels {
   let disposed = false;
   let metadataCache: Metadata | null = null;
-  // §14.1 provenance — explicit from the deriving op when given, else the
-  // persisted grid tag (so .vdb loads and native copies restore it), else the
-  // exact/L0 claim. A 'fast' handle writes the tag onto its grid immediately:
-  // provenance then rides copies and .vdb interchange with no serializer work.
-  const lane: PicoLane = laneIn ?? readLaneTag(ctx, ctx.raw.Metadata_hFromVoxels, handle) ?? 'exact';
-  if (lane === 'fast') tagLaneFast(ctx, ctx.raw.Metadata_hFromVoxels, handle);
+  // §14.1 provenance — a non-empty set rides the grid as PicoVoxel.Lane, so it
+  // survives copies and .vdb interchange with no serializer work.
+  const lane = settleProvenance(ctx, ctx.raw.Metadata_hFromVoxels, handle, provenance, ctx.raw.Voxels_Destroy, 'getVoxels');
   const live = () => {
     assertLive(disposed, 'Voxels');
     return handle;
   };
 
-  /** Least-upper-bound over value-class provenance: any 'fast' input taints. */
-  const lub = (...lanes: PicoLane[]): PicoLane => (lanes.includes('fast') ? 'fast' : 'exact');
-
   /** Copy-first derivation (SG11): clone, mutate the clone, wrap the clone. */
-  const derive = (name: string, mutate: (copy: bigint) => void, resultLane: PicoLane = lane): Voxels => {
+  const derive = (name: string, mutate: (copy: bigint) => void, resultLane: LaneSet = lane): Voxels => {
     const copy = expectHandle('Voxels_hCreateCopy', ctx.raw.Voxels_hCreateCopy(ctx.lib, live()));
     try {
       guard(name, mutate)(copy);
@@ -262,7 +264,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, laneIn?: PicoLan
         for (let i = 0; i < distancesMM.length; i++) ctx.module.HEAPF32[base + i] = distancesMM[i]!;
         ctx.raw.Voxels_OffsetTuned(ctx.lib, copy, ctx.scratch, distancesMM.length, FAST_RENORM_SCHEME, FAST_RENORM_COUNT);
       },
-      'fast', // the one Class-2 producer today — provenance taints here
+      unionLaneSets(lane, FAST_LANE_SET), // the one Class-2 producer today — provenance taints here
     );
 
   const operandHandle = (other: Voxels, what: string): bigint => {
@@ -287,7 +289,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, laneIn?: PicoLan
       }
       // Zero operands: stay pure — hand back an independent copy, as before.
       if (!owned) current = expectHandle('Voxels_hCreateCopy', ctx.raw.Voxels_hCreateCopy(ctx.lib, current));
-      return wrapVoxels(ctx, current, lub(lane, ...others.map((other) => other.lane)));
+      return wrapVoxels(ctx, current, unionLaneSets(lane, ...others.map(provenanceOf)));
     } catch (error) {
       if (owned) ctx.raw.Voxels_Destroy(ctx.lib, current);
       throw error;
@@ -460,7 +462,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, laneIn?: PicoLan
         assertSameSession(ctx, mesh, 'withMesh operand');
         return mesh.handle;
       })();
-      return derive('Voxels_RenderMesh', (copy) => ctx.raw.Voxels_RenderMesh(ctx.lib, copy, meshHandle), lub(lane, mesh.lane));
+      return derive('Voxels_RenderMesh', (copy) => ctx.raw.Voxels_RenderMesh(ctx.lib, copy, meshHandle), unionLaneSets(lane, provenanceOf(mesh)));
     },
     withLattice(lattice: Lattice): Voxels {
       assertSameSession(ctx, lattice, 'withLattice operand');
@@ -690,7 +692,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, laneIn?: PicoLan
       return Number(guard('Voxels_nMemUsage', () => ctx.raw.Voxels_nMemUsage(ctx.lib, live()))());
     },
     get lane() {
-      return lane;
+      return laneOf(lane);
     },
 
     get handle() {
@@ -705,6 +707,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, laneIn?: PicoLan
     },
   };
   tagFieldClass(ctx, ctx.raw.Metadata_hFromVoxels, handle, 'Voxels'); // SG4
+  recordProvenance(voxels, lane);
   adoptHandle(ctx, voxels, handle, ctx.raw.Voxels_Destroy);
   return voxels as Voxels; // adoptHandle added [Symbol.dispose] (D6)
 }

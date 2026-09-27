@@ -26,8 +26,10 @@ import {
 } from './context.ts';
 import { PicoError, assertLive, guard } from './errors.ts';
 import { assertVoxelsOperand, wrapScalarField, wrapVectorField, type ScalarField, type VectorField } from './fields.ts';
+import { EXACT_LANE_SET } from './lanes.ts';
 import { wrapLattice, type Lattice } from './lattice.ts';
 import { bulkCreateMesh, wrapMesh, type Mesh } from './mesh.ts';
+import { provenanceOf, rejectLaneIngest } from './metadata.ts';
 import { wrapPolyLine, writeColor, type PolyLine } from './polyline.ts';
 import { bindPicoRaw } from './raw.generated.ts';
 import { createHandleRegistry, type HandleRegistry } from './registry.ts';
@@ -84,19 +86,29 @@ export interface CreatePicoOptions {
   /** Native-memory warning threshold in bytes (default 1 GiB); 0 disables. */
   memoryWarningBytes?: number;
   /**
-   * SKv2-0 V0.5 (§14.1) — the named lane bundle.
+   * SKv2-0 V0.5 (§14.1) — the named lane bundle; a POLICY claim about every
+   * value this session produces.
    * - `'exact'`: the byte-locked numerics policy, LOCKED — session-level or
-   *   per-op loosening (e.g. `fastRenorm: true`) throws `PICO_LANE_LOOSENED`.
-   *   One Class-2 op would destroy the session's structural exactness claim.
-   *   (The L0 *oracle* is specifically this lane on the serial artifact.)
+   *   per-op loosening (e.g. `fastRenorm: true`) throws `PICO_LANE_LOOSENED`,
+   *   and so does importing a `.vdb`/STL asset that carries non-exact
+   *   provenance (no override: load it in an `'open'` or `'fast'` session).
+   *   The claim is the weak, enforceable one — no Class-2 op fed anything in
+   *   this session; the L0 *oracle* is specifically this lane on the serial
+   *   artifact.
    * - `'fast'`: Class-2 accelerations default on (`fastRenorm` today; T1/T2
-   *   when they land). Per-op/session-level *tightening* is allowed.
+   *   when they land). Per-op/session-level *tightening* is allowed. Declaring
+   *   it is also the export consent: STL and `.vdb` exports stamp the lane
+   *   and never refuse (GLB still refuses until it has a provenance slot).
    * - `'auto'`: resolves to the strongest lane available at construction —
-   *   `'fast'` today, adapter-qualified GPU lanes later. `session.lane`
-   *   always reports the RESOLUTION, never `'auto'` (an unresolved `'auto'`
-   *   is the value that keys identically while resolving differently).
-   * Omitted = no claim: library defaults with per-op freedom both ways (the
-   * pre-lane behavior; `session.lane` reports `'open'`).
+   *   `'fast'` today, adapter-qualified GPU lanes later — and counts as the
+   *   same consent. `session.lane` always reports the RESOLUTION, never
+   *   `'auto'` (an unresolved `'auto'` is the value that keys identically
+   *   while resolving differently).
+   * Omitted = `'open'`: unspecified — the pre-lane legacy; library defaults
+   * with per-op freedom both ways, and exports of non-exact provenance refuse
+   * unless acknowledged per export with `acceptLane: 'fast'`. The consent
+   * rules cover today's Class-2 fast lane only; Class-3 (machine-scoped
+   * relaxed-math/GPU) export policy is reserved for SK-2.
    */
   lane?: 'exact' | 'fast' | 'auto';
   /**
@@ -112,7 +124,19 @@ export interface CreatePicoOptions {
    * `Voxels::RenderLattice` loop instead of the parallel tube-complex lane
    * (both deterministic; they differ at byte level, which is why this is a
    * keyed init option and not ambient state). Replaces the deleted
-   * `PICOVOXEL_SERIAL_LATTICE` env read.
+   * `PICOVOXEL_SERIAL_LATTICE` env read. Default false: tube-complex always —
+   * nothing switches arms by size, and no automatic arm will be added without
+   * a new charter row (LANES Part 4, ratified 2026-09-27).
+   *
+   * When to choose `true`: tiny lattices. The tube-complex lane pays a fixed
+   * setup cost (spatial bucketing, the deterministic split tree) that is free
+   * at 10^5 beams and dominant at ~14: the 14-beam HeatX print web went from
+   * 2.9 to 7.3 ms on the tube lane (`bench/results/webgpu-v2/SK-0-EXIT.md` §5).
+   * The catch: the serial arm is the defect-carrying one on beams whose end
+   * spheres nest (upstream U23 — the round-cone SDF renders the larger ball
+   * as something else entirely, -90.7% volume in the SK-0.4 corpus), while
+   * the tube lane renders it correctly. In C# that defect is unconditional;
+   * here it is opt-in with this flag.
    */
   serialLattice?: boolean;
   /** @internal test seam — fake disposal registry. */
@@ -293,7 +317,7 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
       ctx.maybeWarnMemory();
       switch (options.shape) {
         case 'empty': {
-          return wrapVoxels(ctx, expectHandle('Voxels_hCreate', raw.Voxels_hCreate(lib)));
+          return wrapVoxels(ctx, expectHandle('Voxels_hCreate', raw.Voxels_hCreate(lib)), EXACT_LANE_SET);
         }
         case 'sphere': {
           const { center = [0, 0, 0], radius } = options;
@@ -304,6 +328,7 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
           return wrapVoxels(
             ctx,
             expectHandle('Voxels_hCreateSphere', guard('Voxels_hCreateSphere', () => raw.Voxels_hCreateSphere(lib, scratch, radius))()),
+            EXACT_LANE_SET,
           );
         }
         case 'beam':
@@ -324,6 +349,7 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
               'Voxels_hCreateCapsule',
               guard('Voxels_hCreateCapsule', () => raw.Voxels_hCreateCapsule(lib, scratch, scratch + VEC3_BYTES, startRadius, endRadius))(),
             ),
+            EXACT_LANE_SET,
           );
         }
         case 'implicit': {
@@ -358,7 +384,7 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
             raw.Voxels_Destroy(lib, target); // don't leak the target on a throwing SDF or bad tape
             throw error;
           }
-          return wrapVoxels(ctx, target);
+          return wrapVoxels(ctx, target, EXACT_LANE_SET);
         }
         default:
           throw new PicoError(
@@ -399,16 +425,16 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
               'ScalarField_hBuildFromVoxels',
               guard('ScalarField_hBuildFromVoxels', () => raw.ScalarField_hBuildFromVoxels(lib, from, options.value!, options.sdThreshold ?? 0.5))(),
             ),
-            options.from.lane,
+            provenanceOf(options.from),
           );
         }
         return wrapScalarField(
           ctx,
           expectHandle('ScalarField_hCreateFromVoxels', guard('ScalarField_hCreateFromVoxels', () => raw.ScalarField_hCreateFromVoxels(lib, from))()),
-          options.from.lane,
+          provenanceOf(options.from),
         );
       }
-      return wrapScalarField(ctx, expectHandle('ScalarField_hCreate', raw.ScalarField_hCreate(lib)));
+      return wrapScalarField(ctx, expectHandle('ScalarField_hCreate', raw.ScalarField_hCreate(lib)), EXACT_LANE_SET);
     },
 
     createVectorField(options: CreateVectorFieldOptions = {}): VectorField {
@@ -424,16 +450,16 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
               'VectorField_hBuildFromVoxels',
               guard('VectorField_hBuildFromVoxels', () => raw.VectorField_hBuildFromVoxels(lib, from, scratch, options.sdThreshold ?? 0.5))(),
             ),
-            options.from.lane,
+            provenanceOf(options.from),
           );
         }
         return wrapVectorField(
           ctx,
           expectHandle('VectorField_hCreateFromVoxels', guard('VectorField_hCreateFromVoxels', () => raw.VectorField_hCreateFromVoxels(lib, from))()),
-          options.from.lane,
+          provenanceOf(options.from),
         );
       }
-      return wrapVectorField(ctx, expectHandle('VectorField_hCreate', raw.VectorField_hCreate(lib)));
+      return wrapVectorField(ctx, expectHandle('VectorField_hCreate', raw.VectorField_hCreate(lib)), EXACT_LANE_SET);
     },
 
     createVdb(): VdbFile {
@@ -527,8 +553,9 @@ export async function createPicoSession(glue: PicoGlueFactory, options: CreatePi
     meshFromStl(bytes: Uint8Array, options: FromStlOptions = {}): Mesh {
       liveSession();
       ctx.maybeWarnMemory();
-      const { vertices, triangles, lane: stlLane } = meshFromStlBytes(bytes, options);
-      return wrapMesh(ctx, bulkCreateMesh(ctx, vertices, triangles), stlLane);
+      const { vertices, triangles, provenance } = meshFromStlBytes(bytes, options);
+      rejectLaneIngest(ctx, provenance, 'meshFromStl'); // LANES defect 5 — before any native allocation
+      return wrapMesh(ctx, bulkCreateMesh(ctx, vertices, triangles), provenance);
     },
 
     get memory(): MemoryUsage {

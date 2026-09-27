@@ -22,10 +22,16 @@ export interface VdbFile {
   getScalarField(indexOrName: number | string): ScalarField;
   getVectorField(indexOrName: number | string): VectorField;
   /**
-   * Serialises the container to .vdb bytes. §14.1: refuses when a
-   * `'fast'`-provenance field was added, unless acknowledged with
-   * `{ acceptLane: 'fast' }` — provenance itself always rides each field's
-   * `PicoVoxel.Lane` metadata inside the bytes.
+   * Serialises the container to .vdb bytes. Provenance always rides each
+   * field's `PicoVoxel.Lane` metadata inside the bytes (the stamp is built in).
+   * §14.1 export boundary, the same session-claim hybrid as `Mesh.toStl`
+   * (LANES item 1): a field with non-exact provenance that was `add()`-ed in
+   * this session exports freely in a `lane: 'fast'` (or `'auto'`) session and
+   * refuses with `PICO_LANE_EXPORT` in a session that declared no lane unless
+   * acknowledged with `{ acceptLane: 'fast' }`. Fields that came in with
+   * opened bytes pass through untouched — their tags byte-for-byte, untagged
+   * ones untagged: the boundary gates locally-added provenance and never
+   * asserts authorship of foreign content (LANES defect 4).
    */
   toBytes(options?: { acceptLane?: 'fast' }): Uint8Array;
   /** Raw ABI handle — escape hatch (§10). */
@@ -56,7 +62,7 @@ export function wrapVdbFile(ctx: SessionContext, handle: bigint): VdbFile {
   let disposed = false;
   // §14.1 — LUB over fields add()-ed to this container. Fields loaded from
   // foreign bytes keep their in-band PicoVoxel.Lane tags either way; this
-  // tracker is what arms the toBytes() refusal for locally-added fast fields.
+  // tracker is what arms the toBytes() refusal for locally-added fields.
   let addedLane: 'exact' | 'fast' = 'exact';
   const live = () => {
     assertLive(disposed, 'VdbFile');
@@ -140,12 +146,13 @@ export function wrapVdbFile(ctx: SessionContext, handle: bigint): VdbFile {
     },
     toBytes(options: { acceptLane?: 'fast' } = {}): Uint8Array {
       live();
-      if (addedLane === 'fast' && options.acceptLane !== 'fast') {
+      if (addedLane === 'fast' && ctx.lane !== 'fast' && options.acceptLane !== 'fast') {
         throw new PicoError(
           'PICO_LANE_EXPORT',
-          "toBytes() on a container holding 'fast'-provenance fields: acknowledge with " +
-            "toBytes({ acceptLane: 'fast' }) — each field's lane is recorded in its PicoVoxel.Lane metadata — " +
-            "or rebuild the fields in a lane: 'exact' session.",
+          'toBytes() on a container holding fields with non-exact provenance, in a session that declared no lane: ' +
+            "nothing consented to exporting them. Either acknowledge this export with toBytes({ acceptLane: 'fast' }), " +
+            "or declare the lane once with createPico({ lane: 'fast' }) — each field's lane is recorded in its " +
+            "PicoVoxel.Lane metadata either way. For pin-comparable bytes, rebuild the fields in a lane: 'exact' session.",
         );
       }
       stampPicoMetadata(ctx, handle);
