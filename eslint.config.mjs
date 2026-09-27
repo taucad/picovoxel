@@ -21,10 +21,12 @@ export default tseslint.config(
       'spikes/webgpu/picovoxel-dist/**',
       'test/browser/gate-dist/**',
       'test/browser/vendor/**',
-      // The maintainer's working demo stays out of lint (and format, see
+      // The maintainer's working files stay out of lint (and format, see
       // .oxfmtrc.json) so an edit in progress cannot fail a pull request. tsc
-      // still type-checks it against the public API.
+      // still type-checks them, and vitest still runs the test file.
       'demo/main.ts',
+      'examples/pico/modular-gyroid-puzzle.ts',
+      'test/examples-pico.test.ts',
     ],
   },
   eslint.configs.recommended,

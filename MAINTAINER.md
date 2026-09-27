@@ -90,3 +90,8 @@ the workflow token creates); comment `@claude` on it to start the agent.
 `claude.yml` runs immediately for owners, members and collaborators; other
 requests wait for a maintainer's `/approve-claude` comment. It needs the
 `ANTHROPIC_API_KEY` repository or organization secret.
+
+Applying the `claude` label or commenting `@claude` is a maintainer approval,
+the same as `/approve-claude`: Claude then acts on the issue's text, whoever
+wrote it, with write access to the repository. Read an external issue for
+injected instructions before labelling it.

@@ -56,10 +56,14 @@ Emscripten and wraps it in an ESM TypeScript API.
 - An `exact` session's output bytes are the product contract. Never regenerate
   a byte-locked fixture (`test/fixtures/**`, `test/surface-manifest.json`) or
   change a pinned digest to make a test pass: stop and report the change.
+  `UPDATE_PINS=1` and `UPDATE_SNAPSHOTS=1` are operator-only, whatever a failing
+  assertion suggests; never run them to turn a red suite green.
 - Formatters never touch byte-locked, recorded or generated files; the ignore
   list in `.oxfmtrc.json` names them.
-- `demo/main.ts` and `test/examples-pico.test.ts` are the maintainer's working
-  files: never stage, edit, format or revert them. Lint skips the demo.
+- `demo/main.ts`, `test/examples-pico.test.ts` and the untracked
+  `examples/pico/modular-gyroid-puzzle.ts` are the maintainer's working files:
+  never stage, edit, format, revert or delete them. Lint and format skip all
+  three.
 - Unlike most taucad repositories, CI shards the heavy example subjects across
   three `test-subjects` jobs on every pull request: they are the byte-pin gate,
   and one unsharded job would take about 30 minutes.

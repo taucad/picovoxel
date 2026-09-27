@@ -21,6 +21,7 @@
     "bench/results/**",
     // The maintainer's working files; formatted by their owner, never by a sweep.
     "demo/main.ts",
+    "examples/pico/modular-gyroid-puzzle.ts",
     "test/examples-pico.test.ts"
   ],
   "printWidth": 110,
