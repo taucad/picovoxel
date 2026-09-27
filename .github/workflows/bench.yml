@@ -1,41 +1,53 @@
-# R26 — benchmark skeleton (quality doc, Finding 4). NEVER gates: CI runner load
-# violates the measurement discipline; the checked-in baseline comes from a
-# controlled machine. This job exists to catch order-of-magnitude regressions —
-# any metric >2× the committed baseline median opens an ISSUE (OQ2 default:
-# issues survive force-pushes; commit comments do not). It measures the serial
-# artifact of the latest green ci.yml push run on main at that run's head, so
-# the numbers describe the bytes that ship; the wasm is never rebuilt here.
-name: bench
+# Monthly benchmark drift canary (create-repo bench template). It never gates:
+# CI runner load violates the measurement discipline, and the committed
+# baseline comes from a controlled machine. It catches order-of-magnitude
+# regressions: a failed run, or any phase slower than 2x the committed
+# baseline median, opens a `claude`-labelled issue.
+#
+# It measures the bytes that ship: the wasm-serial and wasm-multi artifacts of
+# the latest green ci.yml push run on main, at that run's head. Both are needed
+# because M12 runs the multi entry. When no such run still holds both
+# artifacts (they expire after 90 days), it builds both from pinned sources at
+# the head of main with the build steps and cache keys ci.yml uses.
+name: Benchmark drift
 
 on:
-  workflow_dispatch:
   schedule:
-    - cron: '17 4 1 * *' # monthly
+    - cron: '17 4 1 * *' # Origin: monthly exploratory cadence.
+  workflow_dispatch:
 
 permissions: {}
 
 jobs:
-  bench:
+  drift:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    # Origin: 60 minutes for the benchmark, plus the fallback build of both
+    # variants when the prefix caches miss.
+    timeout-minutes: 120
     permissions:
       actions: read
       contents: read
       issues: write
     steps:
-      - name: Find the latest green CI run on main
+      - name: Find the wasm to measure
         id: ci
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           read -r run_id sha < <(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch main \
             --event push --status success --limit 1 --json databaseId,headSha --jq '.[] | "\(.databaseId) \(.headSha)"') || true
-          if [[ -z "${run_id:-}" ]]; then
-            echo "::error::no successful ci.yml push run on main to measure"
-            exit 1
+          live=0
+          if [[ -n "${run_id:-}" ]]; then
+            live="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts?per_page=100" \
+              --jq '[.artifacts[] | select((.expired | not) and (.name == "wasm-serial" or .name == "wasm-multi"))] | length')"
           fi
-          echo "measuring ci.yml run $run_id at $sha"
-          { echo "run-id=$run_id"; echo "sha=$sha"; } >> "$GITHUB_OUTPUT"
+          if [[ "$live" == 2 ]]; then
+            echo "measuring the wasm of ci.yml run $run_id at $sha"
+            { echo "source=download"; echo "run-id=$run_id"; echo "sha=$sha"; } >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::no green main run holds both wasm artifacts; building them at $GITHUB_SHA"
+            { echo "source=build"; echo "sha=$GITHUB_SHA"; } >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ steps.ci.outputs.sha }}
@@ -43,24 +55,49 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           node-version: '26'
-      - uses: ./.github/actions/download-verified-artifact
+      - if: steps.ci.outputs.source == 'download'
+        uses: ./.github/actions/download-verified-artifact
         with:
-          name: wasm-serial
+          pattern: wasm-*
           path: .
+          merge-multiple: 'true'
           run-id: ${{ steps.ci.outputs.run-id }}
           github-token: ${{ github.token }}
-          expect: src/pico.mjs src/pico.wasm src/pico.exports.ts
-      - name: Run benchmarks (loadavg guard relaxed — CI numbers are drift canaries only)
-        run: pnpm run bench -- --allow-loaded
-      - name: Upload results
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          expect: src/pico.mjs src/pico.wasm src/pico.exports.ts src/pico-multi.mjs src/pico-multi.wasm src/pico-multi.exports.ts
+      - if: steps.ci.outputs.source == 'build'
+        uses: ./.github/actions/build-wasm
         with:
-          name: bench-results
+          variant: serial
+      - if: steps.ci.outputs.source == 'build'
+        uses: ./.github/actions/build-wasm
+        with:
+          variant: multi
+      # dist/ is needed at runtime: the examples import the package by name.
+      - run: pnpm run build
+      - id: benchmark
+        continue-on-error: true # Origin: drift opens an issue; nothing here gates a pull request.
+        run: |
+          set -o pipefail
+          pnpm run bench -- --allow-loaded
+          node bench/check-drift.mjs 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: monthly-benchmark
           path: bench/results/
-      - name: Open an issue on >2x drift vs the committed baseline
+          if-no-files-found: warn
+      - if: steps.benchmark.outcome == 'failure'
         env:
+          GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh label create claude --repo "$GITHUB_REPOSITORY" --force \
-            --description 'Work for the Claude maintenance loop' --color 5319e7
-          node bench/check-drift.mjs --open-issue
+          gh label create claude \
+            --color 5319E7 \
+            --description 'Picked up by Claude automation' \
+            --force
+          gh issue create \
+            --title 'Benchmark drift detected' \
+            --body "Monthly benchmark drift failed in ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}. The run summary lists each phase over 2x the committed baseline; a crash before the comparison means the benchmark itself failed. CI numbers are canaries: reproduce on a quiet machine with \`pnpm run bench\` before acting." \
+            --label claude
+      - if: steps.benchmark.outcome == 'failure'
+        run: exit 1
