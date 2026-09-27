@@ -178,7 +178,7 @@ jobs:
           pattern: wasm-*
           path: .
           merge-multiple: 'true'
-          expect: src/pico.mjs src/pico.wasm src/pico-multi.mjs src/pico-multi.wasm
+          expect: src/pico.mjs src/pico.wasm src/pico.exports.ts src/pico-multi.mjs src/pico-multi.wasm src/pico-multi.exports.ts
       - run: pnpm nx run picovoxel:docs-prose
 
   candidate:
