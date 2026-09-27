@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 
-import { PACKAGE_FILES, validatePackageFiles } from '../scripts/package-files.mjs';
+import {
+  DISPOSE_FIRST_ENTRIES,
+  PACKAGE_FILES,
+  assertDisposeFirst,
+  validatePackageFiles,
+} from '../scripts/package-files.mjs';
 
 const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
@@ -57,5 +62,20 @@ describe('npm package file contract', () => {
       assert.deepEqual(Object.keys(target.import), ['types', 'default'], subpath);
       assert.deepEqual(target.default, target.import, subpath);
     }
+  });
+
+  it('requires the entries to load the Symbol.dispose shim first', () => {
+    assert.deepEqual(
+      DISPOSE_FIRST_ENTRIES.filter((file) => !PACKAGE_FILES.includes(file)),
+      [],
+    );
+    assertDisposeFirst('dist/index.js', 'import"./dispose.js";import{PicoError as e}from"./errors.js";');
+    assertDisposeFirst('dist/multi.js', "import './dispose.js';\nexport {};");
+    assert.throws(
+      () =>
+        assertDisposeFirst('dist/index.js', 'import{PicoError as e}from"./errors.js";import"./dispose.js";'),
+      /dist\/index\.js must import \.\/dispose\.js before anything else/u,
+    );
+    assert.throws(() => assertDisposeFirst('dist/multi.js', ''), /dist\/multi\.js/u);
   });
 });

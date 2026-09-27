@@ -5,13 +5,16 @@ import path from 'node:path';
 // one .js per source module (unhashed), a .d.ts for every module a public
 // declaration reaches, the four copied Emscripten artifacts, the CommonJS
 // diagnostic and the docs. Change the list and the ceiling together in the
-// causing pull request. PR #8 review (R2 S1): +1 for dist/cjs-error.d.cts.
-// T4.2 (createPicoRuntime): +2 for dist/pico.exports.js and
-// dist/pico-multi.exports.js, the per-build export names the wasmModule
-// pre-flight checks (generated beside the CI-built wasm).
-const PACKAGE_FILE_COUNT_CEILING = 134;
+// causing pull request. PR #8 review: +1 for dist/cjs-error.d.cts. PR #9
+// (createPicoRuntime): +2 for dist/pico.exports.js and dist/pico-multi.exports.js,
+// the per-build export names the wasmModule pre-flight checks (generated beside
+// the CI-built wasm). PR3: +3 for the shipped compatibility.md, CHANGELOG.md
+// and BREAKING_CHANGES.md.
+const PACKAGE_FILE_COUNT_CEILING = 137;
 
 export const PACKAGE_FILES = [
+  'BREAKING_CHANGES.md',
+  'CHANGELOG.md',
   'MIGRATING-FROM-CSHARP.md',
   'NOTICE',
   'README.md',
@@ -144,6 +147,7 @@ export const PACKAGE_FILES = [
   'dist/vdb.js',
   'dist/voxels.d.ts',
   'dist/voxels.js',
+  'compatibility.md',
   'license',
   'package.json',
 ].sort();
@@ -177,4 +181,17 @@ export const validatePackageFiles = (files) => {
   }
 
   return normalized;
+};
+
+// The Symbol.dispose shim must be the first module an entry evaluates, before
+// any wrapper class is defined. package.json#sideEffects names dist/dispose.js,
+// which rolldown would otherwise read as permission to drop the entries' bare
+// `import './dispose.ts'`; tsdown.config.ts keeps it, and this check proves the
+// shipped entries still start with it.
+export const DISPOSE_FIRST_ENTRIES = ['dist/index.js', 'dist/multi.js'];
+
+export const assertDisposeFirst = (file, source) => {
+  if (!/^import\s*["']\.\/dispose\.js["'];?/u.test(source)) {
+    throw new Error(`${file} must import ./dispose.js before anything else`);
+  }
 };

@@ -27,6 +27,9 @@
     "dist",
     "README.md",
     "MIGRATING-FROM-CSHARP.md",
+    "compatibility.md",
+    "CHANGELOG.md",
+    "BREAKING_CHANGES.md",
     "NOTICE",
     "license"
   ],
