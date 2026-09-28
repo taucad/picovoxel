@@ -1,6 +1,6 @@
 {
   "name": "picovoxel",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "PicoGK voxel and implicit geometry on OpenVDB, compiled to WebAssembly with a typed TypeScript API.",
   "keywords": [
     "cad",
