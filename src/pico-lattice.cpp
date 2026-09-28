@@ -234,9 +234,13 @@ PICOGK_API void Voxels_RenderLatticeTubes(  PKINSTANCE  hLib,
                                                         fVoxelSize,
                                                         fHalfWidth);
 
-        // Boolean-add into the target, exactly as RenderMesh does (PicoGKVdbVoxels.h:340).
-        // csgUnion prunes on exit, which is what PruneFill did for the serial fill.
-        openvdb::tools::csgUnion(*roGrid, *roTubes);
+        // Boolean-add into the target, as RenderMesh does (PicoGKVdbVoxels.h:340), then
+        // prune by the serial fill's rule (PruneFill, patch 0002). csgUnion's own prune is
+        // pruneLevelSet, which signs a node without active values by its first value: on
+        // a receiver whose interior was clipped by a render box, that flipped whole
+        // regions the serial arm keeps. For well-formed level sets the two prunes agree.
+        openvdb::tools::csgUnion(*roGrid, *roTubes, /* prune: */ false);
+        PicoGK::Voxels::PruneSignUniform(roGrid->tree());
     }
 
     if (bHasFlatCapped)

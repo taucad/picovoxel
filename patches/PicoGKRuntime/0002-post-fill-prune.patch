@@ -17,14 +17,20 @@ U-SK05-b  The fills that walk a dense accessor over a bounding box
 
 Value-neutral: the prune is openvdb's pruneLevelSet restricted to nodes that hold
 no active value AND whose values all share one sign (PruneSignUniform). Every
-inactive voxel a fill writes is exactly +/-background, so the replacement tile
-carries the value each voxel already had. Plain pruneLevelSet is NOT value-neutral
+inactive voxel a fill writes is exactly +/-background, and every grid this library
+builds holds only +/-background inactive values, so the replacement tile carries
+the value each voxel already had. (A foreign .vdb may hold other inactive values;
+a one-sign node of those becomes a +/-background tile, as under pruneLevelSet.
+Sign is value < 0, as in pruneLevelSet and the grid hash, while bIsInside tests
+value <= 0: an inactive exact zero, which no fill writes, collapses as outside.)
+Plain pruneLevelSet is NOT value-neutral
 here: it signs every inactive node by its FIRST value, so a fill whose bounding
 box cuts solid interior deeper than the band (-background meeting +background
 with no band between) flipped whole 8^3/128^3/4096^3 regions to one sign. That
 broke the JS-callback render against the tape render and upstream PicoGK, which
-never prunes these fills. PruneSignUniform is public so src/pico-hash.cpp and
-src/pico-zslice.cpp apply the same rule.
+never prunes these fills. PruneSignUniform is public so src/pico-hash.cpp,
+src/pico-zslice.cpp and the tube-lattice union in src/pico-lattice.cpp apply the
+same rule.
 
 HISTORY — this patch used to carry a second change, U-SK05-a (merge-based CSG:
 csg* replaced by the Merge.h operators under a DeepCopy tag, to avoid the eager
@@ -85,7 +91,7 @@ re-attempt. Do not reintroduce the merge path without it.
          RebuildGrid();
      }
  
-@@ -859,7 +864,110 @@
+@@ -859,7 +864,117 @@
      {
          return strDiagnose().length() > 0;
      }
@@ -125,10 +131,17 @@ re-attempt. Do not reintroduce the merge path without it.
 +    /// Here a node collapses only when it holds no active value AND every
 +    /// value in it has one sign; a mixed-sign node stays as it is. Every
 +    /// inactive voxel a fill writes is exactly ±background (SetSdValue clamps,
-+    /// then turns off only |value| ≥ background), and the voxels it does not
-+    /// write keep the level set's own ±background, so the tile carries the
-+    /// value each voxel already had. Everywhere else this is pruneLevelSet:
-+    /// same bottom-up pass, same tiles.
++    /// then turns off only |value| ≥ background). The voxels it does not write
++    /// keep the inactive values the grid already held, which are ±background
++    /// in every grid this library builds, so there the tile carries the value
++    /// each voxel already had. A grid read from a foreign .vdb may hold other
++    /// inactive values: a one-sign node of those becomes a ±background tile,
++    /// exactly as under pruneLevelSet. "Sign" is math::isNegative (value < 0),
++    /// as in pruneLevelSet and the grid hash; bIsInside tests value <= 0, so an
++    /// inactive exact zero (never written by a fill, which keeps |value| <
++    /// background active) collapses as outside where bIsInside called it
++    /// inside. Everywhere else this is pruneLevelSet: same bottom-up pass,
++    /// same tiles.
 +    static void PruneSignUniform(FloatTree& oTree, bool bThreaded = true)
 +    {
 +        tree::NodeManager<FloatTree, FloatTree::DEPTH - 2> oNodes(oTree);
