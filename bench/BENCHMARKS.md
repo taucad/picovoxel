@@ -396,6 +396,7 @@ is the claim, not the absolute wall times. Serial CPU medians independently
 gave 5,877 → 5,338 ms (1.10×). Reproduce with
 `node --expose-gc bench/io-threads-ab.mjs` against built baseline and candidate
 trees.
+
 ### HeatX flange without the preview-only thread cutters (2026-09-28)
 
 Samples: `bench/results/flange-fc2-ab-2026-09-28.json`.
@@ -427,6 +428,7 @@ lose more to contention than the parallel remainder does. That reading is a hypo
 numbers, removing six cutters of 296.8 ms each from a 2,165.8 ms stage predicts about 5.6×. The
 acceptance bar was ≥4×. A quiet `pnpm run bench -- --update` records `kernel:flange.create-v2`
 in the `M12-v2` rows of the table above.
+
 ## Appendix — Chromium timing of picovoxel/multi (2026-09-28)
 
 Every other number in this file comes from Node. This section times the pthreads build in a browser.

@@ -8,12 +8,13 @@
 //
 // Raw is the artifact itself and has no allowance: the link is not
 // byte-reproducible (the sha256 moves on a rebuild with no source change), but
-// its SIZE has not moved across eleven CI builds, from the first two (runs
-// 36306325041 at fe37d8f and 36311419247 at c8c6d0f) through main 7040437 (run
-// 36344828928). The compressed figures are what this host's zlib and brotli make
-// of those bytes and they do move with the bytes (brotli-11 over the same raw
-// size: serial 540,148 or 540,302, multi 568,588 or 568,874), so each ceiling is
-// the largest CI measurement plus 0.5%, as in NanoRaster's check-wasm-size.mjs.
+// its SIZE does not move between builds of one tree: it held across twelve CI
+// builds from the first two (runs 36306325041 at fe37d8f and 36311419247 at
+// c8c6d0f) through main 5b45035, and across the three since the PruneFill fix.
+// The compressed figures are what this host's zlib and brotli make of those
+// bytes and they do move with the bytes (brotli-11 over one raw size: serial
+// 540,207 to 540,950), so each ceiling is the largest CI measurement plus 0.5%,
+// as in NanoRaster's check-wasm-size.mjs.
 //
 // Usage: EMCC_VERSION="$(emcc --version | head -n1)" node scripts/wasm-manifest.mjs <serial|multi>
 
@@ -26,14 +27,14 @@ import { brotliCompressSync, constants, gzipSync } from 'node:zlib';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 export const CEILINGS = {
-  // emcc 5.0.1, CI: 6,061,993 raw in every build; gzip-9 1,277,937 and
-  // brotli-11 540,302 at most, each +0.5%. Local builds at 3db6a0c measured
-  // 6,062,222 raw (another host's link).
-  serial: { raw: 6_061_993, gzip: 1_284_327, brotli: 543_004 },
-  // emcc 5.0.1, CI: 6,127,793 raw in every build; gzip-9 1,317,019 and
-  // brotli-11 568,874 at most, each +0.5%. The binary committed at 3db6a0c
-  // until #11 measured 6,128,010 raw (a local link, with builder paths).
-  multi: { raw: 6_127_793, gzip: 1_323_605, brotli: 571_719 },
+  // emcc 5.0.1, CI: 6,071,228 raw after the RenderMesh zero-copy patch (run
+  // 36362709369); gzip-9 1,278,521 and brotli-11 541,117 on that build. The
+  // compressed ceilings retain the largest settled measurement plus 0.5%.
+  serial: { raw: 6_071_228, gzip: 1_283_336, brotli: 543_655 },
+  // emcc 5.0.1, CI: 6,136,964 raw on the same run; gzip-9 1,322,458 and
+  // brotli-11 569,536. The compressed ceilings retain the largest settled
+  // measurement plus 0.5%.
+  multi: { raw: 6_136_964, gzip: 1_326_542, brotli: 572_688 },
 };
 
 /** Byte counts and digest for one file. */
