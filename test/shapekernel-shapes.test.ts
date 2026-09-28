@@ -274,6 +274,131 @@ test('BasePipe + BasePipeSegment: annulus volumes; both segment methods agree', 
   closeAbs(explicitLength.surfacePoint(1, 0.5, 1)[2], 20, 1e-6);
 });
 
+// The C# tessellation, verbatim: every quad computes its four corners and every
+// triangle gets three fresh vertices. BasePipe now adds each distinct surface point
+// once and indexes it; the triangles, their order and their corners must not move.
+function pipeSoup(
+  shape: BasePipe,
+  steps: { length: number; polar: number; radial: number },
+  withPhiCaps: boolean,
+): Float32Array {
+  const out: number[] = [];
+  const tri = (a: Vec3, b: Vec3, c: Vec3) => out.push(...a, ...b, ...c);
+  const quad = (pt0: Vec3, pt1: Vec3, pt2: Vec3, pt3: Vec3, flip: boolean) => {
+    if (!flip) {
+      tri(pt0, pt1, pt2);
+      tri(pt0, pt2, pt3);
+    } else {
+      tri(pt0, pt2, pt1);
+      tri(pt0, pt3, pt2);
+    }
+  };
+  const l = (step: number) => (1 / (steps.length - 1)) * step;
+  const p = (step: number) => (1 / (steps.polar - 1)) * step;
+  const r = (step: number) => (1 / (steps.radial - 1)) * step;
+  const at = (a: number, b: number, c: number) => shape.surfacePoint(a, b, c);
+  const annulus = (lengthStep: number, flip: boolean) => {
+    for (let i = 1; i < steps.polar; i++)
+      for (let j = 1; j < steps.radial; j++)
+        quad(
+          at(l(lengthStep), p(i - 1), r(j - 1)),
+          at(l(lengthStep), p(i - 1), r(j)),
+          at(l(lengthStep), p(i), r(j)),
+          at(l(lengthStep), p(i), r(j - 1)),
+          flip,
+        );
+  };
+  const mantle = (radiusStep: number, flip: boolean) => {
+    for (let i = 1; i < steps.polar; i++)
+      for (let j = 1; j < steps.length; j++)
+        quad(
+          at(l(j - 1), p(i - 1), r(radiusStep)),
+          at(l(j), p(i - 1), r(radiusStep)),
+          at(l(j), p(i), r(radiusStep)),
+          at(l(j - 1), p(i), r(radiusStep)),
+          flip,
+        );
+  };
+  const phiCap = (phiStep: number, flip: boolean) => {
+    for (let i = 1; i < steps.length; i++)
+      for (let j = 1; j < steps.radial; j++)
+        quad(
+          at(l(i - 1), p(phiStep), r(j - 1)),
+          at(l(i - 1), p(phiStep), r(j)),
+          at(l(i), p(phiStep), r(j)),
+          at(l(i), p(phiStep), r(j - 1)),
+          flip,
+        );
+  };
+  annulus(steps.length - 1, false);
+  annulus(0, true);
+  mantle(0, false);
+  mantle(steps.radial - 1, true);
+  if (withPhiCaps) {
+    phiCap(0, false);
+    phiCap(steps.polar - 1, true);
+  }
+  return new Float32Array(out);
+}
+
+test('BasePipe indexed tessellation: C# triangles and corners, shared vertices, same voxels', () => {
+  const tapered = new SurfaceModulation((_phi: number, lengthRatio: number) =>
+    lengthRatio > 0.75 ? 14 - 8 * (lengthRatio - 0.75) : 14,
+  );
+  const straight = new BasePipe(zUp, 12);
+  straight.setRadius(new SurfaceModulation(7), tapered);
+  straight.setLengthSteps(40);
+  straight.setPolarSteps(60);
+  const spine = new BasePipe(Frames.alongLine(20, zUp), 5, 10);
+  spine.setLengthSteps(7);
+  spine.setPolarSteps(30);
+  spine.setRadialSteps(6);
+  const segment = new BasePipeSegment(Frames.alongLine(20, zUp), {
+    innerRadius: 5,
+    outerRadius: 10,
+    startOrMid: new LineModulation((ratio) => ratio),
+    endOrRange: new LineModulation(Math.PI),
+    method: 'midRange',
+  });
+  segment.setLengthSteps(9);
+  segment.setPolarSteps(20);
+  // A fractional step count visits ceil(steps) stations in the C# loops.
+  const fractional = new BasePipe(zUp, 20, 5, 10);
+  fractional.setPolarSteps(30.5);
+  fractional.setLengthSteps(5.5);
+  fractional.setRadialSteps(5.5);
+
+  const cases: [BasePipe, { length: number; polar: number; radial: number }, boolean][] = [
+    [straight, { length: 40, polar: 60, radial: 5 }, false],
+    [spine, { length: 7, polar: 30, radial: 6 }, false],
+    [segment, { length: 9, polar: 20, radial: 5 }, true],
+    [fractional, { length: 5.5, polar: 30.5, radial: 5.5 }, false],
+  ];
+  for (const [shape, steps, withPhiCaps] of cases) {
+    const soup = pipeSoup(shape, steps, withPhiCaps);
+    const mesh = shape.mshConstruct(pk);
+    const { vertices, triangles } = mesh;
+    assert.equal(triangles.length * 3, soup.length);
+    const expanded = new Float32Array(triangles.length * 3);
+    for (let corner = 0; corner < triangles.length; corner++) {
+      expanded.set(vertices.subarray(triangles[corner]! * 3, triangles[corner]! * 3 + 3), corner * 3);
+    }
+    assert.deepEqual(expanded, soup);
+    // The soup has three vertices per triangle.
+    assert.ok(mesh.vertexCount < mesh.triangleCount, `${mesh.vertexCount} vertices shared`);
+
+    // R3's gate: the mesher must not see vertex sharing.
+    const fromSoup = pk.createMesh({
+      vertices: soup,
+      triangles: Array.from({ length: soup.length / 3 }, (_, index) => index),
+    });
+    const indexedVoxels = mesh.toVoxels();
+    const soupVoxels = fromSoup.toVoxels();
+    assert.deepEqual(indexedVoxels.gridHash(), soupVoxels.gridHash());
+    assert.equal(indexedVoxels.volume, soupVoxels.volume);
+  }
+});
+
 // ---------------------------------------------------------------- BaseRing
 
 test('BaseRing: torus volume 2π²·R·r²', () => {

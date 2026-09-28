@@ -34,6 +34,7 @@ changes, each kept as a patch or a script in the source repository:
   patches/PicoGKRuntime/0002-post-fill-prune.patch
   patches/PicoGKRuntime/0003-lattice-parameter-accessors.patch
   patches/PicoGKRuntime/0004-lattice-beam-value-storage.patch
+  patches/PicoGKRuntime/0005-render-mesh-zero-copy.patch
   scripts/make-core-tu.sh: compiles a copy of Source/PicoGKLibrary.cpp that
     ends before the viewer exports and comments out the three viewer
     includes; no other line is changed.

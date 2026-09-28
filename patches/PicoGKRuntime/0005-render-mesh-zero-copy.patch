@@ -1,0 +1,68 @@
+PicoGKRuntime 26.2 (0f26321c) — zero-copy mesh hand-off in RenderMesh,
+upstreamable to leap71/PicoGKRuntime.
+
+Applied to vendor/PicoGKRuntime by scripts/fetch-deps.sh. Kept as a patch because
+it modifies dependency source; no flag-level override exists.
+
+roFloatGridFromMesh copied every vertex and triangle of the input Mesh through
+GetVertex/GetTriangle into fresh std::vectors, growing them by push_back with no
+reserve, and only then called meshToLevelSet. The copy is serial and runs before
+the TBB-parallel mesher starts. The Mesh already stores exactly what the mesher
+reads: std::vector<Vector3> is three packed floats per vertex (= Vec3s) and
+std::vector<Triangle> three 32-bit indices per triangle (= Vec3I). The patch
+passes the two vectors straight to meshToLevelSet, whose QuadAndTriangleDataAdapter
+then reads the triangles in place; the one remaining pass over the vertices is
+the mesher's own parallel world-to-index transform. The dilated-mesh constructor
+in the same file already hands the mesh to openvdb this way; static_asserts pin
+the two layouts.
+
+Value-neutral by construction: the same openvdb entry point receives the same
+element values in the same order (an int32 index converts to the same uint32,
+since indices are never negative), so the level set is unchanged. picovoxel's
+G0 grid-hash pins and example pins hold unchanged.
+
+--- a/Source/PicoGKVdbVoxels.h
++++ b/Source/PicoGKVdbVoxels.h
+@@ -1029,33 +1029,20 @@
+                                                 VoxelSize oVoxelSize,
+                                                 int32_t nHalfWidth)
+     {
+-        std::vector< openvdb::Vec3s >   oVertices;
+-        std::vector< openvdb::Vec3I >   oTriangles;
+-        
+-        for (int32_t n=0; n<oMesh.nVertexCount(); n++)
+-        {
+-            Vector3 v(0.0f,0.0f,0.0f);
+-            oMesh.GetVertex(n, (Vector3*)&v);
+-            oVertices.push_back(openvdb::Vec3s( v.X,
+-                                                v.Y,
+-                                                v.Z));
+-        }
+-        
+-        for (int32_t n=0; n<oMesh.nTriangleCount(); n++)
+-        {
+-            Triangle t;
+-            oMesh.GetTriangle(n, &t);
+-            oTriangles.push_back(openvdb::Vec3I(    (unsigned int) t.A,
+-                                                    (unsigned int) t.B,
+-                                                    (unsigned int) t.C));
+-        }
++        // Hand the mesh's own storage to the mesher instead of copying it
++        // element by element into fresh, unreserved vectors. Vector3 and
++        // Vec3s are both three packed floats, and Triangle and Vec3I both
++        // three 32-bit indices, so the mesher reads the same values; the
++        // dilated-mesh constructor above already relies on this layout.
++        static_assert(sizeof(Vector3)  == sizeof(openvdb::Vec3s), "Vector3 must match Vec3s");
++        static_assert(sizeof(Triangle) == sizeof(openvdb::Vec3I), "Triangle must match Vec3I");
+ 
+         openvdb::math::Transform::Ptr roTransform
+             = openvdb::math::Transform::createLinearTransform(oVoxelSize);
+ 
+         return openvdb::tools::meshToLevelSet<openvdb::FloatGrid>(  *roTransform,
+-                                                                    oVertices,
+-                                                                    oTriangles,
++                                                                    (const std::vector<openvdb::Vec3s>&) oMesh.vVertices(),
++                                                                    (const std::vector<openvdb::Vec3I>&) oMesh.vTriangles(),
+                                                                     nHalfWidth);
+     }
+     
