@@ -1,14 +1,20 @@
 #!/usr/bin/env node
 // Records one CI-built wasm variant: emcc version, raw/gzip-9/brotli-11 bytes and
 // sha256 for the glue and the module, written to build/wasm-<variant>.json (it
-// travels in the wasm-<variant> artifact) and to the job summary.
+// travels in the wasm-<variant> artifact) and to the job summary. Then gates the
+// module against its byte ceilings (create-repo §5.1): a breach fails the wasm
+// job. Admission is a ceiling edit in the pull request that causes the growth,
+// with the new measurement and its cause beside it.
 //
-// Byte ceilings are REPORT-ONLY here (a ::warning::, never a failure) until two
-// no-change CI rebuilds show whether the raw size moves; then they become hard
-// gates. Origin of every ceiling: measured 2026-09-27 with Node 24.10 zlib on
-// the local builds at 3db6a0c. Raw
-// allows +0.5% (the link is not byte-reproducible); compressed figures carry
-// +0.5% for compressor-version spread.
+// Raw is the artifact itself and has no allowance: the link is not
+// byte-reproducible (the sha256 moves on a rebuild with no source change), but
+// its SIZE does not move between builds of one tree: it held across twelve CI
+// builds from the first two (runs 36306325041 at fe37d8f and 36311419247 at
+// c8c6d0f) through main 5b45035, and across the three since the PruneFill fix.
+// The compressed figures are what this host's zlib and brotli make of those
+// bytes and they do move with the bytes (brotli-11 over one raw size: serial
+// 540,207 to 540,950), so each ceiling is the largest CI measurement plus 0.5%,
+// as in NanoRaster's check-wasm-size.mjs.
 //
 // Usage: EMCC_VERSION="$(emcc --version | head -n1)" node scripts/wasm-manifest.mjs <serial|multi>
 
@@ -20,11 +26,15 @@ import { brotliCompressSync, constants, gzipSync } from 'node:zlib';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-const CEILINGS = {
-  // 6,062,222 / 1,278,117 / 540,335 measured (local build 2026-07-31, after 3db6a0c).
-  serial: { raw: 6_092_534, gzip: 1_284_508, brotli: 543_037 },
-  // 6,128,010 / 1,317,005 / 568,110 measured (committed at 3db6a0c, sha256 987da3b8d16a…).
-  multi: { raw: 6_158_651, gzip: 1_323_591, brotli: 570_951 },
+export const CEILINGS = {
+  // emcc 5.0.1, CI: 6,071,228 raw after the RenderMesh zero-copy patch (run
+  // 36362709369); gzip-9 1,278,521 and brotli-11 541,117 on that build. The
+  // compressed ceilings retain the largest settled measurement plus 0.5%.
+  serial: { raw: 6_071_228, gzip: 1_283_336, brotli: 543_655 },
+  // emcc 5.0.1, CI: 6,136,964 raw on the same run; gzip-9 1,322,458 and
+  // brotli-11 569,536. The compressed ceilings retain the largest settled
+  // measurement plus 0.5%.
+  multi: { raw: 6_136_964, gzip: 1_326_542, brotli: 572_688 },
 };
 
 /** Byte counts and digest for one file. */
@@ -40,37 +50,44 @@ const measure = (bytes) => ({
 /**
  * The measurements over a ceiling, as human-readable strings.
  * @param {keyof typeof CEILINGS} variant
+ * @param {{ raw: number, gzip: number, brotli: number }} wasm
  */
-const overCeilings = (variant, wasm) =>
+export const overCeilings = (variant, wasm) =>
   Object.entries(CEILINGS[variant])
     .filter(([kind, limit]) => wasm[kind] > limit)
     .map(([kind, limit]) => `${kind} ${wasm[kind]} > ${limit}`);
 
-const variant = process.argv[2];
-if (!(variant in CEILINGS)) throw new Error('usage: wasm-manifest.mjs <serial|multi>');
-const base = variant === 'multi' ? 'pico-multi' : 'pico';
-const files = Object.fromEntries(
-  [`${base}.mjs`, `${base}.wasm`].map((name) => [name, measure(readFileSync(join(ROOT, 'src', name)))]),
-);
-const manifest = { variant, emcc: process.env.EMCC_VERSION ?? null, files };
-mkdirSync(join(ROOT, 'build'), { recursive: true });
-writeFileSync(join(ROOT, 'build', `wasm-${variant}.json`), `${JSON.stringify(manifest, null, 2)}\n`);
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const variant = process.argv[2];
+  if (!(variant in CEILINGS)) throw new Error('usage: wasm-manifest.mjs <serial|multi>');
+  const base = variant === 'multi' ? 'pico-multi' : 'pico';
+  const files = Object.fromEntries(
+    [`${base}.mjs`, `${base}.wasm`].map((name) => [name, measure(readFileSync(join(ROOT, 'src', name)))]),
+  );
+  const manifest = { variant, emcc: process.env.EMCC_VERSION ?? null, files };
+  mkdirSync(join(ROOT, 'build'), { recursive: true });
+  writeFileSync(join(ROOT, 'build', `wasm-${variant}.json`), `${JSON.stringify(manifest, null, 2)}\n`);
 
-const rows = Object.entries(files).map(
-  ([name, { raw, gzip, brotli, sha256 }]) => `| ${name} | ${raw} | ${gzip} | ${brotli} | \`${sha256}\` |`,
-);
-const summary = [
-  `### wasm (${variant})`,
-  '',
-  `${manifest.emcc ?? 'emcc version not recorded'}`,
-  '',
-  '| File | Raw | gzip-9 | brotli-11 | sha256 |',
-  '| --- | ---: | ---: | ---: | --- |',
-  ...rows,
-  '',
-].join('\n');
-process.stdout.write(`${summary}\n`);
-if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${summary}\n`);
-for (const breach of overCeilings(variant, files[`${base}.wasm`])) {
-  process.stdout.write(`::warning title=wasm byte ceiling (report-only until W4)::${base}.wasm ${breach}\n`);
+  const rows = Object.entries(files).map(
+    ([name, { raw, gzip, brotli, sha256 }]) => `| ${name} | ${raw} | ${gzip} | ${brotli} | \`${sha256}\` |`,
+  );
+  const summary = [
+    `### wasm (${variant})`,
+    '',
+    `${manifest.emcc ?? 'emcc version not recorded'}`,
+    '',
+    '| File | Raw | gzip-9 | brotli-11 | sha256 |',
+    '| --- | ---: | ---: | ---: | --- |',
+    ...rows,
+    '',
+  ].join('\n');
+  process.stdout.write(`${summary}\n`);
+  if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${summary}\n`);
+  const breaches = overCeilings(variant, files[`${base}.wasm`]);
+  for (const breach of breaches) {
+    process.stdout.write(
+      `::error title=wasm byte ceiling::${base}.wasm ${breach}; raise the ceiling in scripts/wasm-manifest.mjs with the measured cause\n`,
+    );
+  }
+  if (breaches.length > 0) process.exitCode = 1;
 }

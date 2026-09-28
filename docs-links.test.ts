@@ -7,8 +7,13 @@ import { describe, expect, it } from 'vitest';
 import { PACKAGE_FILES } from './scripts/package-files.mjs';
 
 const ROOT = import.meta.dirname;
+// Links into this repository on GitHub, by ref: `main` and `HEAD` (the default
+// branch) are checked against this tree, a full commit SHA is an immutable
+// permalink left unchecked, and any other ref (a branch that can move or
+// vanish) is reported.
 const REPOSITORY_URL =
-  /^https:\/\/(?:github\.com\/taucad\/picovoxel\/(?:blob|tree|raw)|raw\.githubusercontent\.com\/taucad\/picovoxel)\/main\/(.*)$/u;
+  /^https:\/\/(?:github\.com\/taucad\/picovoxel\/(?:blob|tree|raw)|raw\.githubusercontent\.com\/taucad\/picovoxel)\/([^/]+)\/(.*)$/u;
+const CHECKED_REFS = new Set(['main', 'HEAD']);
 
 // The same list the prose checks read: every tracked Markdown and MDX file.
 const TRACKED = execFileSync('git', ['ls-files', '-z'], { cwd: ROOT, encoding: 'utf8' })
@@ -32,8 +37,8 @@ const linkTargets = (markdown: string): string[] => {
   return [
     ...text.matchAll(/\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/gu),
     ...text.matchAll(/^\s*\[[^\]]+\]:\s*<?([^\s>]+)>?/gmu),
-    ...text.matchAll(/\b(?:src|href)="([^"]+)"/gu),
-  ].map((match) => match[1]!);
+    ...text.matchAll(/(?<![\w-])(?:src|href)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gu),
+  ].map((match) => match.slice(1).find(Boolean) ?? '');
 };
 
 /** GitHub's heading anchors (github-slugger), plus explicit HTML ids, for one document. */
@@ -54,29 +59,45 @@ const anchors = (markdown: string): Set<string> => {
   return result;
 };
 
-type Resolved = { readonly path: string; readonly anchor: string; readonly absolute: boolean };
+type Resolved = {
+  readonly path: string;
+  readonly anchor: string;
+  readonly absolute: boolean;
+  readonly ref?: string;
+};
 
-/** Maps a target to a repository path, or null for an external URL this test cannot check. */
+/**
+ * Maps a target to a repository path, or null for an external URL this test
+ * cannot check. A root-relative `/path` resolves against the repository root,
+ * as GitHub renders it.
+ */
 const resolveTarget = (document: string, target: string): Resolved | null => {
   const [location = '', anchor = ''] = target.split('#', 2);
   const repository = REPOSITORY_URL.exec(location);
-  if (repository)
-    return { path: decodeURIComponent(repository[1]!).replace(/\/$/u, ''), anchor, absolute: true };
-  if (/^[a-z][a-z\d+.-]*:/iu.test(location)) return null;
+  if (repository) {
+    const [, ref = '', rest = ''] = repository;
+    if (/^[\da-f]{40}$/u.test(ref)) return null;
+    return { path: decodeURIComponent(rest).replace(/\/$/u, ''), anchor, absolute: true, ref };
+  }
+  if (/^[a-z][a-z\d+.-]*:/iu.test(location) || location.startsWith('//')) return null;
   const path =
     location === ''
       ? document
-      : posix.normalize(posix.join(posix.dirname(document), decodeURIComponent(location)));
+      : location.startsWith('/')
+        ? posix.normalize(decodeURIComponent(location.slice(1)))
+        : posix.normalize(posix.join(posix.dirname(document), decodeURIComponent(location)));
   return { path, anchor, absolute: false };
 };
 
 const exists = (path: string): boolean =>
   TRACKED_FILES.has(path) || TRACKED.some((tracked) => tracked.startsWith(`${path}/`));
 
-const deadLinks = (document: string): string[] =>
-  linkTargets(read(document)).flatMap((target) => {
+const deadLinksIn = (document: string, markdown: string): string[] =>
+  linkTargets(markdown).flatMap((target) => {
     const resolved = resolveTarget(document, target);
     if (!resolved) return [];
+    if (resolved.ref !== undefined && !CHECKED_REFS.has(resolved.ref))
+      return [`${target} (repository links use main or HEAD, not the ref ${resolved.ref})`];
     if (resolved.path.startsWith('../') || !exists(resolved.path))
       return [`${target} (no tracked ${resolved.path})`];
     if (
@@ -106,6 +127,33 @@ describe('documentation links', () => {
     const markdown =
       '[a](x.md#y) ![b](i.svg "t") <img src="h.svg" />\n[r]: ref.md\n`[c](no.md)`\n```\n[d](no.md)\n```';
     expect(linkTargets(markdown).sort()).toEqual(['h.svg', 'i.svg', 'ref.md', 'x.md#y']);
+    expect(linkTargets(`<a href='s.md'>s</a> <img src="it's.svg"> <a href=u.md data-href="no.md">`)).toEqual([
+      's.md',
+      "it's.svg",
+      'u.md',
+    ]);
+  });
+
+  it('should resolve repository URLs by ref, and root-relative and relative targets', () => {
+    const blob = 'https://github.com/taucad/picovoxel/blob';
+    expect(resolveTarget('docs/a.md', `${blob}/HEAD/README.md#x`)).toEqual({
+      path: 'README.md',
+      anchor: 'x',
+      absolute: true,
+      ref: 'HEAD',
+    });
+    expect(resolveTarget('docs/a.md', `${blob}/${'0'.repeat(40)}/gone.md`)).toBeNull();
+    expect(resolveTarget('docs/a.md', '//example.com/x')).toBeNull();
+    expect(resolveTarget('docs/a.md', '/README.md')).toEqual({
+      path: 'README.md',
+      anchor: '',
+      absolute: false,
+    });
+    expect(resolveTarget('docs/a.md', 'b.md')).toEqual({ path: 'docs/b.md', anchor: '', absolute: false });
+    expect(deadLinksIn('docs/a.md', `[w](https://github.com/taucad/picovoxel/tree/webgpu/src)`)).toEqual([
+      'https://github.com/taucad/picovoxel/tree/webgpu/src (repository links use main or HEAD, not the ref webgpu)',
+    ]);
+    expect(deadLinksIn('docs/a.md', `[r](/README.md) [m](${blob}/main/src)`)).toEqual([]);
   });
 
   it('should derive GitHub heading anchors', () => {
@@ -121,7 +169,7 @@ describe('documentation links', () => {
   });
 
   it.each(DOCUMENTS)('should resolve every repository link in %s', (document) => {
-    expect(deadLinks(document)).toEqual([]);
+    expect(deadLinksIn(document, read(document))).toEqual([]);
   });
 
   it.each(PACKAGED_DOCUMENTS)('should link %s only to packaged files or absolute URLs', (document) => {

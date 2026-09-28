@@ -21,14 +21,19 @@
 // - typechecks every JavaScript fence in README.md and docs/*.md as its own
 //   consumer module (checkJs, strict but for implicit any) against the installed package, with the
 //   Vite client types for the `?url` imports.
-// Nothing is rebuilt and no repository file is imported; the Markdown is read.
+// - builds HelixHeatX at 2.0 mm through `picovoxel/multi` and requires its G0
+//   tuple to equal test/fixtures/g0-candidate.json (close-out D32): the tarball
+//   computes the pinned geometry, not merely a mesh. The example sources are
+//   copied into the project, so they import the installed package by name.
+// Nothing is rebuilt and no repository module is imported; the Markdown is read.
 //
 // Usage: node scripts/test-package.mjs <candidate-directory>
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const candidate = resolve(process.argv[2] ?? 'candidate');
 const { packages } = JSON.parse(readFileSync(join(candidate, 'manifest.json'), 'utf8'));
@@ -237,6 +242,7 @@ try {
   execFileSync(process.execPath, ['smoke.mjs'], { cwd: directory, stdio: 'inherit' });
   typecheckConsumers(directory);
   typecheckFences(directory);
+  pinCandidateGeometry(directory);
 } finally {
   rmSync(directory, { force: true, recursive: true });
 }
@@ -371,4 +377,75 @@ function typecheckFences(directory) {
     throw new Error(`Markdown fences failed to typecheck:\n${error.stdout ?? ''}${error.stderr ?? ''}`);
   }
   console.log(`Markdown fences: ${all.length} JavaScript fences in README.md and docs/*.md typecheck`);
+}
+
+/**
+ * The candidate G0 pin: HelixHeatX at 2.0 mm on the pthread entry must produce
+ * the pinned G0 tuple (grid hash and counts, raw volume, mesh counts, STL
+ * multiset). The pin was recorded on the exact lane from the CI-built wasm of
+ * main 7040437 (run 36344828928), identical on the serial and pthread builds.
+ * A deliberate geometry change regenerates it with
+ * `node bench/g0-identity.mjs record --fixture heatx --build multi --size 2.0`,
+ * naming the cause, as UPDATE_PINS does for test/g0-gate.test.ts.
+ */
+function pinCandidateGeometry(directory) {
+  const repository = fileURLToPath(new URL('..', import.meta.url));
+  const heatx = join(directory, 'helixheatx');
+  mkdirSync(heatx);
+  for (const file of ['run.ts', 'helixHeatX.ts', 'helpers.ts']) {
+    cpSync(join(repository, 'examples/helixheatx', file), join(heatx, file));
+  }
+  // The consumer project is CommonJS (npm init); the example is ESM TypeScript.
+  writeFileSync(join(heatx, 'package.json'), '{ "type": "module" }\n');
+  cpSync(join(repository, 'bench/stl-multiset.mjs'), join(directory, 'stl-multiset.mjs'));
+  cpSync(join(repository, 'test/fixtures/g0-candidate.json'), join(directory, 'g0-candidate.json'));
+  writeFileSync(
+    join(directory, 'g0-pin.mjs'),
+    String.raw`
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createPico } from 'picovoxel/multi';
+import { task } from './helixheatx/run.ts';
+import { stlIdentity } from './stl-multiset.mjs';
+
+const pin = JSON.parse(readFileSync('g0-candidate.json', 'utf8'))['heatx@2mm'];
+const hexFloat = (value) => {
+  const view = new DataView(new ArrayBuffer(8));
+  view.setFloat64(0, value);
+  return view.getBigUint64(0).toString(16);
+};
+const started = performance.now();
+const pico = await createPico({ voxelSize: 2 });
+try {
+  const { voxels } = task(pico);
+  const grid = voxels.gridHash();
+  const mesh = voxels.toMesh();
+  const stl = stlIdentity(mesh.toStl());
+  assert.equal(stl.nonFiniteRecords, 0, 'a non-finite coordinate is never legitimate output');
+  assert.deepEqual(
+    {
+      gridHash: grid.hash,
+      activeVoxels: grid.activeVoxels,
+      insideTiles: grid.insideTiles,
+      insideOffVoxels: grid.insideOffVoxels,
+      volumeHex: hexFloat(voxels.volume),
+      triangles: mesh.triangleCount,
+      vertices: mesh.vertexCount,
+      multiset: stl.multiset,
+    },
+    pin,
+    'the candidate computes a HelixHeatX @ 2.0 mm G0 tuple other than test/fixtures/g0-candidate.json',
+  );
+  console.log('candidate G0 pin: HelixHeatX @ 2.0 mm on picovoxel/multi matches (' + (pico.module.PThread?.runningWorkers.length ?? 0)
+    + ' workers, ' + Math.round(performance.now() - started) + ' ms)');
+} finally {
+  pico.dispose();
+}
+`,
+  );
+  // Node 22.14 strips types only behind the flag; later releases do it by default.
+  const flags = process.features.typescript
+    ? []
+    : ['--experimental-strip-types', '--no-warnings=ExperimentalWarning'];
+  execFileSync(process.execPath, [...flags, 'g0-pin.mjs'], { cwd: directory, stdio: 'inherit' });
 }

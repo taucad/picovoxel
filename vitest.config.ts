@@ -19,14 +19,15 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       // The measured domain: everything that ships, plus the pure-logic modules
-      // the gates rely on (the raw-binding generator, benchmark statistics and
-      // the identity record math).
+      // the gates rely on (the raw-binding generator, benchmark statistics, the
+      // identity record math and the benchmark gate and drift verdicts).
       include: [
         'src/**/*.ts',
         'scripts/generate-raw.mjs',
         'scripts/ignore-audit.mjs',
         'bench/stats.mjs',
         'bench/g0-compare.mjs',
+        'bench/gates.mjs',
         'bench/stl-multiset.mjs',
       ],
       // Audited exclusions, each with its reason:
