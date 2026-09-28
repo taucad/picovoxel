@@ -11,6 +11,8 @@ beforeAll(async () => {
 });
 afterAll(() => pk.dispose());
 
+type Vec3 = [number, number, number];
+
 test('beam ≙ capsule cross-check: a single round-capped beam matches the primitive', () => {
   const lattice = pk.createLattice();
   lattice.addBeam({ start: [-10, 0, 0], end: [10, 0, 0], radius: 3 });
@@ -182,3 +184,66 @@ test('polyline color defaults to opaque white', () => {
   const line = pk.createPolyLine();
   assert.deepEqual(line.color, [1, 1, 1, 1]);
 });
+
+// A receiver whose render box clipped solid interior holds inactive nodes with
+// both signs. The default (tube-complex) lattice arm unions into it and must
+// prune it by the serial fill's rule: signing such a node by its first value
+// flipped most of the clipped interior while the serial arm kept it.
+test.each<{
+  label: string;
+  beams: { start: Vec3; end: Vec3; radius: number }[];
+  spheres: { center: Vec3; radius: number }[];
+  unchanged?: boolean;
+}>([
+  {
+    label: 'beam outside the receiver',
+    beams: [{ start: [30, 30, 30], end: [34, 30, 30], radius: 1 }],
+    spheres: [],
+  },
+  {
+    label: 'beam swallowed by the interior',
+    beams: [{ start: [-2, -2, -2], end: [2, 1, 0], radius: 1 }],
+    spheres: [],
+    unchanged: true,
+  },
+  {
+    label: 'beam crossing the clipped face',
+    beams: [{ start: [0, 0, 0], end: [10, 0, 0], radius: 1.5 }],
+    spheres: [],
+  },
+  { label: 'sphere outside the receiver', beams: [], spheres: [{ center: [12, 0, 0], radius: 2 }] },
+])(
+  'the tube lattice arm keeps a clipped receiver like the serial arm ($label)',
+  ({ beams, spheres, unchanged }) => {
+    const receiver = pk.createVoxels({
+      shape: 'implicit',
+      boundsMin: [-5, -5, -5],
+      boundsMax: [5, 5, 5],
+      sdf: ['-', ['sqrt', ['+', ['*', 'x', 'x'], ['*', 'y', 'y'], ['*', 'z', 'z']]], 50],
+    });
+    const lattice = pk.createLattice();
+    for (const b of beams) lattice.addBeam(b);
+    for (const s of spheres) lattice.addSphere(s);
+
+    const tubes = receiver.withLattice(lattice);
+    const serial = receiver.clone();
+    bindPicoRaw(pk.module).Voxels_RenderLattice(pk.handle, serial.handle, lattice.handle);
+
+    // The arms build the lattice's own band differently, so their values may
+    // differ there; their inside sets may not.
+    assert.equal(tubes.equals(serial), true, 'tube arm and serial arm disagree on the inside set');
+    // Same arm, two routes: rendering into the receiver equals the union with
+    // the lattice rendered alone (the facade union does not prune by first value).
+    const alone = receiver.union(pk.createVoxels({ shape: 'empty' }).withLattice(lattice));
+    assert.equal(tubes.equals(alone), true);
+    assert.equal(tubes.gridHash().hash, alone.gridHash().hash);
+    if (unchanged) {
+      // Entirely inside the interior: both arms must return the receiver itself.
+      assert.equal(tubes.equals(receiver), true);
+      assert.equal(tubes.gridHash().hash, receiver.gridHash().hash);
+      assert.equal(serial.gridHash().hash, receiver.gridHash().hash);
+    }
+    for (const corner of [-5, 5])
+      assert.equal(tubes.isInside([corner, corner, corner]), true, 'the clipped interior survives');
+  },
+);
