@@ -376,6 +376,27 @@ changes together; against the quiet 298.069 ms measured after that change, batch
 Residual: 20.9 of the 39.2 ns/beam is C++-side ingest (`make_shared` per beam into upstream's
 `std::vector<LatticeBeam::Ptr>`).
 
+### RenderMesh zero-copy and indexed ShapeKernel pipes (2026-09-28)
+
+Tier 1 removes PicoGKRuntime's element-by-element mesh copy before
+`meshToLevelSet` and lets `BasePipe`/`BasePipeSegment` share their surface-grid
+vertices. The HelixHeatX `kernel:io-threads.create` stage was measured as 12
+paired, order-alternating A/B runs in one Node 24.10 process on an Apple M2 Pro.
+Each run produced the same grid hash and volume. The median of the paired wall
+ratios cleared both charter bars:
+
+| Artifact | Before median | After median | Speedup |
+| -------- | ------------: | -----------: | ------: |
+| multi    |      1,368 ms |       877 ms |   1.58× |
+| serial   |      5,899 ms |     5,340 ms |   1.10× |
+
+The multi run began at load 4.53 and rose to 12.37 as other workspace jobs
+started; the serial run ranged from 8.37 to 18.60. The paired in-process ratio
+is the claim, not the absolute wall times. Serial CPU medians independently
+gave 5,877 → 5,338 ms (1.10×). Reproduce with
+`node --expose-gc bench/io-threads-ab.mjs` against built baseline and candidate
+trees.
+
 ## Appendix — Chromium timing of picovoxel/multi (2026-09-28)
 
 Every other number in this file comes from Node. This section times the pthreads build in a browser.

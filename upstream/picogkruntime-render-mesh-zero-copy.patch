@@ -1,0 +1,80 @@
+leap71/PicoGKRuntime @ 0f26321c18ed (26.2): pass the mesh to meshToLevelSet
+without copying it.
+
+Proposal only. picovoxel, an unofficial community TypeScript/WebAssembly binding
+of PicoGK (not affiliated with or endorsed by LEAP 71), applies the same change
+to its vendored runtime as patches/PicoGKRuntime/0005-render-mesh-zero-copy.patch.
+That file sits on top of picovoxel's patches 0001-0004, which shift
+PicoGKVdbVoxels.h by about 200 lines; this file is the same change against
+pristine 0f26321c18ed, with only the hunk offset differing.
+
+The change. Voxels::RenderMesh builds its grid through roFloatGridFromMesh,
+which copies every vertex and triangle of the Mesh one at a time
+(GetVertex/GetTriangle) into two fresh std::vectors that grow by push_back
+with no reserve, and then calls openvdb::tools::meshToLevelSet. The copy is
+serial and runs before the parallel mesher starts. Mesh already stores what the
+mesher reads: std::vector<Vector3> is three packed floats per vertex, the layout
+of openvdb::Vec3s, and std::vector<Triangle> is three 32-bit indices per
+triangle, the layout of openvdb::Vec3I. The patch passes the two vectors to
+meshToLevelSet directly, the way the dilated-mesh Voxels constructor in the same
+file already does, and adds two static_asserts on the layouts. meshToLevelSet's
+QuadAndTriangleDataAdapter then reads the triangles in place; its own parallel
+world-to-index transform is the only remaining pass over the vertices.
+
+Output values: unchanged. The same openvdb function receives the same element
+values in the same order (vertex indices are never negative, so the int32 to
+uint32 view reads the same numbers). picovoxel's pinned grid hashes and example
+outputs did not move.
+
+Measured: see the U26 row of picovoxel's upstream/LEDGER.md. The saving scales
+with the element count and applies to every RenderMesh caller, including
+Voxels::CalculateProperties, which re-voxelizes a mesh.
+
+Applies with `patch -p1 --fuzz=0` to a pristine PicoGKRuntime 0f26321c tree.
+Not applied by picovoxel's build; see upstream/README.md.
+
+--- a/Source/PicoGKVdbVoxels.h
++++ b/Source/PicoGKVdbVoxels.h
+@@ -830,33 +830,20 @@
+                                                 VoxelSize oVoxelSize,
+                                                 int32_t nHalfWidth)
+     {
+-        std::vector< openvdb::Vec3s >   oVertices;
+-        std::vector< openvdb::Vec3I >   oTriangles;
+-        
+-        for (int32_t n=0; n<oMesh.nVertexCount(); n++)
+-        {
+-            Vector3 v(0.0f,0.0f,0.0f);
+-            oMesh.GetVertex(n, (Vector3*)&v);
+-            oVertices.push_back(openvdb::Vec3s( v.X,
+-                                                v.Y,
+-                                                v.Z));
+-        }
+-        
+-        for (int32_t n=0; n<oMesh.nTriangleCount(); n++)
+-        {
+-            Triangle t;
+-            oMesh.GetTriangle(n, &t);
+-            oTriangles.push_back(openvdb::Vec3I(    (unsigned int) t.A,
+-                                                    (unsigned int) t.B,
+-                                                    (unsigned int) t.C));
+-        }
++        // Hand the mesh's own storage to the mesher instead of copying it
++        // element by element into fresh, unreserved vectors. Vector3 and
++        // Vec3s are both three packed floats, and Triangle and Vec3I both
++        // three 32-bit indices, so the mesher reads the same values; the
++        // dilated-mesh constructor above already relies on this layout.
++        static_assert(sizeof(Vector3)  == sizeof(openvdb::Vec3s), "Vector3 must match Vec3s");
++        static_assert(sizeof(Triangle) == sizeof(openvdb::Vec3I), "Triangle must match Vec3I");
+ 
+         openvdb::math::Transform::Ptr roTransform
+             = openvdb::math::Transform::createLinearTransform(oVoxelSize);
+ 
+         return openvdb::tools::meshToLevelSet<openvdb::FloatGrid>(  *roTransform,
+-                                                                    oVertices,
+-                                                                    oTriangles,
++                                                                    (const std::vector<openvdb::Vec3s>&) oMesh.vVertices(),
++                                                                    (const std::vector<openvdb::Vec3I>&) oMesh.vTriangles(),
+                                                                     nHalfWidth);
+     }
+     

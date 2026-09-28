@@ -12,6 +12,48 @@ import { BaseShape, MeshBuilder, type MeshBaseShape, type SurfaceBaseShape } fro
 import { Frames } from './frames.ts';
 import { LineModulation, SurfaceModulation } from './modulations.ts';
 
+/** Spine point, local X and local Y at one length ratio. */
+type PipeAxes = readonly [spine: Vec3, localX: Vec3, localY: Vec3];
+
+/**
+ * Adds the `outer × inner` grid of distinct surface points once, outer-major,
+ * and returns the index of point (0, 0). C# computes each point once per
+ * adjacent quad (up to four times) and gives every triangle fresh vertices;
+ * the coordinates and triangles here are the same, the vertices shared.
+ */
+function addPointGrid(
+  builder: MeshBuilder,
+  outerSteps: number,
+  innerSteps: number,
+  point: (outer: number, inner: number) => Vec3,
+): number {
+  const first = builder.vertexCount;
+  for (let outer = 0; outer < outerSteps; outer += 1) {
+    for (let inner = 0; inner < innerSteps; inner += 1) {
+      builder.addVertex(point(outer, inner));
+    }
+  }
+  return first;
+}
+
+/** The two triangles of quad (pt0, pt1, pt2, pt3) by vertex index, in C#'s order and winding. */
+function addGridQuad(
+  builder: MeshBuilder,
+  pt0: number,
+  pt1: number,
+  pt2: number,
+  pt3: number,
+  flip: boolean,
+): void {
+  if (!flip) {
+    builder.addIndexedTriangle(pt0, pt1, pt2);
+    builder.addIndexedTriangle(pt0, pt2, pt3);
+  } else {
+    builder.addIndexedTriangle(pt0, pt2, pt1);
+    builder.addIndexedTriangle(pt0, pt3, pt2);
+  }
+}
+
 /** Pipe (annular cylinder) along a straight frame or spine (C# `BasePipe`). */
 export class BasePipe extends BaseShape implements MeshBaseShape, SurfaceBaseShape {
   protected lengthSteps = 5;
@@ -72,23 +114,22 @@ export class BasePipe extends BaseShape implements MeshBaseShape, SurfaceBaseSha
   /** Annular disc at a fixed length step (C# `AddTopSurface`/`AddBottomSurface`). */
   private addAnnulus(builder: MeshBuilder, lengthStep: number, flip: boolean): void {
     const lengthRatio = this.lengthRatioFromStep(lengthStep);
+    // Loops run while step < steps, so a fractional step count visits ceil(steps) stations.
+    const radii = Math.ceil(this.radialSteps);
+    const first = addPointGrid(builder, Math.ceil(this.polarSteps), radii, (phiStep, radiusStep) =>
+      this.surfacePoint(lengthRatio, this.phiRatioFromStep(phiStep), this.radiusRatioFromStep(radiusStep)),
+    );
+    const at = (phiStep: number, radiusStep: number) => first + phiStep * radii + radiusStep;
     for (let phiStep = 1; phiStep < this.polarSteps; phiStep += 1) {
-      const phi1 = this.phiRatioFromStep(phiStep - 1);
-      const phi2 = this.phiRatioFromStep(phiStep);
       for (let radiusStep = 1; radiusStep < this.radialSteps; radiusStep += 1) {
-        const r1 = this.radiusRatioFromStep(radiusStep - 1);
-        const r2 = this.radiusRatioFromStep(radiusStep);
-        const pt0 = this.surfacePoint(lengthRatio, phi1, r1);
-        const pt1 = this.surfacePoint(lengthRatio, phi1, r2);
-        const pt2 = this.surfacePoint(lengthRatio, phi2, r2);
-        const pt3 = this.surfacePoint(lengthRatio, phi2, r1);
-        if (!flip) {
-          builder.addTriangle(pt0, pt1, pt2);
-          builder.addTriangle(pt0, pt2, pt3);
-        } else {
-          builder.addTriangle(pt0, pt2, pt1);
-          builder.addTriangle(pt0, pt3, pt2);
-        }
+        addGridQuad(
+          builder,
+          at(phiStep - 1, radiusStep - 1),
+          at(phiStep - 1, radiusStep),
+          at(phiStep, radiusStep),
+          at(phiStep, radiusStep - 1),
+          flip,
+        );
       }
     }
   }
@@ -104,23 +145,22 @@ export class BasePipe extends BaseShape implements MeshBaseShape, SurfaceBaseSha
   /** Mantle at a fixed radius step (C# `AddOuterMantle`/`AddInnerMantle`). */
   private addMantle(builder: MeshBuilder, radiusStep: number, flip: boolean): void {
     const radiusRatio = this.radiusRatioFromStep(radiusStep);
+    // Length-major, so each length station's frame axes are sampled once (axesAt).
+    const phis = Math.ceil(this.polarSteps);
+    const first = addPointGrid(builder, Math.ceil(this.lengthSteps), phis, (lengthStep, phiStep) =>
+      this.surfacePoint(this.lengthRatioFromStep(lengthStep), this.phiRatioFromStep(phiStep), radiusRatio),
+    );
+    const at = (phiStep: number, lengthStep: number) => first + lengthStep * phis + phiStep;
     for (let phiStep = 1; phiStep < this.polarSteps; phiStep += 1) {
-      const phi1 = this.phiRatioFromStep(phiStep - 1);
-      const phi2 = this.phiRatioFromStep(phiStep);
       for (let lengthStep = 1; lengthStep < this.lengthSteps; lengthStep += 1) {
-        const l1 = this.lengthRatioFromStep(lengthStep - 1);
-        const l2 = this.lengthRatioFromStep(lengthStep);
-        const pt0 = this.surfacePoint(l1, phi1, radiusRatio);
-        const pt1 = this.surfacePoint(l2, phi1, radiusRatio);
-        const pt2 = this.surfacePoint(l2, phi2, radiusRatio);
-        const pt3 = this.surfacePoint(l1, phi2, radiusRatio);
-        if (!flip) {
-          builder.addTriangle(pt0, pt1, pt2);
-          builder.addTriangle(pt0, pt2, pt3);
-        } else {
-          builder.addTriangle(pt0, pt2, pt1);
-          builder.addTriangle(pt0, pt3, pt2);
-        }
+        addGridQuad(
+          builder,
+          at(phiStep - 1, lengthStep - 1),
+          at(phiStep - 1, lengthStep),
+          at(phiStep, lengthStep),
+          at(phiStep, lengthStep - 1),
+          flip,
+        );
       }
     }
   }
@@ -145,11 +185,30 @@ export class BasePipe extends BaseShape implements MeshBaseShape, SurfaceBaseSha
     return (1 / (this.lengthSteps - 1)) * step;
   }
 
+  private axesCache: readonly [number, PipeAxes] | undefined;
+
+  /**
+   * Spine point and local axes at a length ratio. They depend on the length
+   * ratio alone, and tessellation visits one length station for a whole row of
+   * points, so the last station is kept (C# re-samples them for every point).
+   */
+  protected axesAt(lengthRatio: number): PipeAxes {
+    const cached = this.axesCache;
+    if (cached !== undefined && cached[0] === lengthRatio) {
+      return cached[1];
+    }
+    const axes: PipeAxes = [
+      this.frames.spineAt(lengthRatio),
+      this.frames.localXAt(lengthRatio),
+      this.frames.localYAt(lengthRatio),
+    ];
+    this.axesCache = [lengthRatio, axes];
+    return axes;
+  }
+
   /** Surface point; radiusRatio spans inner→outer (C# `vecGetSurfacePoint`). */
   surfacePoint(lengthRatio: number, phiRatio: number, radiusRatio: number): Vec3 {
-    const spine = this.frames.spineAt(lengthRatio);
-    const localX = this.frames.localXAt(lengthRatio);
-    const localY = this.frames.localYAt(lengthRatio);
+    const [spine, localX, localY] = this.axesAt(lengthRatio);
     const phi = 2 * Math.PI * phiRatio;
     const outer = this.outerRadiusModulation.modulation(phi, lengthRatio);
     const inner = this.innerRadiusModulation.modulation(phi, lengthRatio);
@@ -216,32 +275,28 @@ export class BasePipeSegment extends BasePipe {
   /** Radial cap at a fixed phi step (C# `AddStartSurface`/`AddEndSurface`). */
   private addPhiCap(builder: MeshBuilder, phiStep: number, flip: boolean): void {
     const phiRatio = this.phiRatioFromStep(phiStep);
+    const radii = Math.ceil(this.radialSteps);
+    const first = addPointGrid(builder, Math.ceil(this.lengthSteps), radii, (lengthStep, radiusStep) =>
+      this.surfacePoint(this.lengthRatioFromStep(lengthStep), phiRatio, this.radiusRatioFromStep(radiusStep)),
+    );
+    const at = (lengthStep: number, radiusStep: number) => first + lengthStep * radii + radiusStep;
     for (let lengthStep = 1; lengthStep < this.lengthSteps; lengthStep += 1) {
-      const l1 = this.lengthRatioFromStep(lengthStep - 1);
-      const l2 = this.lengthRatioFromStep(lengthStep);
       for (let radiusStep = 1; radiusStep < this.radialSteps; radiusStep += 1) {
-        const r1 = this.radiusRatioFromStep(radiusStep - 1);
-        const r2 = this.radiusRatioFromStep(radiusStep);
-        const pt0 = this.surfacePoint(l1, phiRatio, r1);
-        const pt1 = this.surfacePoint(l1, phiRatio, r2);
-        const pt2 = this.surfacePoint(l2, phiRatio, r2);
-        const pt3 = this.surfacePoint(l2, phiRatio, r1);
-        if (!flip) {
-          builder.addTriangle(pt0, pt1, pt2);
-          builder.addTriangle(pt0, pt2, pt3);
-        } else {
-          builder.addTriangle(pt0, pt2, pt1);
-          builder.addTriangle(pt0, pt3, pt2);
-        }
+        addGridQuad(
+          builder,
+          at(lengthStep - 1, radiusStep - 1),
+          at(lengthStep - 1, radiusStep),
+          at(lengthStep, radiusStep),
+          at(lengthStep, radiusStep - 1),
+          flip,
+        );
       }
     }
   }
 
   /** Phi spans mid ± range/2 at the length ratio (C# override). */
   override surfacePoint(lengthRatio: number, phiRatio: number, radiusRatio: number): Vec3 {
-    const spine = this.frames.spineAt(lengthRatio);
-    const localX = this.frames.localXAt(lengthRatio);
-    const localY = this.frames.localYAt(lengthRatio);
+    const [spine, localX, localY] = this.axesAt(lengthRatio);
     const phi =
       this.midModulation.modulation(lengthRatio) +
       (phiRatio - 0.5) * this.rangeModulation.modulation(lengthRatio);

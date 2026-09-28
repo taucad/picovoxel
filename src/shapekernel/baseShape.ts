@@ -8,7 +8,9 @@
 // `mshConstruct` take the PicoGK session instead of using an ambient Library.
 // MeshBuilder mirrors upstream's convenience `Mesh.nAddTriangle(v0, v1, v2)`
 // (three fresh vertices per triangle, no dedup) but accumulates into flat
-// arrays and crosses the ABI ONCE through the bulk mesh path.
+// arrays and crosses the ABI ONCE through the bulk mesh path. Shapes that
+// tessellate a grid (BasePipe) add each distinct point once through addVertex
+// and index it: same coordinates, same triangles in the same order, fewer vertices.
 
 import type { Mesh } from '../mesh.ts';
 import type { Pico } from '../session.ts';
@@ -55,6 +57,23 @@ export abstract class BaseShape {
 export class MeshBuilder {
   private readonly vertices: number[] = [];
   private readonly triangles: number[] = [];
+
+  /** Number of vertices added so far: the index the next {@link MeshBuilder.addVertex} returns. */
+  get vertexCount(): number {
+    return this.vertices.length / 3;
+  }
+
+  /** Adds one vertex and returns its index, for {@link MeshBuilder.addIndexedTriangle} (C# `Mesh.nAddVertex`). */
+  addVertex(pt: Vec3): number {
+    const index = this.vertices.length / 3;
+    this.vertices.push(pt[0], pt[1], pt[2]);
+    return index;
+  }
+
+  /** One triangle over vertices already added, by index (C# `Mesh.nAddTriangle(Triangle)`). */
+  addIndexedTriangle(a: number, b: number, c: number): void {
+    this.triangles.push(a, b, c);
+  }
 
   /** Three fresh vertices + one triangle, exactly like C# `Mesh.nAddTriangle(v0, v1, v2)`. */
   addTriangle(a: Vec3, b: Vec3, c: Vec3): void {
