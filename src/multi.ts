@@ -67,7 +67,15 @@ export type {
   PicoRuntime,
   PicoWasmOverrides,
 } from './session.ts';
-export type { GetSliceOptions, ShellOptions, SliceAxis, SliceMode, Voxels, VoxelSlice } from './voxels.ts';
+export type {
+  GetSliceOptions,
+  ShellOptions,
+  SliceAxis,
+  SliceMode,
+  ToMeshOptions,
+  Voxels,
+  VoxelSlice,
+} from './voxels.ts';
 export type { Mesh, TransformOptions } from './mesh.ts';
 export { meshToStlBytes } from './stl.ts';
 export type { FromStlOptions, StlUnit, ToStlOptions } from './stl.ts';

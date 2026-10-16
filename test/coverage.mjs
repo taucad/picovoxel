@@ -19,7 +19,7 @@ const loadRaw = async (options) => {
   return { module, raw: bindPicoRaw(module) };
 };
 
-/** Binds every export (140 core + the own translation units' additions), counting calls per name. */
+/** Binds every export (141 core + the own translation units' additions), counting calls per name. */
 export async function loadInstrumented(options = {}) {
   const { module, raw } = await loadRaw(options);
   const calls = new Map();
