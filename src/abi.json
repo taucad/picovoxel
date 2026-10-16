@@ -1,8 +1,8 @@
 {
  "header": "vendor/PicoGKRuntime/API/PicoGK.h",
- "total": 173,
+ "total": 174,
  "viewer": 33,
- "core": 140,
+ "core": 141,
  "functions": [
   {
    "name": "Library_GetName",
@@ -389,6 +389,30 @@
      "type": "PKVOXELS",
      "name": "hVoxels",
      "cwrap": "bigint"
+    }
+   ],
+   "takesCallback": false
+  },
+  {
+   "name": "Mesh_hCreateFromVoxelsAdaptive",
+   "viewer": false,
+   "returnType": "PKMESH",
+   "cwrapReturn": "bigint",
+   "args": [
+    {
+     "type": "PKINSTANCE",
+     "name": "hInstance",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "PKVOXELS",
+     "name": "hVoxels",
+     "cwrap": "bigint"
+    },
+    {
+     "type": "float",
+     "name": "fAdaptivity",
+     "cwrap": "number"
     }
    ],
    "takesCallback": false

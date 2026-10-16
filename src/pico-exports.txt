@@ -24,6 +24,7 @@ _Library_VoxelsToMm
 _Library_MmToVoxels
 _Mesh_hCreate
 _Mesh_hCreateFromVoxels
+_Mesh_hCreateFromVoxelsAdaptive
 _Mesh_bIsValid
 _Mesh_Destroy
 _Mesh_nMemUsage

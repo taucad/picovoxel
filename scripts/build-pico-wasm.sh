@@ -32,7 +32,7 @@ source "$EMSDK/emsdk_env.sh" >/dev/null 2>&1
 NODE="$EMSDK/node/22.16.0_64bit/bin/node"
 mkdir -p "$OUT"
 
-echo "=== R4: generate headless core TU (expect 140 core / 33 viewer) ==="
+echo "=== R4: generate headless core TU (expect 141 core / 33 viewer) ==="
 bash "$HERE/scripts/make-core-tu.sh" \
   "$PICOGK_RUNTIME/Source/PicoGKLibrary.cpp" "$OUT/PicoGKLibraryCore.cpp"
 

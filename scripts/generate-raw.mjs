@@ -312,9 +312,9 @@ function tsType(cwrapType, cType) {
 /** Renders the complete raw.generated.ts source from a parsed abi.json object. */
 export function generateRawSource(abi) {
   const core = abi.functions.filter((f) => !f.viewer);
-  if (core.length !== 140) {
+  if (core.length !== 141) {
     throw new Error(
-      `generate-raw: expected 140 core exports, abi.json has ${core.length} — re-run parse-abi and re-read upstream before regenerating`,
+      `generate-raw: expected 141 core exports, abi.json has ${core.length} — re-run parse-abi and re-read upstream before regenerating`,
     );
   }
   const all = [...core, ...BULK_FUNCTIONS];
