@@ -93,7 +93,34 @@ function topology(triangles) {
 }
 
 // ── Nearest-triangle distance (Ericson, Real-Time Collision Detection 5.1.5) ──
+function pointSegmentDistanceSq(p, a, b) {
+  const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+  const len = ab[0] * ab[0] + ab[1] * ab[1] + ab[2] * ab[2];
+  const t =
+    len > 0
+      ? Math.min(
+          1,
+          Math.max(0, ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1] + (p[2] - a[2]) * ab[2]) / len),
+        )
+      : 0;
+  const dx = p[0] - (a[0] + t * ab[0]);
+  const dy = p[1] - (a[1] + t * ab[1]);
+  const dz = p[2] - (a[2] + t * ab[2]);
+  return dx * dx + dy * dy + dz * dz;
+}
+
+/** Squared distance; a zero-area triangle (OpenVDB emits some) is measured as its three edges. */
 function pointTriangleDistanceSq(p, a, b, c) {
+  const d = triangleDistanceSq(p, a, b, c);
+  if (Number.isFinite(d)) return d;
+  return Math.min(
+    pointSegmentDistanceSq(p, a, b),
+    pointSegmentDistanceSq(p, b, c),
+    pointSegmentDistanceSq(p, c, a),
+  );
+}
+
+function triangleDistanceSq(p, a, b, c) {
   const sub = (u, v) => [u[0] - v[0], u[1] - v[1], u[2] - v[2]];
   const dot = (u, v) => u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
   const ab = sub(b, a);
