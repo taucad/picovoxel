@@ -59,6 +59,19 @@ export interface ShellOptions {
   fastRenorm?: boolean;
 }
 
+/** Options for {@link Voxels.toMesh}. */
+export interface ToMeshOptions {
+  /**
+   * OpenVDB mesh adaptivity in [0, 1]. `0`, the default, is the uniform
+   * mesher and the exact result. Above `0`, near-coplanar cells merge into
+   * larger polygons, so flat regions need far fewer triangles; the surface
+   * stays on the same level set, but the bytes differ from the uniform mesh,
+   * so the mesh carries `fast` provenance and a `lane: 'exact'` session
+   * refuses it with `PICO_LANE_LOOSENED`. Deterministic for a given grid.
+   */
+  adaptivity?: number;
+}
+
 /**
  * The opt-in renormalization setting for the offset family: `FIRST_BIAS`
  * (first-order upwind) instead of the LevelSetTracker default `HJWENO5_BIAS`,
@@ -197,7 +210,12 @@ export interface Voxels {
   sliceOrigin(index?: number): Vec3;
   /** One slice image; `mode` post-processes it; the interpolated form takes a fractional Z index. */
   getSlice(options: GetSliceOptions): VoxelSlice;
-  toMesh(): Mesh;
+  /**
+   * Triangle mesh of the zero level set. Without options, or with
+   * `adaptivity: 0`, the uniform mesher runs and the result is exact; see
+   * {@link ToMeshOptions.adaptivity} for the adaptive form.
+   */
+  toMesh(options?: ToMeshOptions): Mesh;
   toScalarField(): ScalarField;
   readonly metadata: Metadata;
   readonly memUsage: number;
@@ -784,7 +802,34 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       }
     },
 
-    toMesh(): Mesh {
+    toMesh(options: ToMeshOptions = {}): Mesh {
+      const adaptivity = options.adaptivity ?? 0;
+      if (!Number.isFinite(adaptivity) || adaptivity < 0 || adaptivity > 1) {
+        throw new PicoError(
+          'PICO_INVALID_ARGUMENT',
+          `toMesh needs an adaptivity between 0 and 1, got ${adaptivity}.`,
+        );
+      }
+      if (adaptivity > 0) {
+        if (ctx.lane === 'exact') {
+          throw new PicoError(
+            'PICO_LANE_LOOSENED',
+            `toMesh({ adaptivity: ${adaptivity} }) inside a lane: 'exact' session: adaptive meshing changes the ` +
+              "mesh bytes, which would destroy the session's structural exactness claim. Use a 'fast' or lane-less " +
+              'session.',
+          );
+        }
+        return wrapMesh(
+          ctx,
+          expectHandle(
+            'Mesh_hCreateFromVoxelsAdaptive',
+            guard('Mesh_hCreateFromVoxelsAdaptive', () =>
+              ctx.raw.Mesh_hCreateFromVoxelsAdaptive(ctx.lib, live(), adaptivity),
+            )(),
+          ),
+          unionLaneSets(lane, FAST_LANE_SET),
+        );
+      }
       return wrapMesh(
         ctx,
         expectHandle(

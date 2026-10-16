@@ -48,6 +48,7 @@ These are measured bounds for those fixtures, not a guarantee for every model. T
 
 - Fresh geometry is exact: every `createVoxels` shape, `createMesh`, lattice rendering, and empty fields.
 - A `fastRenorm` op marks its result `fast`.
+- `toMesh({ adaptivity })` above 0 marks its mesh `fast`: OpenVDB's adaptive mesher merges cells, so the bytes differ from the uniform mesh. A `lane: 'exact'` session refuses it with `PICO_LANE_LOOSENED`.
 - A derived handle carries the union of its inputs' provenance. This covers `clone`, booleans with the fast operand in either position, further offsets, `toMesh`, mesh `transform` and `merged`, `toVoxels`, `shellVoxels`, `withMesh`, `toScalarField`, and `createScalarField`/`createVectorField` with `from`.
 - Loaded geometry takes the provenance recorded in its bytes (see the next section).
 
