@@ -174,3 +174,21 @@ test('meshToStlBytes returns Uint8Array<ArrayBuffer> that owns its whole buffer'
   assert.equal(bytes.byteLength, bytes.buffer.byteLength);
   assert.deepEqual(bytes, pk.createMesh(TETRA).toStl(), 'bytes unchanged');
 });
+
+// MI21 — a mesh without triangles serialises as a valid, empty glTF scene: no
+// accessor, buffer view or buffer (glTF forbids empty ones, and POSITION min/max
+// would be null), and no BIN chunk.
+test('toGlb: an empty mesh is a valid empty scene', () => {
+  const empty = pk.createMesh({ vertices: [], triangles: [] });
+  assert.equal(empty.triangleCount, 0);
+  const glb = empty.toGlb();
+  const view = new DataView(glb.buffer, glb.byteOffset, glb.byteLength);
+  assert.equal(view.getUint32(0, true), 0x46546c67, 'GLB magic');
+  assert.equal(view.getUint32(8, true), glb.byteLength, 'length header');
+  const jsonLen = view.getUint32(12, true);
+  assert.equal(view.getUint32(16, true), 0x4e4f534a, 'JSON chunk');
+  assert.equal(glb.byteLength, 20 + jsonLen, 'no BIN chunk');
+  const gltf = JSON.parse(new TextDecoder().decode(glb.subarray(20, 20 + jsonLen))) as Record<string, unknown>;
+  assert.deepEqual(gltf, { asset: { version: '2.0', generator: 'picovoxel' }, scene: 0, scenes: [{}] });
+});
+
