@@ -138,6 +138,51 @@ test('an all-operator expression matches its JS twin exactly', async () => {
   }
 });
 
+test('every operator on x-and-z operands matches its JS twin exactly (the per-voxel vector path)', async () => {
+  // WA1/WA2 hoist z-only and y-only work out of the voxel loop, so only the
+  // operations whose operands mix z with x or y reach the per-voxel SIMD
+  // evaluator. Every operand below depends on z and on x or y.
+  const xz: SdfExpression = ['+', 'x', 'z'];
+  const yz: SdfExpression = ['*', 'y', 'z'];
+  const expression: SdfExpression = [
+    'min',
+    ['-', ['sqrt', ['+', ['pow', xz, 2], ['pow', 'y', 2]]], 6],
+    [
+      'max',
+      [
+        'max',
+        ['-', ['abs', ['mod', xz, 3]], 1],
+        ['*', ['floor', ['/', yz, 4]], ['exp', ['-', ['log', ['+', ['abs', yz], 1]]]]],
+      ],
+      ['+', ['sin', xz], ['cos', yz], ['pow', ['-', 'x', 'z'], 3], -40],
+    ],
+  ];
+  const twin = (x: number, y: number, z: number): number => {
+    const a = x + z;
+    const b = y * z;
+    return Math.min(
+      Math.sqrt(a ** 2 + y ** 2) - 6,
+      Math.max(
+        Math.max(
+          Math.abs(a - 3 * Math.floor(a / 3)) - 1,
+          Math.floor(b / 4) * Math.exp(-Math.log(Math.abs(b) + 1)),
+        ),
+        Math.sin(a) + Math.cos(b) + Math.pow(x - z, 3) + -40,
+      ),
+    );
+  };
+  const pk = await createPico({ voxelSize: 0.5 });
+  try {
+    const bounds = { boundsMin: [-8, -8, -8] as const, boundsMax: [8, 8, 8] as const };
+    const fromTape = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: expression });
+    const fromCallback = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: twin });
+    expect(fromTape.volume).toBe(fromCallback.volume);
+    expect(fromTape.toMesh().triangleCount).toBe(fromCallback.toMesh().triangleCount);
+  } finally {
+    pk.dispose();
+  }
+});
+
 test('a z-independent expression matches its JS twin exactly (TP7a: result register hoists out of the voxel loop)', async () => {
   // Infinite cylinder sqrt(x²+y²)−8: the whole tape is x/y-only, so the
   // leveled evaluator computes the result register once per (x,y) row and the
@@ -147,6 +192,25 @@ test('a z-independent expression matches its JS twin exactly (TP7a: result regis
   const pk = await createPico({ voxelSize: 0.5 });
   try {
     const bounds = { boundsMin: [-12, -12, -6] as const, boundsMax: [12, 12, 6] as const };
+    const fromTape = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: expression });
+    const fromCallback = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: twin });
+    expect(fromTape.volume).toBe(fromCallback.volume);
+    expect(Buffer.from(fromTape.toMesh().toStl()).equals(Buffer.from(fromCallback.toMesh().toStl()))).toBe(
+      true,
+    );
+  } finally {
+    pk.dispose();
+  }
+});
+
+test('a z-only expression matches its JS twin exactly (WA1: the whole tape hoists to the slab layer)', async () => {
+  // A slab |z| - 3: every operation is z-only, so the result register is
+  // computed once per z layer and the per-voxel list is empty.
+  const expression: SdfExpression = ['-', ['abs', 'z'], 3];
+  const twin = (_x: number, _y: number, z: number): number => Math.abs(z) - 3;
+  const pk = await createPico({ voxelSize: 0.5 });
+  try {
+    const bounds = { boundsMin: [-6, -6, -6] as const, boundsMax: [6, 6, 6] as const };
     const fromTape = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: expression });
     const fromCallback = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: twin });
     expect(fromTape.volume).toBe(fromCallback.volume);
@@ -261,6 +325,65 @@ test('a NaN-producing domain is never pruned: sqrt(x)-1 matches its JS twin', as
     });
     // volume may legitimately be NaN here; toBe (Object.is) treats NaN === NaN.
     expect(fromTape.volume).toBe(fromCallback.volume);
+  } finally {
+    pk.dispose();
+  }
+});
+
+test('a NaN-flagged interval propagates through every operator: the twin still matches', async () => {
+  // sqrt(x) is NaN for x < 0, so its interval over such a block is flagged
+  // NaN; each operator below then receives that flagged interval (as its
+  // only, first or second operand) and must keep the block unclassified.
+  // min and max follow the evaluator's (b<a)?b:a and (a<b)?b:a, which the
+  // twin mirrors, so a NaN term leaves the sphere unchanged there.
+  const e: SdfExpression = ['sqrt', 'x'];
+  const sphere: SdfExpression = ['-', ['sqrt', ['+', ['pow', 'x', 2], ['pow', 'y', 2], ['pow', 'z', 2]]], 5];
+  const terms: SdfExpression[] = [
+    ['-', e],
+    ['floor', e],
+    ['exp', ['-', e]],
+    ['log', ['+', e, 1]],
+    ['sqrt', e],
+    ['abs', e],
+    ['+', 1, e],
+    ['-', 1, e],
+    ['*', 2, e],
+    ['/', 1, ['+', e, 1]],
+    ['mod', 7, ['+', e, 2]],
+    ['max', 0, e],
+    ['pow', e, 2],
+  ];
+  const expression: SdfExpression = ['min', sphere, ['-', ['+', ...terms], 30]];
+  const cmin = (a: number, b: number): number => (b < a ? b : a);
+  const cmax = (a: number, b: number): number => (a < b ? b : a);
+  const twin = (x: number, y: number, z: number): number => {
+    const v = Math.sqrt(x);
+    const parts = [
+      -v,
+      Math.floor(v),
+      Math.exp(-v),
+      Math.log(v + 1),
+      Math.sqrt(v),
+      Math.abs(v),
+      1 + v,
+      1 - v,
+      2 * v,
+      1 / (v + 1),
+      7 - (v + 2) * Math.floor(7 / (v + 2)),
+      cmax(0, v),
+      v * v,
+    ];
+    let sum = parts[0]!;
+    for (const part of parts.slice(1)) sum += part;
+    return cmin(Math.sqrt(x ** 2 + y ** 2 + z ** 2) - 5, sum - 30);
+  };
+  const pk = await createPico({ voxelSize: 0.5 });
+  try {
+    const bounds = { boundsMin: [-7, -7, -7] as const, boundsMax: [7, 7, 7] as const };
+    const fromTape = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: expression });
+    const fromCallback = pk.createVoxels({ shape: 'implicit', ...bounds, sdf: twin });
+    expect(fromTape.volume).toBe(fromCallback.volume);
+    expect(fromTape.toMesh().triangleCount).toBe(fromCallback.toMesh().triangleCount);
   } finally {
     pk.dispose();
   }

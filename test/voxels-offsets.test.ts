@@ -437,6 +437,17 @@ test('fastSweeping: an eroded band, an empty field and the raw no-reinit scheme'
     .createVoxels({ shape: 'sphere', radius: 3 })
     .intersect(pk.createVoxels({ shape: 'sphere', radius: 3 }).offset({ distance: -5 }));
   assert.ok(empty.offset({ distance: 1, fastSweeping: true }).isEmpty);
+  // A band with no positive value: a clipped render whose field is -1
+  // everywhere has no zero crossing either, so it shifts and re-bands instead
+  // of throwing. It has no surface before or after (volume 0 both times).
+  const solid = pk.createVoxels({
+    shape: 'implicit',
+    boundsMin: [-2, -2, -2],
+    boundsMax: [2, 2, 2],
+    sdf: () => -1,
+  });
+  assert.equal(solid.volume, 0);
+  assert.equal(solid.offset({ distance: 1, fastSweeping: true }).volume, 0);
 
   // Scheme 101 sweeps the band as it is; on a distance field it stays close
   // to the reinitialised scheme 100.
