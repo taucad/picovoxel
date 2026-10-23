@@ -10,6 +10,7 @@ import {
   assertSameSession,
   checkedMalloc,
   expectHandle,
+  refreshHeapViews,
   TRI_BYTES,
   VEC3_BYTES,
   type SessionContext,
@@ -160,6 +161,7 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: LaneSet = EX
     try {
       raw.Mesh_GetVertices(lib, handle, vertexPointer, vertexCount);
       raw.Mesh_GetTriangles(lib, handle, trianglePointer, triangleCount);
+      refreshHeapViews(module);
       return {
         vertices: new Float32Array(
           module.HEAPF32.subarray(vertexPointer >>> 2, (vertexPointer >>> 2) + vertexCount * 3),

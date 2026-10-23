@@ -11,6 +11,7 @@ import {
   adoptHandle,
   assertSameSession,
   checkedMalloc,
+  refreshHeapViews,
   expectHandle,
   VEC3_BYTES,
   withSdfPointer,
@@ -684,6 +685,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
             pointer + 3 * bytes,
           ),
         )();
+        refreshHeapViews(ctx.module);
         const hits = new Float32Array(
           ctx.module.HEAPF32.subarray((pointer + 2 * bytes) >>> 2, ((pointer + 2 * bytes) >>> 2) + count * 3),
         );
@@ -721,6 +723,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
             pointer + 2 * bytes,
           ),
         )();
+        refreshHeapViews(ctx.module);
         const out = new Float32Array(
           ctx.module.HEAPF32.subarray((pointer + bytes) >>> 2, ((pointer + bytes) >>> 2) + count * 3),
         );
@@ -772,6 +775,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
         } else {
           ctx.raw.Voxels_GetXSlice(ctx.lib, handle, at, buffer, backgroundPtr);
         }
+        refreshHeapViews(ctx.module);
         const background = ctx.module.HEAPF32[backgroundPtr >>> 2]!;
         const data = new Float32Array(
           ctx.module.HEAPF32.subarray(buffer >>> 2, (buffer >>> 2) + width * height),

@@ -71,6 +71,8 @@ export interface PicoWasmModule {
     stat(path: string): { size: number };
   };
   wasmTable?: { length: number };
+  /** The module's memory — exported by the multi glue only (refreshHeapViews in context.ts). */
+  wasmMemory?: WebAssembly.Memory;
   /** Pthread pool state — present on the multi glue only (exported for observability,
    *  and for the dispose-time pool join — see session.dispose()). */
   PThread?: {

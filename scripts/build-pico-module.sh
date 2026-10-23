@@ -52,7 +52,10 @@ if [ "${THREADS:-0}" = "1" ]; then
   THREAD_LINK_FLAGS=(-sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency)
   # PThread exposes pool state: the multi entry's thread warmup is observable
   # (tests assert workers actually engaged — oneTBB serializes silently if not).
-  RUNTIME_METHODS="$RUNTIME_METHODS,PThread"
+  # wasmMemory lets the facade refresh its heap views after a worker grows the
+  # shared memory, which the main thread's glue never notices (WA9,
+  # refreshHeapViews in src/context.ts).
+  RUNTIME_METHODS="$RUNTIME_METHODS,PThread,wasmMemory"
 else
   MT=""; VARIANT="pico"
   MALLOC="${MALLOC:-dlmalloc}"
