@@ -1,0 +1,101 @@
+PicoGKRuntime 26.2 (0f26321c) — opt-in adaptive meshing through a new export,
+Mesh_hCreateFromVoxelsAdaptive. Upstreamable to leap71/PicoGKRuntime; not yet
+offered.
+
+Applied to vendor/PicoGKRuntime by scripts/fetch-deps.sh after 0001-0005.
+Kept as a patch because it modifies dependency source; no flag-level override
+exists.
+
+1. Source/PicoGKVdbVoxels.h — roAsMesh() gains fAdaptivity (default 0) and
+   bRelax (default false). At 0 the call is the one 0001 makes,
+   VolumeToMesh(0, 0, false) with enableFlatQuadOutput(), so
+   Mesh_hCreateFromVoxels keeps its bytes. Above 0 it runs
+   VolumeToMesh(0, fAdaptivity, bRelax): OpenVDB's adaptive mesher merges
+   near-coplanar cells, and bRelax turns on its relaxDisorientedTriangles pass.
+   OpenVDB runs that pass only when meshing is adaptive (VolumeToMesh.h,
+   `adaptive && mRelaxDisorientedTriangles`), so bRelax changes nothing at 0.
+   The adaptive branch never takes the flat-quad path (VolumeToMesh selects it
+   only for uniform, non-reference meshing), so the result is read through
+   0001's per-leaf pool path, triangles and quads.
+2. API/PicoGK.h, Source/PicoGKLibrary.cpp — Mesh_hCreateFromVoxelsAdaptive
+   (hInstance, hVoxels, fAdaptivity, bRelax): NaN and values at or below 0
+   select the uniform mesher; values at or above 1 clamp to the largest float
+   below 1. At 1 OpenVDB stops comparing normals (`useGradients = adaptivity <
+   1`) and merges on topology alone, a different algorithm rather than a
+   coarser setting of the same one.
+
+Evidence: adaptivity sweep 2026-10-22 (Tau Brain), relax off recommended: it
+never changes triangle count or topology and lowers vertex deviation.
+--- a/API/PicoGK.h
++++ b/API/PicoGK.h
+@@ -129,6 +129,11 @@
+ PICOGK_API PKMESH           Mesh_hCreateFromVoxels(         PKINSTANCE          hInstance,
+                                                             PKVOXELS            hVoxels);
+ 
++PICOGK_API PKMESH           Mesh_hCreateFromVoxelsAdaptive( PKINSTANCE          hInstance,
++                                                            PKVOXELS            hVoxels,
++                                                            float               fAdaptivity,
++                                                            bool                bRelax);
++
+ PICOGK_API bool             Mesh_bIsValid(                  PKINSTANCE          hInstance,
+                                                             PKMESH              hThis);
+ 
+--- a/Source/PicoGKLibrary.cpp
++++ b/Source/PicoGKLibrary.cpp
+@@ -230,6 +230,26 @@
+     return roLib->m_oMeshes.hAdd(roVoxels->roAsMesh());
+ }
+ 
++PICOGK_API PKMESH Mesh_hCreateFromVoxelsAdaptive(   PKINSTANCE hLib,
++                                                    PKVOXELS hVoxels,
++                                                    float fAdaptivity,
++                                                    bool bRelax)
++{
++    PKTRACE(Mesh_hCreateFromVoxelsAdaptive);
++
++    Library::Instance::Ptr roLib = Library::oLib().roGetInstance(hLib);
++
++    // NaN and values at or below 0 select the uniform mesher. At 1 OpenVDB
++    // drops its normal test, so the range ends just below 1.
++    if (!(fAdaptivity > 0.0f))
++        fAdaptivity = 0.0f;
++    else if (fAdaptivity >= 1.0f)
++        fAdaptivity = std::nextafter(1.0f, 0.0f);
++
++    Voxels::Ptr roVoxels = roLib->m_oVoxels.roGet(hVoxels);
++    return roLib->m_oMeshes.hAdd(roVoxels->roAsMesh(fAdaptivity, bRelax));
++}
++
+ PICOGK_API bool Mesh_bIsValid(  PKINSTANCE hLib,
+                                 PKMESH hThis)
+ {
+--- a/Source/PicoGKVdbVoxels.h
++++ b/Source/PicoGKVdbVoxels.h
+@@ -414,7 +414,11 @@
+         BoolIntersect(oVox);
+     }
+ 
+-    Mesh::Ptr roAsMesh() const
++    // fAdaptivity in [0, 1): 0 is the uniform mesher (flat-quad path, bytes
++    // unchanged); above 0 OpenVDB merges near-coplanar cells into larger
++    // polygons, which takes the per-leaf pool path. bRelax runs OpenVDB's
++    // relaxDisorientedTriangles pass, which only acts on adaptive meshes.
++    Mesh::Ptr roAsMesh(float fAdaptivity = 0.0f, bool bRelax = false) const
+     {
+         PKTRACE(Voxels_roAsMesh);
+ 
+@@ -430,8 +434,12 @@
+         // native triangles in pool order, then the two split triangles per
+         // quad in pool order — the same concatenation as before, with the
+         // same winding reversal.
+-        openvdb::tools::VolumeToMesh oMesher(0.0, 0.0, false);
+-        oMesher.enableFlatQuadOutput();
++        const bool bAdaptive = fAdaptivity > 0.0f;
++        openvdb::tools::VolumeToMesh oMesher(   0.0,
++                                                bAdaptive ? double(fAdaptivity) : 0.0,
++                                                bAdaptive && bRelax);
++        if (!bAdaptive)
++            oMesher.enableFlatQuadOutput();
+         oMesher(*m_roGrid);
+ 
+         const size_t nPools = oMesher.polygonPoolListSize();

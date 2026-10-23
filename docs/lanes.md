@@ -48,10 +48,25 @@ These are measured bounds for those fixtures, not a guarantee for every model. T
 
 - Fresh geometry is exact: every `createVoxels` shape, `createMesh`, lattice rendering, and empty fields.
 - A `fastRenorm` op marks its result `fast`.
+- `toMesh({ adaptivity })` above 0 marks its mesh `fast`: OpenVDB's adaptive mesher merges cells, so the bytes differ from the uniform mesh. A `lane: 'exact'` session refuses it with `PICO_LANE_LOOSENED` (see [Adaptive meshing](#adaptive-meshing)).
 - A derived handle carries the union of its inputs' provenance. This covers `clone`, booleans with the fast operand in either position, further offsets, `toMesh`, mesh `transform` and `merged`, `toVoxels`, `shellVoxels`, `withMesh`, `toScalarField`, and `createScalarField`/`createVectorField` with `from`.
 - Loaded geometry takes the provenance recorded in its bytes (see the next section).
 
 `Lattice`, `PolyLine` and `VdbFile` carry no provenance. Passing one where geometry is expected throws `PICO_INVALID_ARGUMENT` before any native call.
+
+### Adaptive meshing
+
+`toMesh()` runs OpenVDB's uniform mesher, and its bytes are part of the exact contract. `toMesh({ adaptivity })` with a value in `(0, 1)` runs the adaptive mesher instead: near-coplanar cells merge into larger polygons, so flat faces need far fewer triangles while the vertices stay on the same level set. `relax: true` adds OpenVDB's pass that straightens disoriented triangles; it is off by default because it moves vertices further from the surface, and it does nothing at `adaptivity: 0`. Results are reproducible, and the serial and pthreads entries give the same bytes. An adaptivity of 1 or more, or one that is not a number, throws `PICO_INVALID_ARGUMENT`.
+
+```js
+import { createPico } from 'picovoxel';
+
+const pico = await createPico({ voxelSize: 0.5, lane: 'fast' });
+const part = pico.createVoxels({ shape: 'sphere', radius: 10 });
+const preview = part.toMesh({ adaptivity: 0.75, relax: false });
+preview.lane; // 'fast'
+const stl = preview.toStl(); // a fast session exports it; the header records LANE=fast
+```
 
 ### The persisted form
 
@@ -100,11 +115,11 @@ Untagged assets and headers without a `LANE=` token load as exact: importing is 
 
 ## Errors
 
-| Code                     | Raised when                                                                                                                   |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| `PICO_LANE_LOOSENED`     | an exact session is asked for `fastRenorm: true` (at construction or on an op), or imports an asset with non-exact provenance |
-| `PICO_LANE_EXPORT`       | an STL, `.vdb` or GLB export meets provenance that nothing consented to; the message names the remedies that apply            |
-| `PICO_RESERVED_METADATA` | user code writes or removes a `PicoVoxel.*` metadata name                                                                     |
+| Code                     | Raised when                                                                                                                                                                              |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PICO_LANE_LOOSENED`     | an exact session is asked for `fastRenorm: true` (at construction or on an op), or `toMesh({ adaptivity })` above 0, or imports an asset with non-exact provenance                       |
+| `PICO_LANE_EXPORT`       | an STL, `.vdb` or GLB export meets provenance that nothing consented to; the message names the remedies that apply                                                                       |
+| `PICO_RESERVED_METADATA` | user code writes or removes a `PicoVoxel.*` metadata name                                                                                                                                |
 
 ```js
 import { createPico, PicoError } from 'picovoxel';

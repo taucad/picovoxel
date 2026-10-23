@@ -66,7 +66,7 @@ the multithreaded build.
 | `picovoxel/numerics`       | Vectors, matrices, quaternions and frames: the System.Numerics and `PicoGK.Numerics` layer, pure TypeScript                                                                                                                                    |
 | `picovoxel/shapekernel`    | A TypeScript port of LEAP 71's ShapeKernel                                                                                                                                                                                                     |
 | `picovoxel/latticelibrary` | A TypeScript port of LEAP 71's LatticeLibrary                                                                                                                                                                                                  |
-| `picovoxel/raw`            | The generated, typed binding for all 163 C-ABI exports (140 from PicoGKRuntime, 23 from picovoxel)                                                                                                                                             |
+| `picovoxel/raw`            | The generated, typed binding for all 164 C-ABI exports (141 from PicoGKRuntime, 23 from picovoxel)                                                                                                                                             |
 
 Every session has a lane: `exact` reproduces the reference results byte for byte, `fast` allows faster
 algorithms that change values slightly and marks what they produce. See [docs/lanes.md](https://github.com/taucad/picovoxel/blob/main/docs/lanes.md).
