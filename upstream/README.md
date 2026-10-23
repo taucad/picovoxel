@@ -33,15 +33,20 @@ The patches that the build does apply live in `patches/<dependency>/`. `scripts/
 
 The build applies these files from `patches/`; each is also upstreamable as it stands, and LEDGER.md tracks it:
 
-| Patch (applied)                                                   | Target and base                           | What it does                                                   |
-| ----------------------------------------------------------------- | ----------------------------------------- | -------------------------------------------------------------- |
-| `patches/PicoGKRuntime/0001-parallel-disjoint-mesh-flatten.patch` | PicoGKRuntime `0f26321c`                  | Parallel `roAsMesh` flatten; needs the openvdb flat-quad patch |
-| `patches/PicoGKRuntime/0002-post-fill-prune.patch`                | PicoGKRuntime `0f26321c`                  | Prunes after the dense-accessor fills                          |
-| `patches/PicoGKRuntime/0003-lattice-parameter-accessors.patch`    | PicoGKRuntime `0f26321c`                  | Seven const accessors on lattice spheres and beams             |
-| `patches/PicoGKRuntime/0004-lattice-beam-value-storage.patch`     | PicoGKRuntime `0f26321c`, after 0001–0003 | Lattice beams stored by value                                  |
-| `patches/PicoGKRuntime/0005-render-mesh-zero-copy.patch`          | PicoGKRuntime `0f26321c`, after 0001–0004 | `RenderMesh` meshes the mesh storage without a copy            |
-| `patches/openvdb/0001-flat-quad-output.patch`                     | openvdb `7c03e1f0`                        | Opt-in flat quad output from `VolumeToMesh`                    |
-| `patches/oneTBB/0001-wasm-substrate-edges.patch`                  | oneTBB `06ce6212`                         | The three oneTBB fixes above, as one file                      |
+| Patch (applied)                                                   | Target and base                           | What it does                                                              |
+| ----------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------- |
+| `patches/PicoGKRuntime/0001-parallel-disjoint-mesh-flatten.patch` | PicoGKRuntime `0f26321c`                  | Parallel `roAsMesh` flatten; needs the openvdb flat-quad patch            |
+| `patches/PicoGKRuntime/0002-post-fill-prune.patch`                | PicoGKRuntime `0f26321c`                  | Prunes after the dense-accessor fills                                     |
+| `patches/PicoGKRuntime/0003-lattice-parameter-accessors.patch`    | PicoGKRuntime `0f26321c`                  | Seven const accessors on lattice spheres and beams                        |
+| `patches/PicoGKRuntime/0004-lattice-beam-value-storage.patch`     | PicoGKRuntime `0f26321c`, after 0001–0003 | Lattice beams stored by value                                             |
+| `patches/PicoGKRuntime/0005-render-mesh-zero-copy.patch`          | PicoGKRuntime `0f26321c`, after 0001–0004 | `RenderMesh` meshes the mesh storage without a copy                       |
+| `patches/PicoGKRuntime/0006-mesh-adaptivity.patch`                | PicoGKRuntime `0f26321c`, after 0001–0005 | Opt-in adaptive meshing, `Mesh_hCreateFromVoxelsAdaptive`                 |
+| `patches/PicoGKRuntime/0007-abi-hardening.patch`                  | PicoGKRuntime `0f26321c`, after 0001–0006 | Checked indices, bounded string copies, an empty scalar field from voxels |
+| `patches/PicoGKRuntime/0008-flat-beam-zero-length.patch`          | PicoGKRuntime `0f26321c`, after 0001–0007 | Drops a zero-length flat-capped beam instead of rendering NaN             |
+| `patches/PicoGKRuntime/0009-unsafe-query-accessors.patch`         | PicoGKRuntime `0f26321c`, after 0001–0008 | Call-local unsafe accessors for the per-point queries                     |
+| `patches/openvdb/0001-flat-quad-output.patch`                     | openvdb `7c03e1f0`                        | Opt-in flat quad output from `VolumeToMesh`                               |
+| `patches/openvdb/0002-exact-adaptive-merge.patch`                 | openvdb `7c03e1f0`, after 0001            | Exact fast path for the adaptive merge                                    |
+| `patches/oneTBB/0001-wasm-substrate-edges.patch`                  | oneTBB `06ce6212`                         | The three oneTBB fixes above, as one file                                 |
 
 ## Dry runs
 
