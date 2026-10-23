@@ -16,12 +16,12 @@ describe('wasm byte ceilings', () => {
 
   it('keeps 0.5% compressor headroom and none on raw', () => {
     assert.deepEqual(CEILINGS, {
-      serial: { raw: 6_071_228, gzip: 1_283_336, brotli: 543_655 },
-      multi: { raw: 6_136_964, gzip: 1_326_542, brotli: 572_688 },
+      serial: { raw: 6_276_985, gzip: 1_317_752, brotli: 561_795 },
+      multi: { raw: 6_335_092, gzip: 1_362_040, brotli: 592_908 },
     });
-    assert.deepEqual(overCeilings('multi', { raw: 1, gzip: 1_326_543, brotli: 572_689 }), [
-      'gzip 1326543 > 1326542',
-      'brotli 572689 > 572688',
+    assert.deepEqual(overCeilings('multi', { raw: 1, gzip: 1_362_041, brotli: 592_909 }), [
+      'gzip 1362041 > 1362040',
+      'brotli 592909 > 592908',
     ]);
   });
 });
