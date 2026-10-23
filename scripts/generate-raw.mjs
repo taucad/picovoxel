@@ -250,6 +250,20 @@ export const BULK_FUNCTIONS = [
       { name: 'pbHit', type: 'uint8_t*', cwrap: 'number' },
     ],
   },
+  // MI6: the same rays with fractional hits (opt-in; upstream truncates).
+  {
+    name: 'Voxels_RayCastBatchSubVoxel',
+    cwrapReturn: 'number',
+    args: [
+      { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+      { name: 'hThis', type: 'PKVOXELS', cwrap: 'bigint' },
+      { name: 'pvecOrigins', type: 'const PKVector3*', cwrap: 'number' },
+      { name: 'pvecDirections', type: 'const PKVector3*', cwrap: 'number' },
+      { name: 'nCount', type: 'int32_t', cwrap: 'number' },
+      { name: 'pvecHits', type: 'PKVector3*', cwrap: 'number' },
+      { name: 'pbHit', type: 'uint8_t*', cwrap: 'number' },
+    ],
+  },
   {
     name: 'Voxels_ClosestPointBatch',
     cwrapReturn: 'number',

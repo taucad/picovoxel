@@ -286,6 +286,14 @@ const ORACLES: Record<string, OracleTest[]> = {
       oracle: 'the serial upstream raycast, per ray',
     },
   ],
+  Voxels_RayCastBatchSubVoxel: [
+    {
+      file: 'query-batch.test.ts',
+      title: 'raycastBatch subVoxel: the truncated hits moved onto the surface, misses unchanged',
+      via: 'raycastBatch',
+      oracle: 'the analytic sphere and the truncated hit',
+    },
+  ],
   Voxels_ClosestPointBatch: [
     {
       file: TIER2,

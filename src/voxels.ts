@@ -224,8 +224,13 @@ export interface Voxels {
    * crossing. Per-ray results are EXACTLY the serial `raycastToSurface`
    * semantics (incl. upstream's integer-voxel hit truncation). `hits` is
    * xyz-triples; entries where `hit[i] === 0` are undefined.
+   *
+   * `subVoxel: true` (opt-in) keeps each hit's fractional position instead
+   * of truncating it to a whole voxel, which can put an upstream hit up to
+   * one voxel inside the surface on each positive axis. Hit and miss are the
+   * same rays either way; only the hit positions move onto the surface.
    */
-  raycastBatch(options: { origins: ArrayLike<number>; directions: ArrayLike<number> }): {
+  raycastBatch(options: { origins: ArrayLike<number>; directions: ArrayLike<number>; subVoxel?: boolean }): {
     hits: Float32Array;
     hit: Uint8Array;
   };
@@ -740,7 +745,15 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       )();
       return hit ? ctx.readVec3(ctx.scratch + 2 * VEC3_BYTES) : null;
     },
-    raycastBatch({ origins, directions }: { origins: ArrayLike<number>; directions: ArrayLike<number> }): {
+    raycastBatch({
+      origins,
+      directions,
+      subVoxel = false,
+    }: {
+      origins: ArrayLike<number>;
+      directions: ArrayLike<number>;
+      subVoxel?: boolean;
+    }): {
       hits: Float32Array;
       hit: Uint8Array;
     } {
@@ -752,13 +765,20 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
           `raycastBatch needs matching xyz-triple arrays; got ${origins.length}/${directions.length} floats.`,
         );
       }
+      if (typeof subVoxel !== 'boolean') {
+        throw new PicoError(
+          'PICO_INVALID_ARGUMENT',
+          `raycastBatch subVoxel must be a boolean, got ${String(subVoxel)}.`,
+        );
+      }
+      const castExport = subVoxel ? 'Voxels_RayCastBatchSubVoxel' : 'Voxels_RayCastBatch';
       const bytes = count * VEC3_BYTES;
       const pointer = checkedMalloc(ctx.module, 2 * bytes + bytes + count, 'a raycast batch buffer');
       try {
         ctx.module.HEAPF32.set(origins, pointer >>> 2);
         ctx.module.HEAPF32.set(directions, (pointer + bytes) >>> 2);
-        guard('Voxels_RayCastBatch', () =>
-          ctx.raw.Voxels_RayCastBatch(
+        guard(castExport, () =>
+          ctx.raw[castExport](
             ctx.lib,
             handle,
             pointer,

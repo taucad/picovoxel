@@ -163,4 +163,5 @@ _Voxels_ProjectZSliceFast
 _Voxels_IntersectImplicitTapeFast
 _Voxels_IntersectImplicitFast
 _Voxels_RayCastBatch
+_Voxels_RayCastBatchSubVoxel
 _Voxels_ClosestPointBatch
