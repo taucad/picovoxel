@@ -264,7 +264,8 @@ PICOGK_API void Voxels_OffsetTuned(     PKINSTANCE      hLib,
     PicoGK::Library::Instance::Ptr roLib = PicoGK::Library::oLib().roGetInstance(hLib);
     PicoGK::Voxels::Ptr roVoxels = roLib->m_oVoxels.roGet(hThis);
 
-    if (nSpatialScheme >= OFFSET_FAST_SWEEPING && nSpatialScheme <= OFFSET_FAST_SWEEPING_SDF)
+    if (nSpatialScheme == OFFSET_FAST_SWEEPING || nSpatialScheme == OFFSET_FAST_SWEEPING_NOINIT
+        || nSpatialScheme == OFFSET_FAST_SWEEPING_BOUND || nSpatialScheme == OFFSET_FAST_SWEEPING_SDF)
     {
         openvdb::FloatGrid& oGrid = *roVoxels->roVdbGrid();
         // The containment guard (102, 103): first-order sweeping beyond the
