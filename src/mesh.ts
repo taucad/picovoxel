@@ -181,7 +181,7 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: LaneSet = EX
     remap: (x: number, y: number, z: number, out: Float32Array, at: number) => void,
   ): Mesh => {
     live();
-    const source = cached ?? readAll();
+    const source = (cached ??= readAll());
     const transformed = new Float32Array(source.vertices.length);
     for (let i = 0; i < source.vertices.length; i += 3) {
       remap(source.vertices[i]!, source.vertices[i + 1]!, source.vertices[i + 2]!, transformed, i);
@@ -190,13 +190,15 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: LaneSet = EX
   };
 
   const mesh = {
+    // MI20: one read from wasm per mesh (meshes are immutable); the getters hand
+    // out copies, so a caller's edits never reach the cache the other methods use.
     get vertices() {
       live();
-      return (cached ??= readAll()).vertices;
+      return (cached ??= readAll()).vertices.slice();
     },
     get triangles() {
       live();
-      return (cached ??= readAll()).triangles;
+      return (cached ??= readAll()).triangles.slice();
     },
     get vertexCount() {
       return ctx.raw.Mesh_nVertexCount(ctx.lib, live());
@@ -211,7 +213,7 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: LaneSet = EX
     },
     measure(): { volume: number; area: number } {
       live();
-      const { vertices: v, triangles: t } = cached ?? readAll();
+      const { vertices: v, triangles: t } = (cached ??= readAll());
       // Relative to the first vertex: a closed mesh's volume does not depend on the
       // origin, and small coordinates keep the float64 sums well conditioned far from 0.
       const [ox = 0, oy = 0, oz = 0] = v;
@@ -290,7 +292,7 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: LaneSet = EX
       live();
       assertSameSession(ctx, other, 'merged operand');
       const resultLane = unionLaneSets(lane, provenanceOf(other)); // throws on a non-mesh operand
-      const a = cached ?? readAll();
+      const a = (cached ??= readAll());
       const b = { vertices: other.vertices, triangles: other.triangles };
       const vertices = new Float32Array(a.vertices.length + b.vertices.length);
       vertices.set(a.vertices, 0);
@@ -325,7 +327,7 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: LaneSet = EX
     toStl(options: ToStlOptions = {}): Uint8Array {
       live();
       assertLaneExport('toStl', 'a mesh', lane, ctx.lane, options.acceptLane);
-      const data = cached ?? readAll();
+      const data = (cached ??= readAll());
       return writeStlBytes(data.vertices, data.triangles, options, lane);
     },
     toGlb(options: { acceptLane?: 'fast' } = {}): Uint8Array {
@@ -339,7 +341,7 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: LaneSet = EX
             "rebuild the chain in a lane: 'exact' session.",
         );
       }
-      const data = cached ?? readAll();
+      const data = (cached ??= readAll());
       return createGlb(data.vertices, data.triangles);
     },
     get lane() {
