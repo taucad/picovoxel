@@ -192,3 +192,18 @@ test('toGlb: an empty mesh is a valid empty scene', () => {
   assert.deepEqual(gltf, { asset: { version: '2.0', generator: 'picovoxel' }, scene: 0, scenes: [{}] });
 });
 
+// MI24 — the millimetre identity fast path writes the bytes the general chain
+// writes, including -0 coordinates (-0 + 0 is +0) and an explicit -0 offset
+// (which keeps -0 and so takes the general path).
+test('toStl: the identity fast path matches the general float32 chain', () => {
+  const vertices = new Float32Array([-0, 0, -0, 10.1, -0, 0, 0, 10.3, -0, -0, 0, 10.7]);
+  const triangles = new Uint32Array(TETRA.triangles);
+  const fast = meshToStlBytes(vertices, triangles);
+  // 1e-50 vanishes in the float32 rounding but is not 0, so it takes the general path.
+  const general = meshToStlBytes(vertices, triangles, { offset: [1e-50, 1e-50, 1e-50] });
+  assert.deepEqual(fast, general);
+  const negativeZero = meshToStlBytes(vertices, triangles, { offset: [-0, -0, -0] });
+  const view = new DataView(negativeZero.buffer);
+  assert.ok(Object.is(view.getFloat32(84 + 12, true), -0), 'a -0 offset keeps -0 corners');
+  assert.ok(Object.is(new DataView(fast.buffer).getFloat32(84 + 12, true), 0), '-0 + 0 is +0');
+});
