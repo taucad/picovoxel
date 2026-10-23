@@ -46,7 +46,103 @@
 #include "PicoGK.h"
 #include "PicoGKLibraryMgr.h"
 
+#include <openvdb/tools/FastSweeping.h>
 #include <openvdb/tools/LevelSetFilter.h>
+#include <openvdb/tools/LevelSetUtil.h>
+#include <openvdb/tools/Prune.h>
+#include <openvdb/tree/LeafManager.h>
+
+#include <cmath>
+
+// VO1 — an offset engine that extends the band, then shifts it, instead of
+// advancing the surface in CFL steps. Selected by nSpatialScheme in
+// Voxels_OffsetTuned; never the default, because its values differ from the
+// LevelSetFilter's (the audit measured at most 0.13 voxel from stock on
+// distance-field inputs, as close to the closed form as stock, and 1.9-26x
+// faster).
+constexpr int32_t OFFSET_FAST_SWEEPING        = 100; // sdfToSdf reinit, then sweep
+constexpr int32_t OFFSET_FAST_SWEEPING_NOINIT = 101; // sweep the band as it is
+
+namespace
+{
+
+/// Shifts every active value by -fDistance and re-bands: a value at or past
+/// the background becomes an inactive +-background, then the tree is pruned
+/// to the level-set background.
+void ShiftAndReband(openvdb::FloatGrid& oGrid, float fDistance, float fBackground)
+{
+    openvdb::tree::LeafManager<openvdb::FloatTree> oLeafs(oGrid.tree());
+    oLeafs.foreach([fDistance, fBackground](openvdb::FloatTree::LeafNodeType& oLeaf, size_t)
+    {
+        for (auto it = oLeaf.beginValueOn(); it; ++it)
+        {
+            const float fValue = *it - fDistance;
+            if (std::abs(fValue) >= fBackground)
+            {
+                it.setValue(fValue < 0.0f ? -fBackground : fBackground);
+                it.setValueOff();
+            }
+            else
+            {
+                it.setValue(fValue);
+            }
+        }
+    });
+    openvdb::tools::changeLevelSetBackground(oGrid.tree(), fBackground);
+    openvdb::tools::pruneLevelSet(oGrid.tree());
+}
+
+/// VO12: the sweeping tools throw ("inside value must be negative") on a band
+/// with no zero crossing, which a thin wall eroded away leaves behind. Such a
+/// band only shifts and re-bands, which is what the filter does to it too.
+bool bHasInterface(const openvdb::FloatGrid& oGrid)
+{
+    bool bNegative = false, bPositive = false;
+    for (auto it = oGrid.cbeginValueOn(); it && !(bNegative && bPositive); ++it)
+    {
+        if (*it < 0.0f)
+            bNegative = true;
+        else
+            bPositive = true;
+    }
+    return bNegative && bPositive;
+}
+
+/// One PicoGK-signed offset (positive grows) by band extension and shift:
+/// optionally re-derive the band from its zero crossing (sdfToSdf, for
+/// fields that are not distance fields, such as implicit renders), widen it
+/// by ceil(|d| / voxel) + 1 voxels on the side the surface moves to with
+/// fast-sweeping (Eikonal) distances, subtract d and re-band. Returns the
+/// tree to seat into the caller's grid.
+openvdb::FloatTree::Ptr OffsetBySweeping(const openvdb::FloatGrid& oGrid, float fDistance, bool bReinit)
+{
+    const float fBackground = oGrid.background();
+    if (!bHasInterface(oGrid))
+    {
+        openvdb::FloatGrid::Ptr roOut = oGrid.deepCopy();
+        ShiftAndReband(*roOut, fDistance, fBackground);
+        return roOut->treePtr();
+    }
+
+    openvdb::FloatGrid::ConstPtr roSource = oGrid.copy(); // shallow: shares the tree
+    if (bReinit)
+    {
+        openvdb::FloatGrid::Ptr roReinit = openvdb::tools::sdfToSdf(oGrid, 0.0f, 1);
+        openvdb::tools::changeLevelSetBackground(roReinit->tree(), fBackground);
+        roSource = roReinit;
+    }
+
+    const float   fVoxel = (float) oGrid.voxelSize().x();
+    const int32_t nWiden = (int32_t) std::ceil(std::abs(fDistance) / fVoxel) + 1;
+    const auto    eSide  = fDistance > 0.0f ? openvdb::tools::FastSweepingDomain::SWEEP_GREATER_THAN_ISOVALUE
+                                            : openvdb::tools::FastSweepingDomain::SWEEP_LESS_THAN_ISOVALUE;
+    openvdb::FloatGrid::Ptr roOut = openvdb::tools::dilateSdf(  *roSource, nWiden,
+                                                                openvdb::tools::NN_FACE_EDGE_VERTEX, 1, eSide);
+    ShiftAndReband(*roOut, fDistance, fBackground);
+    return roOut->treePtr();
+}
+
+} // namespace
 
 /// Runs `nCount` PicoGK-signed offsets (positive grows) as one filter pass, with the
 /// level-set tracker's renormalization tuned. `nSpatialScheme` is an
@@ -54,6 +150,10 @@
 /// default) and `nNormCount` the sweeps per CFL step (default 3, 0 disables
 /// renormalization entirely). Either < 0 leaves the upstream default in place, so
 /// (-1, -1) reproduces Voxels_Offset / DoubleOffset / TripleOffset exactly.
+///
+/// nSpatialScheme 100 selects the VO1 sweeping engine instead of the filter,
+/// re-deriving the band with sdfToSdf before each offset; 101 sweeps the band
+/// as it is. nNormCount is ignored by both.
 PICOGK_API void Voxels_OffsetTuned(     PKINSTANCE      hLib,
                                         PKVOXELS        hThis,
                                         const float*    pfDistancesMM,
@@ -63,6 +163,14 @@ PICOGK_API void Voxels_OffsetTuned(     PKINSTANCE      hLib,
 {
     PicoGK::Library::Instance::Ptr roLib = PicoGK::Library::oLib().roGetInstance(hLib);
     PicoGK::Voxels::Ptr roVoxels = roLib->m_oVoxels.roGet(hThis);
+
+    if (nSpatialScheme == OFFSET_FAST_SWEEPING || nSpatialScheme == OFFSET_FAST_SWEEPING_NOINIT)
+    {
+        openvdb::FloatGrid& oGrid = *roVoxels->roVdbGrid();
+        for (int32_t n = 0; n < nCount; n++)
+            oGrid.setTree(OffsetBySweeping(oGrid, pfDistancesMM[n], nSpatialScheme == OFFSET_FAST_SWEEPING));
+        return;
+    }
 
     openvdb::tools::LevelSetFilter<openvdb::FloatGrid> oFilter(*roVoxels->roVdbGrid());
 

@@ -47,7 +47,7 @@ These are measured bounds for those fixtures, not a guarantee for every model. T
 `Voxels`, `Mesh`, `ScalarField` and `VectorField` expose `.lane`, which is `'exact'` or `'fast'`:
 
 - Fresh geometry is exact: every `createVoxels` shape, `createMesh`, lattice rendering, and empty fields.
-- A `fastRenorm` op marks its result `fast`.
+- A `fastRenorm` op marks its result `fast`, and so does a `fastSweeping` op: an opt-in offset engine that re-derives the narrow band from its zero crossing, widens it by fast sweeping on the side the surface moves to and shifts it by the distance in one pass, instead of advancing it in steps. First-order sweeping slightly overestimates distance off the axes, so results come out a little smaller, and the multi-offset forms compound it: at 0.4 mm, `offset({ distance: 2 })` of a 10 mm sphere measured 1.1% less volume than the stock offset and `smoothen({ distance: 1 })` of a sphere with a beam through it 3.6% less (`fastRenorm`: 0.6% and 2.6%). It is never a session default, it overrides a session's `fastRenorm` default, an explicit `fastRenorm: true` next to it throws `PICO_INVALID_ARGUMENT`, and an exact session refuses it with `PICO_LANE_LOOSENED`. It is reproducible, and the serial and pthreads entries give the same grid.
 - `toMesh({ adaptivity })` above 0 marks its mesh `fast`: OpenVDB's adaptive mesher merges cells, so the bytes differ from the uniform mesh. A `lane: 'exact'` session refuses it with `PICO_LANE_LOOSENED` (see [Adaptive meshing](#adaptive-meshing)).
 - A derived handle carries the union of its inputs' provenance. This covers `clone`, booleans with the fast operand in either position, further offsets, `toMesh`, mesh `transform` and `merged`, `toVoxels`, `shellVoxels`, `withMesh`, `toScalarField`, and `createScalarField`/`createVectorField` with `from`.
 - Loaded geometry takes the provenance recorded in its bytes (see the next section).
@@ -117,7 +117,7 @@ Untagged assets and headers without a `LANE=` token load as exact: importing is 
 
 | Code                     | Raised when                                                                                                                                                                              |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PICO_LANE_LOOSENED`     | an exact session is asked for `fastRenorm: true` (at construction or on an op), or `toMesh({ adaptivity })` above 0, or imports an asset with non-exact provenance                       |
+| `PICO_LANE_LOOSENED`     | an exact session is asked for `fastRenorm: true` (at construction or on an op), `fastSweeping: true`, or `toMesh({ adaptivity })` above 0, or imports an asset with non-exact provenance |
 | `PICO_LANE_EXPORT`       | an STL, `.vdb` or GLB export meets provenance that nothing consented to; the message names the remedies that apply                                                                       |
 | `PICO_RESERVED_METADATA` | user code writes or removes a `PicoVoxel.*` metadata name                                                                                                                                |
 

@@ -58,6 +58,8 @@ export interface ShellOptions {
   smoothInner?: number;
   /** See `offset({ fastRenorm })`; applies to every offset this shell runs. */
   fastRenorm?: boolean;
+  /** See `offset({ fastSweeping })`; applies to every offset this shell runs. */
+  fastSweeping?: boolean;
 }
 
 /** Options for {@link Voxels.toMesh}. */
@@ -102,6 +104,8 @@ export interface ToMeshOptions {
  */
 const FAST_RENORM_SCHEME = 0; // openvdb::math::FIRST_BIAS (FiniteDifference.h:166)
 const FAST_RENORM_COUNT = -1; // < 0 == leave upstream's normCount (LEVEL_SET_HALF_WIDTH = 3)
+/** VO1: Voxels_OffsetTuned's sweeping engine, with the sdfToSdf reinit (src/pico-offset.cpp). */
+const FAST_SWEEPING_SCHEME = 100;
 
 export interface Voxels {
   /** An independent copy of this field. */
@@ -127,14 +131,26 @@ export interface Voxels {
    * the repository's bench/results/webgpu-v2/sk-0.8-ab.json), so it is never the library default —
    * a session may default it on (see `CreatePicoOptions.fastRenorm`), and an
    * explicit per-op value always wins.
+   *
+   * `fastSweeping`: opt-in sweep engine, `fast` (docs/lanes.md).
    */
-  offset(options: { distance: number; fastRenorm?: boolean }): Voxels;
+  offset(options: { distance: number; fastRenorm?: boolean; fastSweeping?: boolean }): Voxels;
   /** Two offsets in sequence (closing/opening when signs differ). */
-  doubleOffset(options: { first: number; second: number; fastRenorm?: boolean }): Voxels;
+  doubleOffset(options: {
+    first: number;
+    second: number;
+    fastRenorm?: boolean;
+    fastSweeping?: boolean;
+  }): Voxels;
   /** In, 2× out, in again: strips detail below the distance threshold. */
-  smoothen(options: { distance: number; fastRenorm?: boolean }): Voxels;
+  smoothen(options: { distance: number; fastRenorm?: boolean; fastSweeping?: boolean }): Voxels;
   /** Over-offset composition; fillet-like rounding (C# voxFillet). */
-  fillet(options: { rounding: number; finalSurfaceDistance?: number; fastRenorm?: boolean }): Voxels;
+  fillet(options: {
+    rounding: number;
+    finalSurfaceDistance?: number;
+    fastRenorm?: boolean;
+    fastSweeping?: boolean;
+  }): Voxels;
   /** Shell: one-offset form ({offset}) or two-offset form ({inner, outer, smoothInner}). */
   shell(options: ShellOptions): Voxels;
   /** Everything outside the box is trimmed away (cube-mesh intersect, as C#). */
@@ -289,14 +305,32 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     return wrapVoxels(ctx, copy, resultLane);
   };
 
-  /** Tighten-only: a per-op `fastRenorm: true` inside an 'exact' session throws. */
-  const rejectLoosening = (fastRenorm: boolean | undefined, where: string): void => {
-    if (ctx.lane === 'exact' && fastRenorm === true) {
+  /**
+   * Tighten-only: a per-op `fastRenorm: true` or `fastSweeping: true` inside an
+   * 'exact' session throws, and so does asking for both engines at once.
+   */
+  const rejectLoosening = (
+    { fastRenorm, fastSweeping }: { fastRenorm?: boolean; fastSweeping?: boolean },
+    where: string,
+  ): void => {
+    for (const [name, value] of [
+      ['fastRenorm', fastRenorm],
+      ['fastSweeping', fastSweeping],
+    ] as const) {
+      if (ctx.lane === 'exact' && value === true) {
+        throw new PicoError(
+          'PICO_LANE_LOOSENED',
+          `${where}({ ${name}: true }) inside a lane: 'exact' session: one value-changing acceleration would destroy the ` +
+            "session's structural exactness claim. Tightening is allowed; loosening requires a 'fast' or " +
+            'lane-less session.',
+        );
+      }
+    }
+    if (fastRenorm === true && fastSweeping === true) {
       throw new PicoError(
-        'PICO_LANE_LOOSENED',
-        `${where}({ fastRenorm: true }) inside a lane: 'exact' session: one value-changing acceleration would destroy the ` +
-          "session's structural exactness claim. Tightening is allowed; loosening requires a 'fast' or " +
-          'lane-less session.',
+        'PICO_INVALID_ARGUMENT',
+        `${where}({ fastRenorm: true, fastSweeping: true }): these are two offset engines; fastSweeping runs no ` +
+          'renormalization steps for fastRenorm to tune. Pick one.',
       );
     }
   };
@@ -307,23 +341,31 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
    * Offset/DoubleOffset/TripleOffset exports do. ctx.scratch is BBOX_BYTES = 6
    * floats, and the longest sequence in the family is 3.
    */
-  const fastOffset = (distancesMM: number[]): Voxels =>
+  const tunedOffset = (distancesMM: number[], scheme: number, normCount: number): Voxels =>
     derive(
       'Voxels_OffsetTuned',
       (copy) => {
         const base = ctx.scratch >>> 2;
         for (let i = 0; i < distancesMM.length; i++) ctx.module.HEAPF32[base + i] = distancesMM[i]!;
-        ctx.raw.Voxels_OffsetTuned(
-          ctx.lib,
-          copy,
-          ctx.scratch,
-          distancesMM.length,
-          FAST_RENORM_SCHEME,
-          FAST_RENORM_COUNT,
-        );
+        ctx.raw.Voxels_OffsetTuned(ctx.lib, copy, ctx.scratch, distancesMM.length, scheme, normCount);
       },
       unionLaneSets(lane, FAST_LANE_SET), // the one value-changing op: provenance taints here
     );
+
+  /**
+   * The offset family's dispatch: `fastSweeping` (VO1), else `fastRenorm` by
+   * the per-op > session > library precedence, else the stock export.
+   */
+  const offsetBy = (
+    options: { fastRenorm?: boolean; fastSweeping?: boolean },
+    distancesMM: number[],
+    stock: () => Voxels,
+  ): Voxels => {
+    if (options.fastSweeping === true) return tunedOffset(distancesMM, FAST_SWEEPING_SCHEME, -1);
+    if (options.fastRenorm ?? ctx.fastRenorm)
+      return tunedOffset(distancesMM, FAST_RENORM_SCHEME, FAST_RENORM_COUNT);
+    return stock();
+  };
 
   const operandHandle = (other: Voxels, what: string): bigint => {
     assertSameSession(ctx, other, what);
@@ -436,46 +478,53 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       return guard('Voxels_bIsEmpty', () => ctx.raw.Voxels_bIsEmpty(ctx.lib, live()))();
     },
 
-    offset(options: { distance: number; fastRenorm?: boolean }) {
-      rejectLoosening(options.fastRenorm, 'offset');
+    offset(options: { distance: number; fastRenorm?: boolean; fastSweeping?: boolean }) {
+      rejectLoosening(options, 'offset');
       const distance = requireFinite(options.distance, 'distance', 'offset({ distance })');
-      if (options.fastRenorm ?? ctx.fastRenorm) return fastOffset([distance]);
-      return derive('Voxels_Offset', (copy) => ctx.raw.Voxels_Offset(ctx.lib, copy, distance));
-    },
-    doubleOffset(options: { first: number; second: number; fastRenorm?: boolean }) {
-      rejectLoosening(options.fastRenorm, 'doubleOffset');
-      const first = requireFinite(options.first, 'first', 'doubleOffset');
-      const second = requireFinite(options.second, 'second', 'doubleOffset');
-      if (options.fastRenorm ?? ctx.fastRenorm) return fastOffset([first, second]);
-      return derive('Voxels_DoubleOffset', (copy) =>
-        ctx.raw.Voxels_DoubleOffset(ctx.lib, copy, first, second),
+      return offsetBy(options, [distance], () =>
+        derive('Voxels_Offset', (copy) => ctx.raw.Voxels_Offset(ctx.lib, copy, distance)),
       );
     },
-    smoothen(options: { distance: number; fastRenorm?: boolean }) {
-      rejectLoosening(options.fastRenorm, 'smoothen');
+    doubleOffset(options: { first: number; second: number; fastRenorm?: boolean; fastSweeping?: boolean }) {
+      rejectLoosening(options, 'doubleOffset');
+      const first = requireFinite(options.first, 'first', 'doubleOffset');
+      const second = requireFinite(options.second, 'second', 'doubleOffset');
+      return offsetBy(options, [first, second], () =>
+        derive('Voxels_DoubleOffset', (copy) => ctx.raw.Voxels_DoubleOffset(ctx.lib, copy, first, second)),
+      );
+    },
+    smoothen(options: { distance: number; fastRenorm?: boolean; fastSweeping?: boolean }) {
+      rejectLoosening(options, 'smoothen');
       const distance = requireFinite(options.distance, 'distance', 'smoothen');
       // TripleOffset is grow d / shrink 2d / grow d on one filter (PicoGKVdbVoxels.h:310-330).
-      if (options.fastRenorm ?? ctx.fastRenorm) return fastOffset([distance, -2 * distance, distance]);
-      return derive('Voxels_TripleOffset', (copy) => ctx.raw.Voxels_TripleOffset(ctx.lib, copy, distance));
+      return offsetBy(options, [distance, -2 * distance, distance], () =>
+        derive('Voxels_TripleOffset', (copy) => ctx.raw.Voxels_TripleOffset(ctx.lib, copy, distance)),
+      );
     },
-    fillet(options: { rounding: number; finalSurfaceDistance?: number; fastRenorm?: boolean }) {
-      rejectLoosening(options.fastRenorm, 'fillet');
+    fillet(options: {
+      rounding: number;
+      finalSurfaceDistance?: number;
+      fastRenorm?: boolean;
+      fastSweeping?: boolean;
+    }) {
+      rejectLoosening(options, 'fillet');
       // C# voxOverOffset composition (Voxels.cs:613-621): DoubleOffset(r, −r + final).
       const rounding = requireFinite(options.rounding, 'rounding', 'fillet');
       const final = requireFinite(options.finalSurfaceDistance ?? 0, 'finalSurfaceDistance', 'fillet');
-      if (options.fastRenorm ?? ctx.fastRenorm) return fastOffset([rounding, -rounding + final]);
-      return derive('Voxels_DoubleOffset', (copy) =>
-        ctx.raw.Voxels_DoubleOffset(ctx.lib, copy, rounding, -rounding + final),
+      return offsetBy(options, [rounding, -rounding + final], () =>
+        derive('Voxels_DoubleOffset', (copy) =>
+          ctx.raw.Voxels_DoubleOffset(ctx.lib, copy, rounding, -rounding + final),
+        ),
       );
     },
     shell(options: ShellOptions): Voxels {
-      rejectLoosening(options.fastRenorm, 'shell');
-      const fastRenorm = options.fastRenorm;
+      rejectLoosening(options, 'shell');
+      const { fastRenorm, fastSweeping } = options;
       if (options.offset !== undefined) {
         // C# voxShell(float) (Voxels.cs:659-668): sign chooses which side keeps
         // the original dimensions.
         const distance = requireFinite(options.offset, 'offset', 'shell({ offset })');
-        const moved = voxels.offset({ distance, fastRenorm });
+        const moved = voxels.offset({ distance, fastRenorm, fastSweeping });
         const result = distance < 0 ? voxels.subtract(moved) : moved.subtract(voxels as Voxels);
         moved.dispose();
         return result;
@@ -494,13 +543,13 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       let outer = requireFinite(options.outer, 'outer', 'shell');
       const smoothInner = requireFinite(options.smoothInner ?? 0, 'smoothInner', 'shell');
       if (inner > outer) [inner, outer] = [outer, inner];
-      let innerVoxels = voxels.offset({ distance: inner, fastRenorm });
+      let innerVoxels = voxels.offset({ distance: inner, fastRenorm, fastSweeping });
       if (smoothInner > 0) {
-        const smoothed = innerVoxels.smoothen({ distance: smoothInner, fastRenorm });
+        const smoothed = innerVoxels.smoothen({ distance: smoothInner, fastRenorm, fastSweeping });
         innerVoxels.dispose();
         innerVoxels = smoothed;
       }
-      const outerVoxels = voxels.offset({ distance: outer, fastRenorm });
+      const outerVoxels = voxels.offset({ distance: outer, fastRenorm, fastSweeping });
       const result = outerVoxels.subtract(innerVoxels);
       innerVoxels.dispose();
       outerVoxels.dispose();

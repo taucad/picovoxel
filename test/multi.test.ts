@@ -159,3 +159,28 @@ test('multi session: bulk reads refresh heap views a worker-side growth left sta
     serial.dispose();
   }
 });
+
+// VO1 — the fast-sweeping offset engine runs oneTBB-parallel sweeps; its result
+// must not depend on the thread count or the allocator.
+test('fastSweeping offsets: single≡multi G0 identity across the family', async () => {
+  const multi = await multiEntry.createPico({ voxelSize: 0.4 });
+  const serial = await serialEntry.createPico({ voxelSize: 0.4 });
+  try {
+    const body = (pk: typeof multi) =>
+      pk
+        .createVoxels({ shape: 'sphere', radius: 8 })
+        .union(pk.createVoxels({ shape: 'beam', start: [-2, -2, -2], end: [12, 2, 2], radius: 2 }));
+    const ops: [string, (v: ReturnType<typeof body>) => ReturnType<typeof body>][] = [
+      ['offset', (v) => v.offset({ distance: 2, fastSweeping: true })],
+      ['offset in', (v) => v.offset({ distance: -1, fastSweeping: true })],
+      ['smoothen', (v) => v.smoothen({ distance: 1, fastSweeping: true })],
+      ['shell', (v) => v.shell({ inner: -1, outer: 1, fastSweeping: true })],
+    ];
+    for (const [label, run] of ops) {
+      expect(run(body(multi)).gridHash(), label).toEqual(run(body(serial)).gridHash());
+    }
+  } finally {
+    multi.dispose();
+    serial.dispose();
+  }
+});
