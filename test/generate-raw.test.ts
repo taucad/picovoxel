@@ -9,8 +9,8 @@ import abi from '../src/abi.json' with { type: 'json' };
 
 const source = generateRawSource(abi);
 
-test('manifest count: 140 core + 23 own-TU bindings, viewer surface excluded', () => {
-  assert.equal(abi.functions.filter((f: { viewer: boolean }) => !f.viewer).length, 140);
+test('manifest count: 141 core + 24 own-TU bindings, viewer surface excluded', () => {
+  assert.equal(abi.functions.filter((f: { viewer: boolean }) => !f.viewer).length, 141);
   // 4 bulk-mesh + 3 tape entries (fresh fill + the two R9 compose variants)
   // + 2 SK-0.3 bulk lattice entries + SK-0.5's Voxels_GetProperties
   // + SK-0.8's Voxels_OffsetTuned + SK-0.4's Voxels_RenderLatticeTubes
@@ -20,9 +20,9 @@ test('manifest count: 140 core + 23 own-TU bindings, viewer surface excluded', (
   // + SKv2-0 V0.9's Voxels_ProjectZSliceFast (T5×F15 + U2)
   // + SKv2-0 V0.10's IntersectImplicit{,Tape}Fast pair (F17 + U1)
   // + SKv2-0 V0.11's RayCastBatch/ClosestPointBatch (P8).
-  assert.equal(BULK_FUNCTIONS.length, 23);
+  assert.equal(BULK_FUNCTIONS.length, 24);
   const bound = source.match(/^ {2}'[A-Za-z0-9_]+',$/gm) ?? [];
-  assert.equal(bound.length, 163, 'the export list must carry every binding');
+  assert.equal(bound.length, 165, 'the export list must carry every binding');
   assert.ok(!/Viewer_|Gui_/.test(source), 'viewer exports must never be bound');
 });
 
@@ -85,5 +85,5 @@ test('regeneration is byte-stable against the checked-in file', async () => {
 
 test('a wrong core count halts generation loudly', () => {
   const truncated = { functions: abi.functions.slice(0, 50) };
-  assert.throws(() => generateRawSource(truncated), /expected 140 core exports/);
+  assert.throws(() => generateRawSource(truncated), /expected 141 core exports/);
 });

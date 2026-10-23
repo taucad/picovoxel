@@ -95,6 +95,58 @@ test('1.0 mm: fixed export ≡ upstream export bit-for-bit (formulas coincide)',
   }
 }, 120_000);
 
+test('1.0 mm: a projection inside one voxel layer only seals, and matches upstream both ways', async () => {
+  // startZ and endZ round to the same layer, so there is no sweep and only
+  // the seal below (or above) endZ is written.
+  const pk = await createPico({ voxelSize: 1.0 });
+  try {
+    const sphere = pk.createVoxels({ shape: 'sphere', radius: 8 });
+    const raw = pk.module.cwrap('Voxels_ProjectZSlice', null, ['bigint', 'bigint', 'number', 'number']) as (
+      l: bigint,
+      v: bigint,
+      s: number,
+      e: number,
+    ) => void;
+    const copy = pk.module.cwrap('Voxels_hCreateCopy', 'bigint', ['bigint', 'bigint']) as (
+      l: bigint,
+      v: bigint,
+    ) => bigint;
+    const gh = pk.module.cwrap('Voxels_GetGridHash', null, [
+      'bigint',
+      'bigint',
+      'number',
+      'number',
+      'number',
+      'number',
+    ]) as (l: bigint, v: bigint, a: number, b: number, c: number, d: number) => void;
+    const destroy = pk.module.cwrap('Voxels_Destroy', null, ['bigint', 'bigint']) as (
+      l: bigint,
+      v: bigint,
+    ) => void;
+    for (const [startZ, endZ] of [
+      [2.4, 2.2],
+      [2.2, 2.4],
+    ] as const) {
+      const viaFast = sphere.projectZSlice({ startZ, endZ });
+      const reference = copy(pk.handle, sphere.handle);
+      raw(pk.handle, reference, startZ, endZ);
+      const p = pk.module._malloc(48);
+      gh(pk.handle, reference, p, p + 16, p + 24, p + 32);
+      let hash = '';
+      for (let w = 0; w < 4; w++) {
+        const word = pk.module.HEAPU32[(p + 4 * w) >>> 2]!;
+        for (let b = 0; b < 4; b++) hash += ((word >>> (8 * b)) & 0xff).toString(16).padStart(2, '0');
+      }
+      pk.module._free(p);
+      destroy(pk.handle, reference);
+      assert.equal(viaFast.gridHash().hash, hash, `${startZ} -> ${endZ}`);
+      assert.notEqual(hash, sphere.gridHash().hash, 'the seal writes');
+    }
+  } finally {
+    pk.dispose();
+  }
+}, 120_000);
+
 // D-pre.4 — the DIRECT oracle: sweep semantics are a per-column running min
 // toward startZ (upstream's min-propagation), asserted value-by-value on an
 // analytic fixture in both directions. The seal region (z at and beyond iEnd)

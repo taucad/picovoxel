@@ -21,26 +21,26 @@ const split = (core, viewer = 2) => {
 };
 
 describe('make-core-tu.sh', () => {
-  it('keeps exactly the 140 core exports and drops the viewer tail and its includes', () => {
-    const { status, stdout, out } = split(140);
+  it('keeps exactly the 141 core exports and drops the viewer tail and its includes', () => {
+    const { status, stdout, out } = split(141);
     assert.equal(status, 0);
-    assert.match(stdout, /140 core exports kept, 2 Viewer_\* dropped/u);
+    assert.match(stdout, /141 core exports kept, 2 Viewer_\* dropped/u);
     const core = readFileSync(out, 'utf8');
-    assert.equal(core.match(/^PICOGK_API/gmu).length, 140);
+    assert.equal(core.match(/^PICOGK_API/gmu).length, 141);
     assert.ok(!core.includes('Viewer_'));
     assert.match(core, /^\/\/ \[picovoxel\] dropped: #include "gl\/glad.h"$/mu);
   });
 
   it('fails, rather than warns, when the core export count drifts', () => {
-    for (const core of [139, 141]) {
+    for (const core of [140, 142]) {
       const { status, stderr } = split(core);
       assert.equal(status, 1, `${core} core exports must fail`);
-      assert.match(stderr, new RegExp(`FAIL expected 140 core exports, got ${core}`, 'u'));
+      assert.match(stderr, new RegExp(`FAIL expected 141 core exports, got ${core}`, 'u'));
     }
   });
 
   it('fails when no Viewer_* boundary exists', () => {
-    const { status, stderr } = split(140, 0);
+    const { status, stderr } = split(141, 0);
     assert.equal(status, 1);
     assert.match(stderr, /no Viewer_\* export found/u);
   });

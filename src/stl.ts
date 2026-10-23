@@ -125,8 +125,20 @@ export function writeStlBytes(
   view.setUint32(80, triangleCount, true);
 
   // C# TransformToUnit: v += offset; v *= scale; v /= divider — float32 each step.
-  const transform = (value: number, axis: number): number =>
-    fround(fround(fround(value + offset[axis]!) * scale) / divider);
+  // MI24: for millimetres, scale 1 and offset 0 every step is exact on a float32
+  // input, so the chain is the identity except that -0 + 0 is +0; `value + 0`
+  // keeps that and skips the per-component rounding. Object.is: an offset of -0
+  // keeps -0, so it takes the general path.
+  const identity =
+    divider === 1 &&
+    scale === 1 &&
+    Object.is(offset[0], 0) &&
+    Object.is(offset[1], 0) &&
+    Object.is(offset[2], 0);
+  const transform = identity
+    ? (value: number): number => value + 0
+    : (value: number, axis: number): number =>
+        fround(fround(fround(value + offset[axis]!) * scale) / divider);
 
   let out = 84;
   const corner = new Float64Array(9);

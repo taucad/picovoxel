@@ -180,22 +180,35 @@ export function contoursFromSdf(image: SdfImage, scale = 1, offsetX = 0, offsetY
   }
 
   // Stitch the (partially Y-sorted) segment soup into contours — the upstream
-  // greedy stitcher with its windowed search, ported verbatim.
+  // greedy stitcher with its windowed search. The window width and the chain
+  // storage differ from upstream (see below); on voxel slices the matches it
+  // picks do not.
   const contours: SliceContour[] = [];
   let segmentsLeft = segments.length;
   let currStart = -1;
   let currEnd = -1;
   let unused = 0;
-  let chain: number[] = []; // xy pairs; grows at both ends via unshift/push
+  // The chain grows at both ends. `back` holds the seed and every appended
+  // point in order; `front` holds prepended points in reverse order (MI16: an
+  // unshift per point made each contour O(n^2); upstream uses a linked list).
+  let back: number[] = [];
+  let front: number[] = [];
 
   const sqr = (dx: number, dy: number) => dx * dx + dy * dy;
 
   const finishContour = () => {
-    if (chain.length / 2 > 2) {
-      const points = new Float64Array(chain);
+    if ((front.length + back.length) / 2 > 2) {
+      const points = new Float64Array(front.length + back.length);
+      let at = 0;
+      for (let i = front.length - 2; i >= 0; i -= 2) {
+        points[at++] = front[i]!;
+        points[at++] = front[i + 1]!;
+      }
+      points.set(back, at);
       contours.push({ points, winding: detectWinding(points) });
     }
-    chain = [];
+    back = [];
+    front = [];
     currStart = currEnd = -1;
   };
 
@@ -211,7 +224,7 @@ export function contoursFromSdf(image: SdfImage, scale = 1, offsetX = 0, offsetY
       currEnd = currStart;
       unused = currStart + 1;
       const seed = segments[currStart]!;
-      chain.push(seed.sx, seed.sy, seed.ex, seed.ey);
+      back.push(seed.sx, seed.sy, seed.ex, seed.ey);
       seed.used = true;
       segmentsLeft--;
     }
@@ -232,8 +245,16 @@ export function contoursFromSdf(image: SdfImage, scale = 1, offsetX = 0, offsetY
       }
     }
 
-    const windowMin = Math.floor(Math.min(start.minY, end.minY)) - 1;
-    const windowMax = Math.ceil(Math.max(start.maxY, end.maxY)) + 1;
+    // MI1: the search window is one voxel (`scale` mm) either side of the
+    // chain's ends. Upstream (Slice.cs) widens to whole millimetres, which at
+    // 0.05 mm voxels scans about 40 rows per step. Marching squares joins
+    // neighbouring segments at a shared point, so a closed contour's next
+    // segment always lies in an adjacent row. Only a contour cut by the image
+    // edge could differ: upstream may bridge two cut ends up to 1 mm apart.
+    // Voxel slices keep the narrow band inside the image, so they have no cut
+    // ends.
+    const windowMin = Math.min(start.minY, end.minY) - scale;
+    const windowMax = Math.max(start.maxY, end.maxY) + scale;
 
     let searchFrom = Math.min(currStart, currEnd);
     while (searchFrom > 0 && segments[searchFrom - 1]!.maxY >= windowMin) searchFrom--;
@@ -257,7 +278,8 @@ export function contoursFromSdf(image: SdfImage, scale = 1, offsetX = 0, offsetY
 
     if (bestEnd < 0 && bestStart < 0) {
       // Nothing connects — an open fragment; upstream discards it.
-      chain = [];
+      back = [];
+      front = [];
       currStart = currEnd = -1;
     } else if (bestStart === bestEnd || bestStart === currEnd || bestEnd === currStart) {
       /* v8 ignore next 4 -- the same-segment closure needs a two-segment loop,
@@ -271,14 +293,14 @@ export function contoursFromSdf(image: SdfImage, scale = 1, offsetX = 0, offsetY
     } else {
       if (bestEnd >= 0) {
         const seg = segments[bestEnd]!;
-        chain.push(seg.ex, seg.ey);
+        back.push(seg.ex, seg.ey);
         seg.used = true;
         segmentsLeft--;
         currEnd = bestEnd;
       }
       if (bestStart >= 0) {
         const seg = segments[bestStart]!;
-        chain.unshift(seg.sx, seg.sy);
+        front.push(seg.sx, seg.sy);
         seg.used = true;
         segmentsLeft--;
         currStart = bestStart;

@@ -250,6 +250,20 @@ export const BULK_FUNCTIONS = [
       { name: 'pbHit', type: 'uint8_t*', cwrap: 'number' },
     ],
   },
+  // MI6: the same rays with fractional hits (opt-in; upstream truncates).
+  {
+    name: 'Voxels_RayCastBatchSubVoxel',
+    cwrapReturn: 'number',
+    args: [
+      { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+      { name: 'hThis', type: 'PKVOXELS', cwrap: 'bigint' },
+      { name: 'pvecOrigins', type: 'const PKVector3*', cwrap: 'number' },
+      { name: 'pvecDirections', type: 'const PKVector3*', cwrap: 'number' },
+      { name: 'nCount', type: 'int32_t', cwrap: 'number' },
+      { name: 'pvecHits', type: 'PKVector3*', cwrap: 'number' },
+      { name: 'pbHit', type: 'uint8_t*', cwrap: 'number' },
+    ],
+  },
   {
     name: 'Voxels_ClosestPointBatch',
     cwrapReturn: 'number',
@@ -312,9 +326,9 @@ function tsType(cwrapType, cType) {
 /** Renders the complete raw.generated.ts source from a parsed abi.json object. */
 export function generateRawSource(abi) {
   const core = abi.functions.filter((f) => !f.viewer);
-  if (core.length !== 140) {
+  if (core.length !== 141) {
     throw new Error(
-      `generate-raw: expected 140 core exports, abi.json has ${core.length} — re-run parse-abi and re-read upstream before regenerating`,
+      `generate-raw: expected 141 core exports, abi.json has ${core.length} — re-run parse-abi and re-read upstream before regenerating`,
     );
   }
   const all = [...core, ...BULK_FUNCTIONS];

@@ -33,6 +33,8 @@
 
 #include <openvdb/tools/LevelSetMeasure.h>
 
+#include <memory>
+
 /// Volume (mm³), surface area (mm²) and the iso-surface bounding box of a voxel
 /// field, from one traversal of the corrected level set. Any out-parameter may
 /// be null. An empty field reports 0/0 and leaves the box untouched.
@@ -58,10 +60,16 @@ PICOGK_API void Voxels_GetProperties(   PKINSTANCE  hLib,
     const openvdb::FloatGrid::Ptr roGrid = oFresh.roVdbGrid();
     const bool bEmpty = roGrid->tree().empty();
 
-    // Voxels_fCalculateVolume: same guard, same call, same float.
+    // Voxels_fCalculateVolume: same guard, same float. levelSetVolume and
+    // levelSetArea each build a LevelSetMeasure and run its MeasureArea pass,
+    // which computes both sums; one measure runs that pass once and reads both
+    // (MI19), the values each call returned. LevelSetMeasure refuses an empty
+    // grid, so none is built for one.
+    using Measure = openvdb::tools::LevelSetMeasure<openvdb::FloatGrid>;
+    const std::unique_ptr<Measure> poMeasure = bEmpty ? nullptr : std::make_unique<Measure>(*roGrid);
     if (pfVolume != nullptr)
-        *pfVolume = bEmpty ? 0.0f : (float) openvdb::tools::levelSetVolume(*roGrid, true);
+        *pfVolume = bEmpty ? 0.0f : (float) poMeasure->volume(true);
 
     if (pfArea != nullptr)
-        *pfArea = bEmpty ? 0.0f : (float) openvdb::tools::levelSetArea(*roGrid, true);
+        *pfArea = bEmpty ? 0.0f : (float) poMeasure->area(true);
 }

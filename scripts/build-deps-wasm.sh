@@ -16,6 +16,15 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 WASM_FLAGS="${WASM_FLAGS:--O3 -msimd128}"
+# No -ffp-contract=off needed: wasm32 has no fused multiply-add, so a*b+c is
+# always a rounded multiply and a rounded add (see the flag guard in
+# build-pico-module.sh, which also refuses -mrelaxed-simd).
+case " $WASM_FLAGS " in
+  *relaxed-simd*)
+    echo "build-deps-wasm: -mrelaxed-simd allows fused multiply-add, which moves exact-lane output; refusing" >&2
+    exit 1
+    ;;
+esac
 # THREADS=1 — pthread variant in its own -mt tree. Shared-memory ABI: these
 # objects are NOT link-compatible with the serial ones, hence separate dirs.
 # oneTBB gets real pthreads (no EMSCRIPTEN_WITHOUT_PTHREAD).

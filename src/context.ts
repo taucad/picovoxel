@@ -133,6 +133,7 @@ export function assertSameSession(ctx: SessionContext, other: object, what: stri
  */
 export function checkedMalloc(module: PicoWasmModule, bytes: number, what: string): number {
   const pointer = module._malloc(bytes);
+  refreshHeapViews(module);
   if (pointer === 0 && bytes > 0) {
     throw new PicoError(
       'PICO_OUT_OF_MEMORY',
@@ -142,6 +143,27 @@ export function checkedMalloc(module: PicoWasmModule, bytes: number, what: strin
     );
   }
   return pointer;
+}
+
+/**
+ * WA9 — brings the module's HEAP* views up to date with its memory. On the
+ * multi glue a pthread can grow the shared memory inside a native call; the
+ * main thread's glue only refreshes its views when it grows memory itself, so
+ * the facade's views can still cover the old, shorter buffer, and a bulk read
+ * or write past its end would be cut short or throw. Call it after a native
+ * call and before touching wasm memory above a few scratch bytes. The serial
+ * glue grows memory only on this thread and refreshes its own views, so it
+ * exports no memory and this returns at once.
+ */
+export function refreshHeapViews(module: PicoWasmModule): void {
+  const memory = module.wasmMemory;
+  if (memory === undefined || module.HEAPU8.buffer === memory.buffer) return;
+  const buffer = memory.buffer;
+  module.HEAPU8 = new Uint8Array(buffer);
+  module.HEAP32 = new Int32Array(buffer);
+  module.HEAPU32 = new Uint32Array(buffer);
+  module.HEAPF32 = new Float32Array(buffer);
+  module.HEAPF64 = new Float64Array(buffer);
 }
 
 /**
