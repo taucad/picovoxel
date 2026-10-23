@@ -3,10 +3,15 @@
 // Encoding tests pin the exact words the C++ evaluator reads (the two halves
 // of the contract are mirrored constants — a renumbered opcode must fail HERE).
 // Runtime tests prove the tape path against the JS-callback path on the same
-// session: both engines are deterministic software float (V8's fdlibm Math and
-// musl-wasm libm), so equality is exact and platform-independent — hex-float
-// discipline, no tolerances. The single↔multi bit-identity differential lives
-// in multi.test.ts next to the other cross-variant proofs.
+// session, hex-float discipline, no tolerances. Both engines are deterministic
+// software float, so each side is platform-independent, but they are not the
+// same libm: V8's fdlibm-derived Math and musl-wasm differ in the last double
+// bit on roughly 1 % of sin/cos inputs and up to 10 % of exp/log inputs
+// (WA4). The voxel grid stores float32, and on these fixtures every such
+// difference rounds away, so the pins compare equal; a new fixture can differ
+// by one float ulp at a sample without either path being wrong. The
+// single↔multi bit-identity differential lives in multi.test.ts next to the
+// other cross-variant proofs.
 import { expect, test } from 'vitest';
 import { createPico, PicoError, type SdfExpression, type Voxels } from '../src/index.ts';
 import { compileSdfExpression } from '../src/tape.ts';

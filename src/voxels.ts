@@ -124,16 +124,21 @@ export interface Voxels {
   /**
    * Pure: clone + render the SDF into the clone within bounds. A JS callback
    * runs upstream's serial per-voxel loop; a serialized `SdfExpression` takes
-   * the slab-parallel tape path. The two paths produce `equals()`-identical
-   * grids with identical `properties()` and STL bytes; only the raw fast
-   * `volume` approximation may differ between them (it integrates
-   * representation bookkeeping the pruned fill legitimately omits).
+   * the slab-parallel tape path. On the pinned fixtures the two paths produce
+   * `equals()`-identical grids with identical `properties()` and STL bytes;
+   * only the raw fast `volume` approximation may differ between them (it
+   * integrates representation bookkeeping the pruned fill legitimately omits).
+   * They are not identical by construction: the tape evaluates with the
+   * module's libm, the callback with the engine's `Math`, and the two can
+   * differ in the last double bit on some sin/cos/exp/log inputs, which can
+   * move a voxel's float32 value by one ulp. Each path is reproducible.
    */
   withImplicit(options: { sdf: SdfFunction | SdfExpression; boundsMin: Vec3; boundsMax: Vec3 }): Voxels;
   /**
    * The gyroid-in-sphere idiom: existing voxels re-evaluated under the SDF.
    * Callback = serial upstream loop; `SdfExpression` = parallel tape path
-   * — `equals()`-identical results, see `withImplicit` on the fast-volume caveat.
+   * — `equals()`-identical on the pinned fixtures; see `withImplicit` for the
+   * fast-volume and libm caveats.
    */
   maskedByImplicit(options: { sdf: SdfFunction | SdfExpression }): Voxels;
   /** Volume in mm³ from the raw grid — fast but approximate after booleans (use `properties()`). */
