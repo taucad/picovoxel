@@ -1,0 +1,34 @@
+PicoGKRuntime 26.2 (0f26321c) — VO4: a zero-length flat-capped lattice beam
+renders nothing instead of NaN. Upstreamable to leap71/PicoGKRuntime; not yet
+offered.
+
+Applied to vendor/PicoGKRuntime by scripts/fetch-deps.sh after 0001-0007.
+Kept as a patch because it modifies dependency source; no flag-level override
+exists. Ledger row U30 (upstream/LEDGER.md).
+
+Lattice::AddBeam already drops a zero-length beam with round caps (it is a
+sphere, added as one). A zero-length beam with flat caps fell through:
+LatticeBeam::fSdvFlatCone divides by the squared beam length, so every sample
+in the beam's bounding box evaluated to NaN (729 of 729 in the audit probe),
+and DoRenderLattice's min(NaN, existing) then overwrote existing geometry in
+that box with active NaN voxels. A flat disc of zero thickness encloses
+nothing, so the beam is now dropped. Output changes only for lattices that
+contain such a beam, whose result was NaN-corrupted before.
+--- a/Source/PicoGKLattice.h
++++ b/Source/PicoGKLattice.h
+@@ -238,6 +238,15 @@
+             return;
+         }
+         
++        if (!bRoundCap && ((vecS-vecE).fLength() < std::numeric_limits<float>::epsilon()))
++        {
++            // A flat-capped beam of zero length is a disc of zero thickness:
++            // it encloses nothing. fSdvFlatCone divides by the squared
++            // length, so rendering it would write NaN over every voxel in
++            // its bounding box, existing geometry included.
++            return;
++        }
++        
+         m_oBeams.emplace_back(  vecS,
+                                 vecE,
+                                 fRadS,
