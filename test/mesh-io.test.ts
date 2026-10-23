@@ -188,7 +188,10 @@ test('toGlb: an empty mesh is a valid empty scene', () => {
   const jsonLen = view.getUint32(12, true);
   assert.equal(view.getUint32(16, true), 0x4e4f534a, 'JSON chunk');
   assert.equal(glb.byteLength, 20 + jsonLen, 'no BIN chunk');
-  const gltf = JSON.parse(new TextDecoder().decode(glb.subarray(20, 20 + jsonLen))) as Record<string, unknown>;
+  const gltf = JSON.parse(new TextDecoder().decode(glb.subarray(20, 20 + jsonLen))) as Record<
+    string,
+    unknown
+  >;
   assert.deepEqual(gltf, { asset: { version: '2.0', generator: 'picovoxel' }, scene: 0, scenes: [{}] });
 });
 

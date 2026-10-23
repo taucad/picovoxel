@@ -130,7 +130,11 @@ export function writeStlBytes(
   // keeps that and skips the per-component rounding. Object.is: an offset of -0
   // keeps -0, so it takes the general path.
   const identity =
-    divider === 1 && scale === 1 && Object.is(offset[0], 0) && Object.is(offset[1], 0) && Object.is(offset[2], 0);
+    divider === 1 &&
+    scale === 1 &&
+    Object.is(offset[0], 0) &&
+    Object.is(offset[1], 0) &&
+    Object.is(offset[2], 0);
   const transform = identity
     ? (value: number): number => value + 0
     : (value: number, axis: number): number =>
