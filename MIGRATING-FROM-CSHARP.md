@@ -277,6 +277,17 @@ stays reachable as
 `Voxels_IntersectImplicit` on `picovoxel/raw`, and
 `test/intersect-implicit.test.ts` shows it throwing at 0.25 mm.
 
+When every input of a masked shape is analytic, one tape can replace the
+boolean-then-mask chain. A gyroid-filled spherical shell, C#'s
+`voxShell.IntersectImplicit(gyroid)` after a sphere subtraction, becomes one
+`withImplicit` call over `['max', sphereOuter, ['-', sphereInner], gyroid]`:
+one fill, no boolean and no mask pass, about 2× faster on the serial build.
+It is a different construction, not a rewrite of the same one: the fill
+evaluates the analytic spheres where the chain reads the rendered spheres'
+narrow-band values, so the grids can differ. They differ for `createVoxels`
+spheres at 0.4 and 0.5 mm; one lamp fixture gave an identical hash. Compare
+`gridHash()` on your own fixture before swapping one for the other.
+
 ## LatticeLibrary (`picovoxel/latticelibrary`)
 
 TypeScript port of LEAP71_LatticeLibrary as the third subpath export — the
