@@ -470,6 +470,102 @@ test('fastSweeping: an eroded band, an empty field and the raw no-reinit scheme'
   }
 });
 
+// A seeded lattice of beams 0.25-0.75 voxel in radius: the case where scheme
+// 100 (sdfToSdf before each offset) moved convex surfaces inwards and a fillet
+// lost beams. A closing keeps its input, so no beam inside the render may go.
+const thinLattice = () => {
+  const lattice = pk.createLattice();
+  let seed = 11;
+  const next = () => ((seed = (seed * 1103515245 + 12345) >>> 0) / 2 ** 32) * 16 - 8;
+  type Vec = [number, number, number];
+  const beams: [Vec, Vec][] = [];
+  for (let i = 0; i < 120; i++) {
+    const start: Vec = [next(), next(), next()];
+    const end: Vec = [next(), next(), next()];
+    const radius = 0.1 + 0.2 * ((i % 5) / 4);
+    lattice.addBeam({ start, end, startRadius: radius, endRadius: radius });
+    beams.push([start, end]);
+  }
+  const voxels = lattice.toVoxels();
+  lattice.dispose();
+  const midpoints = beams
+    .map(([a, b]): Vec => [0.5 * (a[0] + b[0]), 0.5 * (a[1] + b[1]), 0.5 * (a[2] + b[2])])
+    .filter((m) => voxels.isInside(m));
+  return { voxels, midpoints };
+};
+
+test('fastSweeping keeps thin lattice beams through a fillet, where the sdfToSdf scheme lost them', () => {
+  const { voxels, midpoints } = thinLattice();
+  assert.ok(midpoints.length > 40, `${midpoints.length} beams inside the render`);
+  const kept = (v: Voxels) => midpoints.filter((m) => v.isInside(m)).length;
+  const meshVolume = (v: Voxels) => v.properties().volume;
+  const render = meshVolume(voxels);
+
+  const swept = voxels.fillet({ rounding: 0.4, fastSweeping: true });
+  assert.equal(swept.lane, 'fast');
+  assert.equal(kept(swept), midpoints.length, 'a fillet lost a beam');
+  assert.ok(meshVolume(swept) >= render, `fillet ${meshVolume(swept)} vs render ${render}`);
+
+  // Scheme 100 (sdfToSdf before each offset) on the same input: the
+  // regression this engine replaces, a third of the beams gone.
+  const tuned = (distances: number[], scheme: number) => {
+    const copy = voxels.clone();
+    const p = pk.module._malloc(4 * Math.max(1, distances.length));
+    try {
+      distances.forEach((d, i) => {
+        pk.module.HEAPF32[(p >> 2) + i] = d;
+      });
+      rawOffsets().tuned(pk.handle, copy.handle, p, distances.length, scheme, -1);
+    } finally {
+      pk.module._free(p);
+    }
+    return copy;
+  };
+  const old = tuned([0.4, -0.4], 100);
+  assert.ok(kept(old) < 0.8 * midpoints.length, `scheme 100 kept ${kept(old)} of ${midpoints.length}`);
+  assert.ok(meshVolume(old) < 0.8 * render, `scheme 100 fillet ${meshVolume(old)} vs render ${render}`);
+
+  // The containment guard runs only where the exact result contains its
+  // input, or lies inside it: no offsets, an opening, and a closing that
+  // ends inside the input are left as they are.
+  assert.ok(tuned([], 102).equals(voxels), 'no offsets');
+  const inside = tuned([0.4, -0.8], 102);
+  assert.ok(meshVolume(inside) < render, `closing then shrink ${meshVolume(inside)}`);
+  const opened = tuned([-0.4, 0.8], 102);
+  assert.ok(meshVolume(opened) > 0, 'opening then growth');
+});
+
+test('fastSweeping: the distance-field scheme 103 and both directions of the bounded re-sweep', () => {
+  const r = rawOffsets();
+  const body = bumpyBody();
+  const p = pk.module._malloc(12);
+  const run = (distances: number[], scheme: number) => {
+    distances.forEach((d, i) => {
+      pk.module.HEAPF32[(p >> 2) + i] = d;
+    });
+    const h = r.copy(pk.handle, body.handle);
+    r.tuned(pk.handle, h, p, distances.length, scheme, -1);
+    const volume = r.volume(pk.handle, h);
+    r.destroy(pk.handle, h);
+    return volume;
+  };
+  try {
+    const stock = body.smoothen({ distance: 1 }).volume;
+    // Smoothen is inward, outward, inward: the re-sweep runs on both sides.
+    for (const scheme of [102, 103]) {
+      const v = run([-1, 2, -1], scheme);
+      assert.ok(Math.abs(v - stock) / stock < 0.02, `scheme ${scheme} smoothen ${v} vs ${stock}`);
+    }
+    // 103 keeps the first band as it is: on a distance field that is the
+    // stock offset's volume to within half a percent.
+    const grown = body.offset({ distance: 2 }).volume;
+    const v103 = run([2], 103);
+    assert.ok(Math.abs(v103 - grown) / grown < 0.005, `103 ${v103} vs ${grown}`);
+  } finally {
+    pk.module._free(p);
+  }
+});
+
 test('fastSweeping refuses an exact session and a second engine', async () => {
   const exact = await createPico({ voxelSize: 0.4, lane: 'exact' });
   try {

@@ -104,8 +104,14 @@ export interface ToMeshOptions {
  */
 const FAST_RENORM_SCHEME = 0; // openvdb::math::FIRST_BIAS (FiniteDifference.h:166)
 const FAST_RENORM_COUNT = -1; // < 0 == leave upstream's normCount (LEVEL_SET_HALF_WIDTH = 3)
-/** VO1: Voxels_OffsetTuned's sweeping engine, with the sdfToSdf reinit (src/pico-offset.cpp). */
-const FAST_SWEEPING_SCHEME = 100;
+/**
+ * VO1: Voxels_OffsetTuned's sweeping engine, scheme 102 (src/pico-offset.cpp):
+ * each offset re-sweeps only the side the surface moves to, from the voxels
+ * at the zero crossing, and keeps an old value where it is farther. Scheme
+ * 100 re-derives the whole band with sdfToSdf instead, which moves convex
+ * surfaces inwards; a fillet of a lattice at 1 mm then lost 38% of its volume.
+ */
+const FAST_SWEEPING_SCHEME = 102;
 
 export interface Voxels {
   /** An independent copy of this field. */
