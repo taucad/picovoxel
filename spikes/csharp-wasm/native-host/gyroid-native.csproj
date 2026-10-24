@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The same sources as the browser-wasm spike, built for native linux-x64 (CoreCLR, tiered JIT)
+       against picogk.26.2.so built from the same runtime sources: the speed baseline. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+    <OutputType>Exe</OutputType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <NoWarn>$(NoWarn);CS1591;CS8632;CS0162;CS0168;CS0219;CA1416;CS0618</NoWarn>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SelfContained>false</SelfContained>
+  </PropertyGroup>
+  <PropertyGroup><G>../app</G></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(G)/picogk/**/*.cs" />
+    <Compile Include="$(G)/shapekernel/**/*.cs" />
+    <Compile Include="$(G)/examples/*.cs" />
+    <Compile Include="$(G)/host/*.cs" />
+    <PackageReference Include="SkiaSharp" Version="3.119.0" />
+    <None Include="../native-linux/picogk.26.2.so" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

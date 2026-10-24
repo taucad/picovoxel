@@ -1,0 +1,23 @@
+PicoGK: PicoGK Core Library 26.2.0; voxel 0.5 mm; init 13.1 ms
+run 0: task 31.2 ms; mesh+props 248.9 ms
+  group 0: volume 3621.167 mm3 (bits 456252ab), 92964 triangles, mesh digest 2b43725651c3733a
+  group 1: volume 4182.421 mm3 (bits 4582b35f), 14940 triangles, mesh digest b8aa4cfd3b2b77f9
+run 1: task 24.7 ms; mesh+props 213.1 ms
+run 2: task 17.4 ms; mesh+props 213.5 ms
+upstream IntersectImplicit, C# callback: 11.0 ms; volume 3621.167 mm3, 92964 triangles
+picovoxel IntersectImplicitFast, C# callback: not in this runtime build
+picovoxel IntersectImplicitTapeFast, tape: not in this runtime build
+managed gyroid SDF x 8M: 348.6 ms (checksum 2032137.000)
+P/Invoke Mesh.nAddVertex x 1M: 70.2 ms
+--- one core (taskset -c 0)
+PicoGK: PicoGK Core Library 26.2.0; voxel 0.5 mm; init 12.4 ms
+run 0: task 30.9 ms; mesh+props 755.4 ms
+  group 0: volume 3621.167 mm3 (bits 456252ab), 92964 triangles, mesh digest 2b43725651c3733a
+  group 1: volume 4182.421 mm3 (bits 4582b35f), 14940 triangles, mesh digest b8aa4cfd3b2b77f9
+run 1: task 25.5 ms; mesh+props 722.3 ms
+run 2: task 24.4 ms; mesh+props 728.9 ms
+upstream IntersectImplicit, C# callback: 17.4 ms; volume 3621.167 mm3, 92964 triangles
+picovoxel IntersectImplicitFast, C# callback: not in this runtime build
+picovoxel IntersectImplicitTapeFast, tape: not in this runtime build
+managed gyroid SDF x 8M: 728.3 ms (checksum 2032137.000)
+P/Invoke Mesh.nAddVertex x 1M: 70.3 ms
