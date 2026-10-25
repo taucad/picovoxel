@@ -10,6 +10,8 @@
 # because .NET links its own prebuilt Mono archives with it; picovoxel's 5.0.1 objects
 # are not link-compatible with them.
 #
+# THREADS=1 also builds the multithreaded variant in app-mt: .NET's threaded runtime with the
+# pthreads build of the PicoGK runtime. It runs in browsers only (cross-origin isolated).
 # NATIVE=1 also builds the same C# against a native linux-x64 runtime (the baseline).
 set -euo pipefail
 
@@ -69,6 +71,23 @@ emcc -O2 -fno-builtin -c "$HERE/libm/float-trig.c" -o "$APP/native/float-trig.o"
 (cd "$APP" && dotnet publish -c Release)
 cp "$APP/index.html" "$APP/bin/Release/net10.0/browser-wasm/AppBundle/"
 echo "AppBundle: $APP/bin/Release/net10.0/browser-wasm/AppBundle (node main.mjs <voxel> <runs> [gyroid|heatx|math])"
+
+if [ "${THREADS:-0}" = "1" ]; then
+  EMSDK="$EMSDK_NET" ONETBB_SRC="$OUT/oneTBB" EH_FLAGS="-fwasm-exceptions" THREADS=1 OUT="$RT" JOBS="$JOBS" \
+    bash "$ROOT/scripts/build-deps-wasm.sh"
+  EMSDK="$EMSDK_NET" EH_FLAGS="-fwasm-exceptions" THREADS=1 OUT="$RT" OUT_JS="$RT/js-mt" JOBS="$JOBS" \
+    bash "$ROOT/scripts/build-pico-module.sh"
+  [ -f "$ROOT/src/pico.wasm" ] && (cd "$ROOT" && node scripts/generate-wasm-exports.mjs pico)
+  MTAPP="$OUT/app-mt"
+  rm -rf "$MTAPP"; mkdir -p "$MTAPP/native-mt"
+  (cd "$APP" && cp -r picogk shapekernel examples host gyroid.csproj main.mjs index.html runtimeconfig.template.json "$MTAPP/")
+  emar rcs "$MTAPP/native-mt/picogk.26.2.a" "$RT"/pico_*_module-mt.o
+  cp "$RT/wasm-prefix-mt/lib/libopenvdb.a" "$RT/wasm-prefix-mt/lib/libtbb.a" "$MTAPP/native-mt/"
+  emcc -O2 -pthread -fno-builtin -c "$HERE/libm/float-trig.c" -o "$MTAPP/native-mt/float-trig.o"
+  (cd "$MTAPP" && dotnet publish -c Release -p:Threads=true)
+  cp "$MTAPP/index.html" "$MTAPP/bin/Release/net10.0/browser-wasm/AppBundle/"
+  echo "threaded AppBundle: $MTAPP/bin/Release/net10.0/browser-wasm/AppBundle (browser-run.mjs only)"
+fi
 
 if [ "${NATIVE:-0}" = "1" ]; then
   # The native baseline: the upstream core TU only (picovoxel's TUs are wasm-specific).

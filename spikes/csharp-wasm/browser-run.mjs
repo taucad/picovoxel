@@ -11,7 +11,9 @@ const server = createServer(async (req, res) => {
   try {
     const path = join(root, decodeURIComponent(new URL(req.url, 'http://x').pathname));
     const body = await readFile(path.endsWith('/') ? join(path, 'index.html') : path);
-    res.writeHead(200, { 'content-type': types[extname(path)] ?? 'application/octet-stream' });
+    // Cross-origin isolation, which SharedArrayBuffer (the threaded build) requires.
+    res.writeHead(200, { 'content-type': types[extname(path)] ?? 'application/octet-stream',
+      'cross-origin-opener-policy': 'same-origin', 'cross-origin-embedder-policy': 'require-corp' });
     res.end(body);
   } catch { res.writeHead(404); res.end(); }
 }).listen(0);

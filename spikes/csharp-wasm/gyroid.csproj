@@ -21,6 +21,19 @@
   <PropertyGroup>
     <PicoNative>$(MSBuildThisFileDirectory)native</PicoNative>
   </PropertyGroup>
+  <!-- Threads=true: .NET's multithreaded runtime with the pthreads build of the PicoGK runtime
+       (native-mt). Managed code then runs on a worker, so the task can block while oneTBB's
+       workers run; the pthread pool is pre-spawned because the main thread cannot spawn
+       workers while a parallel_for waits on it. -->
+  <PropertyGroup Condition="'$(Threads)' == 'true'">
+    <WasmEnableThreads>true</WasmEnableThreads>
+    <_WasmPThreadPoolInitialSize>$(PoolSize)</_WasmPThreadPoolInitialSize>
+    <_WasmPThreadPoolInitialSize Condition="'$(PoolSize)' == ''">8</_WasmPThreadPoolInitialSize>
+    <PicoNative>$(MSBuildThisFileDirectory)native-mt</PicoNative>
+    <!-- picovoxel's threaded artifact uses mimalloc: dlmalloc's one free-list lock serializes
+         oneTBB's workers. Malloc=dlmalloc keeps Emscripten's default. -->
+    <EmccExtraLDFlags Condition="'$(Malloc)' != 'dlmalloc'">$(EmccExtraLDFlags) -sMALLOC=mimalloc</EmccExtraLDFlags>
+  </PropertyGroup>
   <ItemGroup>
     <!-- The unmodified PicoGK C# library (headless split) and LEAP 71 ShapeKernel. -->
     <Compile Include="picogk/**/*.cs" />

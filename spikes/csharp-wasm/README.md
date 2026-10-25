@@ -17,6 +17,10 @@ core and 135 s on four. Matching bytes needs one shared implementation of float 
 (`libm/float-trig.c`), because .NET's `MathF` trigonometry comes from the platform C library, and glibc and musl
 differ in the last bit. See [`results/2026-10-25-heatx.md`](results/2026-10-25-heatx.md).
 
+`THREADS=1` builds a threaded variant with .NET's multithreaded runtime and the pthreads PicoGK runtime. In
+Chromium it runs HeatX in 168 s with the same bytes, within 1.24x of native on four cores. It needs a
+cross-origin isolated page and does not run in Node. See [`results/2026-10-25-threads.md`](results/2026-10-25-threads.md).
+
 ## What changes and what does not
 
 - The example and ShapeKernel compile as published.
@@ -40,6 +44,7 @@ node main.mjs 0.5 1 heatx
 node ../../../../../../../../spikes/csharp-wasm/browser-run.mjs . 0.5 1 heatx   # headless Chromium (PW=<playwright path>)
 ```
 
+`THREADS=1` also builds the threaded AppBundle in `build/csharp-wasm/app-mt` (run it with `browser-run.mjs`).
 `NATIVE=1` also builds the native linux-x64 baseline in `build/csharp-wasm/native-host`; run it with
 `LD_PRELOAD=build/csharp-wasm/native-linux/float-trig.so` to compare bytes. The `ts/` scripts time
 picovoxel's TypeScript port of the same example from this checkout.
