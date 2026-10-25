@@ -17,6 +17,27 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
+WASM_FLAGS="${WASM_FLAGS:--O3 -msimd128}"
+EH_FLAGS="${EH_FLAGS:--fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=1}"
+# WA5 — never link at -Oz. At SHRINK_LEVEL 2 emscripten links libc_optz, which
+# swaps in different pow, log and log2 code: pow(x, 2) alone changes on about
+# 1 in 1000 inputs, so exact-lane output would move with no test pointing at the
+# cause. A size build has to change this guard and re-pin on purpose.
+# No fused multiply-add either: wasm32 with SIMD128 has no FMA instruction, so
+# clang's default -ffp-contract=on lowers every a*b+c to a rounded multiply and
+# a rounded add, the same values -ffp-contract=off gives (the exact adaptive
+# merge in patches/openvdb/0002 relies on that). -mrelaxed-simd would add
+# relaxed_madd, which may fuse, so it is refused with -Oz.
+case " $WASM_FLAGS $EH_FLAGS " in
+  *" -Oz "* | *SHRINK_LEVEL=2*)
+    echo "build-pico-module: -Oz links emscripten's libc_optz (different pow/log/log2), which moves exact-lane output; refusing (WA5)" >&2
+    exit 1
+    ;;
+  *relaxed-simd*)
+    echo "build-pico-module: -mrelaxed-simd allows fused multiply-add, which moves exact-lane output; refusing" >&2
+    exit 1
+    ;;
+esac
 # Sources come from vendor/ (scripts/fetch-deps.sh); EMSDK/PICOGK_RUNTIME may point
 # elsewhere deliberately, but there is no silent fallback to an unpatched checkout.
 EMSDK="${EMSDK:-$HERE/vendor/emsdk}"
@@ -27,8 +48,6 @@ if ! { [ -x "$EMSDK/emsdk" ] && [ -d "$PICOGK_RUNTIME/Source" ] && [ -f "$HERE/v
 fi
 OUT="${OUT:-$HERE/build}"
 OUT_JS="${OUT_JS:-$HERE/src}"
-WASM_FLAGS="${WASM_FLAGS:--O3 -msimd128}"
-EH_FLAGS="${EH_FLAGS:--fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=1}"
 # Allocator: link-time only — the dep archives call malloc/free and bind
 # at link, so A/B needs no dep rebuild. emscripten's default is dlmalloc, whose
 # global free-list mutex serializes the 12-thread creation paths.
@@ -52,7 +71,10 @@ if [ "${THREADS:-0}" = "1" ]; then
   THREAD_LINK_FLAGS=(-sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency)
   # PThread exposes pool state: the multi entry's thread warmup is observable
   # (tests assert workers actually engaged — oneTBB serializes silently if not).
-  RUNTIME_METHODS="$RUNTIME_METHODS,PThread"
+  # wasmMemory lets the facade refresh its heap views after a worker grows the
+  # shared memory, which the main thread's glue never notices (WA9,
+  # refreshHeapViews in src/context.ts).
+  RUNTIME_METHODS="$RUNTIME_METHODS,PThread,wasmMemory"
 else
   MT=""; VARIANT="pico"
   MALLOC="${MALLOC:-dlmalloc}"

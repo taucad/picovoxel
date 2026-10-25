@@ -173,3 +173,19 @@ test('createMesh validation: out-of-range triangle index is refused in JS', () =
     assert.match(error.message, /vertex 7/);
   }
 });
+
+// MI20 — a mesh is read from wasm once; the vertices and triangles getters hand
+// out copies, so an edit to one never reaches the cache the other methods read.
+test('vertices and triangles are fresh copies over one cached read', () => {
+  const mesh = pk.createMesh(TETRA);
+  const before = mesh.measure();
+  const vertices = mesh.vertices;
+  const triangles = mesh.triangles;
+  assert.notEqual(mesh.vertices, vertices);
+  assert.notEqual(mesh.triangles, triangles);
+  vertices.fill(0);
+  triangles.fill(0);
+  assert.deepEqual(mesh.measure(), before);
+  assert.deepEqual(mesh.vertices, new Float32Array(TETRA.vertices));
+  assert.deepEqual(mesh.toStl(), pk.createMesh(TETRA).toStl());
+});

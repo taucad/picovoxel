@@ -1,0 +1,182 @@
+PicoGKRuntime 26.2 (0f26321c) — ABI hardening: checked indices, bounded string
+copies and an empty scalar field from voxels. Upstreamable to
+leap71/PicoGKRuntime; not yet offered.
+
+Applied to vendor/PicoGKRuntime by scripts/fetch-deps.sh after 0001-0006.
+Kept as a patch because it modifies dependency source; no flag-level override
+exists. Ledger rows U28 and U29 (upstream/LEDGER.md).
+
+1. Source/PicoGKMesh.h, Source/PicoGKPolyLine.h, Source/PicoGKVdbFile.h —
+   MI10/RC7: indices are checked in every build. Mesh::nAddTriangle throws
+   std::out_of_range before any bookkeeping when a corner is not a vertex
+   index (an assert compiled out of release builds stored the dangling
+   index, and every later reader went out of bounds); GetVertex,
+   GetTriangle, PolyLine::GetVertex and VdbFile::roGridAt read through
+   vector::at, which throws for negative indices too. In this wasm build the
+   asserts were live and aborted the module; a throw is a recoverable
+   WebAssembly.Exception the facade maps to PicoError.
+2. Source/PicoGKLibrary.cpp — RC5: Metadata_bGetNameAt and
+   Metadata_bGetStringAt refuse a null or zero-length buffer, which
+   strncpy(…, size_t(-1)) would write before. MI8/RC6 (Windows only):
+   strncpy_s with _TRUNCATE instead of a count that aborts at 254 characters.
+3. Source/PicoGKLibrary.cpp — RC4: ScalarField_hBuildFromVoxels starts from
+   an empty field at the source's voxel size, as VectorField_hBuildFromVoxels
+   does. Before, it started from a copy of the voxels, so every voxel the
+   threshold did not select kept its signed distance.
+
+Not included: MI5 (VdbFile_hGet* hand out the file's own grid, so reads alias
+each other). Deep-copying the reads breaks the save path: C#'s
+OpenVdbFile.SaveToFile and picovoxel's stampPicoMetadata write
+PicoGK.VoxelSize and the library name through a read handle, and on a copy
+those stamps never reach the file. A fix needs a metadata setter on the file
+first.
+
+Output: items 1 and 2 change only calls that were undefined behaviour or
+aborted. Item 3 changes results wherever the field held stale distances.
+picovoxel's byte-locked pins hold unchanged.
+--- a/Source/PicoGKLibrary.cpp
++++ b/Source/PicoGKLibrary.cpp
+@@ -48,7 +48,7 @@
+ void SafeCopyInfoString(const std::string s, char psz[PKINFOSTRINGLEN])
+ {
+ #ifdef _WINDOWS
+-    strncpy_s(psz, PKINFOSTRINGLEN-1, s.c_str(), s.length());
++    strncpy_s(psz, PKINFOSTRINGLEN, s.c_str(), _TRUNCATE);
+ #else
+     strncpy(psz, s.c_str(), PKINFOSTRINGLEN-1);
+ #endif
+@@ -1043,7 +1043,10 @@
+     Library::Instance::Ptr roLib = Library::oLib().roGetInstance(hLib);
+     
+     Voxels::Ptr         roSource = roLib->m_oVoxels.roGet(hVoxels);
+-    ScalarField::Ptr    roNew = std::make_shared<ScalarField>(*roSource);
++    // An empty field at the source's voxel size, as VectorField_hBuildFromVoxels
++    // does: a copy of the voxels would leave their signed distances in every
++    // voxel the threshold does not select.
++    ScalarField::Ptr    roNew = std::make_shared<ScalarField>((float) roSource->oVoxelSize());
+     
+     roNew->BuildFieldFrom(roSource, fScalarValue, fSdThreshold);
+     return roLib->m_oScalarFields.hAdd(roNew);
+@@ -1292,8 +1295,12 @@
+     
+     std::string s = roLib->m_oVdbMetas.roGet(hThis)->strNameAt(nIndex);
+     
++    // A buffer without room for the terminator cannot take a string.
++    if (psz == nullptr || nMaxStringLen <= 0)
++        return false;
++    
+ #ifdef _WINDOWS
+-    strncpy_s(psz, nMaxStringLen-1, s.c_str(), s.length());
++    strncpy_s(psz, nMaxStringLen, s.c_str(), _TRUNCATE);
+ #else
+     strncpy(psz, s.c_str(), nMaxStringLen-1);
+ #endif
+@@ -1335,8 +1342,12 @@
+     if (!roLib->m_oVdbMetas.roGet(hThis)->bGetValueAt(psz, &s))
+         return false;
+     
++    // A buffer without room for the terminator cannot take a string.
++    if (pszValue == nullptr || nMaxStringLen <= 0)
++        return false;
++    
+ #ifdef _WINDOWS
+-    strncpy_s(pszValue, nMaxStringLen-1, s.c_str(), s.length());
++    strncpy_s(pszValue, nMaxStringLen, s.c_str(), _TRUNCATE);
+ #else
+     strncpy(pszValue, s.c_str(), nMaxStringLen-1);
+ #endif
+--- a/Source/PicoGKMesh.h
++++ b/Source/PicoGKMesh.h
+@@ -41,6 +41,7 @@
+ #include <memory>
+ #include <vector>
+ #include <cassert>
++#include <stdexcept>
+ 
+ namespace PicoGK
+ {
+@@ -84,11 +85,12 @@
+     
+     inline int32_t nAddTriangle(const Triangle& sTri)
+     {
+-        m_nMemUsage += sizeof(Triangle);
++        // Checked in every build: a dangling index is read out of bounds by
++        // every later consumer of the mesh.
++        if (!bIsVertexIndex(sTri.A) || !bIsVertexIndex(sTri.B) || !bIsVertexIndex(sTri.C))
++            throw std::out_of_range("Mesh: triangle references a vertex outside the mesh");
+         
+-        assert(sTri.A < nVertexCount());
+-        assert(sTri.B < nVertexCount());
+-        assert(sTri.C < nVertexCount());
++        m_nMemUsage += sizeof(Triangle);
+         m_oTriangles.push_back(sTri);
+         return nTriangleCount() - 1;
+     }
+@@ -107,17 +109,22 @@
+         return (int32_t)nSize;
+     }
+     
++    inline bool bIsVertexIndex(int32_t nVertex) const
++    {
++        return nVertex >= 0 && nVertex < nVertexCount();
++    }
++    
+     inline void GetVertex(  int32_t     nVertex,
+                             Vector3*    pvecVertex) const
+     {
+-        assert(nVertex < nVertexCount());
++        // vector::at throws std::out_of_range for any bad index, negative
++        // ones included; an assert would abort instead.
+         *pvecVertex = m_oVertices.at(nVertex);
+     }
+     
+     inline void GetTriangle(    int32_t     nTriangle,
+                                 Triangle*   psTriangle) const
+     {
+-        assert(nTriangle < nTriangleCount());
+         *psTriangle = m_oTriangles.at(nTriangle);
+     }
+     
+@@ -126,8 +133,6 @@
+                                 Vector3* pvecB,
+                                 Vector3* pvecC) const
+     {
+-        assert(nTriangle < nTriangleCount());
+-        
+         Triangle sTri = m_oTriangles.at(nTriangle);
+         *pvecA = m_oVertices.at(sTri.A);
+         *pvecB = m_oVertices.at(sTri.B);
+--- a/Source/PicoGKPolyLine.h
++++ b/Source/PicoGKPolyLine.h
+@@ -40,6 +40,7 @@
+ #include <vector>
+ #include <memory>
+ #include <assert.h>
++#include <stdexcept>
+ 
+ namespace PicoGK
+ {
+@@ -76,8 +77,10 @@
+     void GetVertex( int32_t nIndex,
+                     Vector3* pvec) const
+     {
+-        assert(nIndex < m_oVertices.size());
+-        *pvec = m_oVertices[nIndex];
++        // Checked in every build (std::out_of_range, negative indices
++        // included): an assert compiles out of release builds and aborts in
++        // debug builds.
++        *pvec = m_oVertices.at(nIndex);
+     }
+ 
+     int32_t nVertexCount() const
+--- a/Source/PicoGKVdbFile.h
++++ b/Source/PicoGKVdbFile.h
+@@ -112,7 +112,7 @@
+     
+     GridBase::Ptr roGridAt(int32_t nIndex) const
+     {
+-        assert(nIndex < nGridCount());
++        // vector::at throws std::out_of_range for any bad index.
+         return m_roGrids->at(nIndex);
+     }
+     

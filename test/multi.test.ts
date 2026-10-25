@@ -131,3 +131,56 @@ test('fastRenorm session on the MT artifact: single≡multi G0 identity, healthy
     serial.dispose();
   }
 });
+
+// WA9 — a pthread can grow the shared memory inside a native call, and the main
+// thread's glue never refreshes its views for that. Growing the memory straight
+// from JS reproduces that state (no glue path sees it); every bulk read then
+// refreshes the facade's views before it touches wasm memory. The serial glue
+// exports no memory: it grows only on this thread and refreshes its own views.
+test('multi session: bulk reads refresh heap views a worker-side growth left stale', async () => {
+  const multi = await multiEntry.createPico({ voxelSize: 0.5 });
+  const serial = await serialEntry.createPico({ voxelSize: 0.5 });
+  try {
+    expect(serial.module.wasmMemory).toBeUndefined();
+    const memory = multi.module.wasmMemory!;
+    expect(multi.module.HEAPU8.buffer).toBe(memory.buffer);
+    const mesh = multi.createVoxels({ shape: 'sphere', radius: 4 }).toMesh();
+
+    memory.grow(1);
+    expect(multi.module.HEAPU8.buffer).not.toBe(memory.buffer);
+    const vertices = mesh.vertices;
+    for (const view of ['HEAPU8', 'HEAP32', 'HEAPU32', 'HEAPF32', 'HEAPF64'] as const) {
+      expect(multi.module[view].buffer).toBe(memory.buffer);
+      expect(multi.module[view].byteLength).toBe(memory.buffer.byteLength);
+    }
+    expect(vertices.length).toBe(mesh.vertexCount * 3);
+  } finally {
+    multi.dispose();
+    serial.dispose();
+  }
+});
+
+// VO1 — the fast-sweeping offset engine runs oneTBB-parallel sweeps; its result
+// must not depend on the thread count or the allocator.
+test('fastSweeping offsets: single≡multi G0 identity across the family', async () => {
+  const multi = await multiEntry.createPico({ voxelSize: 0.4 });
+  const serial = await serialEntry.createPico({ voxelSize: 0.4 });
+  try {
+    const body = (pk: typeof multi) =>
+      pk
+        .createVoxels({ shape: 'sphere', radius: 8 })
+        .union(pk.createVoxels({ shape: 'beam', start: [-2, -2, -2], end: [12, 2, 2], radius: 2 }));
+    const ops: [string, (v: ReturnType<typeof body>) => ReturnType<typeof body>][] = [
+      ['offset', (v) => v.offset({ distance: 2, fastSweeping: true })],
+      ['offset in', (v) => v.offset({ distance: -1, fastSweeping: true })],
+      ['smoothen', (v) => v.smoothen({ distance: 1, fastSweeping: true })],
+      ['shell', (v) => v.shell({ inner: -1, outer: 1, fastSweeping: true })],
+    ];
+    for (const [label, run] of ops) {
+      expect(run(body(multi)).gridHash(), label).toEqual(run(body(serial)).gridHash());
+    }
+  } finally {
+    multi.dispose();
+    serial.dispose();
+  }
+});

@@ -51,6 +51,45 @@ test('raycastBatch ≡ serial raycastToSurface, exact per ray, hit/miss 100% off
   assert.equal(hitCount, cases.length / 2, 'every inward ray hits, every outward ray misses (off-grazing)');
 });
 
+// MI6 — upstream truncates the fractional index-space hit to whole voxels.
+// subVoxel keeps it: the same rays hit and miss, and each hit lands on the
+// analytic sphere instead of up to a voxel inside it.
+test('raycastBatch subVoxel: the truncated hits moved onto the surface, misses unchanged', () => {
+  const radius = 8;
+  const sphere = pk.createVoxels({ shape: 'sphere', radius });
+  const origins: number[] = [];
+  const directions: number[] = [];
+  for (let i = 0; i < 64; i++) {
+    // Golden-angle directions toward the centre from 14 mm out, plus one miss.
+    const z = 1 - (2 * (i + 0.5)) / 64;
+    const r = Math.sqrt(1 - z * z);
+    const phi = i * 2.399963229728653;
+    const d = [r * Math.cos(phi), r * Math.sin(phi), z];
+    origins.push(14 * d[0]!, 14 * d[1]!, 14 * d[2]!);
+    directions.push(-d[0]!, -d[1]!, -d[2]!);
+  }
+  origins.push(14, 0, 0);
+  directions.push(1, 0, 0);
+  const truncated = sphere.raycastBatch({ origins, directions });
+  const precise = sphere.raycastBatch({ origins, directions, subVoxel: true });
+  assert.deepEqual(precise.hit, truncated.hit);
+  assert.equal(precise.hit[64], 0);
+  let worstPrecise = 0;
+  let worstTruncated = 0;
+  for (let i = 0; i < 64; i++) {
+    assert.equal(precise.hit[i], 1, `ray ${i}`);
+    const at = (h: Float32Array) => Math.abs(Math.hypot(h[3 * i]!, h[3 * i + 1]!, h[3 * i + 2]!) - radius);
+    worstPrecise = Math.max(worstPrecise, at(precise.hits));
+    worstTruncated = Math.max(worstTruncated, at(truncated.hits));
+  }
+  assert.ok(worstPrecise < 0.1 * 0.4, `subVoxel hits within a tenth of a voxel (${worstPrecise} mm)`);
+  assert.ok(worstTruncated > 4 * worstPrecise, `truncation error ${worstTruncated} mm`);
+  assert.throws(
+    () => sphere.raycastBatch({ origins, directions, subVoxel: 1 as unknown as boolean }),
+    (error: unknown) => error instanceof PicoError && error.code === 'PICO_INVALID_ARGUMENT',
+  );
+});
+
 test('closestPointsOnSurface: sub-voxel, in-band, within one voxel of the true minimum', () => {
   const radius = 8;
   const sphere = pk.createVoxels({ shape: 'sphere', radius });

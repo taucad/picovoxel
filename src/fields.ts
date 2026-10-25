@@ -10,6 +10,7 @@ import {
   adoptHandle,
   assertSameSession,
   checkedMalloc,
+  refreshHeapViews,
   expectHandle,
   VEC3_BYTES,
   type SessionContext,
@@ -161,6 +162,7 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint, provenance?
       const buffer = checkedMalloc(ctx.module, width * height * 4, 'a slice image buffer');
       try {
         ctx.raw.ScalarField_GetSlice(ctx.lib, handle, index, buffer);
+        refreshHeapViews(ctx.module);
         return {
           width,
           height,

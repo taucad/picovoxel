@@ -1,0 +1,54 @@
+PicoGKRuntime 26.2 (0f26321c) — RC2: call-local unsafe accessors for the
+per-point queries. Upstreamable to leap71/PicoGKRuntime; not yet offered.
+
+Applied to vendor/PicoGKRuntime by scripts/fetch-deps.sh after 0001-0008.
+Kept as a patch because it modifies dependency source; no flag-level override
+exists. Ledger row U31 (upstream/LEDGER.md).
+
+Voxels::bIsInside, ScalarField::bGetValue and VectorField::bGetValue built a
+registered ConstAccessor per call, which inserts into and erases from the
+tree's tbb::concurrent_hash_map: the audit measured 2.05x on one thread and
+3.5x on four with a call-local unsafe accessor, and concurrent queries on one
+object collapsed to 0.65 M calls/s on four threads against 4.2 M on one. The
+accessor lives for one read, and the caller's shared_ptr keeps the grid alive,
+so registration buys nothing. Value-neutral: the same tree reads.
+--- a/Source/PicoGKVdbField.h
++++ b/Source/PicoGKVdbField.h
+@@ -160,7 +160,10 @@
+     bool bGetValue( Vector3 vecPos,
+                     float* pfValue)
+     {
+-        auto oAccess = m_roGrid->getConstAccessor();
++        // A call-local accessor: the unsafe form skips registering with the
++        // tree (an insert into and erase from its concurrent hash map per call).
++        // Reads only, and the caller's shared_ptr keeps the grid alive.
++        auto oAccess = m_roGrid->getConstUnsafeAccessor();
+     
+         openvdb::Coord xyz( oVoxelSize().iToVoxels(vecPos.X),
+                             oVoxelSize().iToVoxels(vecPos.Y),
+@@ -311,7 +314,10 @@
+     bool bGetValue( Vector3 vecPos,
+                     Vector3* pvecValue)
+     {
+-        auto oAccess = m_roGrid->getConstAccessor();
++        // A call-local accessor: the unsafe form skips registering with the
++        // tree (an insert into and erase from its concurrent hash map per call).
++        // Reads only, and the caller's shared_ptr keeps the grid alive.
++        auto oAccess = m_roGrid->getConstUnsafeAccessor();
+     
+         openvdb::Coord xyz( oVoxelSize().iToVoxels(vecPos.X),
+                             oVoxelSize().iToVoxels(vecPos.Y),
+--- a/Source/PicoGKVdbVoxels.h
++++ b/Source/PicoGKVdbVoxels.h
+@@ -665,7 +665,10 @@
+     
+     inline bool bIsInside(Vector3 vecTest)
+     {
+-        auto oAccess = m_roGrid->getConstAccessor();
++        // A call-local accessor: the unsafe form skips registering with the
++        // tree (an insert into and erase from its concurrent hash map per call).
++        // Reads only, and the caller's shared_ptr keeps the grid alive.
++        auto oAccess = m_roGrid->getConstUnsafeAccessor();
+     
+         openvdb::Coord xyz( oVoxelSize().iToVoxels(vecTest.X),
+                             oVoxelSize().iToVoxels(vecTest.Y),
