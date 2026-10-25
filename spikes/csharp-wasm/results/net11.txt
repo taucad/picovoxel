@@ -1,0 +1,42 @@
+# .NET 11 RC3 (Emscripten 6.0.2), Node, single thread
+PicoGK: PicoGK Core Library 26.2.0; voxel 0.5 mm; init 13.9 ms
+Starting Task.
+STL Export: HelixHeatX.STL exported.
+Finished Task successfully.
+run 0: task 361853.6 ms; STL 502880684 bytes, digest b9dac944dc434a69
+  group 81: volume 719572.250 mm3 (bits 492fad44), 10057612 triangles, mesh digest 2a13ca3e320a6075
+  props 59065.2 ms
+
+# .NET 11 RC3, Chromium 153, threaded, mimalloc
+PicoGK: PicoGK Core Library 26.2.0; voxel 0.5 mm; init 26.6 ms
+Starting Task.
+STL Export: HelixHeatX.STL exported.
+Finished Task successfully.
+run 0: task 183922.4 ms; STL 502880684 bytes, digest b9dac944dc434a69
+  group 81: volume 719572.250 mm3 (bits 492fad44), 10057612 triangles, mesh digest 2a13ca3e320a6075
+  props 23193.6 ms
+exit 0
+browser: 153.0.8010.12
+
+# back-to-back threaded repeat
+== net10
+run 0: task 164596.4 ms; STL 502880684 bytes, digest b9dac944dc434a69
+  props 18316.3 ms
+== net11
+run 0: task 180819.6 ms; STL 502880684 bytes, digest b9dac944dc434a69
+  props 23476.2 ms
+
+# .NET 11 gyroid sphere, threaded
+PicoGK: PicoGK Core Library 26.2.0; voxel 0.5 mm; init 27.2 ms
+run 0: task 64.4 ms; mesh+props 448.1 ms
+  group 0: volume 3621.167 mm3 (bits 456252ab), 92964 triangles, mesh digest 2b43725651c3733a
+  group 1: volume 4182.421 mm3 (bits 4582b35f), 14940 triangles, mesh digest b8aa4cfd3b2b77f9
+run 1: task 30.8 ms; mesh+props 334.7 ms
+run 2: task 28.7 ms; mesh+props 354.7 ms
+upstream IntersectImplicit, C# callback: 17.8 ms; volume 3621.167 mm3, 92964 triangles
+picovoxel IntersectImplicitFast, C# callback: 17.2 ms; volume 3606.811 mm3, 92964 triangles
+picovoxel IntersectImplicitTapeFast, tape: 7.8 ms; volume 3606.734 mm3, 92964 triangles
+managed gyroid SDF x 8M: 575.3 ms (checksum 2032137.000)
+P/Invoke Mesh.nAddVertex x 1M: 129.2 ms
+exit 0
+browser: 153.0.8010.12

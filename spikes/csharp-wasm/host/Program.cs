@@ -25,7 +25,16 @@ public static partial class Host
         return h.ToString("x16");
     }
 
+    // The last line every run prints: the threaded runtime on .NET 11 does not resolve the page's
+    // runMain() promise when Main returns, so index.html watches for this line instead.
     public static int Main(string[] args)
+    {
+        int nResult = nMain(args);
+        Console.WriteLine($"exit {nResult}");
+        return nResult;
+    }
+
+    static int nMain(string[] args)
     {
         float fVoxelSizeMM = args.Length > 0 ? float.Parse(args[0]) : 0.5f;
         int nRuns = args.Length > 1 ? int.Parse(args[1]) : 1;

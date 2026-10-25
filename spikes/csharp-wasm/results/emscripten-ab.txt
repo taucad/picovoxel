@@ -1,0 +1,41 @@
+# picovoxel's TypeScript HeatX port on one runtime built with two Emscriptens (bench: em-ab.mts, Node 24)
+## serial, 1.0 mm
+== 356
+
+Node.js v24.20.0
+== 501
+run 0: task 51.42 s (kernel 51.17, author 0.25); mesh 0.19 s; stl 0.14 s; volume 41220895e0000000; stl 93667084 bytes fnv b57def4
+  stages: outer-structure.create 18.88, outer-volume.fillet 9.71, io-threads.create 6.54, turning-fins.hot 1.73, turning-fins.cool 1.72, helical-void.hot 1.61, helical-void.cool 1.59, outer-volume.smoothen 1.59
+== 356
+
+Node.js v24.20.0
+== 501
+run 0: task 50.68 s (kernel 50.45, author 0.24); mesh 0.20 s; stl 0.46 s; volume 41220895e0000000; stl 93667084 bytes fnv b57def4
+  stages: outer-structure.create 18.52, outer-volume.fillet 9.61, io-threads.create 6.38, turning-fins.cool 1.77, turning-fins.hot 1.73, outer-volume.smoothen 1.61, helical-void.hot 1.53, helical-void.cool 1.51
+(3.1.56 rerun with -sWASM_BIGINT: run 0: task 50.17 s)
+## serial, 0.5 mm
+== 356
+run 0: task 332.78 s (kernel 332.53, author 0.25); mesh 1.85 s; stl 3.19 s; volume 4121d9c600000000; stl 502399484 bytes fnv bc87d0fc
+  stages: outer-structure.create 160.54, outer-volume.fillet 70.60, outer-volume.offset 18.78, cool-inner.offset 15.44, hot-inner.offset 15.39, outer-volume.smoothen 12.30, finished-flange.fillet 10.46, io-threads.create 7.38
+== 501
+run 0: task 339.93 s (kernel 339.64, author 0.28); mesh 1.53 s; stl 3.20 s; volume 4121d9c600000000; stl 502399484 bytes fnv bc87d0fc
+  stages: outer-structure.create 163.46, outer-volume.fillet 72.59, outer-volume.offset 19.27, cool-inner.offset 15.81, hot-inner.offset 15.50, outer-volume.smoothen 12.58, finished-flange.fillet 10.65, io-threads.create 7.39
+== 356
+run 0: task 333.03 s (kernel 332.75, author 0.27); mesh 1.53 s; stl 3.23 s; volume 4121d9c600000000; stl 502399484 bytes fnv bc87d0fc
+  stages: outer-structure.create 159.47, outer-volume.fillet 71.41, outer-volume.offset 19.07, cool-inner.offset 15.67, hot-inner.offset 15.58, outer-volume.smoothen 12.30, finished-flange.fillet 10.54, io-threads.create 7.39
+== 501
+run 0: task 335.72 s (kernel 335.47, author 0.25); mesh 1.48 s; stl 3.18 s; volume 4121d9c600000000; stl 502399484 bytes fnv bc87d0fc
+  stages: outer-structure.create 160.66, outer-volume.fillet 72.41, outer-volume.offset 19.36, hot-inner.offset 15.36, cool-inner.offset 15.35, outer-volume.smoothen 12.60, finished-flange.fillet 10.52, io-threads.create 7.54
+## threaded (mimalloc), 0.5 mm, 3.1.56 against 6.0.2
+== 356mt
+run 0: task 84.72 s (kernel 84.45, author 0.27); mesh 0.31 s; stl 0.84 s; volume 4121d9c600000000; stl 502399484 bytes fnv bc87d0fc
+  stages: outer-structure.create 40.47, outer-volume.fillet 17.96, outer-volume.offset 4.75, hot-inner.offset 3.91, cool-inner.offset 3.87, outer-volume.smoothen 3.13, finished-flange.fillet 2.71, io-threads.create 1.95
+== 602mt
+run 0: task 77.18 s (kernel 76.91, author 0.27); mesh 0.32 s; stl 0.65 s; volume 4121d9c600000000; stl 502399484 bytes fnv bc87d0fc
+  stages: outer-structure.create 36.46, outer-volume.fillet 16.21, outer-volume.offset 4.23, cool-inner.offset 3.44, hot-inner.offset 3.40, outer-volume.smoothen 2.83, finished-flange.fillet 2.50, io-threads.create 2.01
+== 356mt
+run 0: task 83.86 s (kernel 83.59, author 0.26); mesh 0.30 s; stl 0.64 s; volume 4121d9c600000000; stl 502399484 bytes fnv bc87d0fc
+  stages: outer-structure.create 40.12, outer-volume.fillet 17.78, outer-volume.offset 4.70, cool-inner.offset 3.86, hot-inner.offset 3.85, outer-volume.smoothen 3.13, finished-flange.fillet 2.70, io-threads.create 1.89
+== 602mt
+run 0: task 77.25 s (kernel 76.96, author 0.29); mesh 0.30 s; stl 0.64 s; volume 4121d9c600000000; stl 502399484 bytes fnv bc87d0fc
+  stages: outer-structure.create 36.45, outer-volume.fillet 16.29, outer-volume.offset 4.28, cool-inner.offset 3.44, hot-inner.offset 3.43, outer-volume.smoothen 2.84, finished-flange.fillet 2.49, io-threads.create 1.96

@@ -9,9 +9,11 @@
   const args = [params.get('voxel') ?? '0.5', params.get('runs') ?? '3', params.get('program') ?? 'gyroid'];
   const log = console.log.bind(console);
   out.textContent = '';
-  console.log = (...a) => { out.textContent += a.join(' ') + '\n'; log(...a); };
+  console.log = (...a) => {
+    out.textContent += a.join(' ') + '\n'; log(...a);
+    if (String(a[0]).startsWith('exit ')) document.title = 'done';
+  };
   const runtime = await dotnet.withApplicationArguments(...args).create();
-  const code = await runtime.runMain();
-  out.textContent += `exit ${code}\n`;
+  await runtime.runMain();
   document.title = 'done';
 </script>

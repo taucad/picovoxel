@@ -10,6 +10,8 @@
 # because .NET links its own prebuilt Mono archives with it; picovoxel's 5.0.1 objects
 # are not link-compatible with them.
 #
+# NET=11 builds on .NET 11 instead, whose workload pins Emscripten 6.0.2: EMSDK_NET then
+# names an emsdk with 6.0.2, and the runtime uses the standard wasm exception format.
 # THREADS=1 also builds the multithreaded variant in app-mt: .NET's threaded runtime with the
 # pthreads build of the PicoGK runtime. It runs in browsers only (cross-origin isolated).
 # NATIVE=1 also builds the same C# against a native linux-x64 runtime (the baseline).
@@ -17,8 +19,19 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
-OUT="${OUT:-$ROOT/build/csharp-wasm}"
-EMSDK_NET="${EMSDK_NET:?set EMSDK_NET to an emsdk with 3.1.56 activated}"
+NET="${NET:-10}"
+EMSDK_NET="${EMSDK_NET:?set EMSDK_NET to an emsdk at the version the .NET workload pins}"
+if [ "$NET" = "11" ]; then
+  OUT="${OUT:-$ROOT/build/csharp-wasm-net11}"
+  EH="-fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=0"   # .NET 11 links the exnref format
+  PUBLISH=(-p:Net=11)
+  BUNDLE=bin/Release/net11.0/publish/wwwroot
+else
+  OUT="${OUT:-$ROOT/build/csharp-wasm}"
+  EH="-fwasm-exceptions"   # the legacy-EH setting does not exist in 3.1.56, where legacy is the only format
+  PUBLISH=()
+  BUNDLE=bin/Release/net10.0/browser-wasm/AppBundle
+fi
 PICOGK_CS_SHA="0e6cf6b6f4993ec16dbcd72d8f27f26b999980f3"     # leap71/PicoGK (C# library, v2.3.0 line)
 SHAPEKERNEL_SHA="827fb6e89c09efdd1c3790bead7bd61b625f1640"   # leap71/LEAP71_ShapeKernel
 HEATX_SHA="a0a0234eb048b6963fb5787fce8315c7b0110b5c"         # leap71/LEAP71_HelixHeatX
@@ -26,20 +39,19 @@ JOBS="${JOBS:-$(getconf _NPROCESSORS_ONLN)}"
 mkdir -p "$OUT"
 
 # 1. oneTBB hardcodes -fexceptions for Emscripten; emcc 3.1.56 refuses it next to
-#    -fwasm-exceptions (5.0.1 lets the later flag win), so this build edits a copy.
+#    -fwasm-exceptions (5.0.1 and later let the later flag win), so this build edits a copy.
 rm -rf "$OUT/oneTBB"
 cp -r "$ROOT/vendor/oneTBB" "$OUT/oneTBB"
 sed -i 's/TBB_COMMON_COMPILE_FLAGS} -fexceptions)/TBB_COMMON_COMPILE_FLAGS} -fwasm-exceptions)/' \
   "$OUT/oneTBB/cmake/compilers/Clang.cmake"
 
-# 2. The runtime at .NET's Emscripten: same scripts, same sources; the legacy-EH
-#    setting does not exist in 3.1.56, where legacy is the only wasm EH format.
+# 2. The runtime at .NET's Emscripten: same scripts, same sources.
 RT="$OUT/rt"
-EMSDK="$EMSDK_NET" ONETBB_SRC="$OUT/oneTBB" EH_FLAGS="-fwasm-exceptions" OUT="$RT" JOBS="$JOBS" \
+EMSDK="$EMSDK_NET" ONETBB_SRC="$OUT/oneTBB" EH_FLAGS="$EH" OUT="$RT" JOBS="$JOBS" \
   bash "$ROOT/scripts/build-deps-wasm.sh"
-EMSDK="$EMSDK_NET" EH_FLAGS="-fwasm-exceptions" OUT="$RT" OUT_JS="$RT/js" PREFIX="$RT/wasm-prefix" JOBS="$JOBS" \
+EMSDK="$EMSDK_NET" EH_FLAGS="$EH" OUT="$RT" OUT_JS="$RT/js" PREFIX="$RT/wasm-prefix" JOBS="$JOBS" \
   bash "$ROOT/scripts/build-pico-module.sh"
-# build-pico-module.sh regenerated src/pico.exports.ts from the 3.1.56 module; restore it.
+# build-pico-module.sh regenerated src/pico.exports.ts from this module; restore it.
 [ -f "$ROOT/src/pico.wasm" ] && (cd "$ROOT" && node scripts/generate-wasm-exports.mjs pico)
 
 # 3. The C# sources, pinned, then the headless split (prepare.sh).
@@ -60,6 +72,10 @@ bash "$APP/prepare.sh" "$OUT/src/PicoGK" "$APP/picogk"
 cp -r "$OUT/src/ShapeKernel/ShapeKernel" "$APP/shapekernel"
 cp "$OUT/src/ShapeKernel/Examples/Ex_ImplicitGyroidSphere.cs" "$APP/examples/"
 cp -r "$OUT/src/HelixHeatX/src" "$APP/examples/heatx"
+# .NET 11 assembles the browser bundle only in the WebAssembly SDK.
+if [ "$NET" = "11" ]; then
+  sed -i 's#<Project Sdk="Microsoft.NET.Sdk">#<Project Sdk="Microsoft.NET.Sdk.WebAssembly">#' "$APP/gyroid.csproj"
+fi
 
 # 4. The PicoGK runtime as the archive the DllImport name resolves to.
 source "$EMSDK_NET/emsdk_env.sh" >/dev/null 2>&1
@@ -68,14 +84,14 @@ cp "$RT/wasm-prefix/lib/libopenvdb.a" "$RT/wasm-prefix/lib/libtbb.a" "$APP/nativ
 # Float trigonometry shared with the native build (libm/float-trig.c explains why).
 emcc -O2 -fno-builtin -c "$HERE/libm/float-trig.c" -o "$APP/native/float-trig.o"
 
-(cd "$APP" && dotnet publish -c Release)
-cp "$APP/index.html" "$APP/bin/Release/net10.0/browser-wasm/AppBundle/"
-echo "AppBundle: $APP/bin/Release/net10.0/browser-wasm/AppBundle (node main.mjs <voxel> <runs> [gyroid|heatx|math])"
+(cd "$APP" && dotnet publish -c Release ${PUBLISH[@]+"${PUBLISH[@]}"})
+cp "$APP/index.html" "$APP/main.mjs" "$APP/$BUNDLE/"
+echo "bundle: $APP/$BUNDLE (node main.mjs <voxel> <runs> [gyroid|heatx|math])"
 
 if [ "${THREADS:-0}" = "1" ]; then
-  EMSDK="$EMSDK_NET" ONETBB_SRC="$OUT/oneTBB" EH_FLAGS="-fwasm-exceptions" THREADS=1 OUT="$RT" JOBS="$JOBS" \
+  EMSDK="$EMSDK_NET" ONETBB_SRC="$OUT/oneTBB" EH_FLAGS="$EH" THREADS=1 OUT="$RT" JOBS="$JOBS" \
     bash "$ROOT/scripts/build-deps-wasm.sh"
-  EMSDK="$EMSDK_NET" EH_FLAGS="-fwasm-exceptions" THREADS=1 OUT="$RT" OUT_JS="$RT/js-mt" JOBS="$JOBS" \
+  EMSDK="$EMSDK_NET" EH_FLAGS="$EH" THREADS=1 OUT="$RT" OUT_JS="$RT/js-mt" JOBS="$JOBS" \
     bash "$ROOT/scripts/build-pico-module.sh"
   [ -f "$ROOT/src/pico.wasm" ] && (cd "$ROOT" && node scripts/generate-wasm-exports.mjs pico)
   MTAPP="$OUT/app-mt"
@@ -84,9 +100,9 @@ if [ "${THREADS:-0}" = "1" ]; then
   emar rcs "$MTAPP/native-mt/picogk.26.2.a" "$RT"/pico_*_module-mt.o
   cp "$RT/wasm-prefix-mt/lib/libopenvdb.a" "$RT/wasm-prefix-mt/lib/libtbb.a" "$MTAPP/native-mt/"
   emcc -O2 -pthread -fno-builtin -c "$HERE/libm/float-trig.c" -o "$MTAPP/native-mt/float-trig.o"
-  (cd "$MTAPP" && dotnet publish -c Release -p:Threads=true)
-  cp "$MTAPP/index.html" "$MTAPP/bin/Release/net10.0/browser-wasm/AppBundle/"
-  echo "threaded AppBundle: $MTAPP/bin/Release/net10.0/browser-wasm/AppBundle (browser-run.mjs only)"
+  (cd "$MTAPP" && dotnet publish -c Release -p:Threads=true ${PUBLISH[@]+"${PUBLISH[@]}"})
+  cp "$MTAPP/index.html" "$MTAPP/main.mjs" "$MTAPP/$BUNDLE/"
+  echo "threaded bundle: $MTAPP/$BUNDLE (browser-run.mjs only)"
 fi
 
 if [ "${NATIVE:-0}" = "1" ]; then

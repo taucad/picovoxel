@@ -44,6 +44,8 @@ node main.mjs 0.5 1 heatx
 node ../../../../../../../../spikes/csharp-wasm/browser-run.mjs . 0.5 1 heatx   # headless Chromium (PW=<playwright path>)
 ```
 
+`NET=11` builds the same app on .NET 11, which pins Emscripten 6.0.2 (set `EMSDK_NET` to an emsdk with 6.0.2). See
+[`results/2026-10-25-emscripten.md`](results/2026-10-25-emscripten.md) for what changes and what it gains.
 `THREADS=1` also builds the threaded AppBundle in `build/csharp-wasm/app-mt` (run it with `browser-run.mjs`).
 `NATIVE=1` also builds the native linux-x64 baseline in `build/csharp-wasm/native-host`; run it with
 `LD_PRELOAD=build/csharp-wasm/native-linux/float-trig.so` to compare bytes. The `ts/` scripts time
