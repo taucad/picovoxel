@@ -126,6 +126,11 @@ export const BULK_FUNCTIONS = [
       { name: 'nCount', type: 'int32_t', cwrap: 'number' },
     ],
   },
+  {
+    name: 'Library_nExceptionKind',
+    cwrapReturn: 'number',
+    args: [{ name: 'pfnRethrow', type: 'PKPFnRethrow', cwrap: 'number' }],
+  },
   // The properties TU (src/pico-props.cpp) — volume/area/bounds in one crossing.
   {
     name: 'Voxels_GetProperties',

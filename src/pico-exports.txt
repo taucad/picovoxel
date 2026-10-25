@@ -150,6 +150,7 @@ _Voxels_RenderImplicitTapeCompose
 _Voxels_IntersectImplicitTape
 _Lattice_AddBeams
 _Lattice_AddSpheres
+_Library_nExceptionKind
 _Voxels_GetProperties
 _Voxels_GetGridHash
 _Voxels_DensifyInterior

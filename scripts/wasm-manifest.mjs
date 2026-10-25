@@ -38,13 +38,17 @@ export const CEILINGS = {
   // agree): the fast-sweeping engine's moving-side re-sweep (ForgetMovingSide,
   // KeepLowerBounds) and its containment guard, which instantiates OpenVDB's
   // csgUnion and csgIntersection in src/pico-offset.cpp; gzip-9 1,315,332 and
-  // brotli-11 559,928, plus 0.5%.
-  serial: { raw: 6_287_200, gzip: 1_321_909, brotli: 562_728 },
+  // brotli-11 559,928, plus 0.5%. Then 6,287,297 raw (+97, local build):
+  // Library_nExceptionKind in src/pico-bulk.cpp, the typed catch that tells
+  // std::bad_alloc from other native throws; gzip-9 1,315,904 and brotli-11
+  // 559,462 stay under the compressed ceilings.
+  serial: { raw: 6_287_297, gzip: 1_321_909, brotli: 562_728 },
   // emcc 5.0.1, the same local build: 6,335,092 raw (+198,128); gzip-9 1,355,263
   // and brotli-11 589,958, plus 0.5% for the compressed ceilings. Then 6,345,219
   // raw (+10,127, same cause as serial); gzip-9 1,357,291 and brotli-11 591,620,
-  // plus 0.5%.
-  multi: { raw: 6_345_219, gzip: 1_364_077, brotli: 594_578 },
+  // plus 0.5%. Then 6,345,288 raw (+69, same cause as serial); gzip-9
+  // 1,358,472 and brotli-11 590,867 stay under the compressed ceilings.
+  multi: { raw: 6_345_288, gzip: 1_364_077, brotli: 594_578 },
 };
 
 /** Byte counts and digest for one file. */

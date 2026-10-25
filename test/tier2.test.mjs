@@ -1342,6 +1342,26 @@ test('Library — info strings, conversions, voxel size', () => {
   });
 });
 
+test('Library_nExceptionKind — a bogus-handle throw rethrown into the module is not std::bad_alloc', () => {
+  withLib(0.5, (lib) => {
+    let thrown = null;
+    try {
+      fns.Mesh_nTriangleCount(lib, 987654321n);
+    } catch (e) {
+      thrown = e;
+    }
+    assert.ok(thrown instanceof WebAssembly.Exception, 'premise: roGet throws across the ABI');
+    const rethrow = module.addFunction(() => {
+      throw thrown;
+    }, 'v');
+    try {
+      assert.equal(fns.Library_nExceptionKind(rethrow), 0, 'std::out_of_range is not heap exhaustion');
+    } finally {
+      module.removeFunction(rethrow);
+    }
+  });
+});
+
 // ── The R14 gate ───────────────────────────────────────────────────────────────
 after(() => {
   // The multi artifact (PICOVOXEL_R14_ARTIFACT=multi) keeps pthread workers alive.
