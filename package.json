@@ -196,7 +196,7 @@
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
     "@eslint/js": "9.32.0",
-    "@nx/js": "23.1.2",
+    "@nx/js": "23.2.1",
     "@size-limit/file": "13.0.3",
     "@types/node": "26.1.1",
     "@types/three": "0.185.1",
@@ -204,7 +204,7 @@
     "eslint": "9.32.0",
     "globals": "17.11.0",
     "knip": "6.17.1",
-    "nx": "23.1.2",
+    "nx": "23.2.1",
     "oxfmt": "0.36.0",
     "oxlint": "1.70.0",
     "oxlint-tsgolint": "0.22.1",
