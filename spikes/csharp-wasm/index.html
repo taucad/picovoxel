@@ -6,7 +6,7 @@
   import { dotnet } from './_framework/dotnet.js';
   const out = document.getElementById('out');
   const params = new URLSearchParams(location.search);
-  const args = [params.get('voxel') ?? '0.5', params.get('runs') ?? '3'];
+  const args = [params.get('voxel') ?? '0.5', params.get('runs') ?? '3', params.get('program') ?? 'gyroid'];
   const log = console.log.bind(console);
   out.textContent = '';
   console.log = (...a) => { out.textContent += a.join(' ') + '\n'; log(...a); };

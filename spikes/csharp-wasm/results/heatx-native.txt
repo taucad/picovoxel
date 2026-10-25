@@ -1,0 +1,26 @@
+# gyroid-native 0.5 1 heatx, 4 cores, system glibc float trig
+PicoGK: PicoGK Core Library 26.2.0; voxel 0.5 mm; init 363.7 ms
+Starting Task.
+STL Export: HelixHeatX.STL exported.
+Finished Task successfully.
+run 0: task 151140.7 ms; STL 502880684 bytes, digest 7714166db2385cde
+  group 81: volume 719572.250 mm3 (bits 492fad44), 10057612 triangles, mesh digest a654667cf3267d5e
+  props 14289.5 ms
+
+# taskset -c 0, system glibc float trig
+PicoGK: PicoGK Core Library 26.2.0; voxel 0.5 mm; init 17.0 ms
+Starting Task.
+STL Export: HelixHeatX.STL exported.
+Finished Task successfully.
+run 0: task 326358.6 ms; STL 502880684 bytes, digest 7714166db2385cde
+  group 81: volume 719572.250 mm3 (bits 492fad44), 10057612 triangles, mesh digest a654667cf3267d5e
+  props 50185.6 ms
+
+# 4 cores, LD_PRELOAD=float-trig.so
+PicoGK: PicoGK Core Library 26.2.0; voxel 0.5 mm; init 12.8 ms
+Starting Task.
+STL Export: HelixHeatX.STL exported.
+Finished Task successfully.
+run 0: task 134696.5 ms; STL 502880684 bytes, digest b9dac944dc434a69
+  group 81: volume 719572.250 mm3 (bits 492fad44), 10057612 triangles, mesh digest 2a13ca3e320a6075
+  props 14515.5 ms

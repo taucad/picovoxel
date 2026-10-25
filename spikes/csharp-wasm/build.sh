@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# C# PicoGK in the browser: builds the unmodified LEAP 71 gyroid-sphere example, the
-# PicoGK C# library and ShapeKernel for .NET browser-wasm, with the PicoGK runtime
-# (and picovoxel's own exports) statically linked into the same wasm module.
+# C# PicoGK in the browser: builds two unmodified LEAP 71 programs (the gyroid-sphere
+# example and the Helix heat exchanger), the PicoGK C# library and ShapeKernel for .NET
+# browser-wasm, with the PicoGK runtime (and picovoxel's own exports) statically linked
+# into the same wasm module.
 #
 # Needs: scripts/fetch-deps.sh sources in vendor/, a .NET 10 SDK with the wasm-tools
 # workload on PATH, and an emsdk at the Emscripten version that .NET's workload pins
@@ -18,6 +19,7 @@ OUT="${OUT:-$ROOT/build/csharp-wasm}"
 EMSDK_NET="${EMSDK_NET:?set EMSDK_NET to an emsdk with 3.1.56 activated}"
 PICOGK_CS_SHA="0e6cf6b6f4993ec16dbcd72d8f27f26b999980f3"     # leap71/PicoGK (C# library, v2.3.0 line)
 SHAPEKERNEL_SHA="827fb6e89c09efdd1c3790bead7bd61b625f1640"   # leap71/LEAP71_ShapeKernel
+HEATX_SHA="a0a0234eb048b6963fb5787fce8315c7b0110b5c"         # leap71/LEAP71_HelixHeatX
 JOBS="${JOBS:-$(getconf _NPROCESSORS_ONLN)}"
 mkdir -p "$OUT"
 
@@ -45,6 +47,7 @@ fetch() { # <dest> <repo> <sha>
 }
 fetch "$OUT/src/PicoGK" leap71/PicoGK "$PICOGK_CS_SHA"
 fetch "$OUT/src/ShapeKernel" leap71/LEAP71_ShapeKernel "$SHAPEKERNEL_SHA"
+fetch "$OUT/src/HelixHeatX" leap71/LEAP71_HelixHeatX "$HEATX_SHA"
 
 APP="$OUT/app"
 rm -rf "$APP"; mkdir -p "$APP/native" "$APP/examples"
@@ -54,15 +57,18 @@ cp "$HERE/prepare.sh" "$HERE/patch-callbacks.py" "$APP/"
 bash "$APP/prepare.sh" "$OUT/src/PicoGK" "$APP/picogk"
 cp -r "$OUT/src/ShapeKernel/ShapeKernel" "$APP/shapekernel"
 cp "$OUT/src/ShapeKernel/Examples/Ex_ImplicitGyroidSphere.cs" "$APP/examples/"
+cp -r "$OUT/src/HelixHeatX/src" "$APP/examples/heatx"
 
 # 4. The PicoGK runtime as the archive the DllImport name resolves to.
 source "$EMSDK_NET/emsdk_env.sh" >/dev/null 2>&1
 emar rcs "$APP/native/picogk.26.2.a" "$RT"/pico_*_module.o
 cp "$RT/wasm-prefix/lib/libopenvdb.a" "$RT/wasm-prefix/lib/libtbb.a" "$APP/native/"
+# Float trigonometry shared with the native build (libm/float-trig.c explains why).
+emcc -O2 -fno-builtin -c "$HERE/libm/float-trig.c" -o "$APP/native/float-trig.o"
 
 (cd "$APP" && dotnet publish -c Release)
 cp "$APP/index.html" "$APP/bin/Release/net10.0/browser-wasm/AppBundle/"
-echo "AppBundle: $APP/bin/Release/net10.0/browser-wasm/AppBundle (node main.mjs <voxel> <runs>)"
+echo "AppBundle: $APP/bin/Release/net10.0/browser-wasm/AppBundle (node main.mjs <voxel> <runs> [gyroid|heatx|math])"
 
 if [ "${NATIVE:-0}" = "1" ]; then
   # The native baseline: the upstream core TU only (picovoxel's TUs are wasm-specific).
@@ -85,7 +91,8 @@ if [ "${NATIVE:-0}" = "1" ]; then
     -I"$V/PicoGKRuntime/API" -I"$V/PicoGKRuntime/Source" -I"$N/prefix/include" -c "$N/core.cpp" -o "$N/core.o"
   g++ -shared "${FL[@]}" "$N/core.o" "$N/prefix/lib/libopenvdb.a" "$N/prefix/lib/libtbb.a" -lpthread -ldl \
     -Wl,--no-undefined -o "$N/picogk.26.2.so"
+  gcc -O2 -fPIC -shared -fno-builtin "$HERE/libm/float-trig.c" -o "$N/float-trig.so" -lm
   mkdir -p "$OUT/native-host"; cp "$HERE/native-host/gyroid-native.csproj" "$OUT/native-host/"
   (cd "$OUT/native-host" && dotnet build -c Release)
-  echo "native: $OUT/native-host/bin/Release/net10.0/linux-x64/gyroid-native <voxel> <runs>"
+  echo "native: LD_PRELOAD=$N/float-trig.so $OUT/native-host/bin/Release/net10.0/linux-x64/gyroid-native <voxel> <runs> [gyroid|heatx|math]"
 fi

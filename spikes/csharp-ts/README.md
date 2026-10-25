@@ -28,6 +28,11 @@ into a few categories: base-library types (`List<T>`, `Random`, `StreamWriter`),
 `ref`/`out`, enums, operator declarations and delegates. See
 [`results/shapekernel-coverage.txt`](results/shapekernel-coverage.txt).
 
+On the Helix heat exchanger's own sources, it handles 36 of 51 members. The gaps are the same categories:
+`ref`/`out` (5), `List<T>` (5), `%=` and `&=` (3), one enum and the viewer's screenshot call. Running it would also
+need the translated ShapeKernel and a larger mirrored runtime (lattices, booleans, offsets, STL export). See
+[`results/heatx-coverage.txt`](results/heatx-coverage.txt).
+
 ## Run
 
 ```sh

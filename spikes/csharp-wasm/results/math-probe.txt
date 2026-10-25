@@ -1,0 +1,71 @@
+# native, system glibc 2.39
+PicoGK: PicoGK Core Library 26.2.0; voxel 0.5 mm; init 12.5 ms
+MathF.Sin            e7d6cfe836ed976d
+MathF.Cos            8439712103253f7f
+MathF.Tan            367248701bd88a3d
+MathF.Atan           2fea30b3f1ff3da8
+MathF.Atan2(x,1.3)   4a0271642af51309
+MathF.Acos           92bfc88dc60908f5
+MathF.Asin           873955ddc2ad1a80
+MathF.Pow(x,2.5)     2b7eb13db95182bb
+MathF.Exp            5c7be987e1fbf587
+MathF.Log            871b4d713df82722
+MathF.Sqrt           931d77e8404ba7f1
+Math.Sin             2bf1989c2c3dd1e1
+Math.Cos             a4def988b22c3b0b
+Math.Atan2(x,1.3)    b0319152e52be1fd
+Math.Pow(x,2.5)      6018666ffc678e4f
+
+# wasm (Node), Emscripten 3.1.56 musl
+PicoGK: PicoGK Core Library 26.2.0; voxel 0.5 mm; init 16.8 ms
+MathF.Sin            fb63f767bbe999e9
+MathF.Cos            6920db7d6ef9acaf
+MathF.Tan            cda78439c7e75e61
+MathF.Atan           4f0d5f649da7b3c0
+MathF.Atan2(x,1.3)   cd44b104d9004ba9
+MathF.Acos           8523cfba623b79f3
+MathF.Asin           91f9212e5e517ca8
+MathF.Pow(x,2.5)     2b7eb13db95182bb
+MathF.Exp            5c7be987e1fbf587
+MathF.Log            871b4d713df82722
+MathF.Sqrt           931d77e8404ba7f1
+Math.Sin             2bf1989c2c3dd1e1
+Math.Cos             a4def988b22c3b0b
+Math.Atan2(x,1.3)    b0319152e52be1fd
+Math.Pow(x,2.5)      6018666ffc678e4f
+
+# native, LD_PRELOAD=float-trig.so
+PicoGK: PicoGK Core Library 26.2.0; voxel 0.5 mm; init 13.1 ms
+MathF.Sin            2bf1989c2c3dd1e1
+MathF.Cos            a4def988b22c3b0b
+MathF.Tan            084d2e96de69ac61
+MathF.Atan           a5c0e5ef7029dd1c
+MathF.Atan2(x,1.3)   0e98d0c5ee7afe65
+MathF.Acos           5f23e9016fdcfca9
+MathF.Asin           97358ad8d3af2a9c
+MathF.Pow(x,2.5)     2b7eb13db95182bb
+MathF.Exp            5c7be987e1fbf587
+MathF.Log            871b4d713df82722
+MathF.Sqrt           931d77e8404ba7f1
+Math.Sin             2bf1989c2c3dd1e1
+Math.Cos             a4def988b22c3b0b
+Math.Atan2(x,1.3)    b0319152e52be1fd
+Math.Pow(x,2.5)      6018666ffc678e4f
+
+# wasm (Node), float-trig.o
+PicoGK: PicoGK Core Library 26.2.0; voxel 0.5 mm; init 11.6 ms
+MathF.Sin            2bf1989c2c3dd1e1
+MathF.Cos            a4def988b22c3b0b
+MathF.Tan            084d2e96de69ac61
+MathF.Atan           a5c0e5ef7029dd1c
+MathF.Atan2(x,1.3)   0e98d0c5ee7afe65
+MathF.Acos           5f23e9016fdcfca9
+MathF.Asin           97358ad8d3af2a9c
+MathF.Pow(x,2.5)     2b7eb13db95182bb
+MathF.Exp            5c7be987e1fbf587
+MathF.Log            871b4d713df82722
+MathF.Sqrt           931d77e8404ba7f1
+Math.Sin             2bf1989c2c3dd1e1
+Math.Cos             a4def988b22c3b0b
+Math.Atan2(x,1.3)    b0319152e52be1fd
+Math.Pow(x,2.5)      6018666ffc678e4f

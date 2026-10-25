@@ -17,7 +17,7 @@
   <ItemGroup>
     <Compile Include="$(G)/picogk/**/*.cs" />
     <Compile Include="$(G)/shapekernel/**/*.cs" />
-    <Compile Include="$(G)/examples/*.cs" />
+    <Compile Include="$(G)/examples/**/*.cs" />
     <Compile Include="$(G)/host/*.cs" />
     <PackageReference Include="SkiaSharp" Version="3.119.0" />
     <None Include="../native-linux/picogk.26.2.so" CopyToOutputDirectory="PreserveNewest" />

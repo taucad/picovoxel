@@ -1,0 +1,17 @@
+# node main.mjs 0.5 1 heatx, musl float trig (FloatTrig=false)
+PicoGK: PicoGK Core Library 26.2.0; voxel 0.5 mm; init 12.0 ms
+Starting Task.
+STL Export: HelixHeatX.STL exported.
+Finished Task successfully.
+run 0: task 400546.5 ms; STL 502880684 bytes, digest 38ff99b466c83cc1
+  group 81: volume 719572.250 mm3 (bits 492fad44), 10057612 triangles, mesh digest 366cd46e2611fca5
+  props 58676.7 ms
+
+# with float-trig.o
+PicoGK: PicoGK Core Library 26.2.0; voxel 0.5 mm; init 11.8 ms
+Starting Task.
+STL Export: HelixHeatX.STL exported.
+Finished Task successfully.
+run 0: task 402591.6 ms; STL 502880684 bytes, digest b9dac944dc434a69
+  group 81: volume 719572.250 mm3 (bits 492fad44), 10057612 triangles, mesh digest 2a13ca3e320a6075
+  props 58716.0 ms

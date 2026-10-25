@@ -25,7 +25,7 @@
     <!-- The unmodified PicoGK C# library (headless split) and LEAP 71 ShapeKernel. -->
     <Compile Include="picogk/**/*.cs" />
     <Compile Include="shapekernel/**/*.cs" />
-    <Compile Include="examples/*.cs" />
+    <Compile Include="examples/**/*.cs" />
     <!-- The web host: the platform shim (viewer, Library.Go) and the entry point. -->
     <Compile Include="host/*.cs" />
   </ItemGroup>
@@ -40,5 +40,8 @@
     <NativeFileReference Include="$(PicoNative)/picogk.26.2.a" />
     <NativeFileReference Include="$(PicoNative)/libopenvdb.a" />
     <NativeFileReference Include="$(PicoNative)/libtbb.a" />
+    <!-- Float trigonometry through the double functions, matching the native build's preload
+         (libm/float-trig.c); an object file, so it wins over musl's sinf without a clash. -->
+    <NativeFileReference Include="$(PicoNative)/float-trig.o" Condition="'$(FloatTrig)' != 'false'" />
   </ItemGroup>
 </Project>

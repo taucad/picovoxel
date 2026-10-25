@@ -11,6 +11,12 @@ The meshes are byte-identical to the same C# on native .NET against a native run
 Single-threaded, the kernel and the SDF callbacks run at native single-core speed, and meshing is about 12% slower.
 The full numbers are in [`results/2026-10-24.md`](results/2026-10-24.md).
 
+The same build runs LEAP 71's unmodified Helix heat exchanger (`heatx`). It writes a 503 MB STL that is
+byte-identical in Node, Chromium and native .NET. Single-threaded, it takes 392 s in Chromium, 326 s on one native
+core and 135 s on four. Matching bytes needs one shared implementation of float trigonometry on both sides
+(`libm/float-trig.c`), because .NET's `MathF` trigonometry comes from the platform C library, and glibc and musl
+differ in the last bit. See [`results/2026-10-25-heatx.md`](results/2026-10-25-heatx.md).
+
 ## What changes and what does not
 
 - The example and ShapeKernel compile as published.
@@ -29,11 +35,13 @@ bash scripts/fetch-deps.sh                 # vendor/ sources
 # .NET 10 SDK with `dotnet workload install wasm-tools`, and an emsdk with 3.1.56 activated
 EMSDK_NET=/path/to/emsdk-3.1.56 bash spikes/csharp-wasm/build.sh
 cd build/csharp-wasm/app/bin/Release/net10.0/browser-wasm/AppBundle
-node main.mjs 0.5 3                        # voxel size, runs
-node ../../../../../../../../spikes/csharp-wasm/browser-run.mjs . 0.5   # headless Chromium (PW=<playwright path>)
+node main.mjs 0.5 3                        # voxel size, runs, then gyroid (default), heatx or math
+node main.mjs 0.5 1 heatx
+node ../../../../../../../../spikes/csharp-wasm/browser-run.mjs . 0.5 1 heatx   # headless Chromium (PW=<playwright path>)
 ```
 
-`NATIVE=1` also builds the native linux-x64 baseline in `build/csharp-wasm/native-host`. The `ts/` scripts time
+`NATIVE=1` also builds the native linux-x64 baseline in `build/csharp-wasm/native-host`; run it with
+`LD_PRELOAD=build/csharp-wasm/native-linux/float-trig.so` to compare bytes. The `ts/` scripts time
 picovoxel's TypeScript port of the same example from this checkout.
 
 The runtime must be built with the Emscripten version that .NET's workload pins, which is 3.1.56 for .NET 10. The

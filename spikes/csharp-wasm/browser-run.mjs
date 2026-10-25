@@ -1,4 +1,5 @@
 // Serves the AppBundle and runs it in headless Chromium, printing the page's console.
+// Usage: node browser-run.mjs <AppBundle> [voxel] [runs] [gyroid|heatx]
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
@@ -19,8 +20,8 @@ const browser = await chromium.launch();
 const page = await browser.newPage();
 page.on('console', (m) => console.log(m.text()));
 page.on('pageerror', (e) => console.log('pageerror', e.message));
-await page.goto(`http://localhost:${port}/index.html?voxel=${process.argv[3] ?? 0.5}&runs=3`);
-await page.waitForFunction(() => document.title === 'done', null, { timeout: 600000 });
+await page.goto(`http://localhost:${port}/index.html?voxel=${process.argv[3] ?? 0.5}&runs=${process.argv[4] ?? 3}&program=${process.argv[5] ?? 'gyroid'}`);
+await page.waitForFunction(() => document.title === 'done', null, { timeout: 3600000 });
 console.log(`browser: ${await browser.version()}`);
 await browser.close();
 server.close();
