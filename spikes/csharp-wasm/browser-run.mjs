@@ -20,10 +20,19 @@ const server = createServer(async (req, res) => {
 const port = server.address().port;
 const browser = await chromium.launch();
 const page = await browser.newPage();
-page.on('console', (m) => console.log(m.text()));
+const lines = [];
+page.on('console', (m) => { lines.push(m.text()); console.log(m.text()); });
 page.on('pageerror', (e) => console.log('pageerror', e.message));
 await page.goto(`http://localhost:${port}/index.html?voxel=${process.argv[3] ?? 0.5}&runs=${process.argv[4] ?? 3}&program=${process.argv[5] ?? 'gyroid'}`);
-await page.waitForFunction(() => document.title === 'done', null, { timeout: 3600000 });
+await page.waitForFunction(() => ['done', 'failed'].includes(document.title), null, { timeout: 3600000 });
+const failed = await page.title() === 'failed';
 console.log(`browser: ${await browser.version()}`);
 await browser.close();
 server.close();
+const program = process.argv[5] ?? 'gyroid';
+const expected = program === 'heatx' ? ['b9dac944dc434a69'] : program.startsWith('gyroid') ? ['2b43725651c3733a', 'b8aa4cfd3b2b77f9'] : [];
+const missing = expected.filter(digest => !lines.some(line => line.includes(digest)));
+if (failed || missing.length || !lines.some(line => line === 'exit 0')) {
+  console.error(`verification failed: page=${failed ? 'failed' : 'done'}, missing digests=${missing.join(',')}`);
+  process.exitCode = 1;
+}

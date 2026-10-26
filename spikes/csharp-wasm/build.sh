@@ -4,13 +4,13 @@
 # browser-wasm, with the PicoGK runtime (and picovoxel's own exports) statically linked
 # into the same wasm module.
 #
-# Needs: scripts/fetch-deps.sh sources in vendor/, a .NET 10 SDK with the wasm-tools
+# Needs: scripts/fetch-deps.sh sources in vendor/, a .NET 11 SDK with the wasm-tools
 # workload on PATH, and an emsdk at the Emscripten version that .NET's workload pins
-# (3.1.56 for .NET 10), named by EMSDK_NET. The runtime is rebuilt with that version
-# because .NET links its own prebuilt Mono archives with it; picovoxel's 5.0.1 objects
-# are not link-compatible with them.
+# (6.0.2 for .NET 11 RC3), named by EMSDK_NET. The runtime is rebuilt with that
+# version because .NET links its own prebuilt Mono archives with it. NET=10 remains
+# available only to reproduce historical experiments with its 3.1.56 compiler.
 #
-# NET=11 builds on .NET 11 instead, whose workload pins Emscripten 6.0.2: EMSDK_NET then
+# NET=11 is the default; its workload pins Emscripten 6.0.2: EMSDK_NET then
 # names an emsdk with 6.0.2, and the runtime uses the standard wasm exception format.
 # THREADS=1 also builds the multithreaded variant in app-mt: .NET's threaded runtime with the
 # pthreads build of the PicoGK runtime. It runs in browsers only (cross-origin isolated).
@@ -19,7 +19,7 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
-NET="${NET:-10}"
+NET="${NET:-11}"
 EMSDK_NET="${EMSDK_NET:?set EMSDK_NET to an emsdk at the version the .NET workload pins}"
 if [ "$NET" = "11" ]; then
   OUT="${OUT:-$ROOT/build/csharp-wasm-net11}"
@@ -37,13 +37,25 @@ SHAPEKERNEL_SHA="827fb6e89c09efdd1c3790bead7bd61b625f1640"   # leap71/LEAP71_Sha
 HEATX_SHA="a0a0234eb048b6963fb5787fce8315c7b0110b5c"         # leap71/LEAP71_HelixHeatX
 JOBS="${JOBS:-$(getconf _NPROCESSORS_ONLN)}"
 mkdir -p "$OUT"
+source "$EMSDK_NET/emsdk_env.sh" >/dev/null 2>&1
+EXPECTED_EMSCRIPTEN=3.1.56
+[ "$NET" = "11" ] && EXPECTED_EMSCRIPTEN=6.0.2
+ACTUAL_EMSCRIPTEN="$(emcc --dumpversion)"
+if [ "$ACTUAL_EMSCRIPTEN" != "$EXPECTED_EMSCRIPTEN" ]; then
+  echo "Expected .NET $NET workload Emscripten $EXPECTED_EMSCRIPTEN, got $ACTUAL_EMSCRIPTEN" >&2
+  exit 1
+fi
 
 # 1. oneTBB hardcodes -fexceptions for Emscripten; emcc 3.1.56 refuses it next to
 #    -fwasm-exceptions (5.0.1 and later let the later flag win), so this build edits a copy.
 rm -rf "$OUT/oneTBB"
 cp -r "$ROOT/vendor/oneTBB" "$OUT/oneTBB"
-sed -i 's/TBB_COMMON_COMPILE_FLAGS} -fexceptions)/TBB_COMMON_COMPILE_FLAGS} -fwasm-exceptions)/' \
-  "$OUT/oneTBB/cmake/compilers/Clang.cmake"
+python3 - "$OUT/oneTBB/cmake/compilers/Clang.cmake" <<'PYEDIT'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+p.write_text(p.read_text().replace('TBB_COMMON_COMPILE_FLAGS} -fexceptions)', 'TBB_COMMON_COMPILE_FLAGS} -fwasm-exceptions)'))
+PYEDIT
 
 # 2. The runtime at .NET's Emscripten: same scripts, same sources.
 RT="$OUT/rt"
@@ -74,7 +86,12 @@ cp "$OUT/src/ShapeKernel/Examples/Ex_ImplicitGyroidSphere.cs" "$APP/examples/"
 cp -r "$OUT/src/HelixHeatX/src" "$APP/examples/heatx"
 # .NET 11 assembles the browser bundle only in the WebAssembly SDK.
 if [ "$NET" = "11" ]; then
-  sed -i 's#<Project Sdk="Microsoft.NET.Sdk">#<Project Sdk="Microsoft.NET.Sdk.WebAssembly">#' "$APP/gyroid.csproj"
+  python3 - "$APP/gyroid.csproj" <<'PYEDIT'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+p.write_text(p.read_text().replace('Microsoft.NET.Sdk"', 'Microsoft.NET.Sdk.WebAssembly"'))
+PYEDIT
 fi
 
 # 4. The PicoGK runtime as the archive the DllImport name resolves to.
