@@ -2,6 +2,16 @@
 
 Release entries are generated from Nx Version Plans. The first release is 0.1.0.
 
+## 0.2.1 (2026-10-26)
+
+### 🩹 Fixes
+
+- Build with Emscripten 6.0.2, restore the wasmBinary and mainScriptUrlOrBlob overrides, and preserve runningWorkers as a live compatibility getter. Retain fixed-length memory buffers for browser TextDecoder compatibility. ([9204819](https://github.com/taucad/picovoxel/commit/9204819))
+
+### ❤️ Thank You
+
+- Richard Fontein @rifont
+
 ## 0.2.0 (2026-10-25)
 
 ### 🚀 Features
