@@ -149,7 +149,7 @@ test('multi session: bulk reads refresh heap views a worker-side growth left sta
 
     // Emscripten 6.0.2 uses growable buffers where the host supports them.
     // Select a fixed-length buffer so this regression still creates stale views.
-    memory.toFixedLengthBuffer?.();
+    (memory as { toFixedLengthBuffer?: () => ArrayBuffer }).toFixedLengthBuffer?.();
     refreshHeapViews(multi.module);
     expect(multi.module.HEAPU8.buffer).toBe(memory.buffer);
     memory.grow(1);
