@@ -11,6 +11,8 @@ const COMPONENT_UINT = 5125;
 const TARGET_ARRAY_BUFFER = 34962;
 const TARGET_ELEMENT_ARRAY_BUFFER = 34963;
 
+const ASSET = { version: '2.0', generator: 'picovoxel' };
+
 const pad4 = (n: number): number => (n + 3) & ~3;
 
 /**
@@ -19,6 +21,11 @@ const pad4 = (n: number): number => (n + 3) & ~3;
  * @returns GLB bytes
  */
 export function createGlb(vertices: Float32Array, indices: Uint32Array): Uint8Array {
+  // MI21: glTF needs every accessor, buffer view and buffer to be non-empty, and
+  // POSITION min/max to be numbers. A mesh without triangles is an empty scene:
+  // no mesh, no buffers, no BIN chunk.
+  if (indices.length === 0) return writeGlb({ asset: ASSET, scene: 0, scenes: [{}] }, 0);
+
   // glTF requires accessor min/max on POSITION — viewers use it for framing.
   const min = [Infinity, Infinity, Infinity];
   const max = [-Infinity, -Infinity, -Infinity];
@@ -35,7 +42,7 @@ export function createGlb(vertices: Float32Array, indices: Uint32Array): Uint8Ar
   const binLength = pad4(indexOffset + indices.byteLength);
 
   const gltf = {
-    asset: { version: '2.0', generator: 'picovoxel' },
+    asset: ASSET,
     scene: 0,
     scenes: [{ nodes: [0] }],
     nodes: [{ mesh: 0 }],
@@ -56,9 +63,24 @@ export function createGlb(vertices: Float32Array, indices: Uint32Array): Uint8Ar
     ],
   };
 
+  return writeGlb(gltf, binLength, (out, at) => {
+    out.set(new Uint8Array(vertices.buffer, vertices.byteOffset, vertexBytes), at);
+    out.set(new Uint8Array(indices.buffer, indices.byteOffset, indices.byteLength), at + indexOffset);
+  });
+}
+
+/**
+ * Writes the 12-byte header, the JSON chunk and, when `writeBin` is given, a
+ * BIN chunk of `binLength` bytes that it fills in place.
+ */
+function writeGlb(
+  gltf: object,
+  binLength: number,
+  writeBin?: (out: Uint8Array, at: number) => void,
+): Uint8Array {
   const jsonBytes = new TextEncoder().encode(JSON.stringify(gltf));
   const jsonLength = pad4(jsonBytes.length);
-  const total = 12 + 8 + jsonLength + 8 + binLength;
+  const total = 12 + 8 + jsonLength + (writeBin === undefined ? 0 : 8 + binLength);
 
   const out = new Uint8Array(total);
   const view = new DataView(out.buffer);
@@ -78,11 +100,12 @@ export function createGlb(vertices: Float32Array, indices: Uint32Array): Uint8Ar
   out.fill(0x20, o + jsonBytes.length, o + jsonLength); // JSON chunk pads with spaces
   o += jsonLength;
 
-  view.setUint32(o, binLength, true);
-  o += 4;
-  view.setUint32(o, BIN_CHUNK, true);
-  o += 4;
-  out.set(new Uint8Array(vertices.buffer, vertices.byteOffset, vertexBytes), o);
-  out.set(new Uint8Array(indices.buffer, indices.byteOffset, indices.byteLength), o + indexOffset);
+  if (writeBin !== undefined) {
+    view.setUint32(o, binLength, true);
+    o += 4;
+    view.setUint32(o, BIN_CHUNK, true);
+    o += 4;
+    writeBin(out, o);
+  }
   return out;
 }

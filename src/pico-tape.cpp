@@ -68,8 +68,6 @@
 
 #include <openvdb/tools/Composite.h>
 
-#include <unordered_set>
-
 #include <tbb/blocked_range2d.h>
 #include <tbb/enumerable_thread_specific.h>
 #include <tbb/parallel_for.h>
@@ -78,6 +76,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iterator>
+#include <unordered_map>
+#include <utility>
 #include <cstdint>
 #include <limits>
 #include <stdexcept>
@@ -150,6 +151,15 @@ void ValidateTape(  const uint32_t* pnInstructions,
     }
 }
 
+/// WA3 — pow(a, 2) as a * a, which is what V8's Math.pow returns for an
+/// exponent of 2 (fdlibm e_pow.c) and what the JS-callback path computes.
+/// musl's pow differs from a * a by one ulp on about 0.1 % of inputs and costs
+/// far more. Interval bounds keep std::pow: their 8-ulp widening covers both.
+inline double dPow(double a, double b)
+{
+    return b == 2.0 ? a * a : std::pow(a, b);
+}
+
 inline double dEvalOne( const uint32_t* pnInstructions,
                         int32_t         i,
                         const double*   pfConstants,
@@ -182,7 +192,7 @@ inline double dEvalOne( const uint32_t* pnInstructions,
         case TAPE_MOD:   return pfReg[nA] - pfReg[nB] * std::floor(pfReg[nA] / pfReg[nB]);
         case TAPE_MIN:   return std::min(pfReg[nA], pfReg[nB]);
         case TAPE_MAX:   return std::max(pfReg[nA], pfReg[nB]);
-        case TAPE_POW:   return std::pow(pfReg[nA], pfReg[nB]);
+        case TAPE_POW:   return dPow(pfReg[nA], pfReg[nB]);
         case TAPE_EXP:   return std::exp(pfReg[nA]);
         default:         return std::log(pfReg[nA]); // TAPE_LOG — ValidateTape rejects everything else
     }
@@ -217,13 +227,17 @@ void EvalTapeIndices(   const uint32_t* pnInstructions,
 // operand on unordered comparisons, and min(+0,-0)=+0 / max(-0,+0)=-0 (the
 // comparison is false on equal-valued zeros, so lane selection falls through
 // to operand a, same as the scalar template). Transcendentals stay scalar
-// musl calls per lane — a vectorized polynomial libm would break the
-// tape ≡ JS pin (musl-wasm ≡ V8 fdlibm).
+// musl calls per lane, so f64x2 and scalar evaluation stay bit-identical; a
+// vectorized polynomial libm would break that. The tape ≡ JS-callback pins
+// are a narrower claim: musl-wasm and V8's Math differ in the last double bit
+// on some sin/cos/exp/log inputs, and the pinned fixtures agree only after
+// rounding to the float32 grid.
 //
-// Only instructions whose axis mask contains Z can appear in the level-3
-// list (CONST/X/Y sit at levels 0-2 by construction), so leaves reduce to
-// TAPE_Z. Operands from lower levels are lane-splat from the scalar register
-// file on the fly — the axis mask doubles as the "which file" discriminator.
+// Only z-mixed instructions (z with x or y) reach this evaluator; z-only
+// ones, TAPE_Z among them, are evaluated once per layer and their lane pairs
+// loaded from the cache (WA1), so no leaf reaches it. Operands without z are
+// lane-splat from the scalar register file on the fly — the axis mask doubles
+// as the "which file" discriminator.
 // ---------------------------------------------------------------------------
 
 void EvalTapeIndicesV(  const uint32_t* pnInstructions,
@@ -231,7 +245,6 @@ void EvalTapeIndicesV(  const uint32_t* pnInstructions,
                         int32_t         nIdxCount,
                         const uint8_t*  pnAxisMask,
                         const double*   pfRegScalar,
-                        v128_t          vZ,
                         v128_t*         pvReg)
 {
     const auto LANE = [&](uint32_t r) -> v128_t
@@ -255,7 +268,6 @@ void EvalTapeIndicesV(  const uint32_t* pnInstructions,
         v128_t vResult;
         switch (nOp)
         {
-            case TAPE_Z:     vResult = vZ;                                          break;
             case TAPE_ADD:   vResult = wasm_f64x2_add(LANE(nA), LANE(nB));          break;
             case TAPE_SUB:   vResult = wasm_f64x2_sub(LANE(nA), LANE(nB));          break;
             case TAPE_MUL:   vResult = wasm_f64x2_mul(LANE(nA), LANE(nB));          break;
@@ -284,8 +296,8 @@ void EvalTapeIndicesV(  const uint32_t* pnInstructions,
             case TAPE_POW:
             {
                 const v128_t vA = LANE(nA), vB = LANE(nB);
-                vResult = wasm_f64x2_make(  std::pow(wasm_f64x2_extract_lane(vA, 0), wasm_f64x2_extract_lane(vB, 0)),
-                                            std::pow(wasm_f64x2_extract_lane(vA, 1), wasm_f64x2_extract_lane(vB, 1)));
+                vResult = wasm_f64x2_make(  dPow(wasm_f64x2_extract_lane(vA, 0), wasm_f64x2_extract_lane(vB, 0)),
+                                            dPow(wasm_f64x2_extract_lane(vA, 1), wasm_f64x2_extract_lane(vB, 1)));
             } break;
             case TAPE_EXP:   vResult = LIBM1(LANE(nA), std::exp);                   break;
             default:         vResult = LIBM1(LANE(nA), std::log);                   break; // TAPE_LOG
@@ -505,7 +517,7 @@ Interval ivPow(const Interval& a, const Interval& b)
 
     // For x >= 0, pow is monotone in x for fixed y and in y for fixed x, so
     // box extrema sit on corners (pow(0,0)=1 and pow(0,neg)=+inf included,
-    // matching the scalar std::pow the dense loop uses).
+    // matching the scalar dPow the dense loop uses, within its widening).
     return ivFromCorners(   std::pow(a.fLo, b.fLo), std::pow(a.fLo, b.fHi),
                             std::pow(a.fHi, b.fLo), std::pow(a.fHi, b.fHi), 8);
 }
@@ -665,23 +677,314 @@ int32_t nShortenTape(   const uint32_t* pnInstructions,
     return nOut;
 }
 
-/// The parallel fill core shared by the fresh-grid and intersect entries:
-/// renders the tape into roGrid — which MUST be empty (that is what makes
-/// upstream's min(sdf, existing) collapse to min(sdf, background) and the
-/// node-steal merge sound) — over oBBox expanded by the narrow band.
-/// F17 (SKv2-0 V0.10): when poColumns is non-null, only leaf-aligned (x,y)
-/// block columns present in the set are evaluated — the caller marks the
-/// support of a mask grid, and skipped columns simply produce no fresh
-/// values (for intersection they could only produce background anyway).
-/// nullptr = the pre-V0.10 behavior, byte-for-byte.
-void ParallelTapeFillGrid(  const openvdb::FloatGrid::Ptr& roGrid,
-                            const float                    fBackground,
-                            const PicoGK::VoxelSize        oVoxelSize,
-                            const PKBBox3&                 oBBox,
-                            const uint32_t*                pnInstructions,
-                            int32_t                        nInstructionCount,
-                            const double*                  pfConstants,
-                            const std::unordered_set<uint64_t>* poColumns = nullptr)
+/// TP7a/WA1/WA2 — the loop depth an instruction runs at, from its axis mask
+/// (bit 0 = x, 1 = y, 2 = z).
+enum TapeLevel : uint8_t
+{
+    LEVEL_CONST   = 0,  // no axis: once per fill
+    LEVEL_X       = 1,  // x only: once per x
+    LEVEL_Y_ONLY  = 2,  // y only: once per row of the column, cached (WA2)
+    LEVEL_XY      = 3,  // x and y: once per (x, y)
+    LEVEL_Z_ONLY  = 4,  // z only: once per layer of the slab, cached (WA1)
+    LEVEL_Z_MIXED = 5,  // z with x or y: per voxel, f64x2 over z pairs
+    LEVEL_COUNT   = 6
+};
+
+constexpr uint8_t nTapeLevel(uint8_t nMask)
+{
+    return nMask < 5 ? nMask : (uint8_t) LEVEL_Z_MIXED;
+}
+
+/// Per-thread scratch for the column sweep that the fill and compose cores
+/// share: register files, interval state, the shortened tapes, and the
+/// per-level instruction lists of the dense loop.
+struct TapeScratch
+{
+    explicit TapeScratch(int32_t nInstructionCount)
+    :   vecReg((size_t) nInstructionCount),
+        vecIv((size_t) nInstructionCount),
+        vecChoice((size_t) nInstructionCount),
+        vecColTape(2 * (size_t) nInstructionCount),
+        vecSlabTape(2 * (size_t) nInstructionCount),
+        vecRemap((size_t) nInstructionCount),
+        vecLive((size_t) nInstructionCount),
+        vecAxisMask((size_t) nInstructionCount),
+        vecYCache(8 * (size_t) nInstructionCount),
+        vecZCache(8 * (size_t) nInstructionCount),
+        vecRegV((size_t) nInstructionCount)
+    {
+        for (auto& vec : vecLevel)
+            vec.reserve((size_t) nInstructionCount);
+    }
+
+    std::vector<double>   vecReg;
+    std::vector<Interval> vecIv;
+    std::vector<uint8_t>  vecChoice;
+    std::vector<uint32_t> vecColTape;
+    std::vector<uint32_t> vecSlabTape;
+    std::vector<int32_t>  vecRemap;
+    std::vector<uint8_t>  vecLive;
+    // TP7a: axis-dependency mask + per-level instruction lists.
+    std::vector<uint8_t>  vecAxisMask;
+    std::vector<uint32_t> vecLevel[LEVEL_COUNT];
+    // WA2/WA1: y-only values per row of a column and z-only values per layer
+    // of a slab, [k * 8 + offset] for the k-th instruction of the level.
+    std::vector<double>   vecYCache;
+    std::vector<double>   vecZCache;
+    // TP7b: f64x2 register file for the z-varying level.
+    std::vector<v128_t>   vecRegV;
+};
+
+/// The sample box of one leaf-aligned (x,y) block column, clipped to the
+/// iterated index box.
+struct TapeColumn
+{
+    int32_t nCX, nCY;
+    int32_t nColX0, nColX1, nColY0, nColY1;
+};
+
+/// Dense per-voxel loop over one column's slab with a (shortened) tape.
+/// WriteVoxel(x, y, z, fSdf) receives every sample's float result; the fill
+/// and compose cores differ only in what they do with it.
+///
+/// TP7a evaluates each instruction at the loop depth where its inputs last
+/// change: constants once, x-dependent work once per x. WA1 and WA2 extend
+/// that to the two axes the x-y-z loop order handles badly. An instruction
+/// that depends on y alone would run once per (x, y), 8 times per y; one
+/// that depends on z alone would run once per voxel, 64 times per z. Both
+/// are evaluated once per sample position of the slab, before the loop, into
+/// caches the loop copies from. Same scalar ops on the same inputs, so the
+/// cached doubles are the values the loop would compute (bit-identical by
+/// construction; the f64x2 path's z-only lanes come from the same scalar
+/// evaluation the tail uses).
+template <typename WriteVoxelFn>
+void DenseFill( TapeScratch&            s,
+                const uint32_t*         pnTape,
+                int32_t                 nTapeCount,
+                const double*           pfConstants,
+                const PicoGK::VoxelSize oVoxelSize,
+                const TapeColumn&       oCol,
+                int32_t                 nSlabZ0,
+                int32_t                 nSlabZ1,
+                WriteVoxelFn&&          WriteVoxel)
+{
+    // Classify every instruction by which sample axes reach it (an operand's
+    // mask is a subset of its user's, so each list's inputs are ready where
+    // it runs).
+    for (auto& vec : s.vecLevel)
+        vec.clear();
+    for (int32_t i = 0; i < nTapeCount; i++)
+    {
+        const uint32_t nOp = pnTape[2 * i];
+        const uint32_t nAB = pnTape[2 * i + 1];
+        uint8_t nMask;
+        switch (nOp)
+        {
+            case TAPE_CONST: nMask = 0; break;
+            case TAPE_X:     nMask = 1; break;
+            case TAPE_Y:     nMask = 2; break;
+            case TAPE_Z:     nMask = 4; break;
+            default:
+                nMask = s.vecAxisMask[nAB & 0xFFFFu];
+                if (bHasOperandB(nOp))
+                    nMask |= s.vecAxisMask[nAB >> 16];
+                break;
+        }
+        s.vecAxisMask[i] = nMask;
+        s.vecLevel[nTapeLevel(nMask)].push_back((uint32_t) i);
+    }
+    const std::vector<uint32_t>& vecConst  = s.vecLevel[LEVEL_CONST];
+    const std::vector<uint32_t>& vecX      = s.vecLevel[LEVEL_X];
+    const std::vector<uint32_t>& vecYOnly  = s.vecLevel[LEVEL_Y_ONLY];
+    const std::vector<uint32_t>& vecXY     = s.vecLevel[LEVEL_XY];
+    const std::vector<uint32_t>& vecZOnly  = s.vecLevel[LEVEL_Z_ONLY];
+    const std::vector<uint32_t>& vecZMixed = s.vecLevel[LEVEL_Z_MIXED];
+    const bool bZIndependent = vecZOnly.empty() && vecZMixed.empty();
+
+    // Sample positions are the same per-axis floats vecToMM produces (fToMM
+    // is componentwise).
+    EvalTapeIndices(pnTape, vecConst.data(), (int32_t) vecConst.size(),
+                    pfConstants, 0.0, 0.0, 0.0, s.vecReg.data());
+
+    // WA2: y-only values per row of the column, cache[k * 8 + (y - y0)].
+    for (int32_t y = oCol.nColY0; y <= oCol.nColY1; y++)
+    {
+        EvalTapeIndices(pnTape, vecYOnly.data(), (int32_t) vecYOnly.size(),
+                        pfConstants, 0.0, (double) oVoxelSize.fToMM(y), 0.0, s.vecReg.data());
+        for (size_t k = 0; k < vecYOnly.size(); k++)
+            s.vecYCache[8 * k + (size_t)(y - oCol.nColY0)] = s.vecReg[vecYOnly[k]];
+    }
+    // WA1: z-only values per layer of the slab, cache[k * 8 + (z - z0)], so
+    // a z pair is one 16-byte load.
+    for (int32_t z = nSlabZ0; z <= nSlabZ1; z++)
+    {
+        EvalTapeIndices(pnTape, vecZOnly.data(), (int32_t) vecZOnly.size(),
+                        pfConstants, 0.0, 0.0, (double) oVoxelSize.fToMM(z), s.vecReg.data());
+        for (size_t k = 0; k < vecZOnly.size(); k++)
+            s.vecZCache[8 * k + (size_t)(z - nSlabZ0)] = s.vecReg[vecZOnly[k]];
+    }
+
+    for (int32_t x = oCol.nColX0; x <= oCol.nColX1; x++)
+    {
+        const double fX = (double) oVoxelSize.fToMM(x);
+        EvalTapeIndices(pnTape, vecX.data(), (int32_t) vecX.size(),
+                        pfConstants, fX, 0.0, 0.0, s.vecReg.data());
+        for (int32_t y = oCol.nColY0; y <= oCol.nColY1; y++)
+        {
+            const double fY = (double) oVoxelSize.fToMM(y);
+            const size_t nYi = (size_t)(y - oCol.nColY0);
+            for (size_t k = 0; k < vecYOnly.size(); k++)
+                s.vecReg[vecYOnly[k]] = s.vecYCache[8 * k + nYi];
+            EvalTapeIndices(pnTape, vecXY.data(), (int32_t) vecXY.size(),
+                            pfConstants, fX, fY, 0.0, s.vecReg.data());
+
+            if (bZIndependent)
+            {
+                // z-independent tape: the SDF is final for the whole z-run
+                // (the compose core still reads the existing value per voxel).
+                const float fSdf = (float) s.vecReg[nTapeCount - 1];
+                for (int32_t z = nSlabZ0; z <= nSlabZ1; z++)
+                    WriteVoxel(x, y, z, fSdf);
+                continue;
+            }
+
+            // TP7b — pairs of z samples through the f64x2 evaluator; an odd
+            // tail runs the scalar path.
+            int32_t z = nSlabZ0;
+            for (; z < nSlabZ1; z += 2)
+            {
+                const size_t nZi = (size_t)(z - nSlabZ0);
+                for (size_t k = 0; k < vecZOnly.size(); k++)
+                    s.vecRegV[vecZOnly[k]] = wasm_v128_load(&s.vecZCache[8 * k + nZi]);
+                EvalTapeIndicesV(pnTape, vecZMixed.data(), (int32_t) vecZMixed.size(),
+                                 s.vecAxisMask.data(), s.vecReg.data(), s.vecRegV.data());
+                WriteVoxel(x, y, z,     (float) wasm_f64x2_extract_lane(s.vecRegV[nTapeCount - 1], 0));
+                WriteVoxel(x, y, z + 1, (float) wasm_f64x2_extract_lane(s.vecRegV[nTapeCount - 1], 1));
+            }
+            if (z == nSlabZ1)
+            {
+                const size_t nZi = (size_t)(z - nSlabZ0);
+                for (size_t k = 0; k < vecZOnly.size(); k++)
+                    s.vecReg[vecZOnly[k]] = s.vecZCache[8 * k + nZi];
+                EvalTapeIndices(pnTape, vecZMixed.data(), (int32_t) vecZMixed.size(),
+                                pfConstants, fX, fY, (double) oVoxelSize.fToMM(z), s.vecReg.data());
+                WriteVoxel(x, y, z, (float) s.vecReg[nTapeCount - 1]);
+            }
+        }
+    }
+}
+
+/// The column sweep both cores run per leaf-aligned (x,y) block column:
+/// TP6 interval classification of the column and of each 8³ z-slab, MPR
+/// shortening, and the dense loop for the slabs that stay ambiguous.
+///
+/// A slab proven solid interior is written as inactive -background: a
+/// fully covered leaf is recorded in vecInterior for a level-1 tile, a
+/// bbox-clipped block is written densely into oAccess (a tile would spill
+/// -background onto out-of-range voxels of the shared leaf). That holds for
+/// both cores: min(sdf <= -bg, anything) is -background.
+///
+/// bSlab(nCZ) selects the slabs to visit; the fill core uses it for the
+/// support footprint of a mask grid, the compose core visits every slab.
+template <typename SlabFilterFn, typename WriteVoxelFn>
+void SweepColumn(   TapeScratch&                  s,
+                    const uint32_t*               pnInstructions,
+                    int32_t                       nInstructionCount,
+                    const double*                 pfConstants,
+                    const PicoGK::VoxelSize       oVoxelSize,
+                    const float                   fBackground,
+                    const TapeColumn&             oCol,
+                    int32_t                       nZ0,
+                    int32_t                       nZ1,
+                    openvdb::FloatGrid::Accessor& oAccess,
+                    std::vector<openvdb::Coord>&  vecInterior,
+                    SlabFilterFn&&                bSlab,
+                    WriteVoxelFn&&                WriteVoxel)
+{
+    const double  fBg  = (double) fBackground;
+    const int32_t nCZ0 = nZ0 >> 3, nCZ1 = nZ1 >> 3;
+    const bool bColFullX = (oCol.nColX0 == oCol.nCX * 8) && (oCol.nColX1 == oCol.nCX * 8 + 7);
+    const bool bColFullY = (oCol.nColY0 == oCol.nCY * 8) && (oCol.nColY1 == oCol.nCY * 8 + 7);
+
+    // Sample positions are fToMM(i) = i * voxelSize — monotone in i for the
+    // positive voxel size — so the block's endpoint samples bound every
+    // sample inside it. These are the exact float positions the dense loop
+    // evaluates.
+    const Interval oColX = ivMake((double) oVoxelSize.fToMM(oCol.nColX0), (double) oVoxelSize.fToMM(oCol.nColX1));
+    const Interval oColY = ivMake((double) oVoxelSize.fToMM(oCol.nColY0), (double) oVoxelSize.fToMM(oCol.nColY1));
+
+    const auto InteriorFill = [&](int32_t nCZ, int32_t nSlabZ0, int32_t nSlabZ1)
+    {
+        if (bColFullX && bColFullY && nSlabZ0 == nCZ * 8 && nSlabZ1 == nCZ * 8 + 7)
+        {
+            vecInterior.push_back(openvdb::Coord(oCol.nCX * 8, oCol.nCY * 8, nCZ * 8));
+            return;
+        }
+        for (int32_t x = oCol.nColX0; x <= oCol.nColX1; x++)
+        for (int32_t y = oCol.nColY0; y <= oCol.nColY1; y++)
+        for (int32_t z = nSlabZ0; z <= nSlabZ1; z++)
+        {
+            const openvdb::Coord xyz(x, y, z);
+            oAccess.setValue(xyz, -fBackground);
+            oAccess.setValueOff(xyz);
+        }
+    };
+
+    // Column-level classification over the full z extent.
+    const Interval oColZ = ivMake((double) oVoxelSize.fToMM(nZ0), (double) oVoxelSize.fToMM(nZ1));
+    const Interval oColIv = oEvalTapeInterval(  pnInstructions, nInstructionCount, pfConstants,
+                                                oColX, oColY, oColZ,
+                                                s.vecIv.data(), s.vecChoice.data());
+
+    if (!oColIv.bNaN && oColIv.fLo >= fBg)
+        return; // entire column outside the band: background either way
+
+    if (!oColIv.bNaN && oColIv.fHi <= -fBg)
+    {
+        for (int32_t nCZ = nCZ0; nCZ <= nCZ1; nCZ++)
+            if (bSlab(nCZ))
+                InteriorFill(nCZ, std::max(nZ0, nCZ * 8), std::min(nZ1, nCZ * 8 + 7));
+        return;
+    }
+
+    // Ambiguous column: shorten once with the column's decisions, then
+    // classify each 8³ z-slab with the shortened tape.
+    const int32_t nColCount = nShortenTape( pnInstructions, nInstructionCount, s.vecChoice.data(),
+                                            s.vecColTape.data(), s.vecRemap.data(), s.vecLive.data());
+
+    for (int32_t nCZ = nCZ0; nCZ <= nCZ1; nCZ++)
+    {
+        if (!bSlab(nCZ))
+            continue;
+        const int32_t nSlabZ0 = std::max(nZ0, nCZ * 8), nSlabZ1 = std::min(nZ1, nCZ * 8 + 7);
+        const Interval oSlabZ = ivMake((double) oVoxelSize.fToMM(nSlabZ0), (double) oVoxelSize.fToMM(nSlabZ1));
+        const Interval oSlab  = oEvalTapeInterval(  s.vecColTape.data(), nColCount, pfConstants,
+                                                    oColX, oColY, oSlabZ,
+                                                    s.vecIv.data(), s.vecChoice.data());
+
+        if (!oSlab.bNaN && oSlab.fLo >= fBg)
+            continue;
+
+        if (!oSlab.bNaN && oSlab.fHi <= -fBg)
+        {
+            InteriorFill(nCZ, nSlabZ0, nSlabZ1);
+            continue;
+        }
+
+        const int32_t nSlabCount = nShortenTape(s.vecColTape.data(), nColCount, s.vecChoice.data(),
+                                                s.vecSlabTape.data(), s.vecRemap.data(), s.vecLive.data());
+        DenseFill(s, s.vecSlabTape.data(), nSlabCount, pfConstants, oVoxelSize, oCol, nSlabZ0, nSlabZ1, WriteVoxel);
+    }
+}
+
+/// The iterated index box of a render: the bounding box expanded by the
+/// narrow band, in voxels.
+struct TapeBox
+{
+    int32_t nX0, nX1, nY0, nY1, nZ0, nZ1;
+};
+
+TapeBox oTapeBox(const float fBackground, const PicoGK::VoxelSize oVoxelSize, const PKBBox3& oBBox)
 {
     // Not public on Voxels, but recoverable: the constructor sets the grid
     // background to fToMM(nNarrowBand) (PicoGKVdbVoxels.h:72).
@@ -689,17 +992,142 @@ void ParallelTapeFillGrid(  const openvdb::FloatGrid::Ptr& roGrid,
 
     const PicoGK::Coord xyzMin = oVoxelSize.xyzToVoxels(oBBox.vecMin);
     const PicoGK::Coord xyzMax = oVoxelSize.xyzToVoxels(oBBox.vecMax);
-    const int32_t nX0 = xyzMin.X - nNarrowBand, nX1 = xyzMax.X + nNarrowBand;
-    const int32_t nY0 = xyzMin.Y - nNarrowBand, nY1 = xyzMax.Y + nNarrowBand;
-    const int32_t nZ0 = xyzMin.Z - nNarrowBand, nZ1 = xyzMax.Z + nNarrowBand;
+    return {    xyzMin.X - nNarrowBand, xyzMax.X + nNarrowBand,
+                xyzMin.Y - nNarrowBand, xyzMax.Y + nNarrowBand,
+                xyzMin.Z - nNarrowBand, xyzMax.Z + nNarrowBand };
+}
 
-    // Leaf-aligned (x,y) columns; >>3 rounds toward -inf for negatives, which
-    // is exactly leaf-origin bucketing.
-    const int32_t nCX0 = nX0 >> 3, nCX1 = nX1 >> 3;
-    const int32_t nCY0 = nY0 >> 3, nCY1 = nY1 >> 3;
-    const int32_t nCZ0 = nZ0 >> 3, nCZ1 = nZ1 >> 3;
+inline TapeColumn oTapeColumn(const TapeBox& oBox, int32_t nCX, int32_t nCY)
+{
+    return {    nCX, nCY,
+                std::max(oBox.nX0, nCX * 8), std::min(oBox.nX1, nCX * 8 + 7),
+                std::max(oBox.nY0, nCY * 8), std::min(oBox.nY1, nCY * 8 + 7) };
+}
 
-    const double fBg = (double) fBackground;
+/// GP-1 — the 3-D support of a mask grid in leaf units, for the
+/// IntersectImplicit fills. Per leaf-aligned (x,y) block column it holds the
+/// sorted, merged ranges of 8³ z-slabs where the grid stores anything a read
+/// could see that is not plain background: leaves, active tiles, and inactive
+/// negative (interior) tiles. Where the mask stores nothing, its value is
+/// +background, so max(sdf, mask) — the intersection — is background whatever
+/// the SDF is: those slabs need no samples. The F17 column cull was the 2-D
+/// shadow of this footprint; slabs above and below a shell inside its column
+/// were still evaluated.
+class SupportFootprint
+{
+public:
+    using Ranges = std::vector<std::pair<int32_t, int32_t>>;
+
+    /// Records slabs [nCZ0, nCZ1] of column (nCX, nCY).
+    void Mark(int32_t nCX, int32_t nCY, int32_t nCZ0, int32_t nCZ1)
+    {
+        m_oColumns[nKey(nCX, nCY)].emplace_back(nCZ0, nCZ1);
+    }
+
+    /// Sorts and merges each column's ranges; call once, after marking.
+    void Finalize()
+    {
+        for (auto& oEntry : m_oColumns)
+        {
+            Ranges& vec = oEntry.second;
+            std::sort(vec.begin(), vec.end());
+            size_t nOut = 0;
+            for (size_t n = 1; n < vec.size(); n++)
+            {
+                if (vec[n].first <= vec[nOut].second + 1)
+                    vec[nOut].second = std::max(vec[nOut].second, vec[n].second);
+                else
+                    vec[++nOut] = vec[n];
+            }
+            vec.resize(nOut + 1);
+        }
+    }
+
+    /// The column's ranges, or nullptr when the mask stores nothing there.
+    const Ranges* poColumn(int32_t nCX, int32_t nCY) const
+    {
+        const auto it = m_oColumns.find(nKey(nCX, nCY));
+        return it == m_oColumns.end() ? nullptr : &it->second;
+    }
+
+    static bool bContains(const Ranges& vec, int32_t nCZ)
+    {
+        // The first range starting above nCZ; the one before it is the only
+        // candidate.
+        const auto it = std::upper_bound(   vec.begin(), vec.end(), nCZ,
+                                            [](int32_t n, const std::pair<int32_t, int32_t>& o)
+                                            { return n < o.first; });
+        return it != vec.begin() && nCZ <= std::prev(it)->second;
+    }
+
+private:
+    static uint64_t nKey(int32_t nCX, int32_t nCY)
+    {
+        return ((uint64_t)(uint32_t) nCX << 32) | (uint64_t)(uint32_t) nCY;
+    }
+
+    std::unordered_map<uint64_t, Ranges> m_oColumns;
+};
+
+/// Builds the footprint of oTree inside the iterated index box. O(stored
+/// nodes); tiles mark their footprint clipped to the box, so a root-level
+/// tile costs the box's columns, not its own 512² of them.
+void BuildSupportFootprint( const openvdb::FloatTree& oTree,
+                            const TapeBox&            oBox,
+                            SupportFootprint&         oSupport)
+{
+    const int32_t nCX0 = oBox.nX0 >> 3, nCX1 = oBox.nX1 >> 3;
+    const int32_t nCY0 = oBox.nY0 >> 3, nCY1 = oBox.nY1 >> 3;
+
+    // x and y are clipped to the box's columns; the z range is kept whole
+    // (two integers), and the sweep only asks about slabs inside the box.
+    const auto markBBox = [&](const openvdb::CoordBBox& oBBox)
+    {
+        for (int32_t nCX = std::max(nCX0, oBBox.min().x() >> 3); nCX <= std::min(nCX1, oBBox.max().x() >> 3); nCX++)
+            for (int32_t nCY = std::max(nCY0, oBBox.min().y() >> 3); nCY <= std::min(nCY1, oBBox.max().y() >> 3); nCY++)
+                oSupport.Mark(nCX, nCY, oBBox.min().z() >> 3, oBBox.max().z() >> 3);
+    };
+    for (auto leafIt = oTree.cbeginLeaf(); leafIt; ++leafIt)
+        markBBox(leafIt->getNodeBoundingBox());
+    auto onIt = oTree.cbeginValueOn();
+    onIt.setMaxDepth(openvdb::FloatTree::DEPTH - 2);
+    for (; onIt; ++onIt)
+    {
+        openvdb::CoordBBox oBBox;
+        onIt.getBoundingBox(oBBox);
+        markBBox(oBBox);
+    }
+    auto offIt = oTree.cbeginValueOff();
+    offIt.setMaxDepth(openvdb::FloatTree::DEPTH - 2);
+    for (; offIt; ++offIt)
+    {
+        if (!(offIt.getValue() < 0.0f))
+            continue;
+        openvdb::CoordBBox oBBox;
+        offIt.getBoundingBox(oBBox);
+        markBBox(oBBox);
+    }
+    oSupport.Finalize();
+}
+
+/// The parallel fill core shared by the fresh-grid and intersect entries:
+/// renders the tape into roGrid — which MUST be empty (that is what makes
+/// upstream's min(sdf, existing) collapse to min(sdf, background) and the
+/// node-steal merge sound) — over oBBox expanded by the narrow band.
+/// GP-1 (was F17, SKv2-0 V0.10): when poSupport is non-null, only the 8³
+/// slabs in the mask grid's 3-D footprint are evaluated — skipped slabs
+/// produce no fresh values, and for the intersection they could only produce
+/// background anyway. nullptr = the pre-V0.10 behavior, byte-for-byte.
+void ParallelTapeFillGrid(  const openvdb::FloatGrid::Ptr& roGrid,
+                            const float                    fBackground,
+                            const PicoGK::VoxelSize        oVoxelSize,
+                            const PKBBox3&                 oBBox,
+                            const uint32_t*                pnInstructions,
+                            int32_t                        nInstructionCount,
+                            const double*                  pfConstants,
+                            const SupportFootprint*        poSupport = nullptr)
+{
+    const TapeBox oBox = oTapeBox(fBackground, oVoxelSize, oBBox);
 
     tbb::enumerable_thread_specific<openvdb::FloatGrid::Ptr> oLocalGrids(
         [fBackground] { return openvdb::FloatGrid::create(fBackground); });
@@ -708,207 +1136,41 @@ void ParallelTapeFillGrid(  const openvdb::FloatGrid::Ptr& roGrid,
     // MERGE_ACTIVE_STATES does not preserve inactive source tiles).
     tbb::enumerable_thread_specific<std::vector<openvdb::Coord>> oInteriorLeafs;
 
+    // Leaf-aligned (x,y) columns; >>3 rounds toward -inf for negatives, which
+    // is exactly leaf-origin bucketing.
     tbb::parallel_for(
-        tbb::blocked_range2d<int32_t>(nCX0, nCX1 + 1, nCY0, nCY1 + 1),
+        tbb::blocked_range2d<int32_t>(oBox.nX0 >> 3, (oBox.nX1 >> 3) + 1, oBox.nY0 >> 3, (oBox.nY1 >> 3) + 1),
         [&](const tbb::blocked_range2d<int32_t>& oRange)
         {
             openvdb::FloatGrid::Accessor oAccess = oLocalGrids.local()->getAccessor();
             std::vector<openvdb::Coord>& vecInterior = oInteriorLeafs.local();
+            TapeScratch s(nInstructionCount);
 
-            const size_t nRegs = (size_t) nInstructionCount;
-            std::vector<double>   vecReg(nRegs);
-            std::vector<Interval> vecIv(nRegs);
-            std::vector<uint8_t>  vecChoice(nRegs);
-            std::vector<uint32_t> vecColTape(2 * nRegs);
-            std::vector<uint32_t> vecSlabTape(2 * nRegs);
-            std::vector<int32_t>  vecRemap(nRegs);
-            std::vector<uint8_t>  vecLive(nRegs);
-            // TP7a scratch: axis-dependency mask + per-level instruction lists.
-            std::vector<uint8_t>  vecAxisMask(nRegs);
-            std::vector<uint32_t> vecLevel[4];
-            for (auto& vec : vecLevel)
-                vec.reserve(nRegs);
-            // TP7b scratch: f64x2 register file for the z-varying level.
-            std::vector<v128_t>   vecRegV(nRegs);
+            // Dense per-voxel write — upstream per-voxel semantics on an
+            // empty grid: min(sdf, getValue)=min(sdf, background), then
+            // SetSdValue (PicoGKVdbVoxels.h:377-380, 909-920). RebuildGrid()
+            // is a no-op upstream and is deliberately not replicated.
+            const auto WriteVoxel = [&](int32_t x, int32_t y, int32_t z, float fSdf)
+            {
+                const float fValue = std::min(fSdf, fBackground);
+                const openvdb::Coord xyz(x, y, z);
+                oAccess.setValue(xyz, std::clamp(fValue, -fBackground, fBackground));
+                if (std::abs(fValue) >= fBackground)
+                    oAccess.setValueOff(xyz);
+            };
 
             for (int32_t nCX = oRange.rows().begin(); nCX != oRange.rows().end(); nCX++)
             for (int32_t nCY = oRange.cols().begin(); nCY != oRange.cols().end(); nCY++)
             {
-                if (poColumns != nullptr &&
-                    poColumns->count(((uint64_t)(uint32_t) nCX << 32) | (uint64_t)(uint32_t) nCY) == 0)
-                    continue; // F17: outside the mask's support — background either way
-                const int32_t nColX0 = std::max(nX0, nCX * 8), nColX1 = std::min(nX1, nCX * 8 + 7);
-                const int32_t nColY0 = std::max(nY0, nCY * 8), nColY1 = std::min(nY1, nCY * 8 + 7);
-                const bool bColFullX = (nColX0 == nCX * 8) && (nColX1 == nCX * 8 + 7);
-                const bool bColFullY = (nColY0 == nCY * 8) && (nColY1 == nCY * 8 + 7);
-
-                // Sample positions are fToMM(i) = i * voxelSize — monotone in
-                // i for the positive voxel size — so the block's endpoint
-                // samples bound every sample inside it. These are the exact
-                // float positions the dense loop evaluates.
-                const Interval oColX = ivMake((double) oVoxelSize.fToMM(nColX0), (double) oVoxelSize.fToMM(nColX1));
-                const Interval oColY = ivMake((double) oVoxelSize.fToMM(nColY0), (double) oVoxelSize.fToMM(nColY1));
-
-                // Dense per-voxel loop — upstream per-voxel semantics on an
-                // empty grid: min(sdf, getValue)=min(sdf, background), then
-                // SetSdValue (PicoGKVdbVoxels.h:377-380, 909-920).
-                // RebuildGrid() is a no-op upstream and is deliberately not
-                // replicated.
-                const auto DenseFill = [&](  const uint32_t* pnTape,
-                                             int32_t         nTapeCount,
-                                             int32_t         nSlabZ0,
-                                             int32_t         nSlabZ1)
-                {
-                    // TP7a — classify every instruction by which sample axes
-                    // reach it (an operand's mask is a subset of its user's,
-                    // so each level's inputs are ready at its loop depth).
-                    for (auto& vec : vecLevel)
-                        vec.clear();
-                    for (int32_t i = 0; i < nTapeCount; i++)
-                    {
-                        const uint32_t nOp = pnTape[2 * i];
-                        const uint32_t nAB = pnTape[2 * i + 1];
-                        uint8_t nMask;
-                        switch (nOp)
-                        {
-                            case TAPE_CONST: nMask = 0; break;
-                            case TAPE_X:     nMask = 1; break;
-                            case TAPE_Y:     nMask = 2; break;
-                            case TAPE_Z:     nMask = 4; break;
-                            default:
-                                nMask = vecAxisMask[nAB & 0xFFFFu];
-                                if (bHasOperandB(nOp))
-                                    nMask |= vecAxisMask[nAB >> 16];
-                                break;
-                        }
-                        vecAxisMask[i] = nMask;
-                        const int nLevel = (nMask & 4) ? 3 : (nMask & 2) ? 2 : (nMask & 1) ? 1 : 0;
-                        vecLevel[nLevel].push_back((uint32_t) i);
-                    }
-
-                    const auto WriteVoxel = [&](int32_t x, int32_t y, int32_t z, float fSdf)
-                    {
-                        const float fValue = std::min(fSdf, fBackground);
-                        const openvdb::Coord xyz(x, y, z);
-                        oAccess.setValue(xyz, std::clamp(fValue, -fBackground, fBackground));
-                        if (std::abs(fValue) >= fBackground)
-                            oAccess.setValueOff(xyz);
-                    };
-
-                    // Constants and pure-x/y subexpressions evaluate at the
-                    // loop depth where their inputs last changed instead of
-                    // once per voxel. Sample positions are the same per-axis
-                    // floats vecToMM produces (fToMM is componentwise).
-                    EvalTapeIndices(pnTape, vecLevel[0].data(), (int32_t) vecLevel[0].size(),
-                                    pfConstants, 0.0, 0.0, 0.0, vecReg.data());
-                    for (int32_t x = nColX0; x <= nColX1; x++)
-                    {
-                        const double fX = (double) oVoxelSize.fToMM(x);
-                        EvalTapeIndices(pnTape, vecLevel[1].data(), (int32_t) vecLevel[1].size(),
-                                        pfConstants, fX, 0.0, 0.0, vecReg.data());
-                        for (int32_t y = nColY0; y <= nColY1; y++)
-                        {
-                            const double fY = (double) oVoxelSize.fToMM(y);
-                            EvalTapeIndices(pnTape, vecLevel[2].data(), (int32_t) vecLevel[2].size(),
-                                            pfConstants, fX, fY, 0.0, vecReg.data());
-
-                            if (vecLevel[3].empty())
-                            {
-                                // z-independent tape: the result register is
-                                // already final for the whole z-run.
-                                const float fSdf = (float) vecReg[nTapeCount - 1];
-                                for (int32_t z = nSlabZ0; z <= nSlabZ1; z++)
-                                    WriteVoxel(x, y, z, fSdf);
-                                continue;
-                            }
-
-                            // TP7b — pairs of z samples through the f64x2
-                            // evaluator; odd tail runs the scalar path.
-                            int32_t z = nSlabZ0;
-                            for (; z < nSlabZ1; z += 2)
-                            {
-                                const v128_t vZ = wasm_f64x2_make(  (double) oVoxelSize.fToMM(z),
-                                                                    (double) oVoxelSize.fToMM(z + 1));
-                                EvalTapeIndicesV(pnTape, vecLevel[3].data(), (int32_t) vecLevel[3].size(),
-                                                 vecAxisMask.data(), vecReg.data(), vZ, vecRegV.data());
-                                WriteVoxel(x, y, z,     (float) wasm_f64x2_extract_lane(vecRegV[nTapeCount - 1], 0));
-                                WriteVoxel(x, y, z + 1, (float) wasm_f64x2_extract_lane(vecRegV[nTapeCount - 1], 1));
-                            }
-                            if (z == nSlabZ1)
-                            {
-                                const double fZ = (double) oVoxelSize.fToMM(z);
-                                EvalTapeIndices(pnTape, vecLevel[3].data(), (int32_t) vecLevel[3].size(),
-                                                pfConstants, fX, fY, fZ, vecReg.data());
-                                WriteVoxel(x, y, z, (float) vecReg[nTapeCount - 1]);
-                            }
-                        }
-                    }
-                };
-
-                // A slab proven solid interior: every voxel would be written
-                // as inactive -background. A fully-covered leaf is recorded
-                // for a level-1 tile; a bbox-clipped block writes the dense
-                // representation directly (a tile would spill -background
-                // onto out-of-range voxels of the shared leaf).
-                const auto InteriorFill = [&](int32_t nCZ, int32_t nSlabZ0, int32_t nSlabZ1)
-                {
-                    if (bColFullX && bColFullY && nSlabZ0 == nCZ * 8 && nSlabZ1 == nCZ * 8 + 7)
-                    {
-                        vecInterior.push_back(openvdb::Coord(nCX * 8, nCY * 8, nCZ * 8));
-                        return;
-                    }
-                    for (int32_t x = nColX0; x <= nColX1; x++)
-                    for (int32_t y = nColY0; y <= nColY1; y++)
-                    for (int32_t z = nSlabZ0; z <= nSlabZ1; z++)
-                    {
-                        const openvdb::Coord xyz(x, y, z);
-                        oAccess.setValue(xyz, -fBackground);
-                        oAccess.setValueOff(xyz);
-                    }
-                };
-
-                // Column-level classification over the full z extent.
-                const Interval oColZ = ivMake((double) oVoxelSize.fToMM(nZ0), (double) oVoxelSize.fToMM(nZ1));
-                const Interval oCol  = oEvalTapeInterval(   pnInstructions, nInstructionCount, pfConstants,
-                                                            oColX, oColY, oColZ,
-                                                            vecIv.data(), vecChoice.data());
-
-                if (!oCol.bNaN && oCol.fLo >= fBg)
-                    continue; // entire column outside the band — inactive background either way
-
-                if (!oCol.bNaN && oCol.fHi <= -fBg)
-                {
-                    for (int32_t nCZ = nCZ0; nCZ <= nCZ1; nCZ++)
-                        InteriorFill(nCZ, std::max(nZ0, nCZ * 8), std::min(nZ1, nCZ * 8 + 7));
-                    continue;
-                }
-
-                // Ambiguous column: shorten once with the column's decisions,
-                // then classify each 8³ z-slab with the shortened tape.
-                const int32_t nColCount = nShortenTape( pnInstructions, nInstructionCount, vecChoice.data(),
-                                                        vecColTape.data(), vecRemap.data(), vecLive.data());
-
-                for (int32_t nCZ = nCZ0; nCZ <= nCZ1; nCZ++)
-                {
-                    const int32_t nSlabZ0 = std::max(nZ0, nCZ * 8), nSlabZ1 = std::min(nZ1, nCZ * 8 + 7);
-                    const Interval oSlabZ = ivMake((double) oVoxelSize.fToMM(nSlabZ0), (double) oVoxelSize.fToMM(nSlabZ1));
-                    const Interval oSlab  = oEvalTapeInterval(  vecColTape.data(), nColCount, pfConstants,
-                                                                oColX, oColY, oSlabZ,
-                                                                vecIv.data(), vecChoice.data());
-
-                    if (!oSlab.bNaN && oSlab.fLo >= fBg)
-                        continue;
-
-                    if (!oSlab.bNaN && oSlab.fHi <= -fBg)
-                    {
-                        InteriorFill(nCZ, nSlabZ0, nSlabZ1);
-                        continue;
-                    }
-
-                    const int32_t nSlabCount = nShortenTape(vecColTape.data(), nColCount, vecChoice.data(),
-                                                            vecSlabTape.data(), vecRemap.data(), vecLive.data());
-                    DenseFill(vecSlabTape.data(), nSlabCount, nSlabZ0, nSlabZ1);
-                }
+                const SupportFootprint::Ranges* poRanges =
+                    poSupport == nullptr ? nullptr : poSupport->poColumn(nCX, nCY);
+                if (poSupport != nullptr && poRanges == nullptr)
+                    continue; // outside the mask's support — background either way
+                SweepColumn(s, pnInstructions, nInstructionCount, pfConstants, oVoxelSize, fBackground,
+                            oTapeColumn(oBox, nCX, nCY), oBox.nZ0, oBox.nZ1, oAccess, vecInterior,
+                            [poRanges](int32_t nCZ)
+                            { return poRanges == nullptr || SupportFootprint::bContains(*poRanges, nCZ); },
+                            WriteVoxel);
             }
         });
 
@@ -928,8 +1190,8 @@ void ParallelTapeFillGrid(  const openvdb::FloatGrid::Ptr& roGrid,
 /// semantics — fValue = min(sdf, getValue), then SetSdValue
 /// (PicoGKVdbVoxels.h:377-380, 909-920; RebuildGrid is a no-op upstream).
 ///
-/// Structure mirrors ParallelTapeFillGrid — keep the two in lockstep. The
-/// differences are confined to three points:
+/// It runs the same column sweep as ParallelTapeFillGrid. The differences
+/// are confined to three points:
 ///   1. each thread reads the existing grid through its own ConstAccessor
 ///      (the tree is frozen during the parallel phase),
 ///   2. WriteVoxel composes min(sdf, existing) instead of min(sdf, background),
@@ -950,201 +1212,37 @@ void ParallelTapeComposeGrid(   const openvdb::FloatGrid::Ptr& roGrid,
                                 int32_t                        nInstructionCount,
                                 const double*                  pfConstants)
 {
-    const int32_t nNarrowBand = (int32_t) std::lround(fBackground / (float) oVoxelSize);
-
-    const PicoGK::Coord xyzMin = oVoxelSize.xyzToVoxels(oBBox.vecMin);
-    const PicoGK::Coord xyzMax = oVoxelSize.xyzToVoxels(oBBox.vecMax);
-    const int32_t nX0 = xyzMin.X - nNarrowBand, nX1 = xyzMax.X + nNarrowBand;
-    const int32_t nY0 = xyzMin.Y - nNarrowBand, nY1 = xyzMax.Y + nNarrowBand;
-    const int32_t nZ0 = xyzMin.Z - nNarrowBand, nZ1 = xyzMax.Z + nNarrowBand;
-
-    const int32_t nCX0 = nX0 >> 3, nCX1 = nX1 >> 3;
-    const int32_t nCY0 = nY0 >> 3, nCY1 = nY1 >> 3;
-    const int32_t nCZ0 = nZ0 >> 3, nCZ1 = nZ1 >> 3;
-
-    const double fBg = (double) fBackground;
+    const TapeBox oBox = oTapeBox(fBackground, oVoxelSize, oBBox);
 
     tbb::enumerable_thread_specific<openvdb::FloatGrid::Ptr> oLocalGrids(
         [fBackground] { return openvdb::FloatGrid::create(fBackground); });
     tbb::enumerable_thread_specific<std::vector<openvdb::Coord>> oInteriorLeafs;
 
     tbb::parallel_for(
-        tbb::blocked_range2d<int32_t>(nCX0, nCX1 + 1, nCY0, nCY1 + 1),
+        tbb::blocked_range2d<int32_t>(oBox.nX0 >> 3, (oBox.nX1 >> 3) + 1, oBox.nY0 >> 3, (oBox.nY1 >> 3) + 1),
         [&](const tbb::blocked_range2d<int32_t>& oRange)
         {
             openvdb::FloatGrid::Accessor      oAccess = oLocalGrids.local()->getAccessor();
             openvdb::FloatGrid::ConstAccessor oRead   = roGrid->getConstAccessor();
             std::vector<openvdb::Coord>& vecInterior = oInteriorLeafs.local();
+            TapeScratch s(nInstructionCount);
 
-            const size_t nRegs = (size_t) nInstructionCount;
-            std::vector<double>   vecReg(nRegs);
-            std::vector<Interval> vecIv(nRegs);
-            std::vector<uint8_t>  vecChoice(nRegs);
-            std::vector<uint32_t> vecColTape(2 * nRegs);
-            std::vector<uint32_t> vecSlabTape(2 * nRegs);
-            std::vector<int32_t>  vecRemap(nRegs);
-            std::vector<uint8_t>  vecLive(nRegs);
-            std::vector<uint8_t>  vecAxisMask(nRegs);
-            std::vector<uint32_t> vecLevel[4];
-            for (auto& vec : vecLevel)
-                vec.reserve(nRegs);
-            std::vector<v128_t>   vecRegV(nRegs);
+            // Upstream per-voxel semantics against the EXISTING grid:
+            // min(sdf, getValue), then SetSdValue.
+            const auto WriteVoxel = [&](int32_t x, int32_t y, int32_t z, float fSdf)
+            {
+                const openvdb::Coord xyz(x, y, z);
+                const float fValue = std::min(fSdf, oRead.getValue(xyz));
+                oAccess.setValue(xyz, std::clamp(fValue, -fBackground, fBackground));
+                if (std::abs(fValue) >= fBackground)
+                    oAccess.setValueOff(xyz);
+            };
 
             for (int32_t nCX = oRange.rows().begin(); nCX != oRange.rows().end(); nCX++)
             for (int32_t nCY = oRange.cols().begin(); nCY != oRange.cols().end(); nCY++)
-            {
-                const int32_t nColX0 = std::max(nX0, nCX * 8), nColX1 = std::min(nX1, nCX * 8 + 7);
-                const int32_t nColY0 = std::max(nY0, nCY * 8), nColY1 = std::min(nY1, nCY * 8 + 7);
-                const bool bColFullX = (nColX0 == nCX * 8) && (nColX1 == nCX * 8 + 7);
-                const bool bColFullY = (nColY0 == nCY * 8) && (nColY1 == nCY * 8 + 7);
-
-                const Interval oColX = ivMake((double) oVoxelSize.fToMM(nColX0), (double) oVoxelSize.fToMM(nColX1));
-                const Interval oColY = ivMake((double) oVoxelSize.fToMM(nColY0), (double) oVoxelSize.fToMM(nColY1));
-
-                // Dense per-voxel loop — upstream per-voxel semantics against
-                // the EXISTING grid: min(sdf, getValue), then SetSdValue.
-                const auto DenseFill = [&](  const uint32_t* pnTape,
-                                             int32_t         nTapeCount,
-                                             int32_t         nSlabZ0,
-                                             int32_t         nSlabZ1)
-                {
-                    for (auto& vec : vecLevel)
-                        vec.clear();
-                    for (int32_t i = 0; i < nTapeCount; i++)
-                    {
-                        const uint32_t nOp = pnTape[2 * i];
-                        const uint32_t nAB = pnTape[2 * i + 1];
-                        uint8_t nMask;
-                        switch (nOp)
-                        {
-                            case TAPE_CONST: nMask = 0; break;
-                            case TAPE_X:     nMask = 1; break;
-                            case TAPE_Y:     nMask = 2; break;
-                            case TAPE_Z:     nMask = 4; break;
-                            default:
-                                nMask = vecAxisMask[nAB & 0xFFFFu];
-                                if (bHasOperandB(nOp))
-                                    nMask |= vecAxisMask[nAB >> 16];
-                                break;
-                        }
-                        vecAxisMask[i] = nMask;
-                        const int nLevel = (nMask & 4) ? 3 : (nMask & 2) ? 2 : (nMask & 1) ? 1 : 0;
-                        vecLevel[nLevel].push_back((uint32_t) i);
-                    }
-
-                    const auto WriteVoxel = [&](int32_t x, int32_t y, int32_t z, float fSdf)
-                    {
-                        const openvdb::Coord xyz(x, y, z);
-                        const float fValue = std::min(fSdf, oRead.getValue(xyz));
-                        oAccess.setValue(xyz, std::clamp(fValue, -fBackground, fBackground));
-                        if (std::abs(fValue) >= fBackground)
-                            oAccess.setValueOff(xyz);
-                    };
-
-                    EvalTapeIndices(pnTape, vecLevel[0].data(), (int32_t) vecLevel[0].size(),
-                                    pfConstants, 0.0, 0.0, 0.0, vecReg.data());
-                    for (int32_t x = nColX0; x <= nColX1; x++)
-                    {
-                        const double fX = (double) oVoxelSize.fToMM(x);
-                        EvalTapeIndices(pnTape, vecLevel[1].data(), (int32_t) vecLevel[1].size(),
-                                        pfConstants, fX, 0.0, 0.0, vecReg.data());
-                        for (int32_t y = nColY0; y <= nColY1; y++)
-                        {
-                            const double fY = (double) oVoxelSize.fToMM(y);
-                            EvalTapeIndices(pnTape, vecLevel[2].data(), (int32_t) vecLevel[2].size(),
-                                            pfConstants, fX, fY, 0.0, vecReg.data());
-
-                            if (vecLevel[3].empty())
-                            {
-                                // z-independent tape: the SDF is final for the
-                                // whole z-run, but the existing value is not —
-                                // WriteVoxel composes per voxel.
-                                const float fSdf = (float) vecReg[nTapeCount - 1];
-                                for (int32_t z = nSlabZ0; z <= nSlabZ1; z++)
-                                    WriteVoxel(x, y, z, fSdf);
-                                continue;
-                            }
-
-                            int32_t z = nSlabZ0;
-                            for (; z < nSlabZ1; z += 2)
-                            {
-                                const v128_t vZ = wasm_f64x2_make(  (double) oVoxelSize.fToMM(z),
-                                                                    (double) oVoxelSize.fToMM(z + 1));
-                                EvalTapeIndicesV(pnTape, vecLevel[3].data(), (int32_t) vecLevel[3].size(),
-                                                 vecAxisMask.data(), vecReg.data(), vZ, vecRegV.data());
-                                WriteVoxel(x, y, z,     (float) wasm_f64x2_extract_lane(vecRegV[nTapeCount - 1], 0));
-                                WriteVoxel(x, y, z + 1, (float) wasm_f64x2_extract_lane(vecRegV[nTapeCount - 1], 1));
-                            }
-                            if (z == nSlabZ1)
-                            {
-                                const double fZ = (double) oVoxelSize.fToMM(z);
-                                EvalTapeIndices(pnTape, vecLevel[3].data(), (int32_t) vecLevel[3].size(),
-                                                pfConstants, fX, fY, fZ, vecReg.data());
-                                WriteVoxel(x, y, z, (float) vecReg[nTapeCount - 1]);
-                            }
-                        }
-                    }
-                };
-
-                // A slab proven solid interior: min(sdf <= -bg, existing) is
-                // -background everywhere regardless of the existing content.
-                const auto InteriorFill = [&](int32_t nCZ, int32_t nSlabZ0, int32_t nSlabZ1)
-                {
-                    if (bColFullX && bColFullY && nSlabZ0 == nCZ * 8 && nSlabZ1 == nCZ * 8 + 7)
-                    {
-                        vecInterior.push_back(openvdb::Coord(nCX * 8, nCY * 8, nCZ * 8));
-                        return;
-                    }
-                    for (int32_t x = nColX0; x <= nColX1; x++)
-                    for (int32_t y = nColY0; y <= nColY1; y++)
-                    for (int32_t z = nSlabZ0; z <= nSlabZ1; z++)
-                    {
-                        const openvdb::Coord xyz(x, y, z);
-                        oAccess.setValue(xyz, -fBackground);
-                        oAccess.setValueOff(xyz);
-                    }
-                };
-
-                const Interval oColZ = ivMake((double) oVoxelSize.fToMM(nZ0), (double) oVoxelSize.fToMM(nZ1));
-                const Interval oCol  = oEvalTapeInterval(   pnInstructions, nInstructionCount, pfConstants,
-                                                            oColX, oColY, oColZ,
-                                                            vecIv.data(), vecChoice.data());
-
-                if (!oCol.bNaN && oCol.fLo >= fBg)
-                    continue; // min(sdf >= bg, existing) == existing — whole column is a no-op
-
-                if (!oCol.bNaN && oCol.fHi <= -fBg)
-                {
-                    for (int32_t nCZ = nCZ0; nCZ <= nCZ1; nCZ++)
-                        InteriorFill(nCZ, std::max(nZ0, nCZ * 8), std::min(nZ1, nCZ * 8 + 7));
-                    continue;
-                }
-
-                const int32_t nColCount = nShortenTape( pnInstructions, nInstructionCount, vecChoice.data(),
-                                                        vecColTape.data(), vecRemap.data(), vecLive.data());
-
-                for (int32_t nCZ = nCZ0; nCZ <= nCZ1; nCZ++)
-                {
-                    const int32_t nSlabZ0 = std::max(nZ0, nCZ * 8), nSlabZ1 = std::min(nZ1, nCZ * 8 + 7);
-                    const Interval oSlabZ = ivMake((double) oVoxelSize.fToMM(nSlabZ0), (double) oVoxelSize.fToMM(nSlabZ1));
-                    const Interval oSlab  = oEvalTapeInterval(  vecColTape.data(), nColCount, pfConstants,
-                                                                oColX, oColY, oSlabZ,
-                                                                vecIv.data(), vecChoice.data());
-
-                    if (!oSlab.bNaN && oSlab.fLo >= fBg)
-                        continue;
-
-                    if (!oSlab.bNaN && oSlab.fHi <= -fBg)
-                    {
-                        InteriorFill(nCZ, nSlabZ0, nSlabZ1);
-                        continue;
-                    }
-
-                    const int32_t nSlabCount = nShortenTape(vecColTape.data(), nColCount, vecChoice.data(),
-                                                            vecSlabTape.data(), vecRemap.data(), vecLive.data());
-                    DenseFill(vecSlabTape.data(), nSlabCount, nSlabZ0, nSlabZ1);
-                }
-            }
+                SweepColumn(s, pnInstructions, nInstructionCount, pfConstants, oVoxelSize, fBackground,
+                            oTapeColumn(oBox, nCX, nCY), oBox.nZ0, oBox.nZ1, oAccess, vecInterior,
+                            [](int32_t) { return true; }, WriteVoxel);
         });
 
     // Serial application. A thread-local voxel is one of exactly three states:
@@ -1302,62 +1400,18 @@ PICOGK_API void Voxels_IntersectImplicitTape(   PKINSTANCE      hLib,
     roGrid->setTree(roImplicit->baseTreePtr());
 }
 
-namespace
-{
-
-/// F17 support map: every leaf-aligned (x,y) block column where the mask grid
-/// stores anything — leaf nodes (their voxels span band and interior remnants)
-/// and tiles at any internal level (active, or inactive-negative interiors).
-/// O(stored nodes); tiles mark their whole footprint in block units.
-void BuildSupportColumns(const openvdb::FloatTree& oTree, std::unordered_set<uint64_t>& oColumns)
-{
-    const auto nKey = [](int32_t nCX, int32_t nCY) {
-        return ((uint64_t)(uint32_t) nCX << 32) | (uint64_t)(uint32_t) nCY;
-    };
-    const auto markBBox = [&](const openvdb::CoordBBox& oBBox) {
-        for (int32_t nCX = oBBox.min().x() >> 3; nCX <= oBBox.max().x() >> 3; nCX++)
-            for (int32_t nCY = oBBox.min().y() >> 3; nCY <= oBBox.max().y() >> 3; nCY++)
-                oColumns.insert(nKey(nCX, nCY));
-    };
-    for (auto leafIt = oTree.cbeginLeaf(); leafIt; ++leafIt)
-    {
-        const openvdb::Coord xyz = leafIt->origin();
-        oColumns.insert(nKey(xyz.x() >> 3, xyz.y() >> 3));
-    }
-    auto onIt = oTree.cbeginValueOn();
-    onIt.setMaxDepth(openvdb::FloatTree::DEPTH - 2);
-    for (; onIt; ++onIt)
-    {
-        openvdb::CoordBBox oBBox;
-        onIt.getBoundingBox(oBBox);
-        markBBox(oBBox);
-    }
-    auto offIt = oTree.cbeginValueOff();
-    offIt.setMaxDepth(openvdb::FloatTree::DEPTH - 2);
-    for (; offIt; ++offIt)
-    {
-        if (!(offIt.getValue() < 0.0f))
-            continue;
-        openvdb::CoordBBox oBBox;
-        offIt.getBoundingBox(oBBox);
-        if (!oBBox.empty())
-            markBBox(oBBox);
-    }
-}
-
-} // namespace
-
-/// SKv2-0 V0.10 — U1-corrected, F17 support-restricted IntersectImplicit
+/// SKv2-0 V0.10 — U1-corrected, GP-1 support-restricted IntersectImplicit
 /// (tape path). Two changes vs Voxels_IntersectImplicitTape, which stays as
 /// the bit-identity oracle for the vendored callback path:
 ///   (U1) the fresh grid's narrow band is background/voxelSize voxels (3),
 ///        not the float->int truncation of a millimetre quantity that
 ///        upstream's `Voxels oVox(oVoxelSize(), fBackgroundMM())` performs —
 ///        band 1 at 0.5 mm, band 0 below ~1/3 mm (broken level sets);
-///   (F17) the fresh render evaluates only block columns in the target's
-///        support: where the target stores nothing, max(+bg, sdf) is +bg and
-///        the intersection discards the column regardless — O(bbox^2) of SDF
-///        evaluation becomes O(support columns).
+///   (GP-1) the fresh render evaluates only the 8³ slabs in the target's
+///        3-D support: where the target stores nothing, max(+bg, sdf) is +bg
+///        and the intersection discards the slab regardless — O(bbox³) of
+///        SDF evaluation becomes O(support). The F17 cull it replaces kept
+///        whole (x,y) columns, so a shell paid for its full z extent.
 PICOGK_API void Voxels_IntersectImplicitTapeFast(   PKINSTANCE      hLib,
                                                     PKVOXELS        hThis,
                                                     const uint32_t* pnInstructions,
@@ -1390,8 +1444,8 @@ PICOGK_API void Voxels_IntersectImplicitTapeFast(   PKINSTANCE      hLib,
     const int32_t nFreshBand       = (int32_t) std::lround(fBackground / (float) oVoxelSize);
     const float   fFreshBackground = oVoxelSize.fToMM(nFreshBand);
 
-    std::unordered_set<uint64_t> oColumns;
-    BuildSupportColumns(roGrid->tree(), oColumns);
+    SupportFootprint oSupport;
+    BuildSupportFootprint(roGrid->tree(), oTapeBox(fFreshBackground, oVoxelSize, oBBoxMM), oSupport);
 
     openvdb::FloatGrid::Ptr roImplicit = openvdb::FloatGrid::create(fFreshBackground);
     roImplicit->setGridClass(openvdb::GRID_LEVEL_SET);
@@ -1399,7 +1453,76 @@ PICOGK_API void Voxels_IntersectImplicitTapeFast(   PKINSTANCE      hLib,
 
     ParallelTapeFillGrid(   roImplicit, fFreshBackground, oVoxelSize,
                             oBBoxMM, pnInstructions, nInstructionCount, pfConstants,
-                            &oColumns);
+                            &oSupport);
+
+    openvdb::tools::csgIntersection(*roImplicit, *roGrid);
+    roGrid->setTree(roImplicit->baseTreePtr());
+}
+
+/// SKv2-0 V0.10 — U1-corrected, GP-1 support-restricted IntersectImplicit
+/// (JS-callback path; the vendored `Voxels::IntersectImplicit` stays raw-side
+/// as the oracle). Upstream builds its fresh grid as
+/// `Voxels oVox(oVoxelSize(), fBackgroundMM())`, passing MILLIMETRES into the
+/// ctor's `int nNarrowBand` — truncated to band 1 at 0.5 mm and band 0 below
+/// ~1/3 mm (U1, PicoPie Fix 2). Corrected here to background/voxelSize (3).
+/// GP-1: the serial sample loop runs only over the 8³ slabs of the target's
+/// 3-D footprint, the one the tape path uses — everywhere else the
+/// subsequent intersection yields background regardless of the SDF. It lives
+/// beside the tape path so both read one footprint.
+PICOGK_API void Voxels_IntersectImplicitFast(PKINSTANCE hLib, PKVOXELS hThis, PKPFnfSdf pfn)
+{
+    PicoGK::Library::Instance::Ptr roLib = PicoGK::Library::oLib().roGetInstance(hLib);
+    PicoGK::Voxels::Ptr roVoxels = roLib->m_oVoxels.roGet(hThis);
+    openvdb::FloatGrid::Ptr roGrid = roVoxels->roVdbGrid();
+    if (roGrid->tree().empty())
+        return;
+
+    const PicoGK::VoxelSize oVoxelSize = roVoxels->oVoxelSize();
+    const float fBackgroundMM = roVoxels->fBackgroundMM();
+    const int32_t nBand = (int32_t) std::lround(oVoxelSize.fToVoxels(fBackgroundMM)); // U1 fix
+    const float fFreshBackground = oVoxelSize.fToMM(nBand);
+
+    const openvdb::CoordBBox oActive = roGrid->evalActiveVoxelBoundingBox();
+    const TapeBox oBox = {  oActive.min().x() - nBand, oActive.max().x() + nBand,
+                            oActive.min().y() - nBand, oActive.max().y() + nBand,
+                            oActive.min().z() - nBand, oActive.max().z() + nBand };
+    SupportFootprint oSupport;
+    BuildSupportFootprint(roGrid->tree(), oBox, oSupport);
+
+    openvdb::FloatGrid::Ptr roImplicit = openvdb::FloatGrid::create(fFreshBackground);
+    roImplicit->setGridClass(openvdb::GRID_LEVEL_SET);
+    roImplicit->setTransform(openvdb::math::Transform::createLinearTransform(oVoxelSize));
+    openvdb::FloatGrid::Accessor oAccess = roImplicit->getAccessor();
+
+    // Upstream RenderImplicit's dense loop over bbox±band, restricted to the
+    // footprint's slabs; sample positions and per-voxel float ops verbatim
+    // (vecToMM = i·voxelSize; min(sdf, background); SetSdValue clamp/off).
+    for (int32_t nCX = oBox.nX0 >> 3; nCX <= oBox.nX1 >> 3; nCX++)
+    for (int32_t nCY = oBox.nY0 >> 3; nCY <= oBox.nY1 >> 3; nCY++)
+    {
+        const SupportFootprint::Ranges* poRanges = oSupport.poColumn(nCX, nCY);
+        if (poRanges == nullptr)
+            continue;
+        const TapeColumn oCol = oTapeColumn(oBox, nCX, nCY);
+        for (int32_t nCZ = oBox.nZ0 >> 3; nCZ <= oBox.nZ1 >> 3; nCZ++)
+        {
+            if (!SupportFootprint::bContains(*poRanges, nCZ))
+                continue;
+            const int32_t nSlabZ0 = std::max(oBox.nZ0, nCZ * 8), nSlabZ1 = std::min(oBox.nZ1, nCZ * 8 + 7);
+            for (int32_t x = oCol.nColX0; x <= oCol.nColX1; x++)
+            for (int32_t y = oCol.nColY0; y <= oCol.nColY1; y++)
+            for (int32_t z = nSlabZ0; z <= nSlabZ1; z++)
+            {
+                const openvdb::Coord xyz(x, y, z);
+                const PKVector3 vecSample = oVoxelSize.vecToMM(PicoGK::Coord(x, y, z));
+                const float fSdf = (*pfn)(&vecSample);
+                const float fValue = std::min(fSdf, oAccess.getValue(xyz));
+                oAccess.setValue(xyz, std::clamp(fValue, -fFreshBackground, fFreshBackground));
+                if (std::abs(fValue) >= fFreshBackground)
+                    oAccess.setValueOff(xyz);
+            }
+        }
+    }
 
     openvdb::tools::csgIntersection(*roImplicit, *roGrid);
     roGrid->setTree(roImplicit->baseTreePtr());

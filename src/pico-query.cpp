@@ -37,18 +37,23 @@
 
 /// N rays against one cached LevelSetRayIntersector. Returns the hit count;
 /// pbHit[i] ∈ {0,1}; pvecHits[i] is valid only where pbHit[i] == 1.
-PICOGK_API int32_t Voxels_RayCastBatch( PKINSTANCE       hLib,
-                                        PKVOXELS         hThis,
-                                        const PKVector3* pvecOrigins,
-                                        const PKVector3* pvecDirections,
-                                        int32_t          nCount,
-                                        PKVector3*       pvecHits,
-                                        uint8_t*         pbHit)
+/// The shared ray loop. bSubVoxel keeps the fractional index-space hit (MI6):
+/// upstream truncates it to whole voxels, which puts hits up to one voxel
+/// inside the surface along each positive axis.
+static int32_t nRayCastBatch(   PKINSTANCE       hLib,
+                                PKVOXELS         hThis,
+                                const PKVector3* pvecOrigins,
+                                const PKVector3* pvecDirections,
+                                int32_t          nCount,
+                                PKVector3*       pvecHits,
+                                uint8_t*         pbHit,
+                                bool             bSubVoxel)
 {
     PicoGK::Library::Instance::Ptr roLib = PicoGK::Library::oLib().roGetInstance(hLib);
     PicoGK::Voxels::Ptr roVoxels = roLib->m_oVoxels.roGet(hThis);
     const openvdb::FloatGrid& oGrid = *roVoxels->roVdbGrid();
     const PicoGK::VoxelSize oVoxelSize = roVoxels->oVoxelSize();
+    const float fVoxelSize = (float) oVoxelSize;
 
     openvdb::tools::LevelSetRayIntersector<openvdb::FloatGrid> oIntersector(oGrid);
 
@@ -65,11 +70,20 @@ PICOGK_API int32_t Voxels_RayCastBatch( PKINSTANCE       hLib,
         openvdb::math::Vec3<openvdb::Real> xyz;
         if (oIntersector.intersectsIS(oRay, xyz))
         {
-            // Upstream truncation preserved: vecToMM(Coord(x, y, z)) — the
-            // Coord construction truncates the fractional index-space hit.
-            pvecHits[i] = oVoxelSize.vecToMM(PicoGK::Coord((int32_t)xyz.x(),
-                                                           (int32_t)xyz.y(),
-                                                           (int32_t)xyz.z()));
+            if (bSubVoxel)
+            {
+                pvecHits[i] = PicoGK::Vector3(  (float) xyz.x() * fVoxelSize,
+                                                (float) xyz.y() * fVoxelSize,
+                                                (float) xyz.z() * fVoxelSize);
+            }
+            else
+            {
+                // Upstream truncation preserved: vecToMM(Coord(x, y, z)) — the
+                // Coord construction truncates the fractional index-space hit.
+                pvecHits[i] = oVoxelSize.vecToMM(PicoGK::Coord((int32_t)xyz.x(),
+                                                               (int32_t)xyz.y(),
+                                                               (int32_t)xyz.z()));
+            }
             pbHit[i] = 1;
             nHits++;
         }
@@ -79,6 +93,30 @@ PICOGK_API int32_t Voxels_RayCastBatch( PKINSTANCE       hLib,
         }
     }
     return nHits;
+}
+
+PICOGK_API int32_t Voxels_RayCastBatch( PKINSTANCE       hLib,
+                                        PKVOXELS         hThis,
+                                        const PKVector3* pvecOrigins,
+                                        const PKVector3* pvecDirections,
+                                        int32_t          nCount,
+                                        PKVector3*       pvecHits,
+                                        uint8_t*         pbHit)
+{
+    return nRayCastBatch(hLib, hThis, pvecOrigins, pvecDirections, nCount, pvecHits, pbHit, false);
+}
+
+/// MI6 — the same rays, with each hit at its fractional index-space position
+/// instead of truncated to a whole voxel. Opt-in: it changes the answers.
+PICOGK_API int32_t Voxels_RayCastBatchSubVoxel( PKINSTANCE       hLib,
+                                                PKVOXELS         hThis,
+                                                const PKVector3* pvecOrigins,
+                                                const PKVector3* pvecDirections,
+                                                int32_t          nCount,
+                                                PKVector3*       pvecHits,
+                                                uint8_t*         pbHit)
+{
+    return nRayCastBatch(hLib, hThis, pvecOrigins, pvecDirections, nCount, pvecHits, pbHit, true);
 }
 
 /// N closest-surface-point queries against one index build. Returns the

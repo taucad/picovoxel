@@ -27,14 +27,36 @@ import { brotliCompressSync, constants, gzipSync } from 'node:zlib';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 export const CEILINGS = {
-  // emcc 5.0.1, CI: 6,071,228 raw after the RenderMesh zero-copy patch (run
-  // 36362709369); gzip-9 1,278,521 and brotli-11 541,117 on that build. The
-  // compressed ceilings retain the largest settled measurement plus 0.5%.
-  serial: { raw: 6_071_228, gzip: 1_283_336, brotli: 543_655 },
-  // emcc 5.0.1, CI: 6,136,964 raw on the same run; gzip-9 1,322,458 and
-  // brotli-11 569,536. The compressed ceilings retain the largest settled
-  // measurement plus 0.5%.
-  multi: { raw: 6_136_964, gzip: 1_326_542, brotli: 572_688 },
+  // emcc 5.0.1, local build of this tree (the same toolchain gave the CI figure
+  // exactly before): 6,276,985 raw, +205,757 over 6,071,228. Measured causes:
+  // the tape hoisting, the 3-D mask footprint, one-measure properties and the
+  // heap-view glue +11,927; the OpenVDB exact adaptive merge (patches/openvdb/0002)
+  // +15,242; adaptive meshing (0006), the runtime patches 0007-0009, the
+  // fast-sweeping offset engine and the sub-voxel raycast the remaining
+  // +178,588. gzip-9 1,311,196 and brotli-11 559,000; the compressed ceilings
+  // are those plus 0.5%. Then 6,287,200 raw (+10,215, CI and a local build
+  // agree): the fast-sweeping engine's moving-side re-sweep (ForgetMovingSide,
+  // KeepLowerBounds) and its containment guard, which instantiates OpenVDB's
+  // csgUnion and csgIntersection in src/pico-offset.cpp; gzip-9 1,315,332 and
+  // brotli-11 559,928, plus 0.5%. Then 6,287,297 raw (+97, local build):
+  // Library_nExceptionKind in src/pico-bulk.cpp, the typed catch that tells
+  // std::bad_alloc from other native throws; gzip-9 1,315,904 and brotli-11
+  // 559,462 stay under the compressed ceilings.
+  // Emscripten 6.0.2 compresses worse at about the same raw size. CI run
+  // 40266384206: 6,283,811 raw, 1,321,607 gzip, 563,493 brotli. Option A
+  // admits only brotli +0.5%; the raw and gzip ceilings stay unchanged.
+  // https://github.com/taucad/picovoxel/actions/runs/40266384206
+  serial: { raw: 6_287_297, gzip: 1_321_909, brotli: 566_311 },
+  // emcc 5.0.1, the same local build: 6,335,092 raw (+198,128); gzip-9 1,355,263
+  // and brotli-11 589,958, plus 0.5% for the compressed ceilings. Then 6,345,219
+  // raw (+10,127, same cause as serial); gzip-9 1,357,291 and brotli-11 591,620,
+  // plus 0.5%. Then 6,345,288 raw (+69, same cause as serial); gzip-9
+  // 1,358,472 and brotli-11 590,867 stay under the compressed ceilings.
+  // Emscripten 6.0.2, the same CI run and compression cause: 6,332,773 raw,
+  // 1,379,202 gzip, 594,665 brotli. Option A admits these compressed sizes
+  // +0.5% (rounded up); the raw ceiling stays unchanged. Both measurements
+  // match the approved 6.0.2 probe, so neither exceeds its headroom.
+  multi: { raw: 6_345_288, gzip: 1_386_099, brotli: 597_639 },
 };
 
 /** Byte counts and digest for one file. */

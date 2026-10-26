@@ -189,9 +189,10 @@ register hoists out of the voxel loop; STL-byte identical to its JS twin).
 **Approach**: evaluate the z-varying suffix two z-samples at a time with wasm SIMD128 `f64x2`
 for the exact-rounding ops (+, −, ×, ÷, sqrt, floor, mod, abs, neg) plus min/max rebuilt as
 compare+bitselect to replicate `std::min`/`std::max` NaN- and signed-zero semantics bit-exactly.
-Transcendentals (sin/cos/pow/exp/log) stay scalar musl calls per lane — the tape ≡ JS pin holds
-because musl-wasm ≡ V8 fdlibm, and a vectorized polynomial libm would break it. Odd z-tail runs
-scalar.
+Transcendentals (sin/cos/pow/exp/log) stay scalar musl calls per lane, which keeps the f64x2 and
+scalar paths bit-identical; a vectorized polynomial libm would break that. (The tape ≡ JS pin is
+narrower: musl-wasm and V8's Math differ in the last double bit on some inputs, and the pinned
+fixtures agree after rounding to float32.) Odd z-tail runs scalar.
 
 **Expected**: honest and modest on THESE fixtures — after stage 1 the per-voxel residue is
 libm-dominated (gyroid: sin/cos(z·s); sphere/union64: pow(z−c, 2)), so 1.05–1.2×. The real

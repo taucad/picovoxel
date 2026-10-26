@@ -32,7 +32,7 @@ import {
   type SessionContext,
 } from './context.ts';
 import { DISPOSE } from './dispose.ts';
-import { PicoError, assertLive, guard } from './errors.ts';
+import { PicoError, assertLive, guard, registerOutOfMemoryProbe, type OutOfMemoryProbe } from './errors.ts';
 import {
   assertVoxelsOperand,
   wrapScalarField,
@@ -385,6 +385,27 @@ interface StartedRuntime {
 }
 
 /**
+ * The module's out-of-memory probe for guard(): a table entry that rethrows the
+ * exception into Library_nExceptionKind, whose typed catch reads the C++ type.
+ * Another module's exception, or a JS value, is not caught there and comes back out.
+ */
+function createOutOfMemoryProbe({ module, raw }: RuntimeParts): OutOfMemoryProbe {
+  return (exception) => {
+    const rethrow = module.addFunction(() => {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- the native exception goes back into wasm as is
+      throw exception;
+    }, 'v');
+    try {
+      return raw.Library_nExceptionKind(rethrow) === 1;
+    } catch {
+      return false;
+    } finally {
+      module.removeFunction(rethrow);
+    }
+  };
+}
+
+/**
  * Instantiates once, runs `warm` (the multi entry's pool warm-up), and returns the
  * runtime. A failed warm-up tears the runtime down before rethrowing, so nothing
  * leaves a pool running.
@@ -395,17 +416,25 @@ async function startRuntime(
   warm?: (runtime: PicoRuntime) => Promise<void>,
 ): Promise<StartedRuntime> {
   const module = await instantiate(glue, options);
+  // Emscripten 6.0.0 removed PThread.runningWorkers (#26998). Keep the documented
+  // field as a live view over PThread.pthreads, which every glue since 3.1 has.
+  const pool = module.PThread as { pthreads: Record<number, unknown> } | undefined;
+  if (pool) {
+    Object.defineProperty(pool, 'runningWorkers', { get: () => Object.values(pool.pthreads) });
+  }
   const parts: RuntimeParts = {
     module,
     raw: bindPicoRaw(module),
     registry: createHandleRegistry(),
     open: new Set(),
   };
+  const unregisterProbe = registerOutOfMemoryProbe(module, createOutOfMemoryProbe(parts));
   let disposed = false;
 
   const dispose = () => {
     if (disposed) return;
     disposed = true;
+    unregisterProbe();
     // Teardown order: every open session first (a Set iterator tolerates the
     // deletions each release makes), then the pool.
     for (const release of parts.open) release();

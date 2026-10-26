@@ -1,6 +1,6 @@
 {
   "name": "picovoxel",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "description": "PicoGK voxel and implicit geometry on OpenVDB, compiled to WebAssembly with a typed TypeScript API.",
   "keywords": [
     "cad",
@@ -196,15 +196,15 @@
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
     "@eslint/js": "9.32.0",
-    "@nx/js": "23.1.1",
+    "@nx/js": "23.2.1",
     "@size-limit/file": "13.0.3",
     "@types/node": "26.1.1",
     "@types/three": "0.185.1",
-    "@vitest/coverage-v8": "4.1.11",
+    "@vitest/coverage-v8": "4.1.12",
     "eslint": "9.32.0",
     "globals": "17.11.0",
     "knip": "6.17.1",
-    "nx": "23.1.1",
+    "nx": "23.2.1",
     "oxfmt": "0.36.0",
     "oxlint": "1.70.0",
     "oxlint-tsgolint": "0.22.1",
@@ -217,8 +217,8 @@
     "tsdown": "0.22.14",
     "typescript": "6.0.3",
     "typescript-eslint": "8.61.1",
-    "vite": "8.1.5",
-    "vitest": "4.1.11"
+    "vite": "8.1.6",
+    "vitest": "4.1.12"
   },
   "peerDependencies": {
     "three": ">=0.160"

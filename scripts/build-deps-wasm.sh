@@ -7,7 +7,7 @@
 # oneTBB breaks under a mismatch — it hardcodes -fexceptions for Emscripten
 # (cmake/compilers/Clang.cmake:17), leaving real __resumeException/invoke_* JS-EH
 # imports in libtbb.a that fail a -fwasm-exceptions link. -fwasm-exceptions wins
-# over a co-occurring -fexceptions in either order (probed on emcc 5.0.1), so
+# over a co-occurring -fexceptions in either order (probed on 5.0.1 and 6.0.2), so
 # appending it via CMAKE_CXX_FLAGS overrides oneTBB's flag without a patch.
 # OpenVDB emits no JS-EH imports either way (beware: nm|grep invoke_ false-matches
 # mangled std::__invoke_*), but under wasm EH it compiles its own catch landing
@@ -16,6 +16,15 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 WASM_FLAGS="${WASM_FLAGS:--O3 -msimd128}"
+# No -ffp-contract=off needed: wasm32 has no fused multiply-add, so a*b+c is
+# always a rounded multiply and a rounded add (see the flag guard in
+# build-pico-module.sh, which also refuses -mrelaxed-simd).
+case " $WASM_FLAGS " in
+  *relaxed-simd*)
+    echo "build-deps-wasm: -mrelaxed-simd allows fused multiply-add, which moves exact-lane output; refusing" >&2
+    exit 1
+    ;;
+esac
 # THREADS=1 — pthread variant in its own -mt tree. Shared-memory ABI: these
 # objects are NOT link-compatible with the serial ones, hence separate dirs.
 # oneTBB gets real pthreads (no EMSCRIPTEN_WITHOUT_PTHREAD).

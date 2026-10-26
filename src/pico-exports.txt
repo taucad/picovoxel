@@ -24,6 +24,7 @@ _Library_VoxelsToMm
 _Library_MmToVoxels
 _Mesh_hCreate
 _Mesh_hCreateFromVoxels
+_Mesh_hCreateFromVoxelsAdaptive
 _Mesh_bIsValid
 _Mesh_Destroy
 _Mesh_nMemUsage
@@ -149,6 +150,7 @@ _Voxels_RenderImplicitTapeCompose
 _Voxels_IntersectImplicitTape
 _Lattice_AddBeams
 _Lattice_AddSpheres
+_Library_nExceptionKind
 _Voxels_GetProperties
 _Voxels_GetGridHash
 _Voxels_DensifyInterior
@@ -162,4 +164,5 @@ _Voxels_ProjectZSliceFast
 _Voxels_IntersectImplicitTapeFast
 _Voxels_IntersectImplicitFast
 _Voxels_RayCastBatch
+_Voxels_RayCastBatchSubVoxel
 _Voxels_ClosestPointBatch

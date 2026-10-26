@@ -11,6 +11,7 @@ import {
   adoptHandle,
   assertSameSession,
   checkedMalloc,
+  refreshHeapViews,
   expectHandle,
   VEC3_BYTES,
   withSdfPointer,
@@ -57,6 +58,32 @@ export interface ShellOptions {
   smoothInner?: number;
   /** See `offset({ fastRenorm })`; applies to every offset this shell runs. */
   fastRenorm?: boolean;
+  /** See `offset({ fastSweeping })`; applies to every offset this shell runs. */
+  fastSweeping?: boolean;
+}
+
+/** Options for {@link Voxels.toMesh}. */
+export interface ToMeshOptions {
+  /**
+   * OpenVDB mesh adaptivity in `[0, 1)`. `0`, the default, is the uniform
+   * mesher and the exact result, byte for byte what `toMesh()` returns.
+   * Above `0`, near-coplanar cells merge into larger polygons, so flat
+   * regions need far fewer triangles; the surface stays on the same level
+   * set, but the bytes differ from the uniform mesh, so the mesh carries
+   * `fast` provenance and a `lane: 'exact'` session refuses it with
+   * `PICO_LANE_LOOSENED`. Reproducible: the same grid and options give the
+   * same bytes on `picovoxel` and `picovoxel/multi`. `1` and above are
+   * refused with `PICO_INVALID_ARGUMENT`: at 1 OpenVDB stops comparing
+   * normals and merges on topology alone, a different algorithm.
+   */
+  adaptivity?: number;
+  /**
+   * Run OpenVDB's `relaxDisorientedTriangles` pass after adaptive merging.
+   * Default `false`: relaxing never changes the triangle count and moves
+   * vertices further from the level set. It acts only on adaptive meshes, so
+   * at `adaptivity: 0` it is accepted and changes nothing.
+   */
+  relax?: boolean;
 }
 
 /**
@@ -77,6 +104,14 @@ export interface ShellOptions {
  */
 const FAST_RENORM_SCHEME = 0; // openvdb::math::FIRST_BIAS (FiniteDifference.h:166)
 const FAST_RENORM_COUNT = -1; // < 0 == leave upstream's normCount (LEVEL_SET_HALF_WIDTH = 3)
+/**
+ * VO1: Voxels_OffsetTuned's sweeping engine, scheme 102 (src/pico-offset.cpp):
+ * each offset re-sweeps only the side the surface moves to, from the voxels
+ * at the zero crossing, and keeps an old value where it is farther. Scheme
+ * 100 re-derives the whole band with sdfToSdf instead, which moves convex
+ * surfaces inwards; a fillet of a lattice at 1 mm then lost 38% of its volume.
+ */
+const FAST_SWEEPING_SCHEME = 102;
 
 export interface Voxels {
   /** An independent copy of this field. */
@@ -102,14 +137,26 @@ export interface Voxels {
    * the repository's bench/results/webgpu-v2/sk-0.8-ab.json), so it is never the library default —
    * a session may default it on (see `CreatePicoOptions.fastRenorm`), and an
    * explicit per-op value always wins.
+   *
+   * `fastSweeping`: opt-in sweep engine, `fast` (docs/lanes.md).
    */
-  offset(options: { distance: number; fastRenorm?: boolean }): Voxels;
+  offset(options: { distance: number; fastRenorm?: boolean; fastSweeping?: boolean }): Voxels;
   /** Two offsets in sequence (closing/opening when signs differ). */
-  doubleOffset(options: { first: number; second: number; fastRenorm?: boolean }): Voxels;
+  doubleOffset(options: {
+    first: number;
+    second: number;
+    fastRenorm?: boolean;
+    fastSweeping?: boolean;
+  }): Voxels;
   /** In, 2× out, in again: strips detail below the distance threshold. */
-  smoothen(options: { distance: number; fastRenorm?: boolean }): Voxels;
+  smoothen(options: { distance: number; fastRenorm?: boolean; fastSweeping?: boolean }): Voxels;
   /** Over-offset composition; fillet-like rounding (C# voxFillet). */
-  fillet(options: { rounding: number; finalSurfaceDistance?: number; fastRenorm?: boolean }): Voxels;
+  fillet(options: {
+    rounding: number;
+    finalSurfaceDistance?: number;
+    fastRenorm?: boolean;
+    fastSweeping?: boolean;
+  }): Voxels;
   /** Shell: one-offset form ({offset}) or two-offset form ({inner, outer, smoothInner}). */
   shell(options: ShellOptions): Voxels;
   /** Everything outside the box is trimmed away (cube-mesh intersect, as C#). */
@@ -123,16 +170,21 @@ export interface Voxels {
   /**
    * Pure: clone + render the SDF into the clone within bounds. A JS callback
    * runs upstream's serial per-voxel loop; a serialized `SdfExpression` takes
-   * the slab-parallel tape path. The two paths produce `equals()`-identical
-   * grids with identical `properties()` and STL bytes; only the raw fast
-   * `volume` approximation may differ between them (it integrates
-   * representation bookkeeping the pruned fill legitimately omits).
+   * the slab-parallel tape path. On the pinned fixtures the two paths produce
+   * `equals()`-identical grids with identical `properties()` and STL bytes;
+   * only the raw fast `volume` approximation may differ between them (it
+   * integrates representation bookkeeping the pruned fill legitimately omits).
+   * They are not identical by construction: the tape evaluates with the
+   * module's libm, the callback with the engine's `Math`, and the two can
+   * differ in the last double bit on some sin/cos/exp/log inputs, which can
+   * move a voxel's float32 value by one ulp. Each path is reproducible.
    */
   withImplicit(options: { sdf: SdfFunction | SdfExpression; boundsMin: Vec3; boundsMax: Vec3 }): Voxels;
   /**
    * The gyroid-in-sphere idiom: existing voxels re-evaluated under the SDF.
    * Callback = serial upstream loop; `SdfExpression` = parallel tape path
-   * — `equals()`-identical results, see `withImplicit` on the fast-volume caveat.
+   * — `equals()`-identical on the pinned fixtures; see `withImplicit` for the
+   * fast-volume and libm caveats.
    */
   maskedByImplicit(options: { sdf: SdfFunction | SdfExpression }): Voxels;
   /** Volume in mm³ from the raw grid — fast but approximate after booleans (use `properties()`). */
@@ -178,8 +230,13 @@ export interface Voxels {
    * crossing. Per-ray results are EXACTLY the serial `raycastToSurface`
    * semantics (incl. upstream's integer-voxel hit truncation). `hits` is
    * xyz-triples; entries where `hit[i] === 0` are undefined.
+   *
+   * `subVoxel: true` (opt-in) keeps each hit's fractional position instead
+   * of truncating it to a whole voxel, which can put an upstream hit up to
+   * one voxel inside the surface on each positive axis. Hit and miss are the
+   * same rays either way; only the hit positions move onto the surface.
    */
-  raycastBatch(options: { origins: ArrayLike<number>; directions: ArrayLike<number> }): {
+  raycastBatch(options: { origins: ArrayLike<number>; directions: ArrayLike<number>; subVoxel?: boolean }): {
     hits: Float32Array;
     hit: Uint8Array;
   };
@@ -197,7 +254,12 @@ export interface Voxels {
   sliceOrigin(index?: number): Vec3;
   /** One slice image; `mode` post-processes it; the interpolated form takes a fractional Z index. */
   getSlice(options: GetSliceOptions): VoxelSlice;
-  toMesh(): Mesh;
+  /**
+   * Triangle mesh of the zero level set. Without options, or with
+   * `adaptivity: 0`, the uniform mesher runs and the result is exact; see
+   * {@link ToMeshOptions} for the adaptive form.
+   */
+  toMesh(options?: ToMeshOptions): Mesh;
   toScalarField(): ScalarField;
   readonly metadata: Metadata;
   readonly memUsage: number;
@@ -254,14 +316,32 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     return wrapVoxels(ctx, copy, resultLane);
   };
 
-  /** Tighten-only: a per-op `fastRenorm: true` inside an 'exact' session throws. */
-  const rejectLoosening = (fastRenorm: boolean | undefined, where: string): void => {
-    if (ctx.lane === 'exact' && fastRenorm === true) {
+  /**
+   * Tighten-only: a per-op `fastRenorm: true` or `fastSweeping: true` inside an
+   * 'exact' session throws, and so does asking for both engines at once.
+   */
+  const rejectLoosening = (
+    { fastRenorm, fastSweeping }: { fastRenorm?: boolean; fastSweeping?: boolean },
+    where: string,
+  ): void => {
+    for (const [name, value] of [
+      ['fastRenorm', fastRenorm],
+      ['fastSweeping', fastSweeping],
+    ] as const) {
+      if (ctx.lane === 'exact' && value === true) {
+        throw new PicoError(
+          'PICO_LANE_LOOSENED',
+          `${where}({ ${name}: true }) inside a lane: 'exact' session: one value-changing acceleration would destroy the ` +
+            "session's structural exactness claim. Tightening is allowed; loosening requires a 'fast' or " +
+            'lane-less session.',
+        );
+      }
+    }
+    if (fastRenorm === true && fastSweeping === true) {
       throw new PicoError(
-        'PICO_LANE_LOOSENED',
-        `${where}({ fastRenorm: true }) inside a lane: 'exact' session: one value-changing acceleration would destroy the ` +
-          "session's structural exactness claim. Tightening is allowed; loosening requires a 'fast' or " +
-          'lane-less session.',
+        'PICO_INVALID_ARGUMENT',
+        `${where}({ fastRenorm: true, fastSweeping: true }): these are two offset engines; fastSweeping runs no ` +
+          'renormalization steps for fastRenorm to tune. Pick one.',
       );
     }
   };
@@ -272,23 +352,31 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
    * Offset/DoubleOffset/TripleOffset exports do. ctx.scratch is BBOX_BYTES = 6
    * floats, and the longest sequence in the family is 3.
    */
-  const fastOffset = (distancesMM: number[]): Voxels =>
+  const tunedOffset = (distancesMM: number[], scheme: number, normCount: number): Voxels =>
     derive(
       'Voxels_OffsetTuned',
       (copy) => {
         const base = ctx.scratch >>> 2;
         for (let i = 0; i < distancesMM.length; i++) ctx.module.HEAPF32[base + i] = distancesMM[i]!;
-        ctx.raw.Voxels_OffsetTuned(
-          ctx.lib,
-          copy,
-          ctx.scratch,
-          distancesMM.length,
-          FAST_RENORM_SCHEME,
-          FAST_RENORM_COUNT,
-        );
+        ctx.raw.Voxels_OffsetTuned(ctx.lib, copy, ctx.scratch, distancesMM.length, scheme, normCount);
       },
       unionLaneSets(lane, FAST_LANE_SET), // the one value-changing op: provenance taints here
     );
+
+  /**
+   * The offset family's dispatch: `fastSweeping` (VO1), else `fastRenorm` by
+   * the per-op > session > library precedence, else the stock export.
+   */
+  const offsetBy = (
+    options: { fastRenorm?: boolean; fastSweeping?: boolean },
+    distancesMM: number[],
+    stock: () => Voxels,
+  ): Voxels => {
+    if (options.fastSweeping === true) return tunedOffset(distancesMM, FAST_SWEEPING_SCHEME, -1);
+    if (options.fastRenorm ?? ctx.fastRenorm)
+      return tunedOffset(distancesMM, FAST_RENORM_SCHEME, FAST_RENORM_COUNT);
+    return stock();
+  };
 
   const operandHandle = (other: Voxels, what: string): bigint => {
     assertSameSession(ctx, other, what);
@@ -401,46 +489,53 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       return guard('Voxels_bIsEmpty', () => ctx.raw.Voxels_bIsEmpty(ctx.lib, live()))();
     },
 
-    offset(options: { distance: number; fastRenorm?: boolean }) {
-      rejectLoosening(options.fastRenorm, 'offset');
+    offset(options: { distance: number; fastRenorm?: boolean; fastSweeping?: boolean }) {
+      rejectLoosening(options, 'offset');
       const distance = requireFinite(options.distance, 'distance', 'offset({ distance })');
-      if (options.fastRenorm ?? ctx.fastRenorm) return fastOffset([distance]);
-      return derive('Voxels_Offset', (copy) => ctx.raw.Voxels_Offset(ctx.lib, copy, distance));
-    },
-    doubleOffset(options: { first: number; second: number; fastRenorm?: boolean }) {
-      rejectLoosening(options.fastRenorm, 'doubleOffset');
-      const first = requireFinite(options.first, 'first', 'doubleOffset');
-      const second = requireFinite(options.second, 'second', 'doubleOffset');
-      if (options.fastRenorm ?? ctx.fastRenorm) return fastOffset([first, second]);
-      return derive('Voxels_DoubleOffset', (copy) =>
-        ctx.raw.Voxels_DoubleOffset(ctx.lib, copy, first, second),
+      return offsetBy(options, [distance], () =>
+        derive('Voxels_Offset', (copy) => ctx.raw.Voxels_Offset(ctx.lib, copy, distance)),
       );
     },
-    smoothen(options: { distance: number; fastRenorm?: boolean }) {
-      rejectLoosening(options.fastRenorm, 'smoothen');
+    doubleOffset(options: { first: number; second: number; fastRenorm?: boolean; fastSweeping?: boolean }) {
+      rejectLoosening(options, 'doubleOffset');
+      const first = requireFinite(options.first, 'first', 'doubleOffset');
+      const second = requireFinite(options.second, 'second', 'doubleOffset');
+      return offsetBy(options, [first, second], () =>
+        derive('Voxels_DoubleOffset', (copy) => ctx.raw.Voxels_DoubleOffset(ctx.lib, copy, first, second)),
+      );
+    },
+    smoothen(options: { distance: number; fastRenorm?: boolean; fastSweeping?: boolean }) {
+      rejectLoosening(options, 'smoothen');
       const distance = requireFinite(options.distance, 'distance', 'smoothen');
       // TripleOffset is grow d / shrink 2d / grow d on one filter (PicoGKVdbVoxels.h:310-330).
-      if (options.fastRenorm ?? ctx.fastRenorm) return fastOffset([distance, -2 * distance, distance]);
-      return derive('Voxels_TripleOffset', (copy) => ctx.raw.Voxels_TripleOffset(ctx.lib, copy, distance));
+      return offsetBy(options, [distance, -2 * distance, distance], () =>
+        derive('Voxels_TripleOffset', (copy) => ctx.raw.Voxels_TripleOffset(ctx.lib, copy, distance)),
+      );
     },
-    fillet(options: { rounding: number; finalSurfaceDistance?: number; fastRenorm?: boolean }) {
-      rejectLoosening(options.fastRenorm, 'fillet');
+    fillet(options: {
+      rounding: number;
+      finalSurfaceDistance?: number;
+      fastRenorm?: boolean;
+      fastSweeping?: boolean;
+    }) {
+      rejectLoosening(options, 'fillet');
       // C# voxOverOffset composition (Voxels.cs:613-621): DoubleOffset(r, −r + final).
       const rounding = requireFinite(options.rounding, 'rounding', 'fillet');
       const final = requireFinite(options.finalSurfaceDistance ?? 0, 'finalSurfaceDistance', 'fillet');
-      if (options.fastRenorm ?? ctx.fastRenorm) return fastOffset([rounding, -rounding + final]);
-      return derive('Voxels_DoubleOffset', (copy) =>
-        ctx.raw.Voxels_DoubleOffset(ctx.lib, copy, rounding, -rounding + final),
+      return offsetBy(options, [rounding, -rounding + final], () =>
+        derive('Voxels_DoubleOffset', (copy) =>
+          ctx.raw.Voxels_DoubleOffset(ctx.lib, copy, rounding, -rounding + final),
+        ),
       );
     },
     shell(options: ShellOptions): Voxels {
-      rejectLoosening(options.fastRenorm, 'shell');
-      const fastRenorm = options.fastRenorm;
+      rejectLoosening(options, 'shell');
+      const { fastRenorm, fastSweeping } = options;
       if (options.offset !== undefined) {
         // C# voxShell(float) (Voxels.cs:659-668): sign chooses which side keeps
         // the original dimensions.
         const distance = requireFinite(options.offset, 'offset', 'shell({ offset })');
-        const moved = voxels.offset({ distance, fastRenorm });
+        const moved = voxels.offset({ distance, fastRenorm, fastSweeping });
         const result = distance < 0 ? voxels.subtract(moved) : moved.subtract(voxels as Voxels);
         moved.dispose();
         return result;
@@ -459,13 +554,13 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       let outer = requireFinite(options.outer, 'outer', 'shell');
       const smoothInner = requireFinite(options.smoothInner ?? 0, 'smoothInner', 'shell');
       if (inner > outer) [inner, outer] = [outer, inner];
-      let innerVoxels = voxels.offset({ distance: inner, fastRenorm });
+      let innerVoxels = voxels.offset({ distance: inner, fastRenorm, fastSweeping });
       if (smoothInner > 0) {
-        const smoothed = innerVoxels.smoothen({ distance: smoothInner, fastRenorm });
+        const smoothed = innerVoxels.smoothen({ distance: smoothInner, fastRenorm, fastSweeping });
         innerVoxels.dispose();
         innerVoxels = smoothed;
       }
-      const outerVoxels = voxels.offset({ distance: outer, fastRenorm });
+      const outerVoxels = voxels.offset({ distance: outer, fastRenorm, fastSweeping });
       const result = outerVoxels.subtract(innerVoxels);
       innerVoxels.dispose();
       outerVoxels.dispose();
@@ -656,7 +751,15 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       )();
       return hit ? ctx.readVec3(ctx.scratch + 2 * VEC3_BYTES) : null;
     },
-    raycastBatch({ origins, directions }: { origins: ArrayLike<number>; directions: ArrayLike<number> }): {
+    raycastBatch({
+      origins,
+      directions,
+      subVoxel = false,
+    }: {
+      origins: ArrayLike<number>;
+      directions: ArrayLike<number>;
+      subVoxel?: boolean;
+    }): {
       hits: Float32Array;
       hit: Uint8Array;
     } {
@@ -668,13 +771,20 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
           `raycastBatch needs matching xyz-triple arrays; got ${origins.length}/${directions.length} floats.`,
         );
       }
+      if (typeof subVoxel !== 'boolean') {
+        throw new PicoError(
+          'PICO_INVALID_ARGUMENT',
+          `raycastBatch subVoxel must be a boolean, got ${String(subVoxel)}.`,
+        );
+      }
+      const castExport = subVoxel ? 'Voxels_RayCastBatchSubVoxel' : 'Voxels_RayCastBatch';
       const bytes = count * VEC3_BYTES;
       const pointer = checkedMalloc(ctx.module, 2 * bytes + bytes + count, 'a raycast batch buffer');
       try {
         ctx.module.HEAPF32.set(origins, pointer >>> 2);
         ctx.module.HEAPF32.set(directions, (pointer + bytes) >>> 2);
-        guard('Voxels_RayCastBatch', () =>
-          ctx.raw.Voxels_RayCastBatch(
+        guard(castExport, () =>
+          ctx.raw[castExport](
             ctx.lib,
             handle,
             pointer,
@@ -684,6 +794,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
             pointer + 3 * bytes,
           ),
         )();
+        refreshHeapViews(ctx.module);
         const hits = new Float32Array(
           ctx.module.HEAPF32.subarray((pointer + 2 * bytes) >>> 2, ((pointer + 2 * bytes) >>> 2) + count * 3),
         );
@@ -721,6 +832,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
             pointer + 2 * bytes,
           ),
         )();
+        refreshHeapViews(ctx.module);
         const out = new Float32Array(
           ctx.module.HEAPF32.subarray((pointer + bytes) >>> 2, ((pointer + bytes) >>> 2) + count * 3),
         );
@@ -772,6 +884,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
         } else {
           ctx.raw.Voxels_GetXSlice(ctx.lib, handle, at, buffer, backgroundPtr);
         }
+        refreshHeapViews(ctx.module);
         const background = ctx.module.HEAPF32[backgroundPtr >>> 2]!;
         const data = new Float32Array(
           ctx.module.HEAPF32.subarray(buffer >>> 2, (buffer >>> 2) + width * height),
@@ -784,7 +897,37 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       }
     },
 
-    toMesh(): Mesh {
+    toMesh(options: ToMeshOptions = {}): Mesh {
+      const { adaptivity = 0, relax = false } = options;
+      if (!(adaptivity >= 0 && adaptivity < 1)) {
+        throw new PicoError(
+          'PICO_INVALID_ARGUMENT',
+          `toMesh needs an adaptivity in [0, 1), got ${adaptivity}.`,
+        );
+      }
+      if (typeof relax !== 'boolean') {
+        throw new PicoError('PICO_INVALID_ARGUMENT', `toMesh relax must be a boolean, got ${String(relax)}.`);
+      }
+      if (adaptivity > 0) {
+        if (ctx.lane === 'exact') {
+          throw new PicoError(
+            'PICO_LANE_LOOSENED',
+            `toMesh({ adaptivity: ${adaptivity} }) inside a lane: 'exact' session: adaptive meshing changes the ` +
+              "mesh bytes, which would destroy the session's structural exactness claim. Use a 'fast' or lane-less " +
+              'session.',
+          );
+        }
+        return wrapMesh(
+          ctx,
+          expectHandle(
+            'Mesh_hCreateFromVoxelsAdaptive',
+            guard('Mesh_hCreateFromVoxelsAdaptive', () =>
+              ctx.raw.Mesh_hCreateFromVoxelsAdaptive(ctx.lib, live(), adaptivity, relax),
+            )(),
+          ),
+          unionLaneSets(lane, FAST_LANE_SET),
+        );
+      }
       return wrapMesh(
         ctx,
         expectHandle(

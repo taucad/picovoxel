@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # The headless split of PicoGKLibrary.cpp, without patching upstream.
 #
-# PicoGKLibrary.cpp is the only mixed translation unit: 140 core exports, then 33
+# PicoGKLibrary.cpp is the only mixed translation unit: 141 core exports (140 upstream
+# plus Mesh_hCreateFromVoxelsAdaptive from patches/PicoGKRuntime/0006), then 33
 # contiguous Viewer_* exports to EOF (verified: zero non-viewer exports after the
 # boundary). Every other Source/*.cpp is PicoGKGL* and viewer-only, so "de-globbing"
 # is just not listing them.
@@ -30,8 +31,8 @@ CORE=$(grep -c '^PICOGK_API' "$OUT" || true)
 VIEW=$(( $(grep -c '^PICOGK_API' "$SRC" || true) - CORE ))
 echo "make-core-tu: cut at line $BOUNDARY — $CORE core exports kept, $VIEW Viewer_* dropped"
 
-# The split was verified at exactly 140 core / 33 viewer exports. A drift here means
+# The split was verified at exactly 141 core / 33 viewer exports. A drift here means
 # re-reading the source, not adjusting the number (tests/make-core-tu.test.mjs).
-[ "$CORE" -eq 140 ] || { echo "make-core-tu: FAIL expected 140 core exports, got $CORE (upstream drift)" >&2; exit 1; }
+[ "$CORE" -eq 141 ] || { echo "make-core-tu: FAIL expected 141 core exports, got $CORE (upstream drift)" >&2; exit 1; }
 grep -q "Viewer_" "$OUT" && { echo "make-core-tu: FAIL viewer code leaked into core TU" >&2; exit 1; }
 exit 0

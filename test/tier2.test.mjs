@@ -239,6 +239,71 @@ test('C4 — mesh/voxel round trip preserves bbox and volume; diagnostics', () =
   });
 });
 
+test('C4a — adaptive meshing: 0 is the uniform mesh byte for byte, above 0 fewer triangles on the same surface', () => {
+  withLib(0.4, (lib) => {
+    const sphere = sphereOf(lib, 10);
+    const bytesOf = (mesh) => {
+      const nv = fns.Mesh_nVertexCount(lib, mesh);
+      const nt = fns.Mesh_nTriangleCount(lib, mesh);
+      const pv = _malloc(nv * VEC3);
+      const pt = _malloc(nt * 12);
+      try {
+        assert.equal(fns.Mesh_GetVertices(lib, mesh, pv, nv), nv);
+        assert.equal(fns.Mesh_GetTriangles(lib, mesh, pt, nt), nt);
+        return Buffer.concat([
+          Buffer.from(module.HEAPU8.slice(pv, pv + nv * VEC3)),
+          Buffer.from(module.HEAPU8.slice(pt, pt + nt * 12)),
+        ]);
+      } finally {
+        _free(pv);
+        _free(pt);
+      }
+    };
+    const uniform = fns.Mesh_hCreateFromVoxels(lib, sphere);
+    const uniformBytes = bytesOf(uniform);
+    // NaN, negative and zero all select the uniform mesher, with relax on or
+    // off (OpenVDB relaxes only adaptive meshes): identical bytes.
+    for (const adaptivity of [0, -1, Number.NaN]) {
+      for (const relax of [false, true]) {
+        const mesh = fns.Mesh_hCreateFromVoxelsAdaptive(lib, sphere, adaptivity, relax);
+        assert.ok(bytesOf(mesh).equals(uniformBytes), `adaptivity ${adaptivity} must equal the uniform mesh`);
+        fns.Mesh_Destroy(lib, mesh);
+      }
+    }
+
+    const adaptive = fns.Mesh_hCreateFromVoxelsAdaptive(lib, sphere, 0.5, false);
+    const uniformTris = fns.Mesh_nTriangleCount(lib, uniform);
+    const adaptiveTris = fns.Mesh_nTriangleCount(lib, adaptive);
+    assert.ok(adaptiveTris < uniformTris, `adaptive ${adaptiveTris} !< uniform ${uniformTris}`);
+    // Every adaptive vertex stays on the analytic sphere within one voxel.
+    const nv = fns.Mesh_nVertexCount(lib, adaptive);
+    for (let i = 0; i < nv; i += 7) {
+      fns.Mesh_GetVertex(lib, adaptive, i, scratch);
+      const r = Math.hypot(...readVec(scratch));
+      assert.ok(Math.abs(r - 10) < 0.4, `adaptive vertex ${i} at r=${r}`);
+    }
+    // Deterministic; relax keeps the triangle count (the sphere has no
+    // disoriented triangles for it to move; mesh-adaptivity.test.ts shows a
+    // body where it moves vertices).
+    const again = fns.Mesh_hCreateFromVoxelsAdaptive(lib, sphere, 0.5, false);
+    assert.ok(bytesOf(again).equals(bytesOf(adaptive)), 'adaptive meshing must be deterministic');
+    const relaxed = fns.Mesh_hCreateFromVoxelsAdaptive(lib, sphere, 0.5, true);
+    assert.equal(fns.Mesh_nTriangleCount(lib, relaxed), adaptiveTris);
+    // 1 and above clamp to the largest float below 1: at 1 OpenVDB would stop
+    // comparing normals, a different algorithm.
+    const belowOne = Math.fround(1 - 2 ** -24);
+    const top = fns.Mesh_hCreateFromVoxelsAdaptive(lib, sphere, belowOne, false);
+    for (const adaptivity of [1, 5, Number.POSITIVE_INFINITY]) {
+      const clamped = fns.Mesh_hCreateFromVoxelsAdaptive(lib, sphere, adaptivity, false);
+      assert.ok(bytesOf(clamped).equals(bytesOf(top)), `adaptivity ${adaptivity} clamps below 1`);
+      fns.Mesh_Destroy(lib, clamped);
+    }
+
+    for (const m of [uniform, adaptive, again, relaxed, top]) fns.Mesh_Destroy(lib, m);
+    fns.Voxels_Destroy(lib, sphere);
+  });
+});
+
 // ── C5 — implicit ──────────────────────────────────────────────────────────────
 test('C5 — implicit: JS SDF sphere matches the native primitive', () => {
   withLib(0.5, (lib) => {
@@ -1195,6 +1260,10 @@ test('C21 — RayCastBatch/ClosestPointBatch: counts and content sane', () => {
     assert.equal(hitCount, 1, 'one hit, one miss');
     const surfaceX = module.HEAPF32[hits >> 2];
     assert.ok(Math.abs(surfaceX - 8) <= 1.0, `hit lands on the +x surface (got ${surfaceX})`);
+    // MI6: the sub-voxel variant hits and misses the same rays, on the surface.
+    assert.equal(fns.Voxels_RayCastBatchSubVoxel(lib, sphere, origins, dirs, n, hits, mask), 1);
+    const subVoxelX = module.HEAPF32[hits >> 2];
+    assert.ok(Math.abs(subVoxelX - 8) <= 0.05, `sub-voxel hit on the +x surface (got ${subVoxelX})`);
 
     const queries = _malloc(12),
       out = _malloc(12),
@@ -1220,6 +1289,7 @@ test('C16 — invalid handles throw and the module survives every one', () => {
     ['Mesh_nTriangleCount', () => fns.Mesh_nTriangleCount(lib, bogus)],
     ['Voxels_fCalculateVolume', () => fns.Voxels_fCalculateVolume(lib, bogus)],
     ['Mesh_hCreateFromVoxels', () => fns.Mesh_hCreateFromVoxels(lib, bogus)],
+    ['Mesh_hCreateFromVoxelsAdaptive', () => fns.Mesh_hCreateFromVoxelsAdaptive(lib, bogus, 0.5, false)],
     ['Lattice_nMemUsage', () => fns.Lattice_nMemUsage(lib, bogus)],
     ['PolyLine_nVertexCount', () => fns.PolyLine_nVertexCount(lib, bogus)],
     ['ScalarField_nMemUsage', () => fns.ScalarField_nMemUsage(lib, bogus)],
@@ -1269,6 +1339,26 @@ test('Library — info strings, conversions, voxel size', () => {
     const sphere = sphereOf(lib, 5);
     assert.equal(fns.Voxels_fVoxelSize(lib, sphere), 0.5, 'Voxels_fVoxelSize');
     fns.Voxels_Destroy(lib, sphere);
+  });
+});
+
+test('Library_nExceptionKind — a bogus-handle throw rethrown into the module is not std::bad_alloc', () => {
+  withLib(0.5, (lib) => {
+    let thrown = null;
+    try {
+      fns.Mesh_nTriangleCount(lib, 987654321n);
+    } catch (e) {
+      thrown = e;
+    }
+    assert.ok(thrown instanceof WebAssembly.Exception, 'premise: roGet throws across the ABI');
+    const rethrow = module.addFunction(() => {
+      throw thrown;
+    }, 'v');
+    try {
+      assert.equal(fns.Library_nExceptionKind(rethrow), 0, 'std::out_of_range is not heap exhaustion');
+    } finally {
+      module.removeFunction(rethrow);
+    }
   });
 });
 

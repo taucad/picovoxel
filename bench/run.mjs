@@ -333,7 +333,9 @@ await metric('M9', 'facade vs raw: 10k isEmpty calls', () => {
 });
 
 // ── M10 — gyroid tape @0.25mm: serialized SDF, parallel in-module fill (TP1-TP4) ──
-// Identity must bit-match M3@0.25 (same fold order, both fdlibm-derived libms);
+// Identity must bit-match M3@0.25 on this fixture (same fold order; musl-wasm and
+// V8's Math differ in the last double bit on some inputs, which the float32 grid
+// rounds away here — not a general guarantee);
 // the multi row is the thread-scaling headline — the tape is the only SDF shape
 // reachable from pthread workers.
 {

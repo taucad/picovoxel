@@ -1,8 +1,8 @@
 [
   {
-    "name": "core: picovoxel, /multi, /raw, /slicing, /three (25,715 B brotli at T1.2 on 38bdac8; 27,213 B at T4.2 with createPicoRuntime and the two generated export lists, 2026-09-28)",
+    "name": "core: picovoxel, /multi, /raw, /slicing, /three (25,715 B brotli at T1.2 on 38bdac8; 27,213 B at T4.2 with createPicoRuntime and the two generated export lists, 2026-09-28; 27,880 B with toMesh adaptivity, fastSweeping, raycastBatch subVoxel, the heap-view refresh and the empty GLB scene, 2026-10-23; 28,200 B with the native out-of-memory probe, 2026-10-25)",
     "path": ["dist/*.js", "!dist/shapekernel.js", "!dist/latticelibrary.js", "!dist/numerics.js"],
-    "limit": "27.5 kB"
+    "limit": "28.3 kB"
   },
   {
     "name": "picovoxel/shapekernel (13,309 B brotli at T1.2, 2026-09-27)",
@@ -20,12 +20,12 @@
     "limit": "4.65 kB"
   },
   {
-    "name": "serial glue picovoxel/glue (emcc 5.0.1: 18,981 B brotli in CI run 36306325041)",
+    "name": "serial glue picovoxel/glue (emcc 6.0.2: 18,893 B brotli in CI run 40269110984)",
     "path": "dist/pico.mjs",
     "limit": "19.2 kB"
   },
   {
-    "name": "pthread glue picovoxel/multi/worker (emcc 5.0.1: 22,926 B brotli in CI run 36306325041)",
+    "name": "pthread glue picovoxel/multi/worker (emcc 6.0.2: 22,841 B brotli in CI run 40269110984)",
     "path": "dist/pico-multi.mjs",
     "limit": "23.2 kB"
   },

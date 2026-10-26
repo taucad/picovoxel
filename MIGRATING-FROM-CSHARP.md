@@ -259,7 +259,7 @@ session enters at the construction boundary (`shape.voxConstruct(pk)`,
 | `BaseLogoBox`                                                                                                                                                                                           | N/A — image input                                                                                                                                                                                                                                     |
 | `LatticePipe`/`LatticeManifold`                                                                                                                                                                         | same names (`LatticeManifold` options object)                                                                                                                                                                                                         |
 | `MeshUtility`                                                                                                                                                                                           | `meshUtility` (session-first; C# `Append` → the facade's pure `mesh.merged`)                                                                                                                                                                          |
-| `ImplicitUtility` (`ImplicitGyroid`/`Sphere`/`Genus`/`SuperEllipsoid`)                                                                                                                                  | same names, each as BOTH a JS callback (`.sdf`) and a tape (`.expression`) — value-identical (pinned)                                                                                                                                                 |
+| `ImplicitUtility` (`ImplicitGyroid`/`Sphere`/`Genus`/`SuperEllipsoid`)                                                                                                                                  | same names, each as BOTH a JS callback (`.sdf`) and a tape (`.expression`) — value-identical on the pinned fixtures (the two libms can differ in the last double bit; see `withImplicit`)                                                             |
 | `Sh` lattice builders / export functions                                                                                                                                                                | `sh` (session-first; bytes not paths; `latFromGrid`'s last-row-wins quirk ported verbatim and pinned)                                                                                                                                                 |
 | `Sh` `[Obsolete]` voxel/boolean/query pass-throughs                                                                                                                                                     | N/A — the facade methods on `Voxels`                                                                                                                                                                                                                  |
 | `Sh.Preview*` / TGA/PNG/CSV exports / `strGetExportPath`                                                                                                                                                | N/A — see Visualizations below                                                                                                                                                                                                                        |
@@ -276,6 +276,17 @@ at 1.0 mm the two bands coincide and the results match upstream's. The original
 stays reachable as
 `Voxels_IntersectImplicit` on `picovoxel/raw`, and
 `test/intersect-implicit.test.ts` shows it throwing at 0.25 mm.
+
+When every input of a masked shape is analytic, one tape can replace the
+boolean-then-mask chain. A gyroid-filled spherical shell, C#'s
+`voxShell.IntersectImplicit(gyroid)` after a sphere subtraction, becomes one
+`withImplicit` call over `['max', sphereOuter, ['-', sphereInner], gyroid]`:
+one fill, no boolean and no mask pass, about 2× faster on the serial build.
+It is a different construction, not a rewrite of the same one: the fill
+evaluates the analytic spheres where the chain reads the rendered spheres'
+narrow-band values, so the grids can differ. They differ for `createVoxels`
+spheres at 0.4 and 0.5 mm; one lamp fixture gave an identical hash. Compare
+`gridHash()` on your own fixture before swapping one for the other.
 
 ## LatticeLibrary (`picovoxel/latticelibrary`)
 

@@ -122,6 +122,13 @@ const ORACLES: Record<string, OracleTest[]> = {
       oracle: 'per-element crossings, bit for bit',
     },
   ],
+  Library_nExceptionKind: [
+    {
+      file: 'errors.test.ts',
+      title: 'Library_nExceptionKind — 1 for std::bad_alloc, 0 for another C++ throw or none',
+      oracle: 'throws of known type: a real heap exhaustion and a bogus handle',
+    },
+  ],
   Lattice_AddSpheres: [
     {
       file: TIER2,
@@ -284,6 +291,14 @@ const ORACLES: Record<string, OracleTest[]> = {
       title: 'raycastBatch ≡ serial raycastToSurface, exact per ray, hit/miss 100% off-grazing',
       via: 'raycastBatch',
       oracle: 'the serial upstream raycast, per ray',
+    },
+  ],
+  Voxels_RayCastBatchSubVoxel: [
+    {
+      file: 'query-batch.test.ts',
+      title: 'raycastBatch subVoxel: the truncated hits moved onto the surface, misses unchanged',
+      via: 'raycastBatch',
+      oracle: 'the analytic sphere and the truncated hit',
     },
   ],
   Voxels_ClosestPointBatch: [

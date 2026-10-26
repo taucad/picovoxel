@@ -64,10 +64,10 @@ Third-party components compiled into the WebAssembly modules:
   https://github.com/Cyan4973/xxHash
 
   mimalloc (the allocator of pico-multi.wasm), MIT License
-  Copyright (c) 2018-2021 Microsoft Corporation, Daan Leijen
+  Copyright (c) 2018-2025 Microsoft Corporation, Daan Leijen
   https://github.com/microsoft/mimalloc
 
-  The Emscripten runtime and system libraries linked by Emscripten 5.0.1:
+  The Emscripten runtime and system libraries linked by Emscripten 6.0.2:
   the JavaScript glue (pico.mjs, pico-multi.mjs; MIT or University of
   Illinois/NCSA), musl libc (MIT), LLVM libc++, libc++abi, libunwind and
   compiler-rt (Apache License 2.0 with LLVM Exceptions), and dlmalloc

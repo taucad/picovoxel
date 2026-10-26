@@ -3,7 +3,7 @@
 #
 # Every input to the wasm build is pinned: PicoGKRuntime at the SHA all measurements
 # certify (OQ1 default), the OpenVDB commit its submodule references, oneTBB at
-# v2022.2.0, emsdk at 5.0.1. Tarballs are sha256-verified; GitHub regenerates commit
+# v2022.2.0, emsdk at 6.0.2. Tarballs are sha256-verified; GitHub regenerates commit
 # tarballs on the fly, so if their compression ever changes the mismatch fails loudly
 # and the pin gets re-verified by hand — that is the intended failure mode.
 #
@@ -31,9 +31,9 @@ ONETBB_SHA="06ce6212da6710f4bb2d20a1904b018aa44069bf"    # v2022.2.0
 ONETBB_SHA256="f588cbd1635ebe2dbc1ac4a82e7bcf9aa90be40c98259b237bb7ae288fac269e"
 XXHASH_TAG="v0.8.3"                                      # single header, BSD-2 (NOTICE)
 XXHASH_SHA256="17973c0dc49d9854ca26caa191f0e12f7a424b68858d9a78de3860d959d85e4b"
-EMSDK_VERSION="5.0.1"
-EMSDK_MANAGER_SHA="14c18b569f55138fe4963924162244251f454fb0" # emscripten-core/emsdk tag 5.0.1
-ACORN_VERSION="8.15.0"                                     # emscripten 5.0.1 package-lock.json
+EMSDK_VERSION="6.0.2"
+EMSDK_MANAGER_SHA="ca38f487f28b7c3c16f8f70cd0e012099ac4b7e2" # emscripten-core/emsdk tag 6.0.2
+ACORN_VERSION="8.16.0"                                     # emscripten 6.0.2 package-lock.json
 
 # fetch <name> <repo> <commit> <sha256> — download once, verify always.
 fetch() {

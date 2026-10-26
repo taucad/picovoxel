@@ -26,6 +26,7 @@
 #include "PicoGKLibraryMgr.h"
 
 #include <algorithm>
+#include <new>
 #include <type_traits>
 
 // Layout guarantees, proved at compile time — a silent mismatch here would corrupt
@@ -200,3 +201,38 @@ PICOGK_API int32_t Lattice_AddSpheres(PKINSTANCE   hLib,
     return nCount;
 }
 
+
+// Native exception classification.
+//
+// An exception that escapes an export reaches JS as an opaque WebAssembly.Exception:
+// its payload is a pointer only this module's C++ runtime can interpret. Heap
+// exhaustion is one such throw. With ALLOW_MEMORY_GROWTH, malloc returns null at the
+// 4 GiB ceiling instead of aborting, so operator new (and every std::vector, OpenVDB
+// tree and oneTBB allocator on top of it) throws std::bad_alloc. To tell that apart
+// from roGet's std::out_of_range, the facade hands the exception back in: the callback
+// rethrows it into this frame, and the typed catch matches it with the module's own
+// type information. Catching it also ends its lifetime, so the exception object that
+// escaped is freed here rather than leaked.
+//
+// A JS error, or a throw from another module (whose tag this module does not know),
+// matches neither clause and propagates back out to the caller.
+typedef void (*PKPFnRethrow)();
+
+/// Calls pfnRethrow and classifies what it throws: 1 for std::bad_alloc (including
+/// std::bad_array_new_length), 0 for any other C++ exception or no throw.
+PICOGK_API int32_t Library_nExceptionKind(PKPFnRethrow pfnRethrow)
+{
+    int32_t nKind = 0;
+    try
+    {
+        pfnRethrow();
+    }
+    catch (const std::bad_alloc&)
+    {
+        nKind = 1;
+    }
+    catch (...)
+    {
+    }
+    return nKind;
+}

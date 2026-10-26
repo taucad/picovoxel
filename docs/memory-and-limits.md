@@ -43,12 +43,12 @@ To watch memory yourself, read `session.memory` (bytes per object type), `sessio
 
 ## Out-of-memory errors
 
-| Code                 | Raised when                                                                                                                                                                                          |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PICO_OUT_OF_MEMORY` | picovoxel's own wasm allocation fails (mesh staging, strings, SDF tapes, metadata buffers), or a guarded native call aborts with a `WebAssembly.RuntimeError`, whose usual cause is exhausted memory |
-| `PICO_ALLOC_FAILED`  | a native call that creates an object returns a null handle                                                                                                                                           |
+| Code                 | Raised when                                                                                                                                                                                                                                                                |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PICO_OUT_OF_MEMORY` | picovoxel's own wasm allocation fails (mesh staging, strings, SDF tapes, metadata buffers), a guarded native call throws C++ `std::bad_alloc` at the 4 GiB limit, or a guarded native call aborts with a `WebAssembly.RuntimeError`, whose usual cause is exhausted memory |
+| `PICO_ALLOC_FAILED`  | a native call that creates an object returns a null handle                                                                                                                                                                                                                 |
 
-Not every exhaustion path is typed. An allocation failure deep inside native code can surface with another code or as an untyped error. After any of these errors, treat the session as unusable: dispose it, then retry with a coarser `voxelSize`, smaller bounds, or intermediates disposed sooner.
+Not every exhaustion path is typed. A native call that picovoxel does not guard surfaces an allocation failure as an untyped `WebAssembly.Exception`. After any of these errors, treat the session as unusable: dispose it, then retry with a coarser `voxelSize`, smaller bounds, or intermediates disposed sooner.
 
 ```js
 import { createPico, PicoError } from 'picovoxel';

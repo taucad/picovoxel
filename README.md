@@ -66,7 +66,7 @@ the multithreaded build.
 | `picovoxel/numerics`       | Vectors, matrices, quaternions and frames: the System.Numerics and `PicoGK.Numerics` layer, pure TypeScript                                                                                                                                    |
 | `picovoxel/shapekernel`    | A TypeScript port of LEAP 71's ShapeKernel                                                                                                                                                                                                     |
 | `picovoxel/latticelibrary` | A TypeScript port of LEAP 71's LatticeLibrary                                                                                                                                                                                                  |
-| `picovoxel/raw`            | The generated, typed binding for all 163 C-ABI exports (140 from PicoGKRuntime, 23 from picovoxel)                                                                                                                                             |
+| `picovoxel/raw`            | The generated, typed binding for all 165 C-ABI exports (141 from PicoGKRuntime, 24 from picovoxel)                                                                                                                                             |
 
 Every session has a lane: `exact` reproduces the reference results byte for byte, `fast` allows faster
 algorithms that change values slightly and marks what they produce. See [docs/lanes.md](https://github.com/taucad/picovoxel/blob/main/docs/lanes.md).
@@ -161,7 +161,7 @@ Report vulnerabilities through GitHub private vulnerability reporting. Releases 
 `ci.yml` workflow with npm provenance; verify with `npm audit signatures`.
 
 Both wasm modules are built in CI from sources pinned by commit and SHA-256 (`scripts/fetch-deps.sh`):
-PicoGKRuntime, OpenVDB, oneTBB and xxHash, compiled with Emscripten 5.0.1. The build applies the patch
+PicoGKRuntime, OpenVDB, oneTBB and xxHash, compiled with Emscripten 6.0.2. The build applies the patch
 series in `patches/`, asserts the wasm SIMD instruction count, and fails if the build path is embedded in
 the output. The published wasm is the file the tests ran against.
 
