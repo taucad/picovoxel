@@ -42,13 +42,21 @@ export const CEILINGS = {
   // Library_nExceptionKind in src/pico-bulk.cpp, the typed catch that tells
   // std::bad_alloc from other native throws; gzip-9 1,315,904 and brotli-11
   // 559,462 stay under the compressed ceilings.
-  serial: { raw: 6_287_297, gzip: 1_321_909, brotli: 562_728 },
+  // Emscripten 6.0.2 compresses worse at about the same raw size. CI run
+  // 40266384206: 6,283,811 raw, 1,321,607 gzip, 563,493 brotli. Option A
+  // admits only brotli +0.5%; the raw and gzip ceilings stay unchanged.
+  // https://github.com/taucad/picovoxel/actions/runs/40266384206
+  serial: { raw: 6_287_297, gzip: 1_321_909, brotli: 566_311 },
   // emcc 5.0.1, the same local build: 6,335,092 raw (+198,128); gzip-9 1,355,263
   // and brotli-11 589,958, plus 0.5% for the compressed ceilings. Then 6,345,219
   // raw (+10,127, same cause as serial); gzip-9 1,357,291 and brotli-11 591,620,
   // plus 0.5%. Then 6,345,288 raw (+69, same cause as serial); gzip-9
   // 1,358,472 and brotli-11 590,867 stay under the compressed ceilings.
-  multi: { raw: 6_345_288, gzip: 1_364_077, brotli: 594_578 },
+  // Emscripten 6.0.2, the same CI run and compression cause: 6,332,773 raw,
+  // 1,379,202 gzip, 594,665 brotli. Option A admits these compressed sizes
+  // +0.5% (rounded up); the raw ceiling stays unchanged. Both measurements
+  // match the approved 6.0.2 probe, so neither exceeds its headroom.
+  multi: { raw: 6_345_288, gzip: 1_386_099, brotli: 597_639 },
 };
 
 /** Byte counts and digest for one file. */

@@ -20,12 +20,12 @@
     "limit": "4.65 kB"
   },
   {
-    "name": "serial glue picovoxel/glue (emcc 5.0.1: 18,981 B brotli in CI run 36306325041)",
+    "name": "serial glue picovoxel/glue (emcc 6.0.2: 18,893 B brotli in CI run 40269110984)",
     "path": "dist/pico.mjs",
     "limit": "19.2 kB"
   },
   {
-    "name": "pthread glue picovoxel/multi/worker (emcc 5.0.1: 22,926 B brotli in CI run 36306325041)",
+    "name": "pthread glue picovoxel/multi/worker (emcc 6.0.2: 22,841 B brotli in CI run 40269110984)",
     "path": "dist/pico-multi.mjs",
     "limit": "23.2 kB"
   },

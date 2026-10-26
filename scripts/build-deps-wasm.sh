@@ -7,7 +7,7 @@
 # oneTBB breaks under a mismatch — it hardcodes -fexceptions for Emscripten
 # (cmake/compilers/Clang.cmake:17), leaving real __resumeException/invoke_* JS-EH
 # imports in libtbb.a that fail a -fwasm-exceptions link. -fwasm-exceptions wins
-# over a co-occurring -fexceptions in either order (probed on emcc 5.0.1), so
+# over a co-occurring -fexceptions in either order (probed on 5.0.1 and 6.0.2), so
 # appending it via CMAKE_CXX_FLAGS overrides oneTBB's flag without a patch.
 # OpenVDB emits no JS-EH imports either way (beware: nm|grep invoke_ false-matches
 # mangled std::__invoke_*), but under wasm EH it compiles its own catch landing

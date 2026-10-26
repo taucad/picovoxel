@@ -35,7 +35,7 @@ A patch offered upstream should carry evidence a maintainer can check on differe
 | leap71/PicoGK                     | `0e6cf6b6f499` (v2.3.0+) | Issues disabled; reports go to Discussions                                      |
 | AcademySoftwareFoundation/openvdb | `86b5ea9e98a3`           | 366 commits past picovoxel's pin `7c03e1f0` (v13.0.0). Requires EasyCLA and DCO |
 | uxlfoundation/oneTBB              | `8976636cbd89`           | picovoxel pins `06ce6212`                                                       |
-| emscripten-core/emscripten        | `887305e67c41`           | picovoxel builds with 5.0.1                                                     |
+| emscripten-core/emscripten        | `887305e67c41`           | picovoxel builds with 6.0.2                                                     |
 | google/dawn                       | `6c1e27710cd1`           | Changes go through Gerrit and the Chromium issue tracker                        |
 
 ## PicoGKRuntime (leap71/PicoGKRuntime)

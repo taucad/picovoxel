@@ -7,7 +7,8 @@
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { test } from 'vitest';
@@ -384,6 +385,35 @@ test('compile once: an unlinkable module rejects (never hangs) on the serial ent
   );
 });
 
+test('multi: mainScriptUrlOrBlob loads the custom script in every pthread worker', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'picovoxel-worker-'));
+  const script = join(directory, 'worker.mjs');
+  const glueUrl = new URL('../src/pico-multi.mjs', import.meta.url).href;
+  writeFileSync(
+    script,
+    `import { writeFileSync } from 'node:fs';
+     import { threadId } from 'node:worker_threads';
+     writeFileSync(${JSON.stringify(directory)} + '/' + threadId + '.started', '');
+     await import(${JSON.stringify(glueUrl)});`,
+  );
+  try {
+    const pico = await multiEntry.createPico({ wasm: { mainScriptUrlOrBlob: script } });
+    try {
+      const pool = pico.module.PThread!;
+      assert.ok(pool.runningWorkers.length > 0, 'the custom workers run the warm-up');
+      assert.equal(
+        readdirSync(directory).filter((name) => name.endsWith('.started')).length,
+        pool.runningWorkers.length + pool.unusedWorkers.length,
+        'every worker loaded the supplied script',
+      );
+    } finally {
+      pico.dispose();
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test('multi: a module that fails to instantiate leaves no pthread pool behind', async () => {
   let moduleArg: { PThread?: NonNullable<PicoWasmModule['PThread']> } | undefined;
   const glue = Object.assign(
@@ -400,7 +430,11 @@ test('multi: a module that fails to instantiate leaves no pthread pool behind', 
   );
   const pool = moduleArg!.PThread!;
   assert.ok(pool, 'the multi glue had started its pool before instantiating');
-  assert.equal(pool.runningWorkers.length + pool.unusedWorkers.length, 0, 'every worker was terminated');
+  assert.equal(
+    Object.keys((pool as unknown as { pthreads: object }).pthreads).length + pool.unusedWorkers.length,
+    0,
+    'every worker was terminated',
+  );
 });
 
 test('multi: failed instantiations let the process exit (no worker holds it open)', () => {
