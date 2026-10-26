@@ -161,7 +161,7 @@ Report vulnerabilities through GitHub private vulnerability reporting. Releases 
 `ci.yml` workflow with npm provenance; verify with `npm audit signatures`.
 
 Both wasm modules are built in CI from sources pinned by commit and SHA-256 (`scripts/fetch-deps.sh`):
-PicoGKRuntime, OpenVDB, oneTBB and xxHash, compiled with Emscripten 5.0.1. The build applies the patch
+PicoGKRuntime, OpenVDB, oneTBB and xxHash, compiled with Emscripten 6.0.2. The build applies the patch
 series in `patches/`, asserts the wasm SIMD instruction count, and fails if the build path is embedded in
 the output. The published wasm is the file the tests ran against.
 

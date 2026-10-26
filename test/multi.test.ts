@@ -3,6 +3,7 @@
 // never launch — the warmup in createPico exists exactly for that), a
 // serial-differential on real geometry, and the drop-in surface guarantee.
 import { expect, test } from 'vitest';
+import { refreshHeapViews } from '../src/context.ts';
 import * as serialEntry from '../src/index.ts';
 import * as multiEntry from '../src/multi.ts';
 import { gyroidExpression } from './helpers.ts';
@@ -146,6 +147,11 @@ test('multi session: bulk reads refresh heap views a worker-side growth left sta
     expect(multi.module.HEAPU8.buffer).toBe(memory.buffer);
     const mesh = multi.createVoxels({ shape: 'sphere', radius: 4 }).toMesh();
 
+    // Emscripten 6.0.2 uses growable buffers where the host supports them.
+    // Select a fixed-length buffer so this regression still creates stale views.
+    memory.toFixedLengthBuffer?.();
+    refreshHeapViews(multi.module);
+    expect(multi.module.HEAPU8.buffer).toBe(memory.buffer);
     memory.grow(1);
     expect(multi.module.HEAPU8.buffer).not.toBe(memory.buffer);
     const vertices = mesh.vertices;

@@ -18,6 +18,9 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 WASM_FLAGS="${WASM_FLAGS:--O3 -msimd128}"
+# Emscripten's default INCOMING_MODULE_JS_API (6.0.2 settings.js) plus the two
+# PicoWasmOverrides keys 6.0.2 dropped from it: wasmBinary and mainScriptUrlOrBlob.
+INCOMING_MODULE_JS_API="ENVIRONMENT,arguments,canvas,dynamicLibraries,elementPointerLock,instantiateWasm,locateFile,monitorRunDependencies,noExitRuntime,noInitialRun,onAbort,onExit,onRuntimeInitialized,postRun,preInit,preRun,print,printErr,setStatus,statusMessage,stderr,stdin,stdout,thisProgram,wasm,websocket,wasmBinary,mainScriptUrlOrBlob"
 EH_FLAGS="${EH_FLAGS:--fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=1}"
 # WA5 — never link at -Oz. At SHRINK_LEVEL 2 emscripten links libc_optz, which
 # swaps in different pow, log and log2 code: pow(x, 2) alone changes on about
@@ -165,7 +168,8 @@ em++ -std=c++20 $WASM_FLAGS $EH_FLAGS "-ffile-prefix-map=$HERE=." \
   -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=256MB -sMAXIMUM_MEMORY=4GB \
   -sSTACK_SIZE=8388608 -sALLOW_TABLE_GROWTH=1 \
   -sEXPORTED_FUNCTIONS=@"$EXPORTS_FILE" \
-  -sEXPORTED_RUNTIME_METHODS="$RUNTIME_METHODS"
+  -sEXPORTED_RUNTIME_METHODS="$RUNTIME_METHODS" \
+  -sINCOMING_MODULE_JS_API="$INCOMING_MODULE_JS_API"
 
 echo "$VARIANT.wasm: $(wc -c < "$OUT_JS/$VARIANT.wasm" | tr -d ' ') bytes; $VARIANT.mjs: $(wc -c < "$OUT_JS/$VARIANT.mjs" | tr -d ' ') bytes; malloc=$MALLOC"
 

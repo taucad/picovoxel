@@ -416,6 +416,12 @@ async function startRuntime(
   warm?: (runtime: PicoRuntime) => Promise<void>,
 ): Promise<StartedRuntime> {
   const module = await instantiate(glue, options);
+  // Emscripten 6.0.0 removed PThread.runningWorkers (#26998). Keep the documented
+  // field as a live view over PThread.pthreads, which every glue since 3.1 has.
+  const pool = module.PThread as { pthreads: Record<number, unknown> } | undefined;
+  if (pool) {
+    Object.defineProperty(pool, 'runningWorkers', { get: () => Object.values(pool.pthreads) });
+  }
   const parts: RuntimeParts = {
     module,
     raw: bindPicoRaw(module),
