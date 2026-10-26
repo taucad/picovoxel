@@ -14,6 +14,9 @@
 # src/errors.ts. WASM_LEGACY_EXCEPTIONS is pinned ON: the legacy EH format is
 # Safari 15.2+, inside the 16.4 SIMD floor; the newer exnref format is Safari 18.4+
 # and would break the floor if an emsdk upgrade flips the default.
+# Keep fixed-length buffers: 6.0.2's UTF8 decoder passes resizable views to
+# TextDecoder, which Chromium, Firefox and WebKit reject (CI run 40267231163).
+# ALLOW_MEMORY_GROWTH still permits the heap to grow; the facade refreshes views.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
@@ -165,7 +168,7 @@ em++ -std=c++20 $WASM_FLAGS $EH_FLAGS "-ffile-prefix-map=$HERE=." \
   ${COVERAGE_LINK_FLAGS[@]+"${COVERAGE_LINK_FLAGS[@]}"} \
   -sMODULARIZE -sEXPORT_ES6=1 -sEXPORT_NAME=createPicoModule \
   -sMALLOC="$MALLOC" \
-  -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=256MB -sMAXIMUM_MEMORY=4GB \
+  -sALLOW_MEMORY_GROWTH=1 -sGROWABLE_ARRAYBUFFERS=0 -sINITIAL_MEMORY=256MB -sMAXIMUM_MEMORY=4GB \
   -sSTACK_SIZE=8388608 -sALLOW_TABLE_GROWTH=1 \
   -sEXPORTED_FUNCTIONS=@"$EXPORTS_FILE" \
   -sEXPORTED_RUNTIME_METHODS="$RUNTIME_METHODS" \
