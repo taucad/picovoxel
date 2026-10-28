@@ -1,6 +1,10 @@
 --- a/IO/MeshIo.cs
 +++ b/IO/MeshIo.cs
-@@ -298,3 +298,16 @@
+@@ -295,6 +295,19 @@
+                     sTriangle.V3Z = v3.Z;
+                     sTriangle.AttributeByteCount = 0;
+-
++
 +                    // Preserve the historical STL NaN encoding across runtimes.
 +                    // Write bits after float storage: wasm may canonicalize a NaN float.
 +                    for (int axis = 0; axis < 3; axis++)
