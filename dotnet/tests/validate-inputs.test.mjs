@@ -50,7 +50,10 @@ test('binary mutation, file addition and comparator changes invalidate receipts'
   const original = { comparator: 'picovoxel-browser', files: inventory(path) };
   verify(original, structuredClone(original));
   writeFileSync(join(path, 'engine.cpp'), 'changed\n');
-  assert.throws(() => verify({ ...original, files: inventory(path) }, original), /Build input receipt/);
+  assert.throws(
+    () => verify({ ...original, files: inventory(path) }, original),
+    /Build input receipt.*files\/engine.cpp/,
+  );
   assert.throws(() => verify({ ...original, comparator: 'leap-shipped' }, original), /Build input receipt/);
   writeFileSync(join(path, 'new.a'), 'archive');
   assert.throws(() => verify({ ...original, files: inventory(path) }, original), /Build input receipt/);

@@ -266,7 +266,17 @@ export function capture(config) {
 
 /** Refuse any stale receipt; record is deliberately separate from verification. */
 export function verify(actual, expected) {
-  equal(digest(JSON.stringify(actual)), digest(JSON.stringify(expected)), 'Build input receipt');
+  if (digest(JSON.stringify(actual)) === digest(JSON.stringify(expected))) return;
+  const changed = [];
+  function compare(left, right, pointer) {
+    if (JSON.stringify(left) === JSON.stringify(right) || changed.length >= 20) return;
+    if (left && right && typeof left === 'object' && typeof right === 'object') {
+      for (const key of new Set([...Object.keys(left), ...Object.keys(right)]))
+        compare(left[key], right[key], `${pointer}/${key.replaceAll('~', '~0').replaceAll('/', '~1')}`);
+    } else changed.push(pointer);
+  }
+  compare(actual, expected, '');
+  throw new Error(`Build input receipt changed (first 20 paths): ${changed.join(', ') || 'key order'}`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
