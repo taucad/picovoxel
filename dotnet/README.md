@@ -1,8 +1,8 @@
 # Dual-runtime build inputs
 
 This directory owns the private .NET build path. It does not change the npm
-engine, exports or geometry fixtures. The archive and host builders are subsequent
-implementation steps; this first step validates their inputs.
+engine, exports or geometry fixtures. The archive builder validates its inputs; host and package integration follow
+separately.
 
 ## Qualified workload identity
 
@@ -89,10 +89,9 @@ compiler, runtime, producer source identities, staged inputs and flags. Validate
 from verified inputs; this is cache-integrity evidence, not a signed attestation
 of an arbitrary pre-existing binary. Do not relabel the old spike archive.
 
-The future archive/host build commands must call `verify` before consuming the
-listed inputs and pass only validated archives to the linker. No production link
-command exists yet in this directory. The current `inputs` receipt intentionally
-does not claim archive or host acceptance.
+The archive builder records and revalidates its inputs, and links a native core
+witness. Host builders must admit those archives through `purpose: "link"` before
+consuming them. An `inputs` receipt alone does not claim archive or host acceptance.
 
 ## Desktop compatibility and callback bridge
 
@@ -132,3 +131,44 @@ accepted by the byte comparator.
 
 Input receipts and source identity remain mandatory. The fixture does not infer
 a binary's provenance from its file name or from matching geometry alone.
+
+## Private archive builds
+
+The builder takes a configuration and a new output directory. It never invokes
+the npm builder or installs another Emscripten compiler:
+
+```sh
+node dotnet/prepare-archive.mjs /absolute/sdk/dotnet /absolute/nuget/packages /absolute/tau-adapter serial build/archive-inputs
+bash dotnet/build-archive.sh build/archive-inputs/configuration.json build/archive-first
+bash dotnet/build-archive.sh build/archive-inputs/configuration.json build/archive-second
+node dotnet/verify-archives.mjs build/archive-first build/archive-second
+```
+
+The adapter directory belongs to the consuming application. It supplies
+`Runtime.browser.patch`, `browser-callbacks.cpp`, `required-symbols.json` and
+`tests/browser-core.cpp`. Tau keeps those inputs in its PicoGK plugin; they are
+not copied into this repository. The patch must retain the geometry translation
+unit under `PICOGK_HEADLESS` while excluding the native Viewer. The builder stages
+only admitted source files, applies patches with zero fuzz, checks all required
+symbols, rejects native Viewer symbols, and links the core witness with every
+required export retained.
+
+`prepare-archive.mjs` downloads checksummed engine/dependency sources and restores
+the exact selected runtime. The threaded Mono runtime is restored to the NuGet
+cache on this SDK, whereas the serial runtime is supplied as an SDK pack. Both
+must pass the same compiler/version checks. Use `threaded` in a separate input
+configuration and output directory for the pthread archive.
+
+Each build isolates Emscripten and Python caches in its output directory. Stable
+file-prefix maps keep the build directory out of embedded source strings.
+`native/` contains the engine, OpenVDB, oneTBB, Blosc, zlib and shared float-trig
+objects. `inputs.json`, `staged-source.json`, `outputs.json` and per-file metadata
+bind their actual bytes to the producer inputs. A changed input fails final
+verification and no accepted output manifest is emitted. Clean-build comparison
+checks actual files, metadata and source receipts, not just declared hashes.
+
+The reusable `dotnet-archive.yml` workflow runs in the adapter-owning caller's
+repository. The caller pins this repository's builder commit. Its serial/threaded
+matrix builds twice and keeps private artifacts in the caller's run. It has no
+publishing step and does not modify the npm candidate pipeline. Remote CI success
+must be recorded separately from local archive/link acceptance.

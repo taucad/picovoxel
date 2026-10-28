@@ -1,0 +1,79 @@
+# Reusable private archive check. It runs in the adapter-owning caller repository,
+# so private adapter source and artifacts never enter PicoVoxel's public checkout.
+name: .NET archive
+on:
+  workflow_call:
+    inputs:
+      picovoxel-ref:
+        description: Full commit containing the reviewed builder.
+        type: string
+        required: true
+      adapter-path:
+        description: Caller-relative private adapter directory.
+        type: string
+        required: true
+permissions:
+  contents: read
+jobs:
+  archive:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        execution: [serial, threaded]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: taucad/picovoxel
+          ref: ${{ inputs.picovoxel-ref }}
+          path: out/dotnet/picovoxel
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '24.20.0'
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '11.0.100-rc.3.26522.148'
+      - name: Test input and archive admission
+        working-directory: out/dotnet/picovoxel
+        run: node --test dotnet/tests/*.test.mjs
+      - name: Install matched workload and build tools
+        working-directory: out/dotnet/picovoxel/dotnet
+        run: |
+          dotnet workload install wasm-tools --version 11.0.100-rc.3.26522.148
+          sudo apt-get update
+          sudo apt-get install -y ninja-build cmake
+      - name: Prepare verified inputs
+        env:
+          ADAPTER_PATH: ${{ inputs.adapter-path }}
+          EXECUTION: ${{ matrix.execution }}
+          PICOVOXEL_REF: ${{ inputs.picovoxel-ref }}
+        run: |
+          [[ "$PICOVOXEL_REF" =~ ^[a-f0-9]{40}$ ]]
+          node out/dotnet/picovoxel/dotnet/prepare-archive.mjs \
+            "$(command -v dotnet)" "$HOME/.nuget/packages" "$ADAPTER_PATH" \
+            "$EXECUTION" out/dotnet/inputs
+      - name: Build twice and compare declared outputs
+        run: |
+          bash out/dotnet/picovoxel/dotnet/build-archive.sh out/dotnet/inputs/configuration.json out/dotnet/first
+          bash out/dotnet/picovoxel/dotnet/build-archive.sh out/dotnet/inputs/configuration.json out/dotnet/second
+          node out/dotnet/picovoxel/dotnet/verify-archives.mjs out/dotnet/first out/dotnet/second
+          node out/dotnet/picovoxel/dotnet/tests/archive-core.mjs out/dotnet/first
+          git -C out/dotnet/picovoxel diff --exit-code -- src patches scripts package.json pnpm-lock.yaml
+      - name: Retain private archives and receipts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: picogk-browser-${{ matrix.execution }}
+          path: |
+            out/dotnet/first/native/
+            out/dotnet/first/*.metadata.json
+            out/dotnet/first/inputs.json
+            out/dotnet/first/outputs.json
+            out/dotnet/first/staged-source.json
+            out/dotnet/first/symbols.json
+          if-no-files-found: error

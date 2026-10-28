@@ -1,0 +1,22 @@
+{
+  "runtime": {
+    "repository": "leap71/PicoGKRuntime",
+    "commit": "0f26321c18ed878a7820ef769c38fd5d49d39242",
+    "sha256": "3ba621cd555751e073490cdace3319698888a79867a15773c9ee7b12225a7096"
+  },
+  "openvdb": {
+    "repository": "AcademySoftwareFoundation/openvdb",
+    "commit": "7c03e1f084873cd1b3422c7ff7aec6ee681b3b38",
+    "sha256": "b3bbac7dd950d8d64f0fd0448dcc9efcd4e0e257c4a081fb606a00e1d75760d6"
+  },
+  "tbb": {
+    "repository": "uxlfoundation/oneTBB",
+    "commit": "06ce6212da6710f4bb2d20a1904b018aa44069bf",
+    "sha256": "f588cbd1635ebe2dbc1ac4a82e7bcf9aa90be40c98259b237bb7ae288fac269e"
+  },
+  "blosc": {
+    "repository": "Blosc/c-blosc",
+    "commit": "616f4b7343a8479f7e71dd3d7025bd92c9a6bbd0",
+    "sha256": "07471e2a569bc7f7dee0640bf4d48d944f9bf35fb2fca49ad9f0a2bfe060c382"
+  }
+}
