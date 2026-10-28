@@ -42,7 +42,13 @@ if (JSON.stringify(config.flags) !== JSON.stringify(flags))
 for (const name of ['adapter', 'shim', ...Object.keys(dependencies)])
   if (!config.files?.[name]) throw new Error(`Missing declared input: ${name}`);
 // The builder itself is an input, so a cache cannot claim an older producer.
-for (const name of ['build-archive.sh', 'build-archive.mjs', 'archive-sources.json', 'float-trig.c'])
+for (const name of [
+  'build-archive.sh',
+  'build-archive.mjs',
+  'archive-sources.json',
+  'float-trig.c',
+  'python-no-bytecode.sh',
+])
   config.files[`producer/${name}`] = join(here, name);
 const before = capture(config);
 write(join(out, 'inputs.json'), before);
@@ -61,7 +67,8 @@ const env = {
   SOURCE_DATE_EPOCH: '0',
   TZ: 'UTC',
   LC_ALL: 'C',
-  PYTHONPYCACHEPREFIX: join(out, 'python-cache'),
+  EMSDK_PYTHON: join(here, 'python-no-bytecode.sh'),
+  PICOGK_PYTHON: process.env.EMSDK_PYTHON ?? 'python3',
   DOTNET_EMSCRIPTEN_LLVM_ROOT: join(tools, 'bin'),
   DOTNET_EMSCRIPTEN_BINARYEN_ROOT: tools,
   DOTNET_EMSCRIPTEN_NODE_JS: join(
