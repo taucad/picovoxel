@@ -4,7 +4,6 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync, realpathSyn
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
 import { capture, inventory, sourceIdentity, verify } from '../validate-inputs.mjs';
 
 /** Isolate each test's source tree and remove it even when an assertion fails. */
@@ -168,12 +167,11 @@ test('runtime pack admission follows SDK precedence and admits restored threaded
   assert.equal(resolveRuntimePack(sdk, nuget), realpathSync(sdk));
 });
 
-test('Emscripten isolated Python cannot add bytecode to compiler inputs', (t) => {
+test('compiler identity query suppresses bytecode even with isolated Python', (t) => {
   const { root } = fixture(t);
   writeFileSync(join(root, 'module.py'), 'value = 42\n');
   writeFileSync(join(root, 'entry.py'), 'import module; assert module.value == 42\n');
   const before = inventory(root);
-  const wrapper = new URL('../python-no-bytecode.sh', import.meta.url);
-  execFileSync('sh', [fileURLToPath(wrapper), '-E', join(root, 'entry.py')]);
+  execFileSync('python3', ['-B', '-E', join(root, 'entry.py')]);
   assert.deepEqual(inventory(root), before);
 });

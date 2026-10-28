@@ -138,13 +138,15 @@ export function toolchainIdentity(dotnet, nuget, hostRid, execution = 'serial') 
   );
   const env = {
     ...process.env,
-    EMSDK_PYTHON: join(here, 'python-no-bytecode.sh'),
-    PICOGK_PYTHON: process.env.EMSDK_PYTHON ?? 'python3',
     DOTNET_EMSCRIPTEN_LLVM_ROOT: join(tools, 'bin'),
     DOTNET_EMSCRIPTEN_BINARYEN_ROOT: tools,
     DOTNET_EMSCRIPTEN_NODE_JS: node,
   };
-  const compiler = run(join(tools, 'emscripten/emcc'), ['--version'], { env });
+  const compiler = run(
+    process.env.EMSDK_PYTHON ?? 'python3',
+    ['-B', '-E', join(tools, 'emscripten/emcc.py'), '--version'],
+    { env },
+  );
   equal(compiler.split('\n')[0], runtime.RuntimeEmccVersionRaw, 'Compiler executable');
   const inputs = {
     sdk: inventory(join(root, 'sdk', pins.sdk), true),
