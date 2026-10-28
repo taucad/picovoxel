@@ -1,0 +1,19 @@
+--- a/IO/MeshIo.cs
++++ b/IO/MeshIo.cs
+@@ -298,3 +298,16 @@
++                    // Preserve the historical STL NaN encoding across runtimes.
++                    // Write bits after float storage: wasm may canonicalize a NaN float.
++                    for (int axis = 0; axis < 3; axis++)
++                    {
++                        float normal = axis == 0 ? vecNormal.X : axis == 1 ? vecNormal.Y : vecNormal.Z;
++                        if (!float.IsNaN(normal)) continue;
++                        int offset = axis * 4;
++                        abyMemory[offset] = 0;
++                        abyMemory[offset + 1] = 0;
++                        abyMemory[offset + 2] = 0xc0;
++                        abyMemory[offset + 3] = 0xff;
++                    }
++
+                     oWriter.Write(abyMemory);
+                 }
+             }

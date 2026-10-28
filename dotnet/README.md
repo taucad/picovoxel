@@ -115,3 +115,20 @@ managed context and stack-scoped native frame preserve nested calls. Managed
 exceptions become native status before being rethrown; a failed mutation can
 leave partial geometry and has no rollback guarantee. The bridge does not imply
 that callbacks from arbitrary worker threads are supported.
+
+## Geometry parity
+
+`tests/parity/GeometryParityFixture.cs` runs the pinned original gyroid and HeatX
+examples against the hosted library. The fixture and [comparison gate](tests/parity/README.md)
+check native, precompiled browser and dynamically loaded C# output. They preserve
+the historical pins as well as requiring current byte equality; matching bad
+output on all three paths still fails.
+
+Apply `patches/stl-normal-canonicalization.patch` during source staging on both
+comparison targets. It preserves the historical `0xffc00000` encoding for NaN
+face normals after float storage. Finite normals, vertices, the STL header and
+triangle order are unchanged. A NaN-only difference is diagnosed but never
+accepted by the byte comparator.
+
+Input receipts and source identity remain mandatory. The fixture does not infer
+a binary's provenance from its file name or from matching geometry alone.
