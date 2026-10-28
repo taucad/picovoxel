@@ -89,11 +89,25 @@
     },
     "package-checks": {
       "executor": "nx:noop",
-      "dependsOn": ["build", "check:size", "pkgcheck", "test:scripts", "typecheck", "validate-pack"]
+      "dependsOn": [
+        "build",
+        "check:size",
+        "pkgcheck",
+        "test:scripts",
+        "typecheck",
+        "validate-pack",
+        "test:dotnet-inputs"
+      ]
     },
     "quality": {
       "executor": "nx:noop",
       "dependsOn": ["docs-prose", "package-checks"]
+    },
+    "test:dotnet-inputs": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node --test dotnet/tests/*.test.mjs"
+      }
     }
   }
 }

@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "sdk": "11.0.100-rc.3.26522.148",
+  "workload": "11.0.100-rc.3.26522.148",
+  "runtime": "11.0.0-rc.3.26522.148",
+  "emscripten": "6.0.3",
+  "roslyn": "5.9.0",
+  "sources": {
+    "picovoxel": {
+      "commit": "c84eab84957a8af0f032e9737c7bd5cd98b41ccb",
+      "paths": ["src", "patches", "scripts"]
+    },
+    "PicoGK": {
+      "commit": "0e6cf6b6f4993ec16dbcd72d8f27f26b999980f3",
+      "paths": ["."]
+    },
+    "ShapeKernel": {
+      "commit": "827fb6e89c09efdd1c3790bead7bd61b625f1640",
+      "paths": ["."]
+    },
+    "HelixHeatX": {
+      "commit": "a0a0234eb048b6963fb5787fce8315c7b0110b5c",
+      "paths": ["."]
+    }
+  },
+  "emscriptenPackage": "6.0.2",
+  "emscriptenRevision": "6ea9c28c38cdd40c1032fa04400c9d16230ee180",
+  "compilerFiles": {
+    "microsoft.codeanalysis.common/5.9.0/lib/netstandard2.0/Microsoft.CodeAnalysis.dll": "163529561bc8aa19b22067764a74fbf5432954ce1158d1988a6ef1b0f5a87a94",
+    "microsoft.codeanalysis.csharp/5.9.0/lib/netstandard2.0/Microsoft.CodeAnalysis.CSharp.dll": "d3738d2d0d6297f57c986ff985f67c46efdc02c6b7038355cfc620db707062a3"
+  }
+}
