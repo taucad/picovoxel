@@ -108,6 +108,13 @@
       "options": {
         "command": "node --test dotnet/tests/*.test.mjs"
       }
+    },
+    "test:dotnet-desktop": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node dotnet/test-desktop.mjs"
+      }
     }
   }
 }

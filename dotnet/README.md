@@ -93,3 +93,25 @@ The future archive/host build commands must call `verify` before consuming the
 listed inputs and pass only validated archives to the linker. No production link
 command exists yet in this directory. The current `inputs` receipt intentionally
 does not claim archive or host acceptance.
+
+## Desktop compatibility and callback bridge
+
+Run the explicit desktop target with the pristine pinned PicoGK checkout, a fresh
+output directory, the selected SDK executable and `osx-arm64`:
+
+```sh
+pnpm nx run picovoxel:test:dotnet-desktop --args="build/csharp-wasm-net11/src/PicoGK build/desktop-check /absolute/sdk/dotnet osx-arm64"
+```
+
+The target builds pristine and target-conditionally patched C# consumers against
+the shipped LEAP runtime. It compares public API signatures, geometry, STL and
+field results. A third build enables the browser handle/callback branch on native
+CoreCLR to check nested callbacks, concurrency, original exception recovery and
+subsequent successful calls. This third build tests bridge semantics; it does not
+qualify wasm/AOT. The fixture requires no native Skia renderer.
+
+The four callback operations are synchronous on the calling thread. A per-call
+managed context and stack-scoped native frame preserve nested calls. Managed
+exceptions become native status before being rethrown; a failed mutation can
+leave partial geometry and has no rollback guarantee. The bridge does not imply
+that callbacks from arbitrary worker threads are supported.
