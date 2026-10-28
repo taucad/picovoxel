@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -150,4 +150,16 @@ test('browser linking cannot omit archive provenance', () => {
     () => capture({ purpose: 'link', comparator: 'picovoxel-browser' }),
     /producer-attested archives/,
   );
+});
+
+test('runtime pack admission follows SDK precedence and admits restored threaded packs', async (t) => {
+  const { resolveRuntimePack } = await import('../validate-inputs.mjs');
+  const { root } = fixture(t);
+  const sdk = join(root, 'sdk-pack');
+  const nuget = join(root, 'nuget-pack');
+  assert.throws(() => resolveRuntimePack(sdk, nuget), /ENOENT/);
+  mkdirSync(nuget);
+  assert.equal(resolveRuntimePack(sdk, nuget), realpathSync(nuget));
+  mkdirSync(sdk);
+  assert.equal(resolveRuntimePack(sdk, nuget), realpathSync(sdk));
 });

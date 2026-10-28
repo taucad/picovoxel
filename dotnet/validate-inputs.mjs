@@ -1,7 +1,7 @@
 /** Pin and revalidate the concrete inputs to one dual-runtime build. */
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, readdirSync, lstatSync, realpathSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, lstatSync, realpathSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve, relative, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -80,20 +80,29 @@ export function sourceIdentity(root, pin) {
   return { commit: pin.commit, files };
 }
 
+/** Follow SDK-pack precedence, otherwise require the exact restored NuGet runtime. */
+export function resolveRuntimePack(sdkPath, nugetPath) {
+  return realpathSync(existsSync(sdkPath) ? sdkPath : nugetPath);
+}
+
 /** Resolve the workload selected by MSBuild, then compare its compiler to Mono's build metadata. */
 export function toolchainIdentity(dotnet, nuget, hostRid, execution = 'serial') {
-  const properties = JSON.parse(
+  const resolved = JSON.parse(
     run(
       dotnet,
       [
         'msbuild',
         join(here, 'toolchain.csproj'),
         '-nologo',
+        `-p:WasmEnableThreads=${execution === 'threaded'}`,
+        '-target:ProcessFrameworkReferences',
+        '-getItem:RuntimePack',
         '-getProperty:NETCoreSdkVersion,EmscriptenVersion,EmscriptenRevision,EmscriptenSdkToolsPath,NetCoreRoot',
       ],
       { cwd: here },
     ),
-  ).Properties;
+  );
+  const properties = resolved.Properties;
   equal(properties.NETCoreSdkVersion, pins.sdk, 'SDK');
   equal(properties.EmscriptenVersion, pins.emscripten, 'Resolved emcc');
   equal(properties.EmscriptenRevision, pins.emscriptenRevision, 'Resolved emcc revision');
@@ -107,11 +116,14 @@ export function toolchainIdentity(dotnet, nuget, hostRid, execution = 'serial') 
     ),
     'Compiler pack',
   );
-  const mono = pack(
+  const runtimeName =
     execution === 'threaded'
       ? 'Microsoft.NETCore.App.Runtime.Mono.multithread.browser-wasm'
-      : 'Microsoft.NETCore.App.Runtime.Mono.browser-wasm',
-  );
+      : 'Microsoft.NETCore.App.Runtime.Mono.browser-wasm';
+  const selected = resolved.Items.RuntimePack.find((item) => item.RuntimeIdentifier === 'browser-wasm');
+  equal(selected?.Identity, runtimeName, 'Selected runtime pack');
+  equal(selected?.NuGetPackageVersion, pins.runtime, 'Selected runtime version');
+  const mono = resolveRuntimePack(pack(runtimeName), join(nuget, runtimeName.toLowerCase(), pins.runtime));
   const runtimeProps = JSON.parse(
     readFileSync(join(mono, 'runtimes/browser-wasm/native/src/wasm-props.json'), 'utf8'),
   );
