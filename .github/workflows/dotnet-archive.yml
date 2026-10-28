@@ -45,6 +45,9 @@ jobs:
       - name: Install matched workload and build tools
         working-directory: out/dotnet/picovoxel/dotnet
         run: |
+          mkdir ../workload-install
+          cp global.json ../workload-install/global.json
+          cd ../workload-install
           dotnet workload install wasm-tools --version 11.0.100-rc.3.26524.4
           sudo apt-get update
           sudo apt-get install -y ninja-build cmake
