@@ -132,6 +132,42 @@ accepted by the byte comparator.
 Input receipts and source identity remain mandatory. The fixture does not infer
 a binary's provenance from its file name or from matching geometry alone.
 
+### The matched native comparator
+
+I1 compares the browser against a native build of the same engine sources, so
+`build-native-comparator.mjs` stages exactly what the archive build stages — the
+pinned runtime, OpenVDB, oneTBB and c-blosc trees with their vendor patches and
+the caller's `Runtime.browser.patch` — and compiles it with the host toolchain:
+
+```sh
+node dotnet/build-native-comparator.mjs /absolute/adapter/native build/comparator --jobs 4
+```
+
+The output directory must be fresh. The engine links as one shared library beside
+a shared-float-trigonometry library, which is interposed (`LD_PRELOAD`, or
+`DYLD_INSERT_LIBRARIES` on macOS) rather than linked in, so both sides round the
+same way. `src/pico-tape.cpp` is not built: it is a wasm translation unit, and its
+two exports are excluded from the comparator's symbol requirement. The build then
+runs the adapter's own C++ corpus against the library before writing its receipt.
+
+`run-parity-native.mjs` produces the reference captures that gate reads:
+
+```sh
+node dotnet/run-parity-native.mjs /absolute/sdk/dotnet /composed/PicoGK.csproj build/comparator gyroid build/native-gyroid
+```
+
+It fetches the pinned author trees, verifies them against the pins' recorded Git
+blobs, compiles them unchanged beside the fixture, and runs the subject against
+the comparator. Its `author-sources.json` is I2's evidence.
+
+### Invariant reporting
+
+`tests/invariants.mjs` reads the evidence one CI run produced and reports I1 to I5
+as `passed`, `failed` or `unproven`; anything but five passes is a failure, so a
+check that did not run can never read as a pass. `tests/npm-contract.mjs` is I4's
+own check: it compares the program's commits against their merge base and fails if
+they touch the byte-locked fixtures or the surface manifest.
+
 ## Private archive builds
 
 The builder takes a configuration and a new output directory. It never invokes
@@ -165,7 +201,7 @@ file-prefix maps keep the build directory out of embedded source strings.
 objects. `inputs.json`, `staged-source.json`, `outputs.json` and per-file metadata
 bind their actual bytes to the producer inputs. A changed input fails final
 verification and no accepted output manifest is emitted. Clean-build comparison
-checks actual files, metadata and source receipts, not just declared hashes.
+checks actual files, metadata and source receipts, not only declared hashes.
 
 The reusable `dotnet-archive.yml` workflow runs in the adapter-owning caller's
 repository. The caller pins this repository's builder commit. Its serial/threaded
@@ -190,6 +226,14 @@ pnpm nx run picovoxel:test:dotnet-roslyn --args='/absolute/sdk/dotnet build/rosl
 The output directory must be fresh. The target builds its tools and intermediate
 files beneath that directory.
 
+`build-compiler.mjs` produces the pair a package build stages. It verifies both
+pinned cache assemblies, adapts `Microsoft.CodeAnalysis.dll` and stages
+`Microsoft.CodeAnalysis.CSharp.dll` as the pinned bytes, which need no change:
+
+```sh
+node dotnet/build-compiler.mjs /absolute/sdk/dotnet ~/.nuget/packages build/compiler
+```
+
 ## Runtime-authoring retention
 
 A prebuilt browser host that loads newly compiled C# imports
@@ -212,7 +256,8 @@ the framework reference assemblies, the patched managed library, the
 signed-distance generator and the native engine archives to agree. Staging each
 one separately makes each one correct only by hand. `package/` binds them into
 `PicoVoxel.PicoGK`, a package for a local directory feed. It is never published:
-R34 keeps publishing and a browser package feed out of scope.
+nothing here pushes it to a feed, and every consumer restores it from a local
+directory.
 
 ```sh
 node dotnet/build-package.mjs /absolute/sdk/dotnet ~/.nuget/packages \

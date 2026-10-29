@@ -59,7 +59,9 @@ PYEDIT
 
 # 2. The runtime at .NET's Emscripten: same scripts, same sources.
 RT="$OUT/rt"
-EMSDK="$EMSDK_NET" ONETBB_SRC="$OUT/oneTBB" EH_FLAGS="$EH" OUT="$RT" JOBS="$JOBS" \
+# Read out of the outer OUT before the command overrides OUT for the script it runs.
+TBB_SRC="$OUT/oneTBB"
+EMSDK="$EMSDK_NET" ONETBB_SRC="$TBB_SRC" EH_FLAGS="$EH" OUT="$RT" JOBS="$JOBS" \
   bash "$ROOT/scripts/build-deps-wasm.sh"
 EMSDK="$EMSDK_NET" EH_FLAGS="$EH" OUT="$RT" OUT_JS="$RT/js" PREFIX="$RT/wasm-prefix" JOBS="$JOBS" \
   bash "$ROOT/scripts/build-pico-module.sh"
@@ -106,7 +108,7 @@ cp "$APP/index.html" "$APP/main.mjs" "$APP/$BUNDLE/"
 echo "bundle: $APP/$BUNDLE (node main.mjs <voxel> <runs> [gyroid|heatx|math])"
 
 if [ "${THREADS:-0}" = "1" ]; then
-  EMSDK="$EMSDK_NET" ONETBB_SRC="$OUT/oneTBB" EH_FLAGS="$EH" THREADS=1 OUT="$RT" JOBS="$JOBS" \
+  EMSDK="$EMSDK_NET" ONETBB_SRC="$TBB_SRC" EH_FLAGS="$EH" THREADS=1 OUT="$RT" JOBS="$JOBS" \
     bash "$ROOT/scripts/build-deps-wasm.sh"
   EMSDK="$EMSDK_NET" EH_FLAGS="$EH" THREADS=1 OUT="$RT" OUT_JS="$RT/js-mt" JOBS="$JOBS" \
     bash "$ROOT/scripts/build-pico-module.sh"

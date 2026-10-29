@@ -1,4 +1,4 @@
-# Browser authoring experiment (W0)
+# Browser authoring experiment
 
 The page compiles original LEAP 71 source with Roslyn and loads the emitted IL into a prebuilt AOT host. No server compiles the author source. The experiment uses .NET 11 RC3 and matching Emscripten 6.0.2, on picovoxel main v0.2.1 plus the original C# spike.
 
@@ -25,4 +25,4 @@ The hand-written tape is approximate: do not use its result as an I1 success or 
 
 Measure manifest-listed boot assets and compiler references with `node spikes/csharp-wasm/authoring/measure.mjs <wwwroot>`. It reports raw and per-file Brotli quality 11 bytes, excluding stale publish outputs and satellite cultures.
 
-Observed W0 result: gyroid passes both historical mesh digests. Browser-authored and AOT HeatX both produce STL digest `960fc22690a4fb69`, differing from the historical required `b9dac944dc434a69`; the runner correctly exits nonzero. Mesh digest, volume bits and triangle count match history. The cause of the STL divergence remains unresolved; do not update the expected digest.
+Observed result: gyroid passes both historical mesh digests. Browser-authored and AOT HeatX both produce STL digest `960fc22690a4fb69`, differing from the historical required `b9dac944dc434a69`; the runner correctly exits nonzero. Mesh digest, volume bits and triangle count match history. The cause of the STL divergence remains unresolved; do not update the expected digest.

@@ -9,8 +9,10 @@ produces the identical result, emits a registration that rebuilds the same arith
 Nothing the author wrote is rewritten. A source generator cannot add members to a type it does not own, and
 asking every author to mark their field types `partial` is not a migration anyone would accept, so the
 generated code is a separate registry: one build method per eligible type, reading that type's fields
-through `UnsafeAccessor` and emitting `PicoGK.SdfTapeBuilder` calls. A type the generator refuses is simply
-absent from the registry, and `Voxels.TauRenderImplicit` keeps serving it through the callback. The registry's
+through `UnsafeAccessor` and emitting `PicoGK.SdfTapeBuilder` calls. A type the generator refuses is
+absent from the registry, and `Voxels.TauRenderImplicit` keeps serving it through the callback.
+
+The registry's
 `Register` entry point is invoked explicitly once the author's assembly is loaded, so no author static
 constructor runs to install it, and it is emitted even when it is empty so that call needs no condition.
 

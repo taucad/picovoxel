@@ -86,3 +86,73 @@ jobs:
             out/dotnet/first/staged-source.json
             out/dotnet/first/symbols.json
           if-no-files-found: error
+
+  # The gate T14 left owed. Restoring and building the local package needs both archives, the
+  # installed workload, the pinned managed source and the adapted compiler together, so it cannot
+  # live in either matrix leg. It restores with every package source cleared, so a build that
+  # reaches a public feed fails here, and it builds one unconditional sample source for desktop and
+  # for browser-wasm against the restored payload.
+  package:
+    needs: archive
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: taucad/picovoxel
+          ref: ${{ inputs.picovoxel-ref }}
+          path: out/dotnet/picovoxel
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '24.20.0'
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '11.0.100-rc.3.26522.148'
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: picogk-browser-serial
+          path: out/dotnet/archives/serial
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: picogk-browser-threaded
+          path: out/dotnet/archives/threaded
+      - name: Install the matched workload
+        working-directory: out/dotnet/picovoxel/dotnet
+        # The browser sample target needs the same workload the archives were built by; the package
+        # compares each receipt's toolchain against what this install resolves before packing.
+        run: |
+          mkdir ../workload-install
+          cp global.json ../workload-install/global.json
+          cd ../workload-install
+          dotnet workload install wasm-tools --version 11.0.100-rc.3.26524.4
+      - name: Build the generator and the adapted compiler
+        working-directory: out/dotnet/picovoxel
+        # `test-roslyn.mjs` qualifies the adaptation; `build-compiler.mjs` produces the pair the
+        # package stages, from the pinned cache assemblies it verifies first.
+        run: |
+          node dotnet/test-generator.mjs "$(command -v dotnet)" ../generator
+          node dotnet/test-roslyn.mjs "$(command -v dotnet)" ../roslyn-qualification
+          node dotnet/build-compiler.mjs "$(command -v dotnet)" "$HOME/.nuget/packages" ../compiler
+      - name: Pack the local package from verified inputs
+        working-directory: out/dotnet/picovoxel
+        run: |
+          node dotnet/fetch-pinned-source.mjs PicoGK ../picogk-source
+          node dotnet/build-package.mjs "$(command -v dotnet)" "$HOME/.nuget/packages" \
+            ../picogk-source ../archives/serial ../archives/threaded \
+            ../generator/generator/PicoVoxel.Sdf.Generator.dll ../compiler \
+            ../package
+      - name: Restore from a local feed only and build both targets
+        working-directory: out/dotnet/picovoxel
+        run: node dotnet/test-package.mjs "$(command -v dotnet)" ../package ../package-qualification
+      - name: Retain the package manifest and qualification
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: picogk-browser-package
+          path: |
+            out/dotnet/package/payload/manifest.json
+            out/dotnet/package/manifest.sha256
+            out/dotnet/package/package.json
+            out/dotnet/package-qualification/report.json
+          if-no-files-found: error
