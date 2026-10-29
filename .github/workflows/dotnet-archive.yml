@@ -146,11 +146,14 @@ jobs:
       - name: Restore from a local feed only and build both targets
         working-directory: out/dotnet/picovoxel
         run: node dotnet/test-package.mjs "$(command -v dotnet)" ../package ../package-qualification
-      - name: Retain the package manifest and qualification
+      # The feed travels with the receipts: a caller's parity run restores this package rather than
+      # building its own, so the browser apps it measures carry the payload this job qualified.
+      - name: Retain the package, its manifest and its qualification
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: picogk-browser-package
           path: |
+            out/dotnet/package/feed/
             out/dotnet/package/payload/manifest.json
             out/dotnet/package/manifest.sha256
             out/dotnet/package/package.json
