@@ -32,5 +32,15 @@
     "readme-shape.test.ts",
     "docs-links.test.ts"
   ],
-  "exclude": ["src/pico.mjs", "src/pico-multi.mjs", "node_modules", "dist", "build", "vendor"]
+  "exclude": [
+    "src/pico.mjs",
+    "src/pico-multi.mjs",
+    // The C#-to-TypeScript translator spike: its `out/` tree is the translator's own recorded
+    // output, which this project never compiles and must not rewrite to satisfy a checker.
+    "spikes/csharp-ts",
+    "node_modules",
+    "dist",
+    "build",
+    "vendor"
+  ]
 }

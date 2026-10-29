@@ -244,19 +244,19 @@ Every claim this contract makes is proved by a job, not by a reading of the
 sources. The jobs are in `.github/workflows/dotnet-archive.yml` here and in
 Tau's `picogk-browser-archive.yml`, which calls it:
 
-| Claim                                                                  | Job                                                            |
-| ---------------------------------------------------------------------- | -------------------------------------------------------------- |
-| The archive is reproducible from pinned inputs                         | `archive`, which builds twice and compares the bytes           |
-| Input and admission rules hold                                         | `archive`, through the `dotnet/tests` suite                    |
-| The tape lifts the author's arithmetic exactly                         | `archive`, through `test-generator.mjs`                        |
-| The adapted compiler is the pinned one                                 | `archive`, through `test-roslyn.mjs` and `build-compiler.mjs`  |
-| The package restores from a local feed only and builds both targets    | `archive`, through `build-package.mjs` and `test-package.mjs`  |
-| Emscripten equals the workload pin (I3)                                | `parity-gate`, from each engine archive's own metadata sidecar |
-| The same source produces identical captures on both runtimes (I1) | `parity` per engine, judged by `parity-gate`                   |
-| The author's code is never edited (I2)                                 | `parity-gate`, against the pinned commits' Git blobs           |
-| The npm contract is unchanged (I4)                                     | `parity-gate`, through `npm-contract.mjs`                      |
-| Desktop behaviour is unchanged (I5)                                    | `desktop-neutrality`, on the host the engine ships for         |
-| Each runtime path's cost, against the matched native run         | `parity-gate`, through `gate-performance.mjs`                  |
+| Claim                                                               | Job                                                            |
+| ------------------------------------------------------------------- | -------------------------------------------------------------- |
+| The archive is reproducible from pinned inputs                      | `archive`, which builds twice and compares the bytes           |
+| Input and admission rules hold                                      | `archive`, through the `dotnet/tests` suite                    |
+| The tape lifts the author's arithmetic exactly                      | `archive`, through `test-generator.mjs`                        |
+| The adapted compiler is the pinned one                              | `archive`, through `test-roslyn.mjs` and `build-compiler.mjs`  |
+| The package restores from a local feed only and builds both targets | `archive`, through `build-package.mjs` and `test-package.mjs`  |
+| Emscripten equals the workload pin (I3)                             | `parity-gate`, from each engine archive's own metadata sidecar |
+| The same source produces identical captures on both runtimes (I1)   | `parity` per engine, judged by `parity-gate`                   |
+| The author's code is never edited (I2)                              | `parity-gate`, against the pinned commits' Git blobs           |
+| The npm contract is unchanged (I4)                                  | `parity-gate`, through `npm-contract.mjs`                      |
+| Desktop behaviour is unchanged (I5)                                 | `desktop-neutrality`, on the host the engine ships for         |
+| Each runtime path's cost, against the matched native run            | `parity-gate`, through `gate-performance.mjs`                  |
 
 ## Private archive builds
 

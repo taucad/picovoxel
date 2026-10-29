@@ -6,20 +6,20 @@ import type { SdfExpression } from '../../../src/tape.ts';
 // ---- Ex_ImplicitGyroidSphere.cs
 export class ImplicitGyroidSphere {
   static Task(): void {
-    try {
+    try
+    {
       let vecCentre = new Vector3();
       let fRadius = 10;
       let sdfSphere = new ImplicitSphere(vecCentre, fRadius);
       let sdfPattern = new ImplicitGyroid(3, 1);
-      let oBBox = new BBox3(
-        Vector3.op_Multiply(1.2000000476837158, new Vector3(-fRadius, -fRadius, -fRadius)),
-        Vector3.op_Multiply(1.2000000476837158, new Vector3(fRadius, fRadius, fRadius)),
-      );
+      let oBBox = new BBox3(Vector3.op_Multiply(1.2000000476837158, new Vector3((-fRadius), (-fRadius), (-fRadius))), Vector3.op_Multiply(1.2000000476837158, new Vector3(fRadius, fRadius, fRadius)));
       let voxSphere = new Voxels(sdfSphere, oBBox);
       let voxGyroidSphere = voxSphere.voxIntersectImplicit(sdfPattern);
       Leap71_ShapeKernel.Sh.PreviewVoxels(voxGyroidSphere, Leap71_ShapeKernel.Cp.clrBillie);
       Leap71_ShapeKernel.Sh.PreviewVoxels(voxSphere, Leap71_ShapeKernel.Cp.clrBubblegum, 0.30000001192092896);
-    } catch (e) {
+    }
+    catch (e)
+    {
       Library.Log(`Failed run example: \n${e.message}`);
     }
   }
@@ -30,7 +30,7 @@ export class ImplicitGyroid implements IImplicit {
   m_fFrequencyScale: number;
   m_fThicknessRatio: number;
   constructor(fUnitSize: number, fThicknessRatio: number) {
-    this.m_fFrequencyScale = f(f(2 * 3.1415927410125732) / fUnitSize);
+    this.m_fFrequencyScale = f((f(2 * 3.1415927410125732)) / fUnitSize);
     this.m_fThicknessRatio = fThicknessRatio;
   }
   static fGetThicknessRatio(fWallThickness: number, fUnitSize: number): number {
@@ -41,30 +41,17 @@ export class ImplicitGyroid implements IImplicit {
     let dX = vecPt.X;
     let dY = vecPt.Y;
     let dZ = vecPt.Z;
-    let fDist =
-      Math.sin(this.m_fFrequencyScale * dX) * Math.cos(this.m_fFrequencyScale * dY) +
-      Math.sin(this.m_fFrequencyScale * dY) * Math.cos(this.m_fFrequencyScale * dZ) +
-      Math.sin(this.m_fFrequencyScale * dZ) * Math.cos(this.m_fFrequencyScale * dX);
-    return f(Math.abs(fDist) - f(0.5 * this.m_fThicknessRatio));
+    let fDist = Math.sin(this.m_fFrequencyScale * dX) * Math.cos(this.m_fFrequencyScale * dY) + Math.sin(this.m_fFrequencyScale * dY) * Math.cos(this.m_fFrequencyScale * dZ) + Math.sin(this.m_fFrequencyScale * dZ) * Math.cos(this.m_fFrequencyScale * dX);
+    return f((Math.abs(fDist) - f(0.5 * this.m_fThicknessRatio)));
   }
   __sdf(): SdfExpression {
     const dX: SdfExpression = 'x';
     const dY: SdfExpression = 'y';
     const dZ: SdfExpression = 'z';
-    const fDist: SdfExpression = [
-      '+',
-      [
-        '+',
-        ['*', ['sin', ['*', this.m_fFrequencyScale, dX]], ['cos', ['*', this.m_fFrequencyScale, dY]]],
-        ['*', ['sin', ['*', this.m_fFrequencyScale, dY]], ['cos', ['*', this.m_fFrequencyScale, dZ]]],
-      ],
-      ['*', ['sin', ['*', this.m_fFrequencyScale, dZ]], ['cos', ['*', this.m_fFrequencyScale, dX]]],
-    ];
+    const fDist: SdfExpression = ['+', ['+', ['*', ['sin', ['*', this.m_fFrequencyScale, dX]], ['cos', ['*', this.m_fFrequencyScale, dY]]], ['*', ['sin', ['*', this.m_fFrequencyScale, dY]], ['cos', ['*', this.m_fFrequencyScale, dZ]]]], ['*', ['sin', ['*', this.m_fFrequencyScale, dZ]], ['cos', ['*', this.m_fFrequencyScale, dX]]]];
     return ['-', ['abs', fDist], f(0.5 * this.m_fThicknessRatio)];
   }
-  get __sdfExact(): boolean {
-    return true;
-  }
+  get __sdfExact(): boolean { return true; }
 }
 
 export class ImplicitSphere implements IImplicit {
@@ -75,26 +62,12 @@ export class ImplicitSphere implements IImplicit {
     this.m_fRadius = fRadius;
   }
   fSignedDistance(vecPt: Vector3): number {
-    return f(Vector3.op_Subtraction(vecPt, this.m_vecCentre).Length() - this.m_fRadius);
+    return f((Vector3.op_Subtraction(vecPt, this.m_vecCentre)).Length() - this.m_fRadius);
   }
   __sdf(): SdfExpression {
-    return [
-      '-',
-      [
-        'sqrt',
-        [
-          '+',
-          ['*', ['-', 'x', this.m_vecCentre.X], ['-', 'x', this.m_vecCentre.X]],
-          ['*', ['-', 'y', this.m_vecCentre.Y], ['-', 'y', this.m_vecCentre.Y]],
-          ['*', ['-', 'z', this.m_vecCentre.Z], ['-', 'z', this.m_vecCentre.Z]],
-        ],
-      ],
-      this.m_fRadius,
-    ];
+    return ['-', ['sqrt', ['+', ['*', ['-', 'x', (this.m_vecCentre).X], ['-', 'x', (this.m_vecCentre).X]], ['*', ['-', 'y', (this.m_vecCentre).Y], ['-', 'y', (this.m_vecCentre).Y]], ['*', ['-', 'z', (this.m_vecCentre).Z], ['-', 'z', (this.m_vecCentre).Z]]]], this.m_fRadius];
   }
-  get __sdfExact(): boolean {
-    return false;
-  }
+  get __sdfExact(): boolean { return false; }
 }
 
 export class ImplicitGenus implements IImplicit {
@@ -103,38 +76,12 @@ export class ImplicitGenus implements IImplicit {
     this.m_fGap = fGap;
   }
   fSignedDistance(vecPt: Vector3): number {
-    return f(
-      f(
-        f(f(2 * vecPt.Y) * f(f(vecPt.Y * vecPt.Y) - f(f(3 * vecPt.X) * vecPt.X))) *
-          f(1 - f(vecPt.Z * vecPt.Z)),
-      ) +
-        Math.pow(f(f(vecPt.X * vecPt.X) + f(vecPt.Y * vecPt.Y)), 2) -
-        f(f(f(f(9 * vecPt.Z) * vecPt.Z) - 1) * f(1 - f(vecPt.Z * vecPt.Z))) -
-        this.m_fGap,
-    );
+    return f((f(f(f(2 * vecPt.Y) * (f(f(vecPt.Y * vecPt.Y) - f(f(3 * vecPt.X) * vecPt.X)))) * (f(1 - f(vecPt.Z * vecPt.Z)))) + Math.pow((f(f(vecPt.X * vecPt.X) + f(vecPt.Y * vecPt.Y))), 2) - f((f(f(f(9 * vecPt.Z) * vecPt.Z) - 1)) * (f(1 - f(vecPt.Z * vecPt.Z)))) - this.m_fGap));
   }
   __sdf(): SdfExpression {
-    return [
-      '-',
-      [
-        '-',
-        [
-          '+',
-          [
-            '*',
-            ['*', ['*', 2, 'y'], ['-', ['*', 'y', 'y'], ['*', ['*', 3, 'x'], 'x']]],
-            ['-', 1, ['*', 'z', 'z']],
-          ],
-          ['pow', ['+', ['*', 'x', 'x'], ['*', 'y', 'y']], 2],
-        ],
-        ['*', ['-', ['*', ['*', 9, 'z'], 'z'], 1], ['-', 1, ['*', 'z', 'z']]],
-      ],
-      this.m_fGap,
-    ];
+    return ['-', ['-', ['+', ['*', ['*', ['*', 2, 'y'], ['-', ['*', 'y', 'y'], ['*', ['*', 3, 'x'], 'x']]], ['-', 1, ['*', 'z', 'z']]], ['pow', ['+', ['*', 'x', 'x'], ['*', 'y', 'y']], 2]], ['*', ['-', ['*', ['*', 9, 'z'], 'z'], 1], ['-', 1, ['*', 'z', 'z']]]], this.m_fGap];
   }
-  get __sdfExact(): boolean {
-    return false;
-  }
+  get __sdfExact(): boolean { return false; }
 }
 
 export class ImplicitSuperEllipsoid implements IImplicit {
@@ -144,14 +91,7 @@ export class ImplicitSuperEllipsoid implements IImplicit {
   m_fEpsilon1: number;
   m_fEpsilon2: number;
   m_vecCentre: Vector3;
-  constructor(
-    vecCentre: Vector3,
-    fAx: number,
-    fAy: number,
-    fAz: number,
-    fEpsilon1: number,
-    fEpsilon2: number,
-  ) {
+  constructor(vecCentre: Vector3, fAx: number, fAy: number, fAz: number, fEpsilon1: number, fEpsilon2: number) {
     this.m_fAx = fAx;
     this.m_fAy = fAy;
     this.m_fAz = fAz;
@@ -163,31 +103,18 @@ export class ImplicitSuperEllipsoid implements IImplicit {
     let dX = f(f(Math.abs(f(vecPt.X + this.m_vecCentre.X))) / this.m_fAx);
     let dY = f(f(Math.abs(f(vecPt.Y + this.m_vecCentre.Y))) / this.m_fAy);
     let dZ = f(f(Math.abs(f(vecPt.Z + this.m_vecCentre.Z))) / this.m_fAz);
-    let dDist =
-      Math.pow(
-        Math.pow(dX, f(2 / this.m_fEpsilon2)) + Math.pow(dY, f(2 / this.m_fEpsilon2)),
-        f(this.m_fEpsilon2 / this.m_fEpsilon1),
-      ) + Math.pow(dZ, f(2 / this.m_fEpsilon1));
-    let fFinalDist = f(dDist - 1);
+    let dDist = Math.pow((Math.pow(dX, f(2 / this.m_fEpsilon2)) + Math.pow(dY, f(2 / this.m_fEpsilon2))), f(this.m_fEpsilon2 / this.m_fEpsilon1)) + Math.pow(dZ, f(2 / this.m_fEpsilon1));
+    let fFinalDist = f((dDist - 1));
     return fFinalDist;
   }
   __sdf(): SdfExpression {
     const dX: SdfExpression = ['/', ['abs', ['+', 'x', this.m_vecCentre.X]], this.m_fAx];
     const dY: SdfExpression = ['/', ['abs', ['+', 'y', this.m_vecCentre.Y]], this.m_fAy];
     const dZ: SdfExpression = ['/', ['abs', ['+', 'z', this.m_vecCentre.Z]], this.m_fAz];
-    const dDist: SdfExpression = [
-      '+',
-      [
-        'pow',
-        ['+', ['pow', dX, f(2 / this.m_fEpsilon2)], ['pow', dY, f(2 / this.m_fEpsilon2)]],
-        f(this.m_fEpsilon2 / this.m_fEpsilon1),
-      ],
-      ['pow', dZ, f(2 / this.m_fEpsilon1)],
-    ];
+    const dDist: SdfExpression = ['+', ['pow', ['+', ['pow', dX, f(2 / this.m_fEpsilon2)], ['pow', dY, f(2 / this.m_fEpsilon2)]], f(this.m_fEpsilon2 / this.m_fEpsilon1)], ['pow', dZ, f(2 / this.m_fEpsilon1)]];
     const fFinalDist: SdfExpression = ['-', dDist, 1];
     return fFinalDist;
   }
-  get __sdfExact(): boolean {
-    return false;
-  }
+  get __sdfExact(): boolean { return false; }
 }
+
