@@ -129,6 +129,13 @@
       "options": {
         "command": "node dotnet/verify-archives.mjs"
       }
+    },
+    "test:dotnet-roslyn": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node dotnet/test-roslyn.mjs"
+      }
     }
   }
 }
