@@ -17,13 +17,11 @@ import { join, resolve } from 'node:path';
 /**
  * The ruled ceiling on a browser path's geometry time, as a multiple of the matched native run.
  *
- * 2, not the 1.3 this program measured against first. The decomposition behind the change is
- * recorded rather than argued: against native pinned to one core, every substantial geometry stage
- * costs the browser 1.22x to 1.33x, uniformly, so the rest of the first ceiling's distance was
- * native's own parallelism rather than anything in this path. With threads enabled the best engine
- * reaches 1.50x of four-core native, and wasm's own execution penalty is what remains. The ceiling
- * admits that penalty for a browser target and nothing more: it is still a ruled number that a path
- * fails, and a path with no measurement still fails.
+ * 2, not the 1.3 measured against first. Against native pinned to one core, every substantial
+ * geometry stage costs the browser 1.22x to 1.33x, so the rest of the first ceiling's distance was
+ * native's own parallelism rather than anything in this path. With threads the best engine reaches
+ * 1.50x of four-core native, and wasm's own execution penalty is what remains. The ceiling admits
+ * that penalty and nothing more: a path over it still fails, and an unmeasured path still fails.
  */
 export const runRatioCeiling = 2;
 
