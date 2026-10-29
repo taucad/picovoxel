@@ -172,3 +172,35 @@ repository. The caller pins this repository's builder commit. Its serial/threade
 matrix builds twice and keeps private artifacts in the caller's run. It has no
 publishing step and does not modify the npm candidate pipeline. Remote CI success
 must be recorded separately from local archive/link acceptance.
+
+## Browser compiler adaptation
+
+The runtime-authoring host uses the pinned Roslyn 5.9.0 `netstandard2.0`
+assembly. `tools/RoslynChecksumPatch` replaces its single source-checksum
+scheduling call with eager computation, preserving a faulted task and the
+original exception when computation fails. It verifies the original assembly
+digest, writes a new file and never changes the NuGet cache.
+
+Run the deterministic-output, refusal and exception checks with the selected SDK:
+
+```sh
+pnpm nx run picovoxel:test:dotnet-roslyn --args='/absolute/sdk/dotnet build/roslyn-check'
+```
+
+The output directory must be fresh. The target builds its tools and intermediate
+files beneath that directory.
+
+## Runtime-authoring retention
+
+A prebuilt browser host that loads newly compiled C# imports
+`browser/AuthoringRetention.props` after defining its assembly name and
+`browser-wasm` runtime identifier. This retains the host, PicoGK and the listed
+framework APIs independently of example programs. It preserves IL after AOT,
+enables reflection JSON and keeps constructor parameter names. Host types also
+need their property getters retained for serialization; keeping parameter names
+alone does not preserve those getters.
+
+The props file does not add a native renderer or image library. The host still
+provides matched metadata references, compiler assets and native archives, and
+must verify their common build identity. Worker integration and local package
+staging are separate from these retention settings.

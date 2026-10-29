@@ -1,0 +1,29 @@
+<Project>
+  <!-- Runtime-authored IL needs methods and reflection metadata independently of build-time examples. -->
+  <PropertyGroup>
+    <WasmStripILAfterAOT>false</WasmStripILAfterAOT>
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+    <_ExtraTrimmerArgs>$(_ExtraTrimmerArgs) --keep-metadata parametername</_ExtraTrimmerArgs>
+  </PropertyGroup>
+  <ItemGroup>
+    <TrimmerRootAssembly Include="$(AssemblyName)" />
+    <TrimmerRootAssembly Include="PicoGK" />
+    <TrimmerRootAssembly Include="System.Private.CoreLib" />
+    <TrimmerRootAssembly Include="System.Runtime" />
+    <TrimmerRootAssembly Include="System.Collections" />
+    <TrimmerRootAssembly Include="System.Console" />
+    <TrimmerRootAssembly Include="System.IO.FileSystem" />
+    <TrimmerRootAssembly Include="System.Reflection" />
+    <TrimmerRootAssembly Include="System.Reflection.Extensions" />
+    <TrimmerRootAssembly Include="System.Linq" />
+    <TrimmerRootAssembly Include="System.Text.Json" />
+    <TrimmerRootAssembly Include="System.ComponentModel.Annotations" />
+    <TrimmerRootAssembly Include="System.Security.Cryptography" />
+    <TrimmerRootAssembly Include="System.Numerics.Vectors" />
+    <TrimmerRootAssembly Include="System.Memory" />
+    <TrimmerRootAssembly Include="System.Threading" />
+  </ItemGroup>
+  <Target Name="ValidatePicoGKAuthoringRetention" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" Text="PicoGK authoring retention requires browser-wasm." />
+  </Target>
+</Project>
