@@ -22,6 +22,8 @@
     <TrimmerRootAssembly Include="System.Numerics.Vectors" />
     <TrimmerRootAssembly Include="System.Memory" />
     <TrimmerRootAssembly Include="System.Threading" />
+    <!-- Library.Go exposes ThreadStart; dynamically emitted IL references this facade. -->
+    <TrimmerRootAssembly Include="System.Threading.Thread" />
   </ItemGroup>
   <Target Name="ValidatePicoGKAuthoringRetention" BeforeTargets="PrepareForBuild">
     <Error Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" Text="PicoGK authoring retention requires browser-wasm." />
