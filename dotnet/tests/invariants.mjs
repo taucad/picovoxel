@@ -9,7 +9,7 @@
  * Expected evidence, by file name, under one directory:
  *   parity-<subject>.json     I1  one `compareParity` report per subject; gyroid is required
  *   author-sources.json       I2  the staged author sources, against their pinned commits
- *   archive-<execution>.json  I3  each archive receipt, both executions required
+ *   archive-<execution>.json  I3  each engine archive's own metadata sidecar, both executions
  *   npm-contract.json         I4  `npm-contract.mjs`
  *   desktop-neutrality.json   I5  the darwin desktop suite's own result
  *
@@ -87,9 +87,10 @@ export const judgeInvariants = (directory) => {
       .map(([execution]) => execution);
     if (missing.length) return unproven(`No archive receipt: ${missing.join(', ')}`);
     const wrong = Object.entries(archives).filter(
-      ([, row]) =>
-        row.value.toolchain?.emscripten !== pins.emscripten ||
-        row.value.toolchain?.emscriptenRevision !== pins.emscriptenRevision,
+      ([execution, row]) =>
+        row.value.execution !== execution ||
+        row.value.emscripten !== pins.emscripten ||
+        row.value.emscriptenRevision !== pins.emscriptenRevision,
     );
     return {
       status: wrong.length ? 'failed' : 'passed',
@@ -98,14 +99,16 @@ export const judgeInvariants = (directory) => {
         Object.entries(archives).map(([execution, row]) => [
           execution,
           {
-            emscripten: row.value.toolchain?.emscripten,
-            revision: row.value.toolchain?.emscriptenRevision,
+            emscripten: row.value.emscripten,
+            revision: row.value.emscriptenRevision,
+            // The engine archive's own bytes, which this receipt is the sidecar of.
+            archiveSha256: row.value.sha256,
             sha256: row.sha256,
           },
         ]),
       ),
       ...(wrong.length
-        ? { reason: `Archive built by another compiler: ${wrong.map(([name]) => name).join(', ')}` }
+        ? { reason: `Archive built by another compiler or execution: ${wrong.map(([name]) => name).join(', ')}` }
         : {}),
     };
   })();

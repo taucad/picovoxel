@@ -18,10 +18,14 @@ const evidence = (overrides = {}) => {
       subjects: { ShapeKernel: { commit: 'a'.repeat(40), files: 3 } },
     },
     'archive-serial.json': {
-      toolchain: { emscripten: pins.emscripten, emscriptenRevision: pins.emscriptenRevision },
+      execution: 'serial',
+      emscripten: pins.emscripten,
+      emscriptenRevision: pins.emscriptenRevision,
     },
     'archive-threaded.json': {
-      toolchain: { emscripten: pins.emscripten, emscriptenRevision: pins.emscriptenRevision },
+      execution: 'threaded',
+      emscripten: pins.emscripten,
+      emscriptenRevision: pins.emscriptenRevision,
     },
     'npm-contract.json': { mergeBase: 'b'.repeat(40), touched: [] },
     'desktop-neutrality.json': { status: 'passed', host: 'darwin-arm64', suite: 'picogk:test-dotnet' },
@@ -83,7 +87,7 @@ test('failed evidence fails its own invariant', () => {
   for (const [name, value, invariant] of [
     ['parity-gyroid.json', { subject: 'gyroid', passed: false }, 'I1'],
     ['author-sources.json', { unmodified: false, subjects: {} }, 'I2'],
-    ['archive-serial.json', { toolchain: { emscripten: '6.0.2', emscriptenRevision: 'other' } }, 'I3'],
+    ['archive-serial.json', { execution: 'serial', emscripten: '6.0.2', emscriptenRevision: 'other' }, 'I3'],
     ['npm-contract.json', { mergeBase: 'c'.repeat(40), touched: ['test/surface-manifest.json'] }, 'I4'],
     ['desktop-neutrality.json', { status: 'failed' }, 'I5'],
   ]) {
