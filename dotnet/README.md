@@ -201,6 +201,63 @@ check that did not run can never read as a pass. `tests/npm-contract.mjs` is I4'
 own check: it compares the program's commits against their merge base and fails if
 they touch the byte-locked fixtures or the surface manifest.
 
+### Performance
+
+Three pieces measure what a runtime costs, and they are separate from the byte
+gate above: a path that is fast and wrong is not a pass, so identity is judged
+first.
+
+`run-performance-native.mjs` supplies the denominator. The browser times one
+call, the fixture's own `Run`, so this driver rebuilds the comparator's managed
+entry as a timed one and reports the figure that entry printed. The project it
+builds is the parity project with its entry swapped, so the fixture, the author
+trees and the engine reference are the same items the byte-compared run
+compiled. Each round is a fresh process, because a browser page is one too, and
+the fastest round is the figure:
+
+```sh
+node dotnet/run-performance-native.mjs /absolute/sdk/dotnet /absolute/parity/fixture /absolute/comparator gyroid build/performance-native --rounds 3
+```
+
+`run-performance-browser.mjs` measures one prepared app and one option set at a
+time, because an app built ahead of time and an app that compiles in the browser
+pay different costs, and within the second the lifted signed-distance tape and
+the per-voxel callback it replaces are different paths again. It records cold
+start, the stage, the compile, the run, an edit and its recompile, the bytes the
+server served and the engine's own heap:
+
+```sh
+node dotnet/run-performance-browser.mjs /absolute/app chromium gyroid dynamic-tape build/performance-chromium --options edit=on
+```
+
+`gate-performance.mjs` judges only the run against the ceiling, which is 1.3x the
+matched native run, and records the rest. A path that reported nothing is
+`unmeasured`, never a pass:
+
+```sh
+node dotnet/gate-performance.mjs gyroid build/performance-native/performance-native.json build/evidence build/performance-*/performance.json
+```
+
+## What proves each claim
+
+Every claim this contract makes is proved by a job, not by a reading of the
+sources. The jobs are in `.github/workflows/dotnet-archive.yml` here and in
+Tau's `picogk-browser-archive.yml`, which calls it:
+
+| Claim                                                                  | Job                                                            |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------- |
+| The archive is reproducible from pinned inputs                         | `archive`, which builds twice and compares the bytes           |
+| Input and admission rules hold                                         | `archive`, through the `dotnet/tests` suite                    |
+| The tape lifts the author's arithmetic exactly                         | `archive`, through `test-generator.mjs`                        |
+| The adapted compiler is the pinned one                                 | `archive`, through `test-roslyn.mjs` and `build-compiler.mjs`  |
+| The package restores from a local feed only and builds both targets    | `archive`, through `build-package.mjs` and `test-package.mjs`  |
+| Emscripten equals the workload pin (I3)                                | `parity-gate`, from each engine archive's own metadata sidecar |
+| The same source produces identical captures on both runtimes (I1) | `parity` per engine, judged by `parity-gate`                   |
+| The author's code is never edited (I2)                                 | `parity-gate`, against the pinned commits' Git blobs           |
+| The npm contract is unchanged (I4)                                     | `parity-gate`, through `npm-contract.mjs`                      |
+| Desktop behaviour is unchanged (I5)                                    | `desktop-neutrality`, on the host the engine ships for         |
+| Each runtime path's cost, against the matched native run         | `parity-gate`, through `gate-performance.mjs`                  |
+
 ## Private archive builds
 
 The builder takes a configuration and a new output directory. It never invokes
