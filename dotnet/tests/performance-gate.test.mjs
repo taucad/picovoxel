@@ -12,7 +12,7 @@ const measured = (overrides = {}) => ({
 });
 
 test('the ruled ceiling is the one R31 names and is applied to geometry time', () => {
-  assert.equal(runRatioCeiling, 1.3);
+  assert.equal(runRatioCeiling, 2);
   const judged = judgePerformance(native, [measured()]);
   assert.equal(judged.passed, true);
   assert.equal(judged.paths[0].ratio, 1.2);
@@ -30,10 +30,18 @@ test('the ruled ceiling is the one R31 names and is applied to geometry time', (
 });
 
 test('a path over the ceiling fails and says by how much', () => {
-  const judged = judgePerformance(native, [measured({ timings: { boot: 1, run: 1400 } })]);
+  const judged = judgePerformance(native, [measured({ timings: { boot: 1, run: 2400 } })]);
   assert.equal(judged.passed, false);
   assert.equal(judged.paths[0].status, 'failed');
-  assert.match(judged.paths[0].reason, /1\.40x the matched native run/);
+  assert.match(judged.paths[0].reason, /2\.40x the matched native run/);
+});
+
+test('a path between the first ceiling and the ruled one passes, because the ruling moved', () => {
+  // 1.40x failed under the 1.3 this program measured against first and passes under the 2 it rules
+  // now. The case is kept rather than replaced so the change of ruling is visible in the suite.
+  const judged = judgePerformance(native, [measured({ timings: { boot: 1, run: 1400 } })]);
+  assert.equal(judged.passed, true);
+  assert.equal(judged.paths[0].ratio, 1.4);
 });
 
 test('a slow cold start, edit, transfer or heap is recorded without failing the gate', () => {

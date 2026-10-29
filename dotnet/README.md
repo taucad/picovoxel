@@ -230,7 +230,7 @@ server served and the engine's own heap:
 node dotnet/run-performance-browser.mjs /absolute/app chromium gyroid dynamic-tape build/performance-chromium --options edit=on
 ```
 
-`gate-performance.mjs` judges only the run against the ceiling, which is 1.3x the
+`gate-performance.mjs` judges only the run against the ceiling, which is 2x the
 matched native run, and records the rest. A path that reported nothing is
 `unmeasured`, never a pass:
 
