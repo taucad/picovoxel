@@ -150,6 +150,28 @@ jobs:
             ../picogk-source ../archives/serial ../archives/threaded \
             ../generator/generator/PicoVoxel.Sdf.Generator.dll ../compiler \
             ../package
+      - name: Acquire the managed dependency the package declares
+        working-directory: out/dotnet/picovoxel
+        # The next step restores the package itself from a local feed with no other source, and
+        # falls back to this machine's NuGet cache for the dependency the package declares. Nothing
+        # earlier in this job puts it there, so acquire exactly the version the consumer props name
+        # and let the qualification prove that the local feed is the only source it needs.
+        run: |
+          version=$(sed -n 's:.*<PicoVoxelPicoGKSkiaSharp>\(.*\)</PicoVoxelPicoGKSkiaSharp>.*:\1:p' \
+            dotnet/package/build/PicoVoxel.PicoGK.props)
+          test -n "$version"
+          mkdir -p ../dependency-stage
+          cat > ../dependency-stage/Dependency.csproj <<XML
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup>
+              <TargetFramework>net11.0</TargetFramework>
+            </PropertyGroup>
+            <ItemGroup>
+              <PackageReference Include="SkiaSharp" Version="$version" />
+            </ItemGroup>
+          </Project>
+          XML
+          dotnet restore ../dependency-stage/Dependency.csproj
       - name: Restore from a local feed only and build both targets
         working-directory: out/dotnet/picovoxel
         run: node dotnet/test-package.mjs "$(command -v dotnet)" ../package ../package-qualification
