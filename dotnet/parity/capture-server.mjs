@@ -45,11 +45,15 @@ export function captureName(pathname) {
  * Start the server the run is driven through.
  *
  * @param {{ app: string, captures: string }} directories - The prepared app, and where captures land.
- * @returns {Promise<{ port: number, uploaded: string[], close: () => Promise<void> }>} The running server.
+ * @returns {Promise<{ port: number, uploaded: string[], served: { requests: number, bytes: number },
+ *   close: () => Promise<void> }>} The running server.
  */
 export async function startCaptureServer({ app, captures }) {
   const root = resolve(app);
   const uploaded = [];
+  // What a run actually had to fetch, counted where it crossed: a performance report reads this
+  // rather than an engine's own estimate, which is not comparable between engines.
+  const served = { requests: 0, bytes: 0 };
   const server = createServer((request, response) => {
     const url = new URL(request.url ?? '/', 'http://parity.invalid');
     if (request.method === 'PUT' && url.pathname.startsWith('/capture/')) {
@@ -83,7 +87,10 @@ export async function startCaptureServer({ app, captures }) {
         'cross-origin-opener-policy': 'same-origin',
         'cross-origin-embedder-policy': 'require-corp',
       });
-      response.end(readFileSync(path));
+      const contents = readFileSync(path);
+      served.requests += 1;
+      served.bytes += contents.byteLength;
+      response.end(contents);
     } catch {
       response.writeHead(404);
       response.end();
@@ -93,6 +100,7 @@ export async function startCaptureServer({ app, captures }) {
   return {
     port: server.address().port,
     uploaded,
+    served,
     close: () => new Promise((closed) => server.close(closed)),
   };
 }
