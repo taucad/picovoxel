@@ -42,6 +42,12 @@ jobs:
       - name: Test input and archive admission
         working-directory: out/dotnet/picovoxel
         run: node --test dotnet/tests/*.test.mjs
+      - name: Qualify the signed-distance tape generator
+        if: matrix.execution == 'serial'
+        working-directory: out/dotnet/picovoxel
+        # The lifting decision and the arithmetic it rebuilds need no wasm build: each case compares the
+        # lifted tape against the author's own method bit for bit.
+        run: node dotnet/test-generator.mjs "$(command -v dotnet)" ../generator-qualification
       - name: Install matched workload and build tools
         working-directory: out/dotnet/picovoxel/dotnet
         run: |

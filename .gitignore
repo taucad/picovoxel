@@ -34,6 +34,8 @@ spikes/webgpu/picovoxel-dist/
 # bench/native-heatx — .NET build output and ImGui window state from local runs.
 bench/native-heatx/bin/
 bench/native-heatx/obj/
+dotnet/**/bin/
+dotnet/**/obj/
 imgui.ini
 
 # CI candidate pipeline scratch (.github/workflows/ci.yml).

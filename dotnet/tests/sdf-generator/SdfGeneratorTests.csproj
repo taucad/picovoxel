@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <TargetFramework>net11.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The built generator, referenced the way the browser host references it. -->
+    <Reference Include="PicoVoxel.Sdf.Generator" HintPath="$(PicoVoxelGeneratorPath)" />
+  </ItemGroup>
+  <Target Name="ValidateGeneratorInput" BeforeTargets="PrepareForBuild">
+    <Error Condition="!Exists('$(PicoVoxelGeneratorPath)')"
+           Text="Provide the built generator assembly via PicoVoxelGeneratorPath." />
+  </Target>
+  <ItemGroup>
+    <!-- The shipped registry source is a test input, compiled into each case rather than referenced. -->
+    <None Include="../../managed/SdfTape.cs" CopyToOutputDirectory="PreserveNewest" Link="SdfTape.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="TapeEvaluator.cs" />
+  </ItemGroup>
+</Project>

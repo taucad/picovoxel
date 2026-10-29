@@ -34,6 +34,7 @@ public static class GeometryParityFixture
                     ?? throw new Exception("Final HeatX voxels missing");
                 ParityCapture.WriteRaw(final, Path.Combine(output, "final.mesh"));
             }
+            ReportTapeDispatch();
             Console.WriteLine("EXAMPLE_PASS " + backend.Count);
         }
         finally
@@ -43,6 +44,27 @@ public static class GeometryParityFixture
             Library.UnregisterGlobalLibrary();
             Directory.SetCurrentDirectory(previousDirectory);
         }
+    }
+
+    /// <summary>
+    /// Reports which implicit path actually ran, so a browser result that matches the historical digest is
+    /// evidence about the tape rather than about the callback that also produces it.
+    /// </summary>
+    /// <remarks>
+    /// By reflection, because the registry is part of the browser library only: the same unchanged fixture
+    /// source has to compile against the desktop reference too, where it reports `absent`.
+    /// </remarks>
+    private static void ReportTapeDispatch()
+    {
+        var registry = Type.GetType("PicoGK.SdfTapeRegistry, PicoGK", throwOnError: false);
+        if (registry is null)
+        {
+            Console.WriteLine("TAPE absent");
+            return;
+        }
+        object? Read(string name) => registry.GetProperty(name)?.GetValue(null);
+        Console.WriteLine(
+            $"TAPE registered {Read("RegisteredCount")} dispatched {Read("Dispatched")} fellBack {Read("FellBack")}");
     }
 }
 
