@@ -1,17 +1,16 @@
 /**
- * Report I1 to I5 from the evidence a CI run actually produced.
+ * Report I1 to I5 from the evidence a CI run produced.
  *
- * R35 is the reason this exists: a check that did not run must never read as a pass. Each
- * invariant here is `passed`, `failed` or `unproven`, and anything but `passed` for all five is a
- * failure. Nothing is re-derived — the jobs that prove each invariant write their own evidence, and
- * this driver only reads it, so a missing report is reported as missing rather than assumed.
+ * A check that did not run must never read as a pass, so each invariant is `passed`, `failed` or
+ * `unproven`, and anything but `passed` for all five fails. Nothing is re-derived: each invariant's
+ * own job writes the evidence this driver reads.
  *
- * Expected evidence, by file name, under one directory:
- *   parity-<subject>.json     I1  one `compareParity` report per subject; gyroid is required
- *   author-sources.json       I2  the staged author sources, against their pinned commits
- *   archive-<execution>.json  I3  each engine archive's own metadata sidecar, both executions
+ * Expected evidence, by file name, in one directory:
+ *   parity-<subject>.json     I1  one report per subject; gyroid is required
+ *   author-sources.json       I2  the staged author sources against their pins
+ *   archive-<execution>.json  I3  each archive's metadata sidecar, both executions
  *   npm-contract.json         I4  `npm-contract.mjs`
- *   desktop-neutrality.json   I5  the darwin desktop suite's own result
+ *   desktop-neutrality.json   I5  the darwin desktop suite
  *
  * Usage: node dotnet/tests/invariants.mjs <evidence directory> <report.json>
  */

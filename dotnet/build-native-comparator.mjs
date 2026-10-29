@@ -2,15 +2,12 @@
  * Build the matched native comparator: the same engine sources the browser archive is built from,
  * compiled for this host.
  *
- * I1 is a same-engine gate. It is only meaningful against a native build of the identical patched
- * sources, with the identical shared float trigonometry, so this driver stages exactly what
- * `build-archive.mjs` stages — the pinned runtime, OpenVDB, oneTBB and c-blosc trees with
- * PicoVoxel's vendor patches and the caller's `Runtime.browser.patch`, the adapter's callbacks and
- * PicoVoxel's tape evaluator — and compiles it with the host toolchain instead of Emscripten.
+ * Byte identity is a same-engine claim, so it is only meaningful against a native build of the
+ * identical patched sources with the identical float trigonometry. This driver stages exactly what
+ * `build-archive.mjs` stages and compiles it with the host toolchain instead of Emscripten.
  *
- * The float trigonometry is built as its own preload library rather than linked in: a definition
- * inside the engine library would bind by lookup order, while a preload is the deterministic
- * interposition on both hosts, and it is what the recorded T05 comparison used.
+ * The float trigonometry is a preload library rather than a linked definition, which would bind by
+ * lookup order; a preload is the deterministic interposition on both hosts.
  *
  * Usage: node dotnet/build-native-comparator.mjs <adapter directory> <fresh output> [--jobs N]
  */

@@ -1,14 +1,12 @@
 /**
  * Judge each measured path against the matched native comparator.
  *
- * R31's target is a ratio of geometry time, and it is not waived: a path whose run costs more than
- * 1.3 times the comparator's own best round fails. Both sides time the same call, the fixture's
- * own `Run`, so neither number carries its host's start. Everything else R31 asks to record — cold start,
- * the cost of an edit, the bytes a page fetched and the engine's heap — is reported rather than
- * gated, because no ratio for them was ruled.
+ * The target is a ratio of geometry time and it is not waived: a path whose run costs more than
+ * 1.3 times the comparator's own best round fails. Both sides time the same call, the fixture's own
+ * `Run`, so neither number carries its host's start. Cold start, the cost of an edit, the bytes a
+ * page fetched and the engine's heap are recorded beside the verdict rather than gated.
  *
- * A path with no measurement is reported as unmeasured and fails, for the same reason the parity
- * gate fails an engine that did not run: an absent number is not a passing one.
+ * A path with no measurement is unmeasured and fails: an absent number is not a passing one.
  *
  * Usage: node dotnet/gate-performance.mjs <gyroid|heatx> <native performance.json>
  *          <evidence directory> <performance.json> ...

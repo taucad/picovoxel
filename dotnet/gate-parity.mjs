@@ -4,8 +4,8 @@
  * `compare.mjs` judges one engine's AOT and dynamic captures against the native fixture's bytes.
  * The charter's floor is three engines, so this driver runs that comparison once per engine and
  * writes the single `parity-<subject>.json` the invariant reporter reads. It passes only when every
- * named engine passed, and an engine whose directory is absent fails rather than being dropped:
- * R35 again, because a browser that did not run must not read as a browser that agreed.
+ * named engine passed, and an engine whose directory is absent fails rather than being dropped,
+ * because a browser that did not run must not read as a browser that agreed.
  *
  * Usage: node dotnet/gate-parity.mjs <gyroid|heatx> <native captures> <evidence directory>
  *          <engine>=<AOT captures>,<dynamic captures> ...

@@ -1,13 +1,11 @@
 /**
- * Measure the matched native comparator's own cost, which is what the browser is measured against.
+ * Measure the matched native comparator's own cost, the denominator the browser is judged against.
  *
- * The 1.3x target in R31 is a ratio, so it needs a denominator measured the same way as the
- * numerator. The browser app times `GeometryParityFixture.Run` and nothing else, so this driver
- * does too: it rebuilds the comparator's managed entry as a timed one, compiling the identical
- * source set the parity run compiled, and reports the geometry time that entry printed. The whole
- * process is recorded beside it, because an author pays the host's start as well.
- *
- * Each round is a fresh process, because a browser page is one too.
+ * A ratio needs both sides measured the same way. The browser app times the fixture's own `Run` and
+ * nothing else, so this driver rebuilds the comparator's managed entry as a timed one, from the
+ * identical source set the parity run compiled, and reports the geometry time it printed. The whole
+ * process is recorded beside it, because an author pays the host's start too. Each round is a fresh
+ * process, because a browser page is one.
  *
  * Usage: node dotnet/run-performance-native.mjs <dotnet> <fixture directory> <comparator>
  *          <gyroid|heatx> <fresh out> [--rounds N]

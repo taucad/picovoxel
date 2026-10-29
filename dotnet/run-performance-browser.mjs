@@ -1,14 +1,12 @@
 /**
  * Measure one path's cost in one browser engine.
  *
- * R31 asks for each path measured separately rather than one figure for the browser: an app built
- * ahead of time and an app that compiles in the browser pay different costs, and within the second
- * the lifted signed-distance tape and the per-voxel callback it replaces are different paths again.
- * A mode here is therefore a prepared app and the options the program reads, nothing inferred.
+ * Each path is measured on its own rather than as one figure for the browser: an app built ahead of
+ * time and an app that compiles in the browser pay different costs, and within the second the
+ * lifted tape and the per-voxel callback it replaces are different paths again. A mode is a
+ * prepared app and the options the program reads, nothing inferred.
  *
- * What is recorded: cold start, the compile and the run, the cost of an edit, the bytes the page
- * had to fetch, and the engine's own heap. Transfer is counted by the server that served the app,
- * so it is the bytes that actually crossed rather than a page's estimate of them.
+ * Recorded: cold start, the compile, the run, an edit, the bytes fetched and the engine's heap.
  *
  * Usage: node dotnet/run-performance-browser.mjs <app directory> <chromium|firefox|webkit>
  *          <gyroid|heatx> <mode name> <fresh out> [--options <list>] [--playwright <module>]

@@ -7,8 +7,7 @@
  * .CSharp.dll` needs no change and is staged as the pinned bytes. Both inputs are verified against
  * `inputs.json` before either is written, so the pair can only come from the pinned compiler.
  *
- * `test-roslyn.mjs` qualifies the adaptation (determinism, input guards, faulted-task identity);
- * this driver is what produces the pair a package build consumes.
+ * `test-roslyn.mjs` qualifies the adaptation; this driver produces the pair a package build takes.
  *
  * Usage: node dotnet/build-compiler.mjs <dotnet> <NuGet cache> <fresh output>
  */

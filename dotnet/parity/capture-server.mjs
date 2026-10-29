@@ -1,21 +1,14 @@
 /**
  * Serve a prepared browser app and accept the captures it wrote.
  *
- * The fixture writes its geometry to the browser's sandboxed file system, which the gate cannot
- * read, so the app hands each file back over the origin it was served from: `PUT capture/<name>`
- * with the file's bytes. Nothing is transformed on either side, so a capture that reaches disk is
- * what the engine produced.
+ * The fixture writes to the browser's sandboxed file system, which the gate cannot read, so the app
+ * hands each file back over the origin that served it, untransformed on both sides.
  *
- * A capture may arrive in pieces, because a whole one does not fit beside itself in a wasm heap:
- * the long subject's export is half a gigabyte, and reading it into managed memory to send it in
- * one request crashed the engine. Each request carries `x-capture-offset`, the byte this piece
- * starts at, and every piece but the last carries `x-capture-more`. Offsets must be contiguous
- * from zero, so a
- * capture cannot be assembled out of order or silently truncated, and a capture already finished
- * cannot be written again.
+ * A capture may arrive in pieces, because a whole one does not fit beside itself in a wasm heap.
+ * Each piece carries the byte it starts at, and every piece but the last says more follows. Offsets
+ * must be contiguous from zero, and a finished capture cannot be written again.
  *
- * The app is served with cross-origin isolation, which `SharedArrayBuffer` and so the threaded host
- * require, and a name that is not a bare file name is refused rather than resolved.
+ * The app is served cross-origin isolated, and a name that is not a bare file name is refused.
  */
 import { createServer } from 'node:http';
 import { createWriteStream, readFileSync, statSync } from 'node:fs';

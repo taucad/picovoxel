@@ -1,16 +1,11 @@
 /**
  * Run the parity fixture in one browser engine and collect the exact bytes it wrote.
  *
- * This is the measured side of I1. The app directory is prepared by the adapter that owns the
- * browser host: one directory per mode, `aot` for the fixture compiled into the published bundle
- * and `dynamic` for the same source compiled by the in-browser compiler at run time. This driver
- * knows neither, so a mode is proven by which directory it is pointed at.
+ * The app directory is prepared by the adapter that owns the browser host, one per mode: the
+ * fixture compiled into the published bundle, or the same source compiled in the browser at run
+ * time. This driver knows neither, so a mode is proven by which directory it is pointed at.
  *
- * The fixture writes its captures to the sandboxed file system, which the gate cannot read, so the
- * app uploads each one back over the same origin it was served from. The upload is the contract:
- * `PUT capture/<file name>` with the file's bytes, then `document.title` set to `done` or `failed`.
- * Bytes are never transformed on either side, so a capture that reaches disk is what the engine
- * produced.
+ * Captures come back over the origin that served the app, and the page's title reports the run.
  *
  * Usage: node dotnet/run-parity-browser.mjs <app directory> <chromium|firefox|webkit>
  *          <gyroid|heatx> <fresh out> [--playwright <module>]
