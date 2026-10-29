@@ -29,7 +29,8 @@ export class Vector3 {
     return new Vector3(-a.X, -a.Y, -a.Z);
   }
   static op_Multiply(a: Vector3 | number, b: Vector3 | number): Vector3 {
-    if (typeof a === 'number') return new Vector3(a * (b as Vector3).X, a * (b as Vector3).Y, a * (b as Vector3).Z);
+    if (typeof a === 'number')
+      return new Vector3(a * (b as Vector3).X, a * (b as Vector3).Y, a * (b as Vector3).Z);
     if (typeof b === 'number') return new Vector3(a.X * b, a.Y * b, a.Z * b);
     return new Vector3(a.X * b.X, a.Y * b.Y, a.Z * b.Z);
   }
@@ -105,12 +106,14 @@ export class Library {
     console.log(str);
   }
   writeBBox(box: BBox3): number {
-    const h = this.module.HEAPF32, i = this.scratch >>> 2;
+    const h = this.module.HEAPF32,
+      i = this.scratch >>> 2;
     h.set([box.vecMin.X, box.vecMin.Y, box.vecMin.Z, box.vecMax.X, box.vecMax.Y, box.vecMax.Z], i);
     return this.scratch;
   }
   readVec3(at = this.scratch): Vector3 {
-    const h = this.module.HEAPF32, i = at >>> 2;
+    const h = this.module.HEAPF32,
+      i = at >>> 2;
     return new Vector3(h[i]!, h[i + 1]!, h[i + 2]!);
   }
   get ptr(): number {
@@ -124,7 +127,8 @@ export class Library {
   withTape<T>(xImp: IImplicit, body: (pn: number, nn: number, pf: number, nf: number) => T): T {
     const { instructions, constants } = compileSdfExpression(xImp.__sdf!());
     const m = this.module;
-    const pn = m._malloc(instructions.byteLength), pf = m._malloc(Math.max(8, constants.byteLength));
+    const pn = m._malloc(instructions.byteLength),
+      pf = m._malloc(Math.max(8, constants.byteLength));
     try {
       m.HEAPU32.set(instructions, pn >>> 2);
       m.HEAPF64.set(constants, pf >>> 3);
@@ -138,7 +142,8 @@ export class Library {
   withCallback<T>(xImp: IImplicit, body: (pfn: number) => T): T {
     const m = this.module;
     const pfn = m.addFunction((p: number) => {
-      const h = m.HEAPF32, i = p >>> 2;
+      const h = m.HEAPF32,
+        i = p >>> 2;
       stats.callbackCalls++;
       return xImp.fSignedDistance(new Vector3(h[i]!, h[i + 1]!, h[i + 2]!));
     }, 'fi');
@@ -182,15 +187,21 @@ export class Voxels {
     const { raw, hThis: hLib } = this.lib;
     if (this.lib.useTape(xImp)) {
       const pBox = this.lib.writeBBox(oBounds);
-      this.lib.withTape(xImp, (pn, nn, pf, nf) => raw.Voxels_RenderImplicitTape(hLib, this.hThis, pBox, pn, nn, pf, nf));
+      this.lib.withTape(xImp, (pn, nn, pf, nf) =>
+        raw.Voxels_RenderImplicitTape(hLib, this.hThis, pBox, pn, nn, pf, nf),
+      );
     } else {
-      this.lib.withCallback(xImp, (pfn) => raw.Voxels_RenderImplicit(hLib, this.hThis, this.lib.writeBBox(oBounds), pfn));
+      this.lib.withCallback(xImp, (pfn) =>
+        raw.Voxels_RenderImplicit(hLib, this.hThis, this.lib.writeBBox(oBounds), pfn),
+      );
     }
   }
   IntersectImplicit(xImp: IImplicit): void {
     const { raw, hThis: hLib } = this.lib;
     if (this.lib.useTape(xImp)) {
-      this.lib.withTape(xImp, (pn, nn, pf, nf) => raw.Voxels_IntersectImplicitTape(hLib, this.hThis, pn, nn, pf, nf));
+      this.lib.withTape(xImp, (pn, nn, pf, nf) =>
+        raw.Voxels_IntersectImplicitTape(hLib, this.hThis, pn, nn, pf, nf),
+      );
     } else {
       this.lib.withCallback(xImp, (pfn) => raw.Voxels_IntersectImplicit(hLib, this.hThis, pfn));
     }
@@ -239,7 +250,8 @@ export class Mesh {
   }
   oTriangleAt(n: number): { A: number; B: number; C: number } {
     this.lib.raw.Mesh_GetTriangle(this.lib.hThis, this.hThis, n, this.lib.ptr);
-    const h = this.lib.module.HEAP32, i = this.lib.ptr >>> 2;
+    const h = this.lib.module.HEAP32,
+      i = this.lib.ptr >>> 2;
     return { A: h[i]!, B: h[i + 1]!, C: h[i + 2]! };
   }
   Dispose(): void {

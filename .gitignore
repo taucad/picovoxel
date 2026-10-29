@@ -1,4 +1,7 @@
 build/
+# The package's consumer props and targets are authored sources that happen to live under a
+# directory named `build`; the sweep above must not swallow them.
+!dotnet/package/build/
 dist/
 vendor/
 node_modules/

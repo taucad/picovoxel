@@ -1,5 +1,5 @@
 <!doctype html>
-<meta charset="utf-8">
+<meta charset="utf-8" />
 <title>PicoGK C# in the browser</title>
 <pre id="out">loading…</pre>
 <script type="module">
@@ -11,7 +11,8 @@
   const log = console.log.bind(console);
   out.textContent = '';
   console.log = (...a) => {
-    out.textContent += a.join(' ') + '\n'; log(...a);
+    out.textContent += a.join(' ') + '\n';
+    log(...a);
     if (String(a[0]).startsWith('exit ')) document.title = 'done';
   };
   const runtime = await dotnet.withApplicationArguments(...args).create();

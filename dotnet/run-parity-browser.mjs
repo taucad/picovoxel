@@ -46,6 +46,7 @@ const playwright = await import(
 );
 const browser = await (playwright[engine] ?? playwright.default[engine]).launch();
 const lines = [];
+/** @type {string | undefined} */
 let crashed;
 let version;
 try {

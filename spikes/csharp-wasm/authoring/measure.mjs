@@ -25,17 +25,27 @@ if (existsSync(join(root, 'authoring.json'))) {
   const manifest = JSON.parse(await readFile(join(root, 'authoring.json'), 'utf8'));
   for (const reference of manifest.references) {
     const bytes = await readFile(join(root, reference.url));
-    references.push({ name: reference.url, raw: bytes.length, brotli11: brotliCompressSync(bytes, {
-      params: { [constants.BROTLI_PARAM_QUALITY]: 11 },
-    }).length });
+    references.push({
+      name: reference.url,
+      raw: bytes.length,
+      brotli11: brotliCompressSync(bytes, {
+        params: { [constants.BROTLI_PARAM_QUALITY]: 11 },
+      }).length,
+    });
   }
 }
-console.log(JSON.stringify({
-  basis: 'Boot manifest assets, no satellite cultures; independent brotli quality 11 per file',
-  raw: files.reduce((sum, file) => sum + file.raw, 0),
-  brotli11: files.reduce((sum, file) => sum + file.brotli11, 0),
-  referencesRaw: references.reduce((sum, file) => sum + file.raw, 0),
-  referencesBrotli11: references.reduce((sum, file) => sum + file.brotli11, 0),
-  files,
-  references,
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      basis: 'Boot manifest assets, no satellite cultures; independent brotli quality 11 per file',
+      raw: files.reduce((sum, file) => sum + file.raw, 0),
+      brotli11: files.reduce((sum, file) => sum + file.brotli11, 0),
+      referencesRaw: references.reduce((sum, file) => sum + file.raw, 0),
+      referencesBrotli11: references.reduce((sum, file) => sum + file.brotli11, 0),
+      files,
+      references,
+    },
+    null,
+    2,
+  ),
+);

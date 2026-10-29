@@ -108,7 +108,9 @@ export const judgeInvariants = (directory) => {
         ]),
       ),
       ...(wrong.length
-        ? { reason: `Archive built by another compiler or execution: ${wrong.map(([name]) => name).join(', ')}` }
+        ? {
+            reason: `Archive built by another compiler or execution: ${wrong.map(([name]) => name).join(', ')}`,
+          }
         : {}),
     };
   })();

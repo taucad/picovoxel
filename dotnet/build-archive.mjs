@@ -254,8 +254,13 @@ if (
 for (const name of required) if (!names.has(name)) throw new Error(`Missing archive symbol: ${name}`);
 if ([...names].some((name) => /^(Viewer_|TauViewer_|glfw)/.test(name)))
   throw new Error('Native Viewer entered headless archive');
-write(join(out, 'symbols.json'), { required, defined: [...names].filter(Boolean).sort() });
-const exports = [...new Set(['_main', ...required.map((name) => `_${name}`)])].sort();
+/** Code-unit order, which is the order a bare `sort` already recorded in these files. */
+const byCodeUnit = (left, right) => (left < right ? -1 : left > right ? 1 : 0);
+write(join(out, 'symbols.json'), {
+  required,
+  defined: [...names].filter(Boolean).sort(byCodeUnit),
+});
+const exports = [...new Set(['_main', ...required.map((name) => `_${name}`)])].sort(byCodeUnit);
 write(join(out, 'exports.json'), exports);
 run(
   em('em++'),
