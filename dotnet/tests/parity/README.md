@@ -29,14 +29,47 @@ comparisons are separate reports.
 The archive and host builders must supply verified input receipts and the matched
 workload compiler; this fixture does not establish provenance for arbitrary
 binaries. Keep source, patch, archive, reference-assembly and driver identities
-with each run. The production build/CI wiring is a subsequent program task.
+with each run. Preparing the two browser app directories belongs to the host's
+owner, which holds the viewer stubs and the run-time compiler.
 
-Run the gate separately for each tested browser after collecting both modes:
+## Running a subject
+
+The reference side runs on the matched native comparator:
 
 ```sh
-node dotnet/tests/parity/compare.mjs gyroid build/native build/chromium-aot build/chromium-dynamic build/new-report.json
+node dotnet/run-parity-native.mjs /absolute/sdk/dotnet build/PicoGK/PicoGK.csproj \
+  build/comparator gyroid build/native
+```
+
+Each browser runs the same subject once per mode, against an app directory the
+host's owner prepared: one with the fixture compiled into the published bundle,
+one with the same source compiled by the in-browser compiler at run time.
+
+```sh
+node dotnet/run-parity-browser.mjs build/app-aot chromium gyroid build/chromium-aot
+```
+
+That driver serves the app cross-origin isolated, so the threaded host's
+`SharedArrayBuffer` is available, and collects what the fixture wrote. A browser
+cannot hand a file to the gate directly, so the app uploads each capture to the
+origin it was served from: `PUT capture/<file name>` with the file's bytes, then
+`document.title` set to `done` or `failed`. Bytes are never transformed on either
+side. An upload whose name is not a bare file name is refused, a second upload of
+one capture is refused, and a run that did not write the subject's whole capture
+set fails rather than reporting a narrower comparison.
+
+Gate every engine together, which writes the one report the invariant reporter
+reads:
+
+```sh
+node dotnet/gate-parity.mjs gyroid build/native build/evidence \
+  chromium=build/chromium-aot/captures,build/chromium-dynamic/captures \
+  firefox=build/firefox-aot/captures,build/firefox-dynamic/captures \
+  webkit=build/webkit-aot/captures,build/webkit-dynamic/captures
 ```
 
 Use `heatx` for the large fixture. The gate checks historical native pins as well
-as cross-runtime equality, so three identically regressed outputs cannot pass.
-The report is created exclusively; comparisons never overwrite prior evidence.
+as cross-runtime equality, so three identically regressed outputs cannot pass, and
+an engine whose captures are absent or malformed fails rather than being dropped
+from the report. `compare.mjs` remains runnable for one engine on its own. Reports
+are created exclusively; comparisons never overwrite prior evidence.

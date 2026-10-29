@@ -50,6 +50,22 @@ export function compareParity(subject, directories) {
   };
 }
 
+/**
+ * The files one subject's run must produce.
+ *
+ * Every driver expects this one set, so a run that writes a differently named capture is a missing
+ * capture rather than a silently narrower comparison.
+ *
+ * @param {string} subject - `gyroid` or `heatx`.
+ * @returns {string[]} The sorted file names.
+ */
+export function parityCaptureFiles(subject) {
+  if (!Object.hasOwn(subjects, subject)) throw new Error('Expected gyroid or heatx');
+  return subjects[subject]
+    .flatMap(({ mesh, stl }) => [mesh, stl])
+    .sort((left, right) => left.localeCompare(right));
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [subject, native, aot, dynamic, output, ...extra] = process.argv.slice(2);
   if (!output || extra.length)

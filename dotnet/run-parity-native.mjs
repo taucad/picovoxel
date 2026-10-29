@@ -17,6 +17,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sourceIdentity } from './validate-inputs.mjs';
 import { fetchPinnedSource } from './fetch-pinned-source.mjs';
+import { parityCaptureFiles } from './tests/parity/compare.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const [dotnetArg, projectArg, comparatorArg, subject, outputArg, ...extra] = process.argv.slice(2);
@@ -128,10 +129,7 @@ run(dotnet, [join(binaries, 'ParityFixture.dll'), captures, subject], {
     [process.platform === 'darwin' ? 'DYLD_INSERT_LIBRARIES' : 'LD_PRELOAD']: trig,
   },
 });
-const written = readdirSync(captures).sort();
-const expected =
-  subject === 'heatx'
-    ? ['HelixHeatX.STL', 'final.mesh']
-    : ['capture-0.mesh', 'capture-0.stl', 'capture-1.mesh', 'capture-1.stl'];
-for (const name of expected) if (!written.includes(name)) throw new Error(`The fixture wrote no ${name}`);
+const written = new Set(readdirSync(captures));
+for (const name of parityCaptureFiles(subject))
+  if (!written.has(name)) throw new Error(`The fixture wrote no ${name}`);
 console.log(`Native ${subject} captures: ${captures}`);

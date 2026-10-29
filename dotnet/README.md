@@ -160,6 +160,39 @@ It fetches the pinned author trees, verifies them against the pins' recorded Git
 blobs, compiles them unchanged beside the fixture, and runs the subject against
 the comparator. Its `author-sources.json` is I2's evidence.
 
+### The browser side
+
+A browser cannot hand a capture file to the gate, so the run is driven through a
+server that serves the prepared app cross-origin isolated, as the threaded host's
+`SharedArrayBuffer` requires, and accepts what the fixture wrote: `PUT
+capture/<file name>` with the file's bytes, then `document.title` set to `done` or
+`failed`.
+
+```sh
+node dotnet/run-parity-browser.mjs build/app-aot chromium gyroid build/chromium-aot
+```
+
+Bytes are never transformed on either side. An upload whose name is not a bare
+file name is refused, a second upload of one capture is refused, and a run that
+did not write the subject's whole capture set fails rather than reporting a
+narrower comparison. The app directory itself is prepared by the host's owner,
+which holds the viewer stubs and the run-time compiler: one directory with the
+fixture compiled into the published bundle, one with the same source compiled in
+the browser.
+
+`gate-parity.mjs` judges every engine together and writes the one report the
+invariant reporter reads:
+
+```sh
+node dotnet/gate-parity.mjs gyroid build/native build/evidence \
+  chromium=build/chromium-aot/captures,build/chromium-dynamic/captures \
+  firefox=build/firefox-aot/captures,build/firefox-dynamic/captures \
+  webkit=build/webkit-aot/captures,build/webkit-dynamic/captures
+```
+
+An engine whose captures are absent or malformed fails rather than dropping out of
+the report, so a browser that did not run cannot read as a browser that agreed.
+
 ### Invariant reporting
 
 `tests/invariants.mjs` reads the evidence one CI run produced and reports I1 to I5
