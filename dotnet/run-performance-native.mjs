@@ -91,6 +91,14 @@ copyFileSync(engine, join(binaries, `picogk.26.2.${shared}`));
 const assembly = join(binaries, 'TimedFixture.dll');
 if (!existsSync(assembly)) throw new Error('The timed comparator did not build');
 
+/*
+ * GNU `time` reports the peak the kernel saw rather than what the process admits to, so it is used
+ * where it exists. Where it does not, the run is still measured: the geometry time this gate judges
+ * comes from the program itself, and only the peak goes unrecorded.
+ */
+const gnuTime = '/usr/bin/time';
+const haveGnuTime = existsSync(gnuTime);
+
 /** Peak resident memory, which is what a run is bounded by on either side. */
 const peakKilobytes = (stderr) => {
   const matched = /Maximum resident set size \(kbytes\): (\d+)/u.exec(stderr);
@@ -107,8 +115,10 @@ for (let round = 0; round < rounds; round += 1) {
   const captures = join(out, `round-${String(round)}`);
   rmSync(captures, { recursive: true, force: true });
   const started = process.hrtime.bigint();
-  // Through `time`, which reports the peak the kernel saw rather than what the process admits to.
-  const run = spawnSync('/usr/bin/time', ['-v', dotnet, assembly, captures, subject], {
+  const [command, args] = haveGnuTime
+    ? [gnuTime, ['-v', dotnet, assembly, captures, subject]]
+    : [dotnet, [assembly, captures, subject]];
+  const run = spawnSync(command, args, {
     cwd: out,
     encoding: 'utf8',
     maxBuffer: 32 * 1024 * 1024,
