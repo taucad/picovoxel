@@ -127,6 +127,13 @@ jobs:
           cp global.json ../workload-install/global.json
           cd ../workload-install
           dotnet workload install wasm-tools --version 11.0.100-rc.3.26524.4
+      - name: Restore the threaded runtime pack
+        working-directory: out/dotnet/picovoxel/dotnet
+        # The workload install leaves only the serial runtime pack in the SDK; the multithread pack
+        # is restored by a build that asks for threads. This job packs both archives and compares
+        # each receipt's toolchain against what it can resolve, so the threaded pack has to be here
+        # before `build-package.mjs` looks for it.
+        run: dotnet restore toolchain.csproj -p:WasmEnableThreads=true
       - name: Build the generator and the adapted compiler
         working-directory: out/dotnet/picovoxel
         # `test-roslyn.mjs` qualifies the adaptation; `build-compiler.mjs` produces the pair the
