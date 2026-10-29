@@ -6,11 +6,19 @@
  * with the file's bytes. Nothing is transformed on either side, so a capture that reaches disk is
  * what the engine produced.
  *
+ * A capture may arrive in pieces, because a whole one does not fit beside itself in a wasm heap:
+ * the long subject's export is half a gigabyte, and reading it into managed memory to send it in
+ * one request crashed the engine. Each request carries `x-capture-offset`, the byte this piece
+ * starts at, and every piece but the last carries `x-capture-more`. Offsets must be contiguous
+ * from zero, so a
+ * capture cannot be assembled out of order or silently truncated, and a capture already finished
+ * cannot be written again.
+ *
  * The app is served with cross-origin isolation, which `SharedArrayBuffer` and so the threaded host
  * require, and a name that is not a bare file name is refused rather than resolved.
  */
 import { createServer } from 'node:http';
-import { readFileSync, statSync, writeFileSync } from 'node:fs';
+import { createWriteStream, readFileSync, statSync } from 'node:fs';
 import { extname, join, normalize, resolve } from 'node:path';
 
 const types = {
@@ -51,6 +59,8 @@ export function captureName(pathname) {
 export async function startCaptureServer({ app, captures }) {
   const root = resolve(app);
   const uploaded = [];
+  /** How far each capture has been written, and whether its last piece has arrived. */
+  const writing = new Map();
   // What a run actually had to fetch, counted where it crossed: a performance report reads this
   // rather than an engine's own estimate, which is not comparable between engines.
   const served = { requests: 0, bytes: 0 };
@@ -58,17 +68,32 @@ export async function startCaptureServer({ app, captures }) {
     const url = new URL(request.url ?? '/', 'http://parity.invalid');
     if (request.method === 'PUT' && url.pathname.startsWith('/capture/')) {
       const name = captureName(url.pathname);
-      if (!name) {
+      const offset = Number(request.headers['x-capture-offset'] ?? 0);
+      const state = writing.get(name ?? '');
+      const expected = state?.written ?? 0;
+      // A capture is written once, from its start, in order: anything else is refused rather than
+      // repaired, because the bytes on disk are what the gate compares.
+      if (!name || !Number.isInteger(offset) || offset !== expected || state?.complete) {
         response.writeHead(400);
         response.end();
         return;
       }
-      const chunks = [];
-      request.on('data', (chunk) => chunks.push(chunk));
-      request.on('end', () => {
-        // Exclusive: a second upload of one capture would overwrite the bytes being gated.
-        writeFileSync(join(captures, name), Buffer.concat(chunks), { flag: 'wx' });
-        uploaded.push(name);
+      const complete = request.headers['x-capture-more'] === undefined;
+      // Streamed to disk: the server never holds a whole capture either.
+      const file = createWriteStream(join(captures, name), offset === 0 ? { flags: 'wx' } : { flags: 'a' });
+      let length = 0;
+      request.on('data', (chunk) => {
+        length += chunk.byteLength;
+      });
+      request.pipe(file);
+      file.on('error', () => {
+        response.writeHead(409);
+        response.end();
+      });
+      file.on('close', () => {
+        if (response.writableEnded) return;
+        writing.set(name, { written: offset + length, complete });
+        if (complete) uploaded.push(name);
         response.writeHead(204);
         response.end();
       });

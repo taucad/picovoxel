@@ -67,6 +67,49 @@ test('the server returns the app isolated and keeps uploaded bytes exact', async
         400,
       );
       assert.deepEqual(server.uploaded, ['capture-0.mesh']);
+      // A capture that does not fit beside itself in a wasm heap arrives in pieces, in order.
+      const pieces = [Buffer.from([9, 8, 7]), Buffer.from([6, 5]), Buffer.from([4])];
+      let at = 0;
+      for (const [index, piece] of pieces.entries()) {
+        const headers = { 'x-capture-offset': String(at) };
+        if (index < pieces.length - 1) headers['x-capture-more'] = '1';
+        const sent = await fetch(`${origin}/capture/capture-1.mesh`, {
+          method: 'PUT',
+          body: piece,
+          headers,
+        });
+        assert.equal(sent.status, 204);
+        // Only the last piece completes the capture, so a run cut short never reads as uploaded.
+        assert.deepEqual(
+          server.uploaded,
+          index < pieces.length - 1 ? ['capture-0.mesh'] : ['capture-0.mesh', 'capture-1.mesh'],
+        );
+        at += piece.byteLength;
+      }
+      assert.deepEqual(readFileSync(join(captures, 'capture-1.mesh')), Buffer.concat(pieces));
+      // A finished capture cannot be written again, and a piece out of order is refused.
+      assert.equal(
+        (
+          await fetch(`${origin}/capture/capture-1.mesh`, {
+            method: 'PUT',
+            body: bytes,
+            headers: { 'x-capture-offset': '6' },
+          })
+        ).status,
+        400,
+      );
+      assert.equal(
+        (
+          await fetch(`${origin}/capture/capture-2.mesh`, {
+            method: 'PUT',
+            body: bytes,
+            headers: { 'x-capture-offset': '3' },
+          })
+        ).status,
+        400,
+      );
+      assert.deepEqual(readFileSync(join(captures, 'capture-1.mesh')), Buffer.concat(pieces));
+      assert.deepEqual(server.uploaded, ['capture-0.mesh', 'capture-1.mesh']);
     } finally {
       await server.close();
     }
