@@ -1,0 +1,33 @@
+<!-- The browser target: the same source, the same managed base with PICOGK_BROWSER, and the
+     package's generator resolved as an ordinary analyzer. A build-time consumer uses the generator
+     this way; a host that compiles author source at run time drives it explicitly instead. -->
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
+    <UseMonoRuntime>true</UseMonoRuntime>
+    <SelfContained>true</SelfContained>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>PicoGKSample</AssemblyName>
+    <RootNamespace>PicoGKSample</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <DefineConstants>$(DefineConstants);PICOGK_BROWSER</DefineConstants>
+    <!-- Linking the headless engine needs the viewer imports stubbed, which is a consumer patch
+         this package does not own, so this target stops at the managed compile. The linked,
+         trimmed, AOT browser bundle is the host's step, qualified separately. -->
+    <WasmBuildNative>false</WasmBuildNative>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <PackageReference Include="PicoVoxel.PicoGK" Version="$(PicoVoxelPicoGKVersion)" />
+    <ProjectReference Include="$(PicoGKSampleBaseProject)" AdditionalProperties="DefineConstants=PICOGK_BROWSER" />
+    <Analyzer Include="$(PicoVoxelPicoGKGenerator)" />
+  </ItemGroup>
+  <Target Name="ValidateSampleInputs" BeforeTargets="PrepareForBuild">
+    <Error Condition="!Exists('$(PicoGKSampleBaseProject)')"
+           Text="Compose the package's managed base and pass it as PicoGKSampleBaseProject." />
+  </Target>
+</Project>

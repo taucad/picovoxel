@@ -1,0 +1,61 @@
+PicoVoxel.PicoGK
+Copyright (c) 2025-2026 the picovoxel contributors
+
+This package is an unofficial, community-maintained build of PicoGK for
+WebAssembly. It is not affiliated with, endorsed by, or supported by LEAP 71.
+It is produced for local consumption inside one build and is not published to
+any package feed.
+
+This product includes material derived from the following LEAP 71 projects,
+each licensed under the Apache License, Version 2.0
+(http://www.apache.org/licenses/LICENSE-2.0):
+
+  PicoGK ("peacock"), a compact software kernel for computational geometry
+  Copyright (c) 2023-2026 LEAP 71, https://leap71.com
+  https://github.com/leap71/PicoGK
+  The managed library under base/source/ is this C# library at the commit the
+  manifest records, unchanged except for the patches base/patches/ carries.
+  Its own license text is base/source/LICENSE.
+
+  PicoGKRuntime, compiled to WebAssembly with modifications
+  Copyright (c) 2023-2026 LEAP 71
+  https://github.com/leap71/PicoGKRuntime
+  The engine archives under engine/ are built from it. The modifications are
+  kept as patches and scripts in the picovoxel source repository, and the
+  archive receipts under engine/ record the exact source each was built from.
+
+Third-party components compiled into the engine archives:
+
+  OpenVDB, Apache License 2.0
+  Copyright Contributors to the OpenVDB Project
+  https://github.com/AcademySoftwareFoundation/openvdb
+  Its half-precision type (openvdb/math/Half.h, Half.cc) is BSD 3-Clause,
+  Copyright Contributors to the OpenEXR Project.
+
+  oneTBB, Apache License 2.0
+  Copyright (c) 2005-2025 Intel Corporation
+  https://github.com/uxlfoundation/oneTBB
+  See its third-party-programs.txt for components it includes.
+
+  c-blosc, BSD 3-Clause License
+  Copyright (c) 2009-2018 Francesc Alted and the Blosc development team
+  https://github.com/Blosc/c-blosc
+  It includes BloscLZ (BSD 2-Clause, Copyright Francesc Alted), LZ4 and
+  Zstandard (BSD 2-Clause, Copyright Yann Collet and Facebook) and Snappy
+  (BSD 3-Clause, Copyright Google Inc.).
+
+  zlib, the zlib License
+  Copyright (c) 1995-2024 Jean-loup Gailly and Mark Adler
+  https://github.com/madler/zlib
+
+  The Emscripten runtime and system libraries linked by the compiler the
+  manifest records: musl libc (MIT), LLVM libc++, libc++abi, libunwind and
+  compiler-rt (Apache License 2.0 with LLVM Exceptions), and dlmalloc
+  (public domain). https://github.com/emscripten-core/emscripten
+
+The managed library references SkiaSharp (MIT License, Copyright (c) 2015-2016
+Xamarin, Inc., Copyright (c) 2017-2024 Microsoft Corporation), which this
+package does not carry: a consumer restores it at the version the props record.
+
+base/source/assets/Jost.ttf is the Jost* typeface by Owen Earl
+(SIL Open Font License 1.1), as distributed with PicoGK.

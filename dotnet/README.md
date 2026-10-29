@@ -204,3 +204,46 @@ The props file does not add a native renderer or image library. The host still
 provides matched metadata references, compiler assets and native archives, and
 must verify their common build identity. Worker integration and local package
 staging are separate from these retention settings.
+
+## Local package
+
+A browser host needs the SDK, the WebAssembly workload, the adapted C# compiler,
+the framework reference assemblies, the patched managed library, the
+signed-distance generator and the native engine archives to agree. Staging each
+one separately makes each one correct only by hand. `package/` binds them into
+`PicoVoxel.PicoGK`, a package for a local directory feed. It is never published:
+R34 keeps publishing and a browser package feed out of scope.
+
+```sh
+node dotnet/build-package.mjs /absolute/sdk/dotnet ~/.nuget/packages \
+  build/PicoGK build/archive-serial build/archive-threaded \
+  build/generator/PicoVoxel.Sdf.Generator.dll build/roslyn build/package
+```
+
+The driver verifies every input before staging it: each archive member against
+its own receipt, each receipt's toolchain against the workload this install
+resolves, the archive pair against each other for a common source, the managed
+source against the pinned commit's Git blobs, and the adapted compiler against
+the digests `inputs.json` records. It then writes `manifest.json`, which carries
+every payload byte's digest beside those identities, and packs the payload.
+
+`package/base/compose.mjs` stages the managed library into a fresh tree at a
+patch order the caller gives, because a consumer's own patches interleave with
+this package's. A composition that drops this package's patch is refused, so the
+order is a choice and never an omission.
+
+Qualify the result against a local-feed-only restore and the sample both targets
+share:
+
+```sh
+node dotnet/test-package.mjs /absolute/sdk/dotnet build/package build/package-check
+```
+
+That restores the package with every package source cleared, compares the
+restored payload to the manifest byte for byte, refuses a restored tree carrying
+anything the manifest does not list, builds `samples/PicoGKSample` for desktop
+and for `browser-wasm`, and asserts the browser target's generated registry
+registers the sample's own implicit. Linking the headless engine needs the
+viewer imports stubbed, which is a consumer patch this package does not own, so
+the browser sample stops at the managed compile; the linked, trimmed and AOT
+browser bundle belongs to the host that consumes this package.
