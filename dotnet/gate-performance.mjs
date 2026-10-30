@@ -8,12 +8,7 @@
  *
  * A path with no measurement is unmeasured and fails on every subject, judged or not.
  *
- * The baseline is one native report, or several as `key=path,...` where a key is `engine` or
- * `engine:mode`. Keyed is the matched form: each browser path is divided by native timed on its own
- * runner, so the ratio does not carry the difference between two machines. A path's own
- * `engine:mode` baseline is used before its engine's, and a path with neither is unmeasured.
- *
- * Usage: node dotnet/gate-performance.mjs <gyroid|heatx> <native performance.json | engine=path,...>
+ * Usage: node dotnet/gate-performance.mjs <gyroid|heatx> <native performance.json | key=path,...>
  *          <evidence directory> <performance.json> ...
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -60,6 +55,9 @@ export function isJudgedMode(mode) {
 
 /**
  * Read the baseline a path is divided by: the one native report, or the path's own, or its engine's.
+ *
+ * Keyed is the matched form: each path is divided by native timed on its own runner, so a ratio does
+ * not carry the difference between two machines. A path with no baseline is unmeasured.
  *
  * @param {object} native - One native report, or native reports keyed by `engine:mode` or `engine`.
  * @param {{ engine: string, mode: string }} measured - The measured path.

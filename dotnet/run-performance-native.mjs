@@ -7,10 +7,6 @@
  * process is recorded beside it, because an author pays the host's start too. Each round is a fresh
  * process, because a browser page is one.
  *
- * `--prebuilt <bin>` times a timed comparator an earlier run built, from that run's `bin`, instead
- * of building one. It lets a browser path's own runner time native beside it: the build needs the
- * staged tree at its absolute paths, the timing needs only the assembly and the engine.
- *
  * Usage: node dotnet/run-performance-native.mjs <dotnet> <fixture directory> <comparator>
  *          <gyroid|heatx> <fresh out> [--rounds N] [--prebuilt <bin>]
  */
