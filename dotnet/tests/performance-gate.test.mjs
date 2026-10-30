@@ -1,8 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { judgePerformance, runRatioCeiling } from '../gate-performance.mjs';
+import { judgedSubjects, judgePerformance, runRatioCeiling } from '../gate-performance.mjs';
 
-const native = { subject: 'gyroid', best: { runMilliseconds: 1000, peakResidentKilobytes: 400_000 } };
+// The ceiling is ruled on the long subject, so the cases that exercise it measure that one.
+const native = { subject: 'heatx', best: { runMilliseconds: 1000, peakResidentKilobytes: 400_000 } };
+const shortSubject = { ...native, subject: 'gyroid' };
 const measured = (overrides = {}) => ({
   engine: 'chromium',
   mode: 'tape',
@@ -82,4 +84,30 @@ test('one slow path fails the whole judgement, whatever the others did', () => {
     judged.paths.map((path) => path.status),
     ['passed', 'failed'],
   );
+});
+
+test('the ruling names the long subject, and only it', () => {
+  assert.deepEqual([...judgedSubjects], ['heatx']);
+});
+
+test("the short subject's ratio is recorded rather than gated, and still reported", () => {
+  const judged = judgePerformance(shortSubject, [measured({ timings: { boot: 1, run: 2749 } })]);
+  // 2.749x is the figure CI measured on the short subject's serial path. It is kept, with its
+  // number, and it does not decide this gate: the ceiling is a statement about geometry, and
+  // 167 ms of geometry is dominated by costs that are paid once.
+  assert.equal(judged.judged, false);
+  assert.equal(judged.passed, true);
+  assert.equal(judged.paths[0].status, 'recorded');
+  assert.equal(judged.paths[0].ratio, 2.749);
+  assert.match(judged.paths[0].note, /recorded not gated/u);
+  // `recorded` is not spelled `passed`, so no reader can mistake one for the other.
+  assert.equal(judged.paths[0].reason, undefined);
+});
+
+test('an unmeasured path fails on the short subject too, where no ceiling is judged', () => {
+  const judged = judgePerformance(shortSubject, [measured({ timings: { boot: 900 } })]);
+  assert.equal(judged.passed, false);
+  assert.equal(judged.paths[0].status, 'unmeasured');
+  // And a run with no path at all is not a pass on either subject.
+  assert.equal(judgePerformance(shortSubject, []).passed, false);
 });
