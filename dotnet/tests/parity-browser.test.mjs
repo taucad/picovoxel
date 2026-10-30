@@ -152,7 +152,7 @@ test('the gate fails an engine that did not run and one that regressed with the 
       }
     };
 
-    const shared = gate(`chromium=${directories.aot},${directories.dynamic}`);
+    const shared = gate(`chromium=aot:${directories.aot},dynamic:${directories.dynamic}`);
     assert.equal(shared.code, 1);
     assert.equal(shared.report.passed, false);
     assert.deepEqual(shared.report.engines, ['chromium']);
@@ -166,8 +166,8 @@ test('the gate fails an engine that did not run and one that regressed with the 
     );
 
     const absent = gate(
-      `chromium=${directories.aot},${directories.dynamic}`,
-      `webkit=${join(root, 'never-ran')},${directories.dynamic}`,
+      `chromium=aot:${directories.aot},dynamic:${directories.dynamic}`,
+      `webkit=aot:${join(root, 'never-ran')},dynamic:${directories.dynamic}`,
     );
     assert.equal(absent.code, 1);
     assert.deepEqual(absent.report.engines, ['chromium', 'webkit']);
@@ -183,7 +183,24 @@ test('the gate fails an engine that did not run and one that regressed with the 
             stdio: 'pipe',
           },
         ),
-      /Expected <engine>=<AOT captures>,<dynamic captures>/,
+      /Expected <engine>=<mode>:<captures>/,
+    );
+
+    // A mode named `native` would shadow the reference the comparison is made against.
+    assert.throws(
+      () =>
+        execFileSync(
+          process.execPath,
+          [
+            join(here, '../gate-parity.mjs'),
+            'gyroid',
+            directories.native,
+            root,
+            `chromium=native:${directories.aot}`,
+          ],
+          { stdio: 'pipe' },
+        ),
+      /a mode that is not `native`/,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });

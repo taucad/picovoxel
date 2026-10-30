@@ -1,4 +1,4 @@
-/** Gate one browser's AOT/dynamic outputs against the same-engine native fixture. */
+/** Gate one browser's prepared outputs against the same-engine native fixture, one mode each. */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -14,9 +14,18 @@ const subjects = {
   ],
 };
 
-/** Preserve original mesh ordering and fail even when all targets share a regression. */
+/**
+ * Preserve original mesh ordering and fail even when all targets share a regression.
+ *
+ * Every key but `native` is a mode to judge, so a caller that prepared a serial and a threaded app
+ * of each kind judges four rather than two without this comparison learning their names.
+ */
 export function compareParity(subject, directories) {
   if (!Object.hasOwn(subjects, subject)) throw new Error('Expected gyroid or heatx');
+  const modes = Object.keys(directories)
+    .filter((mode) => mode !== 'native')
+    .sort((left, right) => left.localeCompare(right));
+  if (!modes.length) throw new Error('Expected at least one mode beside the native fixture');
   const captures = subjects[subject].map((expected) => {
     const mesh = readFileSync(join(directories.native, expected.mesh));
     const stl = readFileSync(join(directories.native, expected.stl));
@@ -32,7 +41,7 @@ export function compareParity(subject, directories) {
         (!expected.meshPin || meshPin === expected.meshPin) &&
         (!expected.stlPin || stlPin === expected.stlPin),
     };
-    const comparisons = ['aot', 'dynamic'].map((mode) => ({
+    const comparisons = modes.map((mode) => ({
       mode,
       mesh: compareMesh(mesh, readFileSync(join(directories[mode], expected.mesh))),
       stl: compareStl(stl, readFileSync(join(directories[mode], expected.stl))),
@@ -41,6 +50,7 @@ export function compareParity(subject, directories) {
   });
   return {
     subject,
+    modes,
     passed: captures.every(
       (capture) =>
         capture.historical.passed &&

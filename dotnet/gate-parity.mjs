@@ -1,14 +1,16 @@
 /**
- * Gate one subject's browser outputs against the native reference, for every engine that ran.
+ * Gate one subject's browser outputs against the native reference, per engine.
  *
- * `compare.mjs` judges one engine's AOT and dynamic captures against the native fixture's bytes.
- * The charter's floor is three engines, so this driver runs that comparison once per engine and
- * writes the single `parity-<subject>.json` the invariant reporter reads. It passes only when every
- * named engine passed, and an engine whose directory is absent fails rather than being dropped,
- * because a browser that did not run must not read as a browser that agreed.
+ * `compare.mjs` judges one engine's captures against the native fixture, one named mode at a time.
+ * The floor is three engines, so this runs it per engine and writes the one `parity-<subject>.json`
+ * the invariant reporter reads. An absent directory fails rather than being dropped: a browser that
+ * did not run must not read as one that agreed.
+ *
+ * Each engine names its modes, because a run with a serial and a threaded app of each kind has four
+ * to judge, and the report records which it judged.
  *
  * Usage: node dotnet/gate-parity.mjs <gyroid|heatx> <native captures> <evidence directory>
- *          <engine>=<AOT captures>,<dynamic captures> ...
+ *          <engine>=<mode>:<captures>,<mode>:<captures>... ...
  */
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -17,30 +19,39 @@ import { compareParity } from './tests/parity/compare.mjs';
 const [subject, nativeArg, evidenceArg, ...engineArgs] = process.argv.slice(2);
 if (!engineArgs.length || !evidenceArg)
   throw new Error(
-    'Usage: gate-parity.mjs <gyroid|heatx> <native captures> <evidence directory> <engine>=<AOT>,<dynamic> ...',
+    'Usage: gate-parity.mjs <gyroid|heatx> <native captures> <evidence directory> <engine>=<mode>:<captures>... ...',
   );
 const native = resolve(nativeArg);
 const evidence = resolve(evidenceArg);
 mkdirSync(evidence, { recursive: true });
 
 const engines = engineArgs.map((argument) => {
-  const [engine, directories = ''] = argument.split('=');
-  const [aot, dynamic, ...extra] = directories.split(',').filter(Boolean);
-  if (!engine || !dynamic || extra.length)
-    throw new Error(`Expected <engine>=<AOT captures>,<dynamic captures>, not ${argument}`);
-  return { engine, aot: resolve(aot), dynamic: resolve(dynamic) };
+  const [engine, modeList = ''] = argument.split('=');
+  const modes = Object.fromEntries(
+    modeList
+      .split(',')
+      .filter(Boolean)
+      .map((entry) => {
+        const separator = entry.indexOf(':');
+        const [mode, directory] = [entry.slice(0, separator), entry.slice(separator + 1)];
+        if (separator === -1 || !mode || !directory || mode === 'native')
+          throw new Error(`Expected <mode>:<captures> with a mode that is not \`native\`, not ${entry}`);
+        return [mode, resolve(directory)];
+      }),
+  );
+  if (!engine || !Object.keys(modes).length)
+    throw new Error(`Expected <engine>=<mode>:<captures>,<mode>:<captures>..., not ${argument}`);
+  return { engine, modes };
 });
 
-const results = engines.map(({ engine, aot, dynamic }) => {
-  const missing = [
-    ['native', native],
-    ['aot', aot],
-    ['dynamic', dynamic],
-  ].filter(([, directory]) => !existsSync(directory));
+const results = engines.map(({ engine, modes }) => {
+  const missing = [['native', native], ...Object.entries(modes)].filter(
+    ([, directory]) => !existsSync(directory),
+  );
   if (missing.length)
     return { engine, passed: false, reason: `No captures for ${missing.map(([mode]) => mode).join(', ')}` };
   try {
-    return { engine, ...compareParity(subject, { native, aot, dynamic }) };
+    return { engine, ...compareParity(subject, { native, ...modes }) };
   } catch (failure) {
     // A malformed capture is this engine's failure, reported as one rather than ending the gate
     // before the engines after it are judged.
