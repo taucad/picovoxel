@@ -145,3 +145,52 @@ test('the long subject with no threaded path measured has nothing to pass', () =
   assert.equal(judged.paths[0].status, 'recorded');
   assert.equal(judged.passed, false);
 });
+
+test('a per-engine baseline divides each path by native timed on its own runner', () => {
+  const judged = judgePerformance(
+    {
+      chromium: { ...native, best: { runMilliseconds: 1000 } },
+      webkit: { ...native, best: { runMilliseconds: 2000 } },
+    },
+    [
+      measured({ timings: { boot: 1, run: 2400 } }),
+      measured({ engine: 'webkit', timings: { boot: 1, run: 2400 } }),
+    ],
+  );
+  assert.deepEqual(
+    judged.paths.map((path) => [path.engine, path.native, path.ratio, path.status]),
+    [
+      ['chromium', 1000, 2.4, 'failed'],
+      ['webkit', 2000, 1.2, 'passed'],
+    ],
+  );
+  assert.equal(judged.passed, false);
+});
+
+test('a path whose engine has no baseline on its runner is unmeasured and fails', () => {
+  const judged = judgePerformance({ chromium: native }, [measured(), measured({ engine: 'firefox' })]);
+  assert.equal(judged.paths[1].status, 'unmeasured');
+  assert.match(judged.paths[1].reason, /no native baseline/i);
+  assert.equal(judged.passed, false);
+});
+
+test('per-engine baselines must measure one subject', () => {
+  assert.throws(
+    () => judgePerformance({ chromium: native, webkit: shortSubject }, [measured()]),
+    /different subjects/,
+  );
+});
+
+test("a path's own baseline is used before its engine's", () => {
+  const judged = judgePerformance(
+    { chromium: native, 'chromium:dynamic-threaded-tape': { ...native, best: { runMilliseconds: 600 } } },
+    [measured(), measured({ mode: 'aot-threaded' })],
+  );
+  assert.deepEqual(
+    judged.paths.map((path) => [path.mode, path.native, path.ratio]),
+    [
+      ['dynamic-threaded-tape', 600, 2],
+      ['aot-threaded', 1000, 1.2],
+    ],
+  );
+});

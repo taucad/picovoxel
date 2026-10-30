@@ -8,7 +8,7 @@
  *
  * A path with no measurement is unmeasured and fails on every subject, judged or not.
  *
- * Usage: node dotnet/gate-performance.mjs <gyroid|heatx> <native performance.json>
+ * Usage: node dotnet/gate-performance.mjs <gyroid|heatx> <native performance.json | key=path,...>
  *          <evidence directory> <performance.json> ...
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -54,17 +54,46 @@ export function isJudgedMode(mode) {
 }
 
 /**
- * Compare each measured path against one native baseline.
+ * Read the baseline a path is divided by: the one native report, or the path's own, or its engine's.
  *
- * @param {{ best: { runMilliseconds: number, milliseconds: number }, subject: string }} native - The baseline.
+ * Keyed is the matched form: each path is divided by native timed on its own runner, so a ratio does
+ * not carry the difference between two machines. A path with no baseline is unmeasured.
+ *
+ * @param {object} native - One native report, or native reports keyed by `engine:mode` or `engine`.
+ * @param {{ engine: string, mode: string }} measured - The measured path.
+ * @returns {object | undefined} The native report for this path, if there is one.
+ */
+function baselineFor(native, measured) {
+  return native.best ? native : (native[`${measured.engine}:${measured.mode}`] ?? native[measured.engine]);
+}
+
+/**
+ * Compare each measured path against the matched native baseline.
+ *
+ * @param {object} native - One native report (`{ subject, host, best: { runMilliseconds } }`), or
+ *   such reports keyed by `engine:mode` or `engine`, each timed on that path's runner.
  * @param {ReadonlyArray<object>} measurements - One browser report per engine and path.
  * @returns {{ judged: boolean, passed: boolean, paths: object[] }} The judgement.
  */
 export function judgePerformance(native, measurements) {
-  const baseline = native.best.runMilliseconds;
-  if (typeof baseline !== 'number') throw new Error('The baseline reported no geometry time');
-  const judged = judgedSubjects.has(native.subject);
+  const baselines = native.best ? [native] : Object.values(native);
+  if (!baselines.length) throw new Error('No native baseline was given');
+  for (const report of baselines)
+    if (typeof report.best?.runMilliseconds !== 'number')
+      throw new Error('The baseline reported no geometry time');
+  const subjects = new Set(baselines.map((report) => report.subject));
+  if (subjects.size !== 1) throw new Error('The baselines measure different subjects');
+  const judged = judgedSubjects.has(baselines[0].subject);
   const paths = measurements.map((measured) => {
+    const matched = baselineFor(native, measured);
+    if (!matched)
+      return {
+        engine: measured.engine,
+        mode: measured.mode,
+        status: 'unmeasured',
+        reason: "No native baseline was timed on this path's runner",
+      };
+    const baseline = matched.best.runMilliseconds;
     const run = measured.timings?.run;
     if (typeof run !== 'number')
       return {
@@ -82,6 +111,7 @@ export function judgePerformance(native, measurements) {
       // `recorded` is not a pass: it says this subject's ratio was measured and does not gate.
       status: gated ? (within ? 'passed' : 'failed') : 'recorded',
       run,
+      native: baseline,
       ratio: Number(ratio.toFixed(3)),
       // Recorded, not gated: R31 names these as figures to keep, with no ruled ceiling.
       recorded: {
@@ -119,8 +149,19 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
     throw new Error(
       'Usage: gate-performance.mjs <gyroid|heatx> <native performance.json> <evidence directory> <performance.json> ...',
     );
-  const native = JSON.parse(readFileSync(resolve(nativeArg), 'utf8'));
-  if (native.subject !== subject) throw new Error(`The baseline measures ${native.subject}, not ${subject}`);
+  const read = (path) => JSON.parse(readFileSync(resolve(path), 'utf8'));
+  const native = nativeArg.includes('=')
+    ? Object.fromEntries(
+        nativeArg.split(',').map((entry) => {
+          const [key, path] = entry.split('=');
+          if (!key || !path) throw new Error(`Not a key=path baseline: ${entry}`);
+          return [key, read(path)];
+        }),
+      )
+    : read(nativeArg);
+  for (const report of native.best ? [native] : Object.values(native))
+    if (report.subject !== subject)
+      throw new Error(`The baseline measures ${report.subject}, not ${subject}`);
   const measurements = reports.map((path) => JSON.parse(readFileSync(resolve(path), 'utf8')));
   const evidence = resolve(evidenceArg);
   if (!existsSync(evidence)) mkdirSync(evidence, { recursive: true });
@@ -129,11 +170,24 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
     subject,
     ceiling: runRatioCeiling,
     ceilingJudged: judgedSubjects.has(subject),
-    native: {
-      host: native.host,
-      runMilliseconds: native.best.runMilliseconds,
-      processMilliseconds: native.best.milliseconds,
-    },
+    native: native.best
+      ? {
+          host: native.host,
+          cpu: native.cpu,
+          runMilliseconds: native.best.runMilliseconds,
+          processMilliseconds: native.best.milliseconds,
+        }
+      : Object.fromEntries(
+          Object.entries(native).map(([key, report]) => [
+            key,
+            {
+              host: report.host,
+              cpu: report.cpu,
+              runMilliseconds: report.best.runMilliseconds,
+              processMilliseconds: report.best.milliseconds,
+            },
+          ]),
+        ),
     ...judged,
   };
   const path = join(evidence, `performance-${subject}.json`);
