@@ -1,13 +1,11 @@
 /**
  * Judge each measured path against the matched native comparator.
  *
- * The target is a ratio of geometry time and it is not waived: on a judged subject, a path whose
- * run costs more than 2 times the comparator's own best round fails. Both sides time the same call,
- * the fixture's own `Run`, so neither number carries its host's start. Cold start, the cost of an
- * edit, the bytes a page fetched and the engine's heap are recorded beside the verdict.
+ * The target is a ratio of geometry time and it is not waived: on a judged subject, a path costing
+ * more than twice the comparator's own best round fails. Both sides time the same call, so neither
+ * number carries its host's start. Cold start, edit cost, bytes fetched and heap are recorded.
  *
- * A path with no measurement is unmeasured and fails on every subject, judged or not: an absent
- * number is not a passing one.
+ * A path with no measurement is unmeasured and fails on every subject, judged or not.
  *
  * Usage: node dotnet/gate-performance.mjs <gyroid|heatx> <native performance.json>
  *          <evidence directory> <performance.json> ...
@@ -30,13 +28,12 @@ export const runRatioCeiling = 2;
  * The subjects whose ratio the ceiling judges.
  *
  * The ratio is a statement about geometry, so it is read off the subject that is geometry. The long
- * subject runs 175,713 ms of native voxel work, where boot, stage and compile together are under
- * 1.5 percent of the run. The short subject runs 167 ms, so the same fixed costs move its ratio
- * more than the engine does. Gating on that would judge start-up.
+ * subject's own work dominates its run. The short subject's run is a fraction of a second, so the
+ * costs paid once move its ratio more than the engine does, and gating on it would judge start-up.
  *
  * The short subject is still measured and still reported, with its ratio, on every run. What it
- * does not do is decide this gate. Byte identity is untouched: `gate-parity.mjs` judges every mode
- * of every subject, and a capture that is not identical to native still fails.
+ * does not do is decide this gate. Byte identity is untouched, and a capture that is not identical
+ * to native still fails.
  */
 export const judgedSubjects = new Set(['heatx']);
 
