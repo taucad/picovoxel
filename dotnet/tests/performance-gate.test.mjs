@@ -1,13 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { judgedSubjects, judgePerformance, runRatioCeiling } from '../gate-performance.mjs';
+import { isJudgedMode, judgedSubjects, judgePerformance, runRatioCeiling } from '../gate-performance.mjs';
 
 // The ceiling is ruled on the long subject, so the cases that exercise it measure that one.
 const native = { subject: 'heatx', best: { runMilliseconds: 1000, peakResidentKilobytes: 400_000 } };
 const shortSubject = { ...native, subject: 'gyroid' };
 const measured = (overrides = {}) => ({
   engine: 'chromium',
-  mode: 'tape',
+  mode: 'dynamic-threaded-tape',
   timings: { boot: 900, stage: 120, compile: 3400, run: 1200, heapBytes: 268_435_456 },
   transfer: { requests: 180, bytes: 90_000_000 },
   ...overrides,
@@ -77,7 +77,7 @@ test('a path that reported no geometry time is unmeasured, and unmeasured never 
 test('one slow path fails the whole judgement, whatever the others did', () => {
   const judged = judgePerformance(native, [
     measured({ engine: 'firefox' }),
-    measured({ engine: 'webkit', mode: 'callback', timings: { boot: 1, run: 2600 } }),
+    measured({ engine: 'webkit', mode: 'dynamic-threaded-callback', timings: { boot: 1, run: 2600 } }),
   ]);
   assert.equal(judged.passed, false);
   assert.deepEqual(
@@ -110,4 +110,38 @@ test('an unmeasured path fails on the short subject too, where no ceiling is jud
   assert.equal(judged.paths[0].status, 'unmeasured');
   // And a run with no path at all is not a pass on either subject.
   assert.equal(judgePerformance(shortSubject, []).passed, false);
+});
+
+test('the ceiling judges threaded paths only, as ruled on 2026-10-30', () => {
+  for (const mode of ['aot-threaded', 'dynamic-threaded-tape', 'dynamic-threaded-callback'])
+    assert.equal(isJudgedMode(mode), true, mode);
+  for (const mode of ['aot', 'dynamic-tape', 'dynamic-callback'])
+    assert.equal(isJudgedMode(mode), false, mode);
+});
+
+test('a serial path over the ceiling on the long subject is recorded with its ratio, not failed', () => {
+  // 2.220x is the serial tape figure Chromium measured on the long subject in run 40992452108.
+  const judged = judgePerformance(native, [
+    measured({ mode: 'aot-threaded', timings: { boot: 1, run: 1320 } }),
+    measured({ mode: 'dynamic-tape', timings: { boot: 1, run: 2220 } }),
+  ]);
+  assert.equal(judged.passed, true);
+  assert.deepEqual(
+    judged.paths.map((path) => path.status),
+    ['passed', 'recorded'],
+  );
+  assert.equal(judged.paths[1].ratio, 2.22);
+  assert.match(judged.paths[1].note, /recorded not gated/u);
+});
+
+test('an unmeasured serial path still fails the long subject', () => {
+  const judged = judgePerformance(native, [measured(), measured({ mode: 'aot', timings: { boot: 1 } })]);
+  assert.equal(judged.passed, false);
+  assert.equal(judged.paths[1].status, 'unmeasured');
+});
+
+test('the long subject with no threaded path measured has nothing to pass', () => {
+  const judged = judgePerformance(native, [measured({ mode: 'aot', timings: { boot: 1, run: 1100 } })]);
+  assert.equal(judged.paths[0].status, 'recorded');
+  assert.equal(judged.passed, false);
 });

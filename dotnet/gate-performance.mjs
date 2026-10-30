@@ -1,8 +1,9 @@
 /**
  * Judge each measured path against the matched native comparator.
  *
- * The target is a ratio of geometry time and it is not waived: on a judged subject, a path costing
- * more than twice the comparator's own best round fails. Both sides time the same call, so neither
+ * The target is a ratio of geometry time and it is not waived: on a judged subject, a threaded path
+ * costing more than twice the comparator's own best round fails. Serial paths are measured and
+ * recorded with their ratio, and do not decide the gate. Both sides time the same call, so neither
  * number carries its host's start. Cold start, edit cost, bytes fetched and heap are recorded.
  *
  * A path with no measurement is unmeasured and fails on every subject, judged or not.
@@ -38,6 +39,21 @@ export const runRatioCeiling = 2;
 export const judgedSubjects = new Set(['heatx']);
 
 /**
+ * Whether the ceiling judges a path, given its mode.
+ *
+ * The browser runtime ships threaded wherever the page is cross-origin isolated, and the owner ruled
+ * on 2026-10-30 that the ceiling judges the threaded paths only. Serial execution is the fallback for
+ * a page without isolation, so its ratio is kept as a figure rather than a gate. Every mode the
+ * archive workflow measures names its threading, so `threaded` in the mode is the whole test.
+ *
+ * @param {string} mode - The measured path's mode name.
+ * @returns {boolean} True when the ceiling judges this path.
+ */
+export function isJudgedMode(mode) {
+  return typeof mode === 'string' && mode.includes('threaded');
+}
+
+/**
  * Compare each measured path against one native baseline.
  *
  * @param {{ best: { runMilliseconds: number, milliseconds: number }, subject: string }} native - The baseline.
@@ -59,11 +75,12 @@ export function judgePerformance(native, measurements) {
       };
     const ratio = run / baseline;
     const within = ratio <= runRatioCeiling;
+    const gated = judged && isJudgedMode(measured.mode);
     return {
       engine: measured.engine,
       mode: measured.mode,
       // `recorded` is not a pass: it says this subject's ratio was measured and does not gate.
-      status: judged ? (within ? 'passed' : 'failed') : 'recorded',
+      status: gated ? (within ? 'passed' : 'failed') : 'recorded',
       run,
       ratio: Number(ratio.toFixed(3)),
       // Recorded, not gated: R31 names these as figures to keep, with no ruled ceiling.
@@ -79,15 +96,19 @@ export function judgePerformance(native, measurements) {
       },
       ...(within
         ? {}
-        : judged
+        : gated
           ? { reason: `Geometry time is ${ratio.toFixed(2)}x the matched native run` }
           : { note: `Geometry time is ${ratio.toFixed(2)}x the matched native run, recorded not gated` }),
     };
   });
   return {
     judged,
-    // An unmeasured path fails whether or not the ceiling judges this subject.
-    passed: paths.length > 0 && paths.every((path) => path.status === (judged ? 'passed' : 'recorded')),
+    // An unmeasured path fails whether or not the ceiling judges it, and a judged subject with no
+    // threaded path measured has nothing the ceiling could pass.
+    passed:
+      paths.length > 0 &&
+      paths.every((path) => path.status === 'passed' || path.status === 'recorded') &&
+      (!judged || paths.some((path) => path.status === 'passed')),
     paths,
   };
 }
