@@ -1,0 +1,12 @@
+PicoGK: PicoGK Core Library 26.2.0; voxel 0.5 mm; init 12.7 ms
+run 0: task 42.3 ms; mesh+props 865.6 ms
+  group 0: volume 3621.167 mm3 (bits 456252ab), 92964 triangles, mesh digest 2b43725651c3733a
+  group 1: volume 4182.421 mm3 (bits 4582b35f), 14940 triangles, mesh digest b8aa4cfd3b2b77f9
+run 1: task 19.7 ms; mesh+props 862.9 ms
+run 2: task 19.6 ms; mesh+props 820.5 ms
+upstream IntersectImplicit, C# callback: 15.5 ms; volume 3621.167 mm3, 92964 triangles
+picovoxel IntersectImplicitFast, C# callback: 14.6 ms; volume 3606.811 mm3, 92964 triangles
+picovoxel IntersectImplicitTapeFast, tape: 10.6 ms; volume 3606.734 mm3, 92964 triangles
+managed gyroid SDF x 8M: 595.1 ms (checksum 2032137.000)
+P/Invoke Mesh.nAddVertex x 1M: 57.6 ms
+browser: 153.0.8010.12

@@ -1,0 +1,12 @@
+cs2ts on picovoxel; voxel 0.5 mm; lane exact
+run 0: task 49.6 ms (166375 SDF callbacks, tape renders so far 1); mesh+props 951.9 ms
+  group 0: volume 3621.167 mm3 (bits 456252ab), 92964 triangles, mesh digest 2b43725651c3733a
+  group 1: volume 4182.421 mm3 (bits 4582b35f), 14940 triangles, mesh digest b8aa4cfd3b2b77f9
+run 1: task 27.2 ms (166375 SDF callbacks, tape renders so far 2); mesh+props 917.4 ms
+run 2: task 24.3 ms (166375 SDF callbacks, tape renders so far 3); mesh+props 925.7 ms
+cs2ts on picovoxel; voxel 0.5 mm; lane fast
+run 0: task 22.1 ms (0 SDF callbacks, tape renders so far 2); mesh+props 916.1 ms
+  group 0: volume 3621.167 mm3 (bits 456252ab), 92964 triangles, mesh digest 21b0a936e5f712be
+  group 1: volume 4182.421 mm3 (bits 4582b35f), 14940 triangles, mesh digest 831ee027bb863639
+run 1: task 9.5 ms (0 SDF callbacks, tape renders so far 4); mesh+props 874.5 ms
+run 2: task 9.4 ms (0 SDF callbacks, tape renders so far 6); mesh+props 906.3 ms

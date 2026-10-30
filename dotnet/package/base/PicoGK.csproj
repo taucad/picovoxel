@@ -1,0 +1,22 @@
+<!-- The managed base library, composed into a fresh tree by compose.mjs. One project serves both
+     targets: a browser consumer adds PICOGK_BROWSER, a desktop consumer adds nothing. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <AssemblyName>PicoGK</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <!-- Upstream source carries no documentation comments on every public member. -->
+    <NoWarn>CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="source/**/*.cs" />
+    <EmbeddedResource Include="source/assets/ViewerEnvironment.zip" LogicalName="PicoGK.Resources.Environment.zip" />
+    <EmbeddedResource Include="source/assets/Jost.ttf" LogicalName="PicoGK.Resources.Font.ttf" />
+    <PackageReference Include="SkiaSharp" Version="3.119.0" />
+  </ItemGroup>
+</Project>

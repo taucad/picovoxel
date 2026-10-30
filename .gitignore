@@ -1,4 +1,7 @@
 build/
+# The package's consumer props and targets are authored sources that happen to live under a
+# directory named `build`; the sweep above must not swallow them.
+!dotnet/package/build/
 dist/
 vendor/
 node_modules/
@@ -34,6 +37,8 @@ spikes/webgpu/picovoxel-dist/
 # bench/native-heatx — .NET build output and ImGui window state from local runs.
 bench/native-heatx/bin/
 bench/native-heatx/obj/
+dotnet/**/bin/
+dotnet/**/obj/
 imgui.ini
 
 # CI candidate pipeline scratch (.github/workflows/ci.yml).

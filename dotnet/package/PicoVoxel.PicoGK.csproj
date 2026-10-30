@@ -1,0 +1,33 @@
+<!-- Packs an already-staged, digest-manifested payload. The payload is produced by
+     dotnet/build-package.mjs from verified inputs; this project adds no build output of its own. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <PackageId>PicoVoxel.PicoGK</PackageId>
+    <Authors>the picovoxel contributors</Authors>
+    <Description>PicoGK browser engine, managed base, signed-distance generator and pinned toolchain identity, for local consumption only.</Description>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IncludeSymbols>false</IncludeSymbols>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- A payload-only package carries nothing under lib/ by design. -->
+    <NoWarn>$(NoWarn);NU5128;NU5100</NoWarn>
+    <!-- The manifest lists every payload file; NuGet's dotfile exclusions would make it lie. -->
+    <NoDefaultExcludes>true</NoDefaultExcludes>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- Local consumption only: this package is never pushed to a feed. -->
+    <IsPackable>true</IsPackable>
+    <PackageOutputPath Condition="'$(PackageOutputPath)' == ''">$(MSBuildThisFileDirectory)../../out/dotnet-feed</PackageOutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="$(PicoVoxelPayload)/**" Pack="true" PackagePath="" />
+  </ItemGroup>
+  <Target Name="ValidatePicoVoxelPayload" BeforeTargets="PrepareForBuild;GenerateNuspec">
+    <Error Condition="'$(PicoVoxelPayload)' == ''" Text="Pack the staged payload produced by dotnet/build-package.mjs via PicoVoxelPayload." />
+    <Error Condition="!Exists('$(PicoVoxelPayload)/manifest.json')" Text="The staged payload carries no manifest." />
+    <Error Condition="!Exists('$(PicoVoxelPayload)/build/PicoVoxel.PicoGK.props')" Text="The staged payload carries no consumer props." />
+    <Error Condition="'$(PackageVersion)' == ''" Text="Pass the package version recorded in the manifest via PackageVersion." />
+  </Target>
+</Project>

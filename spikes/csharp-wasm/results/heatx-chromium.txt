@@ -1,0 +1,8 @@
+PicoGK: PicoGK Core Library 26.2.0; voxel 0.5 mm; init 14.8 ms
+Starting Task.
+STL Export: HelixHeatX.STL exported.
+Finished Task successfully.
+run 0: task 392009.0 ms; STL 502880684 bytes, digest b9dac944dc434a69
+  group 81: volume 719572.250 mm3 (bits 492fad44), 10057612 triangles, mesh digest 2a13ca3e320a6075
+  props 60163.5 ms
+browser: 153.0.8010.12

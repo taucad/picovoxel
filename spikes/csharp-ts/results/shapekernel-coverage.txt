@@ -1,0 +1,220 @@
+cs2ts: 500 members translated, 215 stubbed; 4 SDFs lifted to tape (1 exact)
+  stubbed Cp.clrRandom: BCL type System.Random
+  stubbed MeshPainter.DelegateDeclaration: DelegateDeclaration
+  stubbed MeshPainter.PreviewOverhangAngle: ArrayCreationExpression
+  stubbed MeshPainter.PreviewCustomProperty: ArrayCreationExpression
+  stubbed MeshPainter.PreviewCustomDeformation: ArrayCreationExpression
+  stubbed Sh.PreviewMesh: unresolved call Library.oViewer().SetGroupMaterial
+  stubbed Sh.PreviewVoxels: unresolved call Library.oViewer().SetGroupMaterial
+  stubbed Sh.PreviewLattice: unresolved call Library.oViewer().SetGroupMaterial
+  stubbed Sh.PreviewLine: unresolved call Library.oViewer().Add
+  stubbed Sh.PreviewLine: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed Sh.PreviewFrame: unresolved call Library.oViewer().Add
+  stubbed Sh.PreviewCircle: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed Sh.PreviewMeshWireframe: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed Sh.PreviewCylinderWireframe: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed Sh.PreviewPipeWireframe: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed Sh.PreviewBoxWireframe: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed Sh.PreviewRingWireframe: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed LinearColorScale2D.clrGetColor: BCL type float
+  stubbed SmoothColorScale2D.constructor: constructor chaining
+  stubbed CustomColorScale2D.constructor: constructor chaining
+  stubbed ColorScale3D.clrGetColor: BCL type float
+  stubbed RainboxSpectrum.aGetRawRGBList: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed Sh.Preview: unresolved call Library.oViewer().SetGroupMaterial
+  stubbed Sh.Preview: unresolved call Library.oViewer().SetGroupMaterial
+  stubbed Sh.Preview: unresolved call Library.oViewer().SetGroupMaterial
+  stubbed Sh.Preview: unresolved call Library.oViewer().Add
+  stubbed Sh.Preview: unresolved call Library.oViewer().Add
+  stubbed Sh.Preview: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed Sh.Preview: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed Sh.Preview: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed Sh.Preview: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed Sh.EnumDeclaration: EnumDeclaration
+  stubbed Sh.strGetExportPath: BCL call System.Enum.ToString
+  stubbed Sh.AddLine: ref/out parameter
+  stubbed LocalFrame.constructor: constructor overloads
+  stubbed LocalFrame.constructor: constructor overloads
+  stubbed LocalFrame.constructor: constructor overloads
+  stubbed LocalFrame.constructor: constructor overloads
+  stubbed LocalFrame.constructor: constructor overloads
+  stubbed LocalFrame.ConversionOperatorDeclaration: ConversionOperatorDeclaration
+  stubbed LocalFrame.ConversionOperatorDeclaration: ConversionOperatorDeclaration
+  stubbed Frames.EnumDeclaration: EnumDeclaration
+  stubbed Frames.constructor: constructor overloads
+  stubbed Frames.constructor: constructor overloads
+  stubbed Frames.constructor: constructor overloads
+  stubbed Frames.constructor: constructor overloads
+  stubbed Frames.constructor: constructor overloads
+  stubbed Frames.constructor: constructor overloads
+  stubbed Frames.constructor: constructor overloads
+  stubbed Frames.EnsureFrameContinuity: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed Frames.aGetTangentDirections: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed Frames.vecGetSpineAlongLength: BCL type float
+  stubbed Frames.vecGetLocalXAlongLength: BCL type float
+  stubbed Frames.vecGetLocalYAlongLength: BCL type float
+  stubbed Frames.vecGetLocalZAlongLength: BCL type float
+  stubbed SplineOperations.aGetLinearInterpolation: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed SplineOperations.aGetSnappedSpline: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed SplineOperations.aGetReparametrizedSpline: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed SplineOperations.aGetLengthsAtIndices: BCL type System.Collections.Generic.List<float>
+  stubbed SplineOperations.aSplitLists: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed SplineOperations.aCombineLists: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed SplineOperations.aRotateListAroundZ: BCL type System.Collections.Generic.List<System.Numerics.Vector2>
+  stubbed SplineOperations.aRotateListAroundZ: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed SplineOperations.aTranslateList: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed SplineOperations.aScaleList: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed SplineOperations.aOverSampleList: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed SplineOperations.aSubSampleList: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed SplineOperations.aTranslateListOntoFrame: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed SplineOperations.aTranslateListOntoFrame: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed SplineOperations.aExpressListInFrame: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed SplineOperations.aRotateListAroundAxis: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed SplineOperations.vecGetClosestPoint: BCL type float
+  stubbed SplineOperations.vecGetClosestPoint: BCL type float
+  stubbed SplineOperations.fGetDistanceToClosestPoint: BCL type float
+  stubbed SplineOperations.fGetDistanceToClosestPoint: BCL type float
+  stubbed SplineOperations.aGetClusteredPoints: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed Uf.EnumDeclaration: EnumDeclaration
+  stubbed MeshUtility.AddQuad: ref/out parameter
+  stubbed MeshUtility.ClassDeclaration: ClassDeclaration
+  stubbed CSVWriter.constructor: BCL type System.IO.StreamWriter
+  stubbed CSVWriter.AddLine: BCL call System.IO.StreamWriter.WriteLine
+  stubbed CSVWriter.ExportCSVFile: BCL call System.IO.StreamWriter.Flush
+  lifted ImplicitGyroid.fSignedDistance to tape (exact)
+  lifted ImplicitSphere.fSignedDistance to tape (fast lane only: float32 rounding inside)
+  lifted ImplicitGenus.fSignedDistance to tape (fast lane only: float32 rounding inside)
+  lifted ImplicitSuperEllipsoid.fSignedDistance to tape (fast lane only: float32 rounding inside)
+  stubbed LineDecimation.constructor: BCL type System.Collections.Generic.List<int>
+  stubbed LineDecimation.iGetNextIndex: BCL call System.Collections.Generic.List<System.Numerics.Vector3>.GetRange
+  stubbed LineDecimation.fGetMaxError: IndexExpression
+  stubbed GridOperations.aGetInverseGrid: BCL type System.Collections.Generic.List<System.Collections.Generic.List<System.Numerics.Vector3>>
+  stubbed GridOperations.aAddListInX: BCL call System.Collections.Generic.List<System.Collections.Generic.List<System.Numerics.Vector3>>.Add
+  stubbed GridOperations.aRemoveListInX: BCL call System.Collections.Generic.List<System.Collections.Generic.List<System.Numerics.Vector3>>.RemoveAt
+  stubbed GridOperations.aRemoveListInY: BCL call System.Collections.Generic.List<System.Collections.Generic.List<System.Numerics.Vector3>>.RemoveAt
+  stubbed Uf.EnumDeclaration: EnumDeclaration
+  stubbed VecOperations.fGetAngleBetween: BCL type float
+  stubbed VecOperations.fGetAngleBetween: BCL type float
+  stubbed VecOperations.fGetSignedAngleBetween: BCL type System.Exception
+  stubbed ListOperations.aOverSampleList: BCL type System.Collections.Generic.List<float>
+  stubbed ListOperations.aSubsampleList: BCL type System.Collections.Generic.List<float>
+  stubbed ListOperations.iGetIndexOfMaxValue: BCL type float
+  stubbed ListOperations.iGetIndexOfMinValue: BCL type float
+  stubbed Bisection.DelegateDeclaration: DelegateDeclaration
+  stubbed BisectionException.constructor: constructor overloads
+  stubbed BisectionException.constructor: constructor overloads
+  stubbed Uf.FieldDeclaration: BCL type System.Random
+  stubbed Uf.Wait: BCL call System.Threading.Thread.Sleep
+  stubbed Uf.fTransFixed: IsPatternExpression
+  stubbed Uf.fGetNormalizedTangensHyperbolicus: Math.Tanh
+  stubbed Uf.fGetRandomGaussian: BCL call System.Random.NextDouble
+  stubbed Uf.fGetRandomGaussian: BCL call System.Random.NextDouble
+  stubbed Uf.fGetRandomLinear: BCL call System.Random.NextDouble
+  stubbed Uf.fGetRandomLinear: BCL call System.Random.NextDouble
+  stubbed Uf.bGetRandomBool: BCL call System.Random.NextDouble
+  stubbed Uf.bGetRandomBool: BCL call System.Random.NextDouble
+  stubbed Uf.aGetFibonacciCirlePoints: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed Uf.aGetFibonacciSpherePoints: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed Measure.fGetVolume: ref/out call CalculateProperties
+  stubbed Measure.fGetSurfaceArea: ref/out call GetTriangle
+  stubbed Measure.vecGetCentreOfGravity: ref/out call CalculateProperties
+  stubbed Measure.matGetMomentOfInertia: ArrayCreationExpression
+  stubbed Measure.matGetMomentOfInertia: ArrayCreationExpression
+  stubbed Measure.TestInertiaTensorMesurement: ElementAccessExpression
+  stubbed ControlPointSurface.EnumDeclaration: EnumDeclaration
+  stubbed ControlPointSurface.constructor: IndexExpression
+  stubbed ControlPointSurface.aGetUKnotVector: BCL type System.Collections.Generic.List<float>
+  stubbed ControlPointSurface.aGetVKnotVector: BCL type System.Collections.Generic.List<float>
+  stubbed ControlPointSurface.aGetGrid: BCL type System.Collections.Generic.List<System.Collections.Generic.List<System.Numerics.Vector3>>
+  stubbed ControlPointSurface.fBaseFunc: IndexExpression
+  stubbed CylindricalControlSpline.EnumDeclaration: EnumDeclaration
+  stubbed CylindricalControlSpline.constructor: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed CylindricalControlSpline.AddRelativeStep: IndexExpression
+  stubbed CylindricalControlSpline.AddAbsoluteStep: IndexExpression
+  stubbed TangentialControlSpline.constructor: constructor overloads
+  stubbed TangentialControlSpline.constructor: constructor overloads
+  stubbed ControlPointSpline.EnumDeclaration: EnumDeclaration
+  stubbed ControlPointSpline.constructor: IndexExpression
+  stubbed ControlPointSpline.aGetKnotVector: BCL type System.Collections.Generic.List<float>
+  stubbed ControlPointSpline.aGetPoints: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed ControlPointSpline.fBaseFunc: IndexExpression
+  stubbed SurfaceModulation.DelegateDeclaration: DelegateDeclaration
+  stubbed SurfaceModulation.DelegateDeclaration: DelegateDeclaration
+  stubbed SurfaceModulation.EnumDeclaration: EnumDeclaration
+  stubbed SurfaceModulation.EnumDeclaration: EnumDeclaration
+  stubbed SurfaceModulation.constructor: constructor overloads
+  stubbed SurfaceModulation.constructor: constructor overloads
+  stubbed SurfaceModulation.constructor: constructor overloads
+  stubbed SurfaceModulation.constructor: constructor overloads
+  stubbed SurfaceModulation.fGetModulation: BCL type float
+  stubbed SurfaceModulation.OperatorDeclaration: OperatorDeclaration
+  stubbed SurfaceModulation.OperatorDeclaration: OperatorDeclaration
+  stubbed SurfaceModulation.OperatorDeclaration: OperatorDeclaration
+  stubbed SurfaceModulation.ClassDeclaration: ClassDeclaration
+  stubbed SurfaceModulation.ClassDeclaration: ClassDeclaration
+  stubbed LineModulation.DelegateDeclaration: DelegateDeclaration
+  stubbed LineModulation.EnumDeclaration: EnumDeclaration
+  stubbed LineModulation.constructor: constructor overloads
+  stubbed LineModulation.constructor: constructor overloads
+  stubbed LineModulation.constructor: constructor overloads
+  stubbed LineModulation.oPointsDummyFunc: BCL type float
+  stubbed LineModulation.OperatorDeclaration: OperatorDeclaration
+  stubbed LineModulation.OperatorDeclaration: OperatorDeclaration
+  stubbed LineModulation.OperatorDeclaration: OperatorDeclaration
+  stubbed LineModulation.ClassDeclaration: ClassDeclaration
+  stubbed LineModulation.ClassDeclaration: ClassDeclaration
+  stubbed GenericContour.constructor: constructor chaining
+  stubbed LatticePipe.constructor: constructor overloads
+  stubbed LatticePipe.constructor: constructor overloads
+  stubbed BaseSphere.constructor: constructor chaining
+  stubbed BaseBox.constructor: constructor overloads
+  stubbed BaseBox.constructor: constructor overloads
+  stubbed BaseBox.constructor: constructor overloads
+  stubbed BaseBox.constructor: constructor overloads
+  stubbed BaseBox.mshConstruct: ref/out call AddTopSurface
+  stubbed BaseBox.AddTopSurface: ref/out parameter
+  stubbed BaseBox.AddBottomSurface: ref/out parameter
+  stubbed BaseBox.AddFrontSurface: ref/out parameter
+  stubbed BaseBox.AddBackSurface: ref/out parameter
+  stubbed BaseBox.AddLeftSurface: ref/out parameter
+  stubbed BaseBox.AddRightSurface: ref/out parameter
+  stubbed BaseRing.constructor: constructor chaining
+  stubbed BaseShape.DelegateDeclaration: DelegateDeclaration
+  stubbed BaseCylinder.constructor: constructor overloads
+  stubbed BaseCylinder.constructor: constructor overloads
+  stubbed BaseCylinder.mshConstruct: ref/out call AddTopSurface
+  stubbed BaseCylinder.AddTopSurface: ref/out parameter
+  stubbed BaseCylinder.AddBottomSurface: ref/out parameter
+  stubbed BaseCylinder.AddOuterMantle: ref/out parameter
+  stubbed BaseLens.constructor: constructor chaining
+  stubbed BaseLens.mshConstruct: ref/out call AddTopSurface
+  stubbed BaseLens.AddTopSurface: ref/out parameter
+  stubbed BaseLens.AddBottomSurface: ref/out parameter
+  stubbed BaseLens.AddInnerMantle: ref/out parameter
+  stubbed BaseLens.AddOuterMantle: ref/out parameter
+  stubbed BasePipe.constructor: constructor overloads
+  stubbed BasePipe.constructor: constructor overloads
+  stubbed BasePipe.mshConstruct: ref/out call AddTopSurface
+  stubbed BasePipe.AddTopSurface: ref/out parameter
+  stubbed BasePipe.AddBottomSurface: ref/out parameter
+  stubbed BasePipe.AddOuterMantle: ref/out parameter
+  stubbed BasePipe.AddInnerMantle: ref/out parameter
+  stubbed BasePipeSegment.EnumDeclaration: EnumDeclaration
+  stubbed BasePipeSegment.constructor: constructor overloads
+  stubbed BasePipeSegment.constructor: constructor overloads
+  stubbed BasePipeSegment.mshConstruct: ref/out call AddTopSurface
+  stubbed BasePipeSegment.AddStartSurface: ref/out parameter
+  stubbed BasePipeSegment.AddEndSurface: ref/out parameter
+  stubbed BaseCone.fGetLinearRadius: BCL type float
+  stubbed BaseLogoBox.constructor: constructor chaining
+  stubbed BaseRevolve.mshConstruct: ref/out call AddTopSurface
+  stubbed BaseRevolve.AddTopSurface: ref/out parameter
+  stubbed BaseRevolve.AddBottomSurface: ref/out parameter
+  stubbed BaseRevolve.AddOuterMantle: ref/out parameter
+  stubbed BaseRevolve.AddInnerMantle: ref/out parameter
+  stubbed BaseRevolve.aGetFramesFromContour: BCL type System.Collections.Generic.List<System.Numerics.Vector3>
+  stubbed LatticeManifold.constructor: constructor overloads
+  stubbed LatticeManifold.constructor: constructor overloads
+  stubbed LatticeManifold.latConstruct: ref/out call AddTip
+  stubbed LatticeManifold.AddTip: ref/out parameter
+  stubbed ExampleSpline.constructor: BCL type System.Collections.Generic.List<System.Numerics.Vector3>

@@ -89,11 +89,53 @@
     },
     "package-checks": {
       "executor": "nx:noop",
-      "dependsOn": ["build", "check:size", "pkgcheck", "test:scripts", "typecheck", "validate-pack"]
+      "dependsOn": [
+        "build",
+        "check:size",
+        "pkgcheck",
+        "test:scripts",
+        "typecheck",
+        "validate-pack",
+        "test:dotnet-inputs"
+      ]
     },
     "quality": {
       "executor": "nx:noop",
       "dependsOn": ["docs-prose", "package-checks"]
+    },
+    "test:dotnet-inputs": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node --test dotnet/tests/*.test.mjs"
+      }
+    },
+    "test:dotnet-desktop": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node dotnet/test-desktop.mjs"
+      }
+    },
+    "build:dotnet-archive": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "bash dotnet/build-archive.sh"
+      }
+    },
+    "test:dotnet-reproducibility": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node dotnet/verify-archives.mjs"
+      }
+    },
+    "test:dotnet-roslyn": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node dotnet/test-roslyn.mjs"
+      }
     }
   }
 }

@@ -1,0 +1,24 @@
+--- a/Internals/Types.cs
++++ b/Internals/Types.cs
+@@ -49,9 +49,21 @@
+     public readonly record struct LatHandle(long Value);
+     public readonly record struct PolyHandle(long Value);
+     public readonly record struct VdbHandle(long Value);
++#if PICOGK_BROWSER
++    public readonly record struct VdbMetaHandle(long Value);
++#else
+     public readonly record struct VdbMetaHandle(IntPtr Value);
++#endif
++#if PICOGK_BROWSER
++    public readonly record struct ScalarFieldHandle(long Value);
++#else
+     public readonly record struct ScalarFieldHandle(IntPtr Value);
++#endif
++#if PICOGK_BROWSER
++    public readonly record struct VectorFieldHandle(long Value);
++#else
+     public readonly record struct VectorFieldHandle(IntPtr Value);
++#endif
+     public readonly record struct GpuTexHandle(IntPtr Value);
+     public readonly record struct QuadHandle(IntPtr Value);
+     public readonly record struct GuiSideBarHandle(IntPtr Value);

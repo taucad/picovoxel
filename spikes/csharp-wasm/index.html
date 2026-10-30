@@ -1,0 +1,22 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>PicoGK C# in the browser</title>
+<pre id="out">loading…</pre>
+<script type="module">
+  import { dotnet } from './_framework/dotnet.js';
+  const started = performance.now();
+  const out = document.getElementById('out');
+  const params = new URLSearchParams(location.search);
+  const args = [params.get('voxel') ?? '0.5', params.get('runs') ?? '3', params.get('program') ?? 'gyroid'];
+  const log = console.log.bind(console);
+  out.textContent = '';
+  console.log = (...a) => {
+    out.textContent += a.join(' ') + '\n';
+    log(...a);
+    if (String(a[0]).startsWith('exit ')) document.title = 'done';
+  };
+  const runtime = await dotnet.withApplicationArguments(...args).create();
+  console.log(`runtime startup ${(performance.now() - started).toFixed(1)} ms`);
+  await runtime.runMain();
+  document.title = 'done';
+</script>

@@ -1,0 +1,50 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>PicoGK browser authoring experiment</title>
+<pre id="out"></pre>
+<script type="module">
+  import { dotnet } from './_framework/dotnet.js';
+  const started = performance.now();
+  const output = document.getElementById('out');
+  const log = console.log.bind(console);
+  console.log = (...args) => {
+    output.textContent += args.join(' ') + '\n';
+    log(...args);
+  };
+  try {
+    const query = new URLSearchParams(location.search);
+    const program = query.get('program') ?? 'gyroid';
+    const runtime = await dotnet
+      .withApplicationArguments(query.get('voxel') ?? '0.5', query.get('runs') ?? '3', program)
+      .create();
+    console.log(
+      'authoring: jiterpreter ' +
+        JSON.stringify(runtime.INTERNAL?.jiterpreter_get_options?.() ?? { status: 'unavailable' }),
+    );
+    console.log(`authoring: runtime startup ${(performance.now() - started).toFixed(1)} ms`);
+    const manifest = await fetch('./authoring.json').then((response) => response.json());
+    const files = [...manifest.references, ...manifest[program]];
+    const start = performance.now();
+    let bytes = 0;
+    await Promise.all(
+      files.map(async (file) => {
+        const response = await fetch(file.url);
+        if (!response.ok) throw new Error(`Fetch failed: ${file.url}: ${response.status}`);
+        const body = new Uint8Array(await response.arrayBuffer());
+        bytes += body.length;
+        const parent = file.path.slice(0, file.path.lastIndexOf('/'));
+        runtime.Module.FS.mkdirTree(parent);
+        runtime.Module.FS.writeFile(file.path, body);
+      }),
+    );
+    console.log(
+      `authoring: source+references ${bytes} bytes; fetch ${(performance.now() - start).toFixed(1)} ms`,
+    );
+    const code = await runtime.runMain();
+    if (code !== 0) throw new Error(`Main exited ${code}`);
+    document.title = 'done';
+  } catch (error) {
+    console.error(error.stack ?? String(error));
+    document.title = 'failed';
+  }
+</script>

@@ -1,0 +1,16 @@
+cs2ts: 36 members translated, 15 stubbed; 0 SDFs lifted to tape (0 exact)
+  stubbed HelixHeatX.GetHelicalVoid: ref/out parameter
+  stubbed HelixHeatX.GetInlet: ref/out parameter
+  stubbed HelixHeatX.GetOutlet: ref/out parameter
+  stubbed HelixHeatX.voxGetIOSupports: BCL type System.Collections.Generic.List<Leap71.ShapeKernel.LocalFrame>
+  stubbed HelixHeatX.EnumDeclaration: EnumDeclaration
+  stubbed HelixHeatX.voxConstruct: unresolved call Library.oViewer().RequestScreenShot
+  stubbed HelixHeatX.voxGetOuterStructure: BCL type System.Collections.Generic.List<float>
+  stubbed HelixHeatX.voxGetIOThreads: BCL type System.Collections.Generic.List<PicoGK.Voxels>
+  stubbed HelixHeatX.voxGetIOCuts: BCL type System.Collections.Generic.List<PicoGK.Voxels>
+  stubbed HelixHeatX.voxGetIOScrewCuts: BCL type System.Collections.Generic.List<PicoGK.Voxels>
+  stubbed HelixHeatX.AddCentrePiece: ref/out parameter
+  stubbed HelixHeatX.GetFlange: ref/out parameter
+  stubbed HelixHeatX.voxGetTurningFins: ModuloAssignmentExpression
+  stubbed HelixHeatX.voxGetStraightFins: ModuloAssignmentExpression
+  stubbed ThreadCutter.voxConstruct: AndAssignmentExpression

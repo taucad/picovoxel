@@ -1,0 +1,56 @@
+--- a/Base/Voxels.cs
++++ b/Base/Voxels.cs
+@@ -722,7 +722,11 @@
+         /// <param name="oBounds">Bounding box in which to render the implicit</param>
+         public void RenderImplicit( in IImplicit xImp,
+                                     in BBox3 oBounds)
++#if PICOGK_BROWSER
++            => BrowserCallbacks.Render(lib.hThis, hThis, in oBounds, xImp);
++#else
+             => _RenderImplicit(lib.hThis, hThis, in oBounds, xImp.fSignedDistance);
++#endif
+ 
+         /// <summary>
+         /// Render an implicit signed distance function into the voxels
+@@ -736,7 +740,11 @@
+         /// </summary>
+         /// <param name="xImp">Implicit object with signed distance function</param>
+         public void IntersectImplicit(in IImplicit xImp)
++#if PICOGK_BROWSER
++            => BrowserCallbacks.Intersect(lib.hThis, hThis, xImp);
++#else
+             => _IntersectImplicit(lib.hThis, hThis, xImp.fSignedDistance);
++#endif
+ 
+ 
+         /// <summary>
+--- a/Base/ScalarField.cs
++++ b/Base/ScalarField.cs
+@@ -261,7 +261,11 @@
+         /// <param name="xTraverse">The interface containing the callback</param>
+         public void TraverseActive(ITraverseScalarField xTraverse)
+         {
++#if PICOGK_BROWSER
++            BrowserCallbacks.Traverse(lib.hThis, hThis, xTraverse);
++#else
+             _TraverseActive(lib.hThis, hThis, xTraverse.InformActiveValue);
++#endif
+         }
+ 
+         /// <summary>
+--- a/Base/VectorField.cs
++++ b/Base/VectorField.cs
+@@ -194,9 +194,13 @@
+         /// <param name="xTraverse">The interface containing the callback</param>
+         public void TraverseActive(ITraverseVectorField xTraverse)
+         {
++#if PICOGK_BROWSER
++            BrowserCallbacks.Traverse(lib.hThis, hThis, xTraverse);
++#else
+             _TraverseActive(    lib.hThis, 
+                                 hThis, 
+                                 xTraverse.InformActiveValue);
++#endif
+         }
+ 
+         /// <summary>

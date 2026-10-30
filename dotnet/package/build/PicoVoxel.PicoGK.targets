@@ -1,0 +1,18 @@
+<!-- Refuses a consumer whose SDK or payload is not the one the package was qualified against,
+     before any compilation reaches the engine. -->
+<Project>
+  <Target Name="ValidatePicoVoxelPicoGK" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(NETCoreSdkVersion)' != '$(PicoVoxelPicoGKSdk)'"
+           Text="PicoVoxel.PicoGK is qualified against .NET SDK $(PicoVoxelPicoGKSdk); this build uses $(NETCoreSdkVersion)." />
+    <Error Condition="!Exists('$(PicoVoxelPicoGKManifest)')"
+           Text="The restored PicoVoxel.PicoGK payload carries no manifest; restore the package from the local feed." />
+    <Error Condition="!Exists('$(PicoVoxelPicoGKBaseProject)')" Text="The restored payload carries no managed base project." />
+    <Error Condition="!Exists('$(PicoVoxelPicoGKGenerator)')" Text="The restored payload carries no signed-distance generator." />
+    <Error Condition="!Exists('$(PicoVoxelPicoGKRoslynRoot)Microsoft.CodeAnalysis.CSharp.dll')"
+           Text="The restored payload carries no adapted C# compiler." />
+    <Error Condition="'$(RuntimeIdentifier)' == 'browser-wasm' And !Exists('$(PicoVoxelPicoGKEngineSerial)native/picogk.26.2.a')"
+           Text="A browser target needs the package's serial engine archive." />
+    <Error Condition="'$(RuntimeIdentifier)' == 'browser-wasm' And '$(WasmEnableThreads)' == 'true' And !Exists('$(PicoVoxelPicoGKEngineThreaded)native/picogk.26.2.a')"
+           Text="A threaded browser target needs the package's threaded engine archive." />
+  </Target>
+</Project>

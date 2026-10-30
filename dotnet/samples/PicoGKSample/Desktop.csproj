@@ -1,0 +1,22 @@
+<!-- The desktop target: the managed base as the native runtime loads it, with no browser define. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>PicoGKSample</AssemblyName>
+    <RootNamespace>PicoGKSample</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <SelfContained>false</SelfContained>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <PackageReference Include="PicoVoxel.PicoGK" Version="$(PicoVoxelPicoGKVersion)" />
+    <ProjectReference Include="$(PicoGKSampleBaseProject)" />
+  </ItemGroup>
+  <Target Name="ValidateSampleInputs" BeforeTargets="PrepareForBuild">
+    <Error Condition="!Exists('$(PicoGKSampleBaseProject)')"
+           Text="Compose the package's managed base and pass it as PicoGKSampleBaseProject." />
+  </Target>
+</Project>

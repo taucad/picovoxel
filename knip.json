@@ -4,10 +4,19 @@
   "entry": [
     "bench/**/*.mjs",
     "demo/serve.mjs",
+    // The .NET drivers are run by name from the workflows in this repository and from a
+    // caller's, never imported by anything here.
+    "dotnet/*.mjs",
+    "dotnet/package/base/compose.mjs",
+    "dotnet/tests/*.mjs",
     // Every example is a standalone module that hosts load by path, so its
     // exports are its interface even when no file here imports them.
     "examples/**/*.ts",
     "scripts/*.mjs",
+    // Each spike is driven from its own README's commands, not from the package.
+    "spikes/csharp-ts/*.mts",
+    "spikes/csharp-wasm/*.mjs",
+    "spikes/csharp-wasm/authoring/*.mjs",
     "spikes/webgpu/*.ts",
     "spikes/webgpu/emdawn/runner.mjs",
     "test/**/*.test.{ts,mjs}",
@@ -19,9 +28,16 @@
   // TypeScript reads these declarations in place of prose-rules.js; knip
   // follows the .js import itself. em++ reads coverage-post.js (--post-js in
   // COVERAGE=1 builds of scripts/build-pico-module.sh); nothing imports it.
-  "ignore": ["tools/eslint-plugin/prose-rules.d.ts", "scripts/coverage-post.js"],
+  "ignore": [
+    "tools/eslint-plugin/prose-rules.d.ts",
+    "scripts/coverage-post.js",
+    // Recorded spike translations: evidence of what the ports produced, read by prose, not by code.
+    "spikes/csharp-ts/out/*.ts"
+  ],
   // System tools the benchmark and spike scripts shell out to.
-  "ignoreBinaries": ["pmset", "rustc"],
+  // The browser app's own runtime loader, published beside it rather than resolved from here.
+  "ignoreUnresolved": ["./_framework/dotnet.js"],
+  "ignoreBinaries": ["clang\\+\\+", "patch", "pmset", "python3", "rustc"],
   // Nx loads @nx/js by name.
   "ignoreDependencies": ["@nx/js"]
 }
