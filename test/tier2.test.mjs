@@ -412,10 +412,74 @@ test('C5 — implicit: JS SDF sphere matches the native primitive', () => {
         'tape intersect must equal the callback IntersectImplicit',
       );
 
+      // The checked entries the .NET host's lifted tapes use: on a tape whose
+      // every sample is finite they report 0 and fill exactly as the plain ones.
+      const checkedTape = fns.Voxels_hCreate(lib);
+      vec(scratch, -12, -12, -12);
+      vec(scratch + VEC3, 12, 12, 12);
+      assert.equal(
+        fns.Voxels_RenderImplicitTapeChecked(
+          lib,
+          checkedTape,
+          scratch,
+          instructionPointer,
+          instructions.length / 2,
+          constantPointer,
+          1,
+        ),
+        0,
+      );
+      assert.ok(
+        fns.Voxels_bIsEqual(lib, checkedTape, implicitTape),
+        'checked tape render must equal the plain tape render',
+      );
+      const checkedTrim = fns.Voxels_hCreateCopy(lib, native);
+      assert.equal(
+        fns.Voxels_IntersectImplicitTapeChecked(
+          lib,
+          checkedTrim,
+          instructionPointer,
+          instructions.length / 2,
+          constantPointer,
+          1,
+        ),
+        0,
+      );
+      assert.ok(
+        fns.Voxels_bIsEqual(lib, checkedTrim, trimmedTape),
+        'checked tape intersect must equal the plain tape intersect',
+      );
+
+      // Point evaluation: the sphere's distance at (3, 4, 0) is 5 - 10.
+      const pointPointer = module._malloc(12);
+      const valuePointer = module._malloc(4);
+      module.HEAPF32.set([3, 4, 0], pointPointer >> 2);
+      fns.Tape_EvaluatePoints(
+        instructionPointer,
+        instructions.length / 2,
+        constantPointer,
+        1,
+        pointPointer,
+        1,
+        valuePointer,
+      );
+      assert.equal(module.HEAPF32[valuePointer >> 2], -5);
+      module._free(valuePointer);
+      module._free(pointPointer);
+
       module._free(constantPointer);
       module._free(instructionPointer);
 
-      for (const v of [implicit, native, trimmed, implicitTape, composedTape, trimmedTape])
+      for (const v of [
+        implicit,
+        native,
+        trimmed,
+        implicitTape,
+        composedTape,
+        trimmedTape,
+        checkedTape,
+        checkedTrim,
+      ])
         fns.Voxels_Destroy(lib, v);
     } finally {
       module.removeFunction(sdf);
