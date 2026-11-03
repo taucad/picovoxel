@@ -1,4 +1,4 @@
-/** Qualify the signed-distance tape generator's lifting decision and the arithmetic it rebuilds. */
+/** Qualify the signed-distance tape generator and the parallel callback path, neither of which needs a wasm build. */
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -39,3 +39,15 @@ run([
 // Each case compiles author source with the generator and compares the lifted tape against the author's
 // own method bit for bit, so a wasm build is not needed to settle the lifting decision.
 run([join(output, 'tests/SdfGeneratorTests.dll')]);
+// The parallel callback path: the purity proof and the column prefetch, against the serial loop's own
+// values and failures. Like the generator, it needs no wasm build.
+run([
+  'build',
+  join(here, 'tests/sdf-parallel/SdfParallelTests.csproj'),
+  '-c',
+  'Release',
+  '-o',
+  join(output, 'parallel'),
+  `-p:BaseIntermediateOutputPath=${join(output, 'parallel-obj')}/`,
+]);
+run([join(output, 'parallel/SdfParallelTests.dll')]);

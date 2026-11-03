@@ -16,6 +16,8 @@ internal static unsafe class BrowserCallbacks
     {
         internal readonly object Callback = callback;
         internal ExceptionDispatchInfo? Error;
+        // Set only for a render of a field SdfPurity proved pure, on a host with more than one core.
+        internal SdfColumnPrefetch? Prefetch;
     }
     private static Context Get(nint token) => (Context)GCHandle.FromIntPtr(token).Target!;
     private static int Fail(Context context, Exception error)
@@ -27,7 +29,17 @@ internal static unsafe class BrowserCallbacks
     private static int Sdf(nint token, Vector3* point, float* value)
     {
         var context = Get(token);
-        try { *value = ((IImplicit)context.Callback).fSignedDistance(in *point); return 0; }
+        try
+        {
+            if (context.Prefetch is { } prefetch && prefetch.TryServe(in *point, out var computed, out var failure))
+            {
+                if (failure is not null) { context.Error ??= failure; return 1; }
+                *value = computed;
+                return 0;
+            }
+            *value = ((IImplicit)context.Callback).fSignedDistance(in *point);
+            return 0;
+        }
         catch (Exception error) { return Fail(context, error); }
     }
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
@@ -54,7 +66,8 @@ internal static unsafe class BrowserCallbacks
     internal static void Render(LibHandle lib, VoxHandle vox, in BBox3 bounds, IImplicit callback)
     {
         ArgumentNullException.ThrowIfNull(callback);
-        var context = new Context(callback); var handle = GCHandle.Alloc(context);
+        var context = new Context(callback) { Prefetch = SdfColumnPrefetch.For(callback) };
+        var handle = GCHandle.Alloc(context);
         try { Check(RenderNative(lib, vox, in bounds, GCHandle.ToIntPtr(handle), &Sdf), context, nameof(Voxels)); }
         finally { handle.Free(); }
     }

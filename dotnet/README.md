@@ -115,6 +115,29 @@ exceptions become native status before being rethrown; a failed mutation can
 leave partial geometry and has no rollback guarantee. The bridge does not imply
 that callbacks from arbitrary worker threads are supported.
 
+### Parallel evaluation of pure callbacks
+
+A field the tape cannot express is rendered through the per-voxel callback,
+which is serial. On a threaded build `managed/SdfParallel.cs` speeds up that
+path without changing the voxels, the error, or the point where a failed render
+stops:
+
+- **Purity proof.** `SdfPurity` reads the field's IL on the live instance. It
+  follows calls into helpers, interface children and delegates, and admits the
+  field only if no reachable instruction writes storage that the evaluation does
+  not own. Static fields, fields of existing objects, arrays the evaluation did
+  not allocate, the sample point, locks, I/O and unknown calls all keep the
+  field serial.
+- **Column prefetch.** `SdfColumnPrefetch` learns a row's z values and a
+  column's y values from the points the native loop asks for. It evaluates each
+  following column on every core, and serves a sample only when the requested
+  point is bit-equal to the one it was computed for. An exception or a nonfinite
+  distance is returned at the same index the serial loop produces it.
+
+The serial build and impure fields keep the plain callback.
+`tests/sdf-parallel` checks both halves against the serial loop's own values,
+and the parity fixture reports how many samples a column served.
+
 ## Geometry parity
 
 `tests/parity/GeometryParityFixture.cs` runs the pinned original gyroid and HeatX
@@ -249,6 +272,7 @@ Tau's `picogk-browser-archive.yml`, which calls it:
 | The archive is reproducible from pinned inputs                      | `archive`, which builds twice and compares the bytes           |
 | Input and admission rules hold                                      | `archive`, through the `dotnet/tests` suite                    |
 | The tape lifts the author's arithmetic exactly                      | `archive`, through `test-generator.mjs`                        |
+| Parallel callbacks are pure and serve the serial loop's values      | `archive`, through `test-generator.mjs`                        |
 | The adapted compiler is the pinned one                              | `archive`, through `test-roslyn.mjs` and `build-compiler.mjs`  |
 | The package restores from a local feed only and builds both targets | `archive`, through `build-package.mjs` and `test-package.mjs`  |
 | Emscripten equals the workload pin (I3)                             | `parity-gate`, from each engine archive's own metadata sidecar |
