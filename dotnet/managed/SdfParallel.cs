@@ -595,7 +595,9 @@ internal static class SdfPurity
 /// <summary>Decodes the method-body IL the purity walk reads.</summary>
 internal static class IlReader
 {
-    internal readonly record struct Instruction(int Offset, int Code, int Token, int Index, int[] Targets);
+    /// <param name="Integer">The ldc.i4 or ldc.i8 constant.</param>
+    /// <param name="Real">The ldc.r4 or ldc.r8 constant (an ldc.r4 value is exactly representable as a double).</param>
+    internal readonly record struct Instruction(int Offset, int Code, int Token, int Index, int[] Targets, long Integer = 0, double Real = 0);
 
     private enum Operand { None, Byte, Short, Int, Long, Token, Branch8, Branch32, Switch, Int8, Float32, Float64, UShort }
 
@@ -615,14 +617,19 @@ internal static class IlReader
             var operand = OperandOf(code);
             if (operand is null) return null;
             int token = 0, index = 0;
+            long integer = 0;
+            double real = 0;
             int[] targets = [];
             switch (operand)
             {
                 case Operand.None: break;
-                case Operand.Byte: case Operand.Int8: index = il[position]; position += 1; break;
+                case Operand.Byte: index = il[position]; position += 1; break;
+                case Operand.Int8: index = il[position]; integer = (sbyte)il[position]; position += 1; break;
                 case Operand.UShort: index = BitConverter.ToUInt16(il, position); position += 2; break;
-                case Operand.Int: case Operand.Float32: position += 4; break;
-                case Operand.Long: case Operand.Float64: position += 8; break;
+                case Operand.Int: integer = BitConverter.ToInt32(il, position); position += 4; break;
+                case Operand.Float32: real = BitConverter.ToSingle(il, position); position += 4; break;
+                case Operand.Long: integer = BitConverter.ToInt64(il, position); position += 8; break;
+                case Operand.Float64: real = BitConverter.ToDouble(il, position); position += 8; break;
                 case Operand.Token: token = BitConverter.ToInt32(il, position); position += 4; break;
                 case Operand.Branch8:
                     { var delta = (sbyte)il[position]; position += 1; targets = [position + delta]; break; }
@@ -639,7 +646,7 @@ internal static class IlReader
                     }
             }
             if (position > il.Length) return null;
-            result.Add(new Instruction(offset, code, token, index, targets));
+            result.Add(new Instruction(offset, code, token, index, targets, integer, real));
         }
         return [.. result];
     }

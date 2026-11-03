@@ -65,6 +65,11 @@ public static class GeometryParityFixture
         object? Read(string name) => registry.GetProperty(name)?.GetValue(null);
         Console.WriteLine(
             $"TAPE registered {Read("RegisteredCount")} dispatched {Read("Dispatched")} fellBack {Read("FellBack")}");
+        // Of the fallbacks, how many were lifted from the method's IL instead, and why the rest were not.
+        var lift = Type.GetType("PicoGK.BrowserImplicit, PicoGK", throwOnError: false);
+        object? Lift(string name) => lift?.GetProperty(
+            name, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.GetValue(null);
+        Console.WriteLine($"LIFT lifted {Lift("Lifted") ?? "absent"} lastRefusal {Lift("LastRefusal") ?? "none"}");
         // Of the fallbacks, how many samples a parallel column served: zero on a serial build, and on a
         // threaded build the evidence that a matching digest came through the prefetch.
         var prefetch = Type.GetType("PicoGK.SdfColumnPrefetch, PicoGK", throwOnError: false);

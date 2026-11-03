@@ -14,20 +14,20 @@ separately makes each one correct only by hand. This package carries them
 under one `manifest.json`, which records every payload byte's digest together
 with the toolchain identity the archives were built by.
 
-| Payload                              | What it is                                                                                   |
-| ------------------------------------ | -------------------------------------------------------------------------------------------- |
-| `manifest.json`                      | Every payload digest, the pinned identities, and the engine receipts                         |
-| `base/source/`                       | The managed PicoGK library at the commit the manifest records                                |
-| `base/patches/`                      | This package's build-time patches against that source                                        |
-| `base/managed/`                      | `BrowserCallbacks.cs`, `SdfTape.cs` and `SdfParallel.cs`, the browser boundary's own sources |
-| `base/PicoGK.csproj`                 | The library project; one project for either target                                           |
-| `base/compose.mjs`                   | Composes the three into a fresh tree at an explicit patch order                              |
-| `browser/`                           | The authoring-retention props a trimmed browser build needs                                  |
-| `generator/`                         | `PicoVoxel.Sdf.Generator.dll`, which lifts liftable implicits to a tape                      |
-| `roslyn/`                            | The adapted C# compiler the host compiles author source with                                 |
-| `toolchain/`                         | The qualified input validator and its pins                                                   |
-| `engine/serial/`, `engine/threaded/` | The native archives and their receipts                                                       |
-| `build/`                             | The props and targets NuGet imports into a consumer                                          |
+| Payload                              | What it is                                                                                                   |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `manifest.json`                      | Every payload digest, the pinned identities, and the engine receipts                                         |
+| `base/source/`                       | The managed PicoGK library at the commit the manifest records                                                |
+| `base/patches/`                      | This package's build-time patches against that source                                                        |
+| `base/managed/`                      | `BrowserCallbacks.cs`, `SdfTape.cs`, `SdfParallel.cs` and `SdfIlTape.cs`, the browser boundary's own sources |
+| `base/PicoGK.csproj`                 | The library project; one project for either target                                                           |
+| `base/compose.mjs`                   | Composes the three into a fresh tree at an explicit patch order                                              |
+| `browser/`                           | The authoring-retention props a trimmed browser build needs                                                  |
+| `generator/`                         | `PicoVoxel.Sdf.Generator.dll`, which lifts liftable implicits to a tape                                      |
+| `roslyn/`                            | The adapted C# compiler the host compiles author source with                                                 |
+| `toolchain/`                         | The qualified input validator and its pins                                                                   |
+| `engine/serial/`, `engine/threaded/` | The native archives and their receipts                                                                       |
+| `build/`                             | The props and targets NuGet imports into a consumer                                                          |
 
 The JS runtime a browser consumer ends up serving is not carried: it is
 produced by the publish, from the runtime and Emscripten revision the manifest

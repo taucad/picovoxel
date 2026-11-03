@@ -47,13 +47,22 @@ public sealed class SdfTapeBuilder
     private const uint OpSine = 11;
     private const uint OpCosine = 12;
     private const uint OpFloor = 13;
+    private const uint OpExp = 18;
+    private const uint OpLog = 19;
+    // The IL lift's operations (SdfIlTape); the source generator never emits them.
+    private const uint OpFloat = 20;
+    private const uint OpLess = 21;
+    private const uint OpLessOrEqual = 22;
+    private const uint OpEqual = 23;
+    private const uint OpSelect = 24;
+    private const uint OpPair = 25;
 
     /// <summary>Operand registers are unsigned 16-bit fields of the instruction word.</summary>
     internal const int MaximumInstructions = 0x10000;
 
     private readonly List<uint> words = [];
     private readonly List<double> constants = [];
-    private readonly Dictionary<double, int> constantRegisters = [];
+    private readonly Dictionary<long, int> constantRegisters = [];
 
     internal SdfTapeBuilder()
     {
@@ -72,9 +81,9 @@ public sealed class SdfTapeBuilder
         {
             throw new ArgumentOutOfRangeException(nameof(value), value, "A tape constant must be finite.");
         }
-        // Deduplicate by bits so that +0 and -0 stay distinct constants.
-        var bits = BitConverter.DoubleToInt64Bits(value);
-        var key = BitConverter.Int64BitsToDouble(bits);
+        // Deduplicate by the bits themselves: `Dictionary<double, …>` would treat -0 and +0 as one key,
+        // and the evaluator's Max and Min distinguish them.
+        var key = BitConverter.DoubleToInt64Bits(value);
         if (constantRegisters.TryGetValue(key, out var existing))
         {
             return existing;
@@ -124,6 +133,31 @@ public sealed class SdfTapeBuilder
 
     /// <summary><c>Math.Floor(a)</c>.</summary>
     public int Floor(int a) => Emit(OpFloor, a);
+
+    /// <summary><c>Math.Exp(a)</c>.</summary>
+    internal int Exp(int a) => Emit(OpExp, a);
+
+    /// <summary><c>Math.Log(a)</c>.</summary>
+    internal int Log(int a) => Emit(OpLog, a);
+
+    /// <summary><c>(double)(float)a</c>: the one rounding a <c>float</c> operation performs.</summary>
+    internal int Float(int a) => Emit(OpFloat, a);
+
+    /// <summary><c>a &lt; b ? 1 : 0</c>, false when either is NaN.</summary>
+    internal int Less(int a, int b) => Emit(OpLess, a, b);
+
+    /// <summary><c>a &lt;= b ? 1 : 0</c>, false when either is NaN.</summary>
+    internal int LessOrEqual(int a, int b) => Emit(OpLessOrEqual, a, b);
+
+    /// <summary><c>a == b ? 1 : 0</c>, false when either is NaN.</summary>
+    internal int Equal(int a, int b) => Emit(OpEqual, a, b);
+
+    /// <summary><c>condition != 0 ? whenTrue : whenFalse</c>, as a pair and a select.</summary>
+    internal int Select(int condition, int whenTrue, int whenFalse)
+    {
+        var pair = Emit(OpPair, whenTrue, whenFalse);
+        return Emit(OpSelect, condition, pair);
+    }
 
     private int Emit(uint op, int a = 0, int b = 0)
     {
@@ -192,6 +226,7 @@ public static class SdfTapeRegistry
         Volatile.Write(ref fellBack, 0);
     }
 
+    /// <summary>Builds the registered tape form of <paramref name="implicitFunction"/>, if it has one.</summary>
     internal static bool TryBuild(IImplicit implicitFunction, out uint[] instructions, out double[] constants)
     {
         instructions = [];

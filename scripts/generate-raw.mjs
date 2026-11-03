@@ -91,6 +91,46 @@ export const BULK_FUNCTIONS = [
       { name: 'nConstantCount', type: 'int32_t', cwrap: 'number' },
     ],
   },
+  // The checked forms the browser host uses for a tape lifted from an author's IL, plus the point
+  // evaluator its load-time bit check reads: int32 status, 0 ok, 1 a nonfinite sample.
+  {
+    name: 'Voxels_RenderImplicitTapeChecked',
+    cwrapReturn: 'number',
+    args: [
+      { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+      { name: 'hThis', type: 'PKVOXELS', cwrap: 'bigint' },
+      { name: 'poBBox', type: 'PKBBox3*', cwrap: 'number' },
+      { name: 'pnInstructions', type: 'uint32_t*', cwrap: 'number' },
+      { name: 'nInstructionCount', type: 'int32_t', cwrap: 'number' },
+      { name: 'pfConstants', type: 'double*', cwrap: 'number' },
+      { name: 'nConstantCount', type: 'int32_t', cwrap: 'number' },
+    ],
+  },
+  {
+    name: 'Voxels_IntersectImplicitTapeChecked',
+    cwrapReturn: 'number',
+    args: [
+      { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+      { name: 'hThis', type: 'PKVOXELS', cwrap: 'bigint' },
+      { name: 'pnInstructions', type: 'uint32_t*', cwrap: 'number' },
+      { name: 'nInstructionCount', type: 'int32_t', cwrap: 'number' },
+      { name: 'pfConstants', type: 'double*', cwrap: 'number' },
+      { name: 'nConstantCount', type: 'int32_t', cwrap: 'number' },
+    ],
+  },
+  {
+    name: 'Tape_EvaluatePoints',
+    cwrapReturn: null,
+    args: [
+      { name: 'pnInstructions', type: 'uint32_t*', cwrap: 'number' },
+      { name: 'nInstructionCount', type: 'int32_t', cwrap: 'number' },
+      { name: 'pfConstants', type: 'double*', cwrap: 'number' },
+      { name: 'nConstantCount', type: 'int32_t', cwrap: 'number' },
+      { name: 'pfPoints', type: 'float*', cwrap: 'number' },
+      { name: 'nPoints', type: 'int32_t', cwrap: 'number' },
+      { name: 'pfValues', type: 'float*', cwrap: 'number' },
+    ],
+  },
   {
     name: 'Voxels_RenderImplicitTapeCompose',
     cwrapReturn: null,

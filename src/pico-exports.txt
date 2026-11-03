@@ -148,6 +148,9 @@ _Mesh_AddTriangles
 _Voxels_RenderImplicitTape
 _Voxels_RenderImplicitTapeCompose
 _Voxels_IntersectImplicitTape
+_Voxels_RenderImplicitTapeChecked
+_Voxels_IntersectImplicitTapeChecked
+_Tape_EvaluatePoints
 _Lattice_AddBeams
 _Lattice_AddSpheres
 _Library_nExceptionKind
