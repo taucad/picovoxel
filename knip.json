@@ -34,10 +34,10 @@
     // Recorded spike translations: evidence of what the ports produced, read by prose, not by code.
     "spikes/csharp-ts/out/*.ts"
   ],
-  // System tools the benchmark and spike scripts shell out to.
+  // System tools the benchmark, spike and .NET test scripts shell out to.
   // The browser app's own runtime loader, published beside it rather than resolved from here.
   "ignoreUnresolved": ["./_framework/dotnet.js"],
-  "ignoreBinaries": ["clang\\+\\+", "patch", "pmset", "python3", "rustc"],
+  "ignoreBinaries": ["clang", "clang\\+\\+", "patch", "pmset", "python3", "rustc"],
   // Nx loads @nx/js by name.
   "ignoreDependencies": ["@nx/js"]
 }
