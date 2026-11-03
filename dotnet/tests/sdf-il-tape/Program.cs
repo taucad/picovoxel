@@ -70,6 +70,7 @@ ExpectLifted("throwing field", new Throws(new InvalidOperationException("x"), 1f
 ExpectLifted("nonfinite distances", new NaNs(), -unit, unit, 16, expectNonfinite: true);
 ExpectLifted(".NET Min and Max", new Lift.MinMax(), -unit, unit, 16);
 ExpectLifted("branches and early returns", new Lift.Branches(), -unit, unit, 30);
+ExpectLifted("unsigned comparisons", new Lift.Unsigned(), -unit, unit, 16);
 ExpectLifted("Math.Clamp with min > max", new Lift.ClampTrap(), -unit, unit, 16, expectNonfinite: true);
 ExpectLifted("MathF.Sign of NaN", new Lift.SignTrap(), -unit, unit, 16, expectNonfinite: true);
 ExpectLifted("throw with an interpolated message", new Lift.ThrowsPastLimit(), -unit, unit, 16, expectNonfinite: true);

@@ -165,9 +165,12 @@ pure, and only after the generator declined to register it.
   callback, which throws exactly as it always did.
 - **Admission.** Before the tape is used, `Tape_EvaluatePoints` evaluates it at
   the bounds' corners and 256 fixed interior points, and every value must equal
-  the method's own bits. A defect in the lift therefore costs speed, never a
-  byte. Anything outside the model refuses the lift with a reason
-  (`SdfTapeRegistry.LastRefusal`), and the field keeps the callback path.
+  the method's own bits, so a lift defect that changes any of those values
+  costs speed, never a byte. The check proves equality at those points, not at
+  every voxel: the guarantee everywhere else is the model's own exactness.
+  Anything outside the model refuses the lift with a reason (the internal
+  `BrowserImplicit.LastRefusal`, which the parity fixture reads by reflection),
+  and the field keeps the callback path.
 
 `tests/sdf-il-tape` lifts a corpus — the ShapeKernel gyroid, a lambda field, the
 `Min`/`Max` and trap semantics, branches, loops over known arrays, user structs,

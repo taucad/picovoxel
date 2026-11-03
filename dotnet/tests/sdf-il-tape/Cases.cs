@@ -119,6 +119,20 @@ public sealed class Doubles : IImplicit
     }
 }
 
+// Unsigned integer comparisons of known values: the high bit is a large number, not a negative one.
+public sealed class Unsigned : IImplicit
+{
+    private readonly uint big = 0x80000000u, one = 1u;
+    private readonly ulong wide = 0x8000000000000000UL, small = 2UL;
+    public float fSignedDistance(in Vector3 p)
+    {
+        var greater = big > one; // cgt.un
+        var radius = big >= one ? 1f : 2f; // a .un branch
+        if (wide < small) radius += 4f; // another
+        return p.Length() - radius - (greater ? 0.25f : 0f);
+    }
+}
+
 // ---- Refused: each must stay on the callback, with a reason. ----
 
 // A loop whose trip count depends on the sample.

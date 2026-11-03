@@ -358,7 +358,11 @@ internal static class SdfIlTape
         }
 
         /// <summary>The IEEE comparisons: 0 lt, 1 le, 2 eq on (left, right); NaN compares false.</summary>
-        private V Compare(int relation, V left, V right)
+        /// <remarks>
+        /// <paramref name="unsigned"/> is the integer reading of the IL's <c>.un</c> forms. Floating operands
+        /// ignore it: their <c>.un</c> forms are the negated ordered comparison the callers already build.
+        /// </remarks>
+        private V Compare(int relation, V left, V right, bool unsigned = false)
         {
             if (left is Obj l && right is Obj r) return relation == 2 ? Num.Bool(ReferenceEquals(l.Value, r.Value)) : throw new Refusal("orders two references");
             var kind = KindOf(left);
@@ -370,8 +374,16 @@ internal static class SdfIlTape
             {
                 if (kind is Kind.R4 or Kind.R8)
                     return Num.Bool(relation switch { 0 => a.Real < b.Real, 1 => a.Real <= b.Real, _ => a.Real == b.Real });
+                if (unsigned)
+                {
+                    var ua = kind == Kind.I8 ? (ulong)a.Integer : (uint)a.Integer;
+                    var ub = kind == Kind.I8 ? (ulong)b.Integer : (uint)b.Integer;
+                    return Num.Bool(relation switch { 0 => ua < ub, 1 => ua <= ub, _ => ua == ub });
+                }
                 return Num.Bool(relation switch { 0 => a.Integer < b.Integer, 1 => a.Integer <= b.Integer, _ => a.Integer == b.Integer });
             }
+            // The tape compares doubles, which order integers as signed.
+            if (unsigned && kind is not (Kind.R4 or Kind.R8)) throw new Refusal("an unsigned comparison of a sample-dependent integer");
             var x = Register(left, kind);
             var y = Register(right, kind);
             return Emit(relation switch { 0 => Builder.Less(x, y), 1 => Builder.LessOrEqual(x, y), _ => Builder.Equal(x, y) }, Kind.Bool);
@@ -821,9 +833,9 @@ internal static class SdfIlTape
                             {
                                 0xFE01 => lift.Compare(2, left, right),                    // ceq
                                 0xFE02 => lift.Compare(0, right, left),                    // cgt
-                                0xFE03 => lift.Not(lift.Compare(1, left, right)),          // cgt.un: !(a <= b)
+                                0xFE03 => lift.Not(lift.Compare(1, left, right, unsigned: true)), // cgt.un: !(a <= b)
                                 0xFE04 => lift.Compare(0, left, right),                    // clt
-                                _ => lift.Not(lift.Compare(1, right, left)),               // clt.un: !(b <= a)
+                                _ => lift.Not(lift.Compare(1, right, left, unsigned: true)),      // clt.un: !(b <= a)
                             });
                             break;
                         }
@@ -953,10 +965,10 @@ internal static class SdfIlTape
                 3 => lift.Compare(1, left, right),
                 4 => lift.Compare(0, left, right),
                 5 => lift.Not(lift.Compare(2, left, right)),
-                6 => lift.Not(lift.Compare(0, left, right)),
-                7 => lift.Not(lift.Compare(1, left, right)),
-                8 => lift.Not(lift.Compare(0, right, left)),
-                _ => lift.Not(lift.Compare(1, right, left)),
+                6 => lift.Not(lift.Compare(0, left, right, unsigned: true)),
+                7 => lift.Not(lift.Compare(1, left, right, unsigned: true)),
+                8 => lift.Not(lift.Compare(0, right, left, unsigned: true)),
+                _ => lift.Not(lift.Compare(1, right, left, unsigned: true)),
             };
 
             private V ToFloat(V value) => value switch
@@ -1433,6 +1445,7 @@ internal static class BrowserImplicit
             Interlocked.Increment(ref lifted);
             return;
         }
+        SdfTapeRegistry.NoteFellBack();
         BrowserCallbacks.Render(lib, vox, in bounds, field);
     }
 
@@ -1450,6 +1463,7 @@ internal static class BrowserImplicit
             Interlocked.Increment(ref lifted);
             return;
         }
+        SdfTapeRegistry.NoteFellBack();
         BrowserCallbacks.Intersect(lib, vox, field);
     }
 

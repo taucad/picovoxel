@@ -233,7 +233,6 @@ public static class SdfTapeRegistry
         constants = [];
         if (!Registered.TryGetValue(implicitFunction.GetType(), out var build))
         {
-            Interlocked.Increment(ref fellBack);
             return false;
         }
         var builder = new SdfTapeBuilder();
@@ -242,7 +241,6 @@ public static class SdfTapeRegistry
         // returned an earlier register is not expressible; fall back rather than evaluate the wrong node.
         if (result != builder.Count - 1)
         {
-            Interlocked.Increment(ref fellBack);
             return false;
         }
         Interlocked.Increment(ref dispatched);
@@ -250,6 +248,9 @@ public static class SdfTapeRegistry
         constants = builder.Constants();
         return true;
     }
+
+    /// <summary>Counts one operation that runs as a per-voxel callback; its caller is the dispatch that chose it.</summary>
+    internal static void NoteFellBack() => Interlocked.Increment(ref fellBack);
 
     internal static bool TryIntersect(LibHandle lib, VoxHandle vox, IImplicit implicitFunction)
     {
