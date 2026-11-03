@@ -51,3 +51,34 @@ run([
   `-p:BaseIntermediateOutputPath=${join(output, 'parallel-obj')}/`,
 ]);
 run([join(output, 'parallel/SdfParallelTests.dll')]);
+// The IL lift: every corpus field reaches its expected outcome, and each lifted tape equals the
+// author's own method over a dense grid, bit for bit. The browser's float trigonometry is the
+// double function rounded once (dotnet/float-trig.c), so the harness is run with that preloaded
+// where the platform allows it; without it, float sin/cos samples could differ from the host's
+// and the harness says so rather than comparing the wrong thing.
+run([
+  'build',
+  join(here, 'tests/sdf-il-tape/SdfIlTapeTests.csproj'),
+  '-c',
+  'Release',
+  '-o',
+  join(output, 'il-tape'),
+  `-p:BaseIntermediateOutputPath=${join(output, 'il-tape-obj')}/`,
+]);
+const trig = join(output, process.platform === 'darwin' ? 'float-trig.dylib' : 'float-trig.so');
+execFileSync(
+  'clang',
+  ['-O2', '-shared', '-fPIC', '-fno-builtin', join(here, 'float-trig.c'), '-o', trig, '-lm'],
+  {
+    cwd: here,
+    stdio: 'inherit',
+  },
+);
+execFileSync(dotnet, [join(output, 'il-tape/SdfIlTapeTests.dll')], {
+  cwd: here,
+  stdio: 'inherit',
+  env: {
+    ...process.env,
+    ...(process.platform === 'darwin' ? { DYLD_INSERT_LIBRARIES: trig } : { LD_PRELOAD: trig }),
+  },
+});

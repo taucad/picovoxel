@@ -71,7 +71,7 @@ for (const path of patches) {
   applied.push({ name: path.split('/').at(-1), sha256: digest(readFileSync(path)) });
 }
 // Beside the library's own interop sources, which is where the qualified reconstruction holds them.
-for (const name of ['BrowserCallbacks.cs', 'SdfTape.cs', 'SdfParallel.cs']) {
+for (const name of ['BrowserCallbacks.cs', 'SdfTape.cs', 'SdfParallel.cs', 'SdfIlTape.cs']) {
   copyFileSync(join(here, 'managed', name), join(staged, 'Library', name));
 }
 copyFileSync(join(here, 'PicoGK.csproj'), join(out, 'PicoGK.csproj'));

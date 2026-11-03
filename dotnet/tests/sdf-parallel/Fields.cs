@@ -10,6 +10,7 @@ namespace PicoGK
     {
         public readonly Vector3 vecMin = new(minX, minY, minZ);
         public readonly Vector3 vecMax = new(maxX, maxY, maxZ);
+        public BBox3(Vector3 min, Vector3 max) : this(min.X, min.Y, min.Z, max.X, max.Y, max.Z) { }
     }
 }
 

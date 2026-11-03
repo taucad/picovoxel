@@ -75,6 +75,7 @@
 #include <wasm_simd128.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <iterator>
 #include <unordered_map>
@@ -109,7 +110,15 @@ enum : uint32_t
     TAPE_POW   = 17,
     TAPE_EXP   = 18,
     TAPE_LOG   = 19,
-    TAPE_LAST_ = TAPE_LOG,
+    // IL-lifted C# (the .NET browser host's SdfIlTape): float steps, comparisons and selects. The npm
+    // expression compiler never emits these, so its tapes, and their bytes, are unchanged.
+    TAPE_F32    = 20, // reg[i] = (double)(float)reg[a]: one float rounding, exact for a double-computed +-*/ sqrt
+    TAPE_LT     = 21, // reg[i] = reg[a] <  reg[b] ? 1 : 0 (IEEE: false on NaN)
+    TAPE_LE     = 22, // reg[i] = reg[a] <= reg[b] ? 1 : 0
+    TAPE_EQ     = 23, // reg[i] = reg[a] == reg[b] ? 1 : 0
+    TAPE_SELECT = 24, // reg[i] = reg[a] != 0 ? reg[pair.a] : reg[pair.b], where b is a TAPE_PAIR
+    TAPE_PAIR   = 25, // operand holder for TAPE_SELECT; its own register is 0 and is never read
+    TAPE_LAST_  = TAPE_PAIR,
 };
 
 inline bool bHasOperandA(uint32_t nOp) { return nOp >= TAPE_ADD; }
@@ -119,6 +128,7 @@ inline bool bHasOperandB(uint32_t nOp)
     {
         case TAPE_ADD: case TAPE_SUB: case TAPE_MUL: case TAPE_DIV:
         case TAPE_MOD: case TAPE_MIN: case TAPE_MAX: case TAPE_POW:
+        case TAPE_LT: case TAPE_LE: case TAPE_EQ: case TAPE_SELECT: case TAPE_PAIR:
             return true;
         default:
             return false;
@@ -148,6 +158,8 @@ void ValidateTape(  const uint32_t* pnInstructions,
             throw std::invalid_argument("tape: operand a is not an earlier instruction");
         if (bHasOperandB(nOp) && (int32_t) nB >= i)
             throw std::invalid_argument("tape: operand b is not an earlier instruction");
+        if (nOp == TAPE_SELECT && pnInstructions[2 * nB] != TAPE_PAIR)
+            throw std::invalid_argument("tape: select operand b is not a pair");
     }
 }
 
@@ -194,7 +206,16 @@ inline double dEvalOne( const uint32_t* pnInstructions,
         case TAPE_MAX:   return std::max(pfReg[nA], pfReg[nB]);
         case TAPE_POW:   return dPow(pfReg[nA], pfReg[nB]);
         case TAPE_EXP:   return std::exp(pfReg[nA]);
-        default:         return std::log(pfReg[nA]); // TAPE_LOG — ValidateTape rejects everything else
+        case TAPE_LOG:   return std::log(pfReg[nA]);
+        case TAPE_F32:   return (double)(float) pfReg[nA];
+        case TAPE_LT:    return pfReg[nA] <  pfReg[nB] ? 1.0 : 0.0;
+        case TAPE_LE:    return pfReg[nA] <= pfReg[nB] ? 1.0 : 0.0;
+        case TAPE_EQ:    return pfReg[nA] == pfReg[nB] ? 1.0 : 0.0;
+        // One return and no block: a brace after a return is a line llvm-cov never sees run.
+        case TAPE_SELECT:
+            return pfReg[nA] != 0.0 ? pfReg[pnInstructions[2 * nB + 1] & 0xFFFFu]
+                                    : pfReg[pnInstructions[2 * nB + 1] >> 16];
+        default:         return 0.0; // TAPE_PAIR — ValidateTape rejects everything else
     }
 }
 
@@ -300,7 +321,20 @@ void EvalTapeIndicesV(  const uint32_t* pnInstructions,
                                             dPow(wasm_f64x2_extract_lane(vA, 1), wasm_f64x2_extract_lane(vB, 1)));
             } break;
             case TAPE_EXP:   vResult = LIBM1(LANE(nA), std::exp);                   break;
-            default:         vResult = LIBM1(LANE(nA), std::log);                   break; // TAPE_LOG
+            case TAPE_LOG:   vResult = LIBM1(LANE(nA), std::log);                   break;
+            // f64 -> f32 -> f64 per lane: the same two IEEE conversions as the scalar cast.
+            case TAPE_F32:   vResult = wasm_f64x2_promote_low_f32x4(wasm_f32x4_demote_f64x2_zero(LANE(nA))); break;
+            case TAPE_LT:    vResult = wasm_v128_and(wasm_f64x2_lt(LANE(nA), LANE(nB)), wasm_f64x2_splat(1.0)); break;
+            case TAPE_LE:    vResult = wasm_v128_and(wasm_f64x2_le(LANE(nA), LANE(nB)), wasm_f64x2_splat(1.0)); break;
+            case TAPE_EQ:    vResult = wasm_v128_and(wasm_f64x2_eq(LANE(nA), LANE(nB)), wasm_f64x2_splat(1.0)); break;
+            case TAPE_SELECT:
+            {
+                const uint32_t nPair = pnInstructions[2 * nB + 1];
+                // != 0 is true for NaN, as in the scalar path.
+                const v128_t vTrue = wasm_f64x2_ne(LANE(nA), wasm_f64x2_splat(0.0));
+                vResult = wasm_v128_bitselect(LANE(nPair & 0xFFFFu), LANE(nPair >> 16), vTrue);
+            } break;
+            default:         vResult = wasm_f64x2_splat(0.0);                       break; // TAPE_PAIR
         }
         pvReg[i] = vResult;
     }
@@ -541,9 +575,50 @@ inline Interval ivMod(const Interval& a, const Interval& b)
     return ivSub(a, ivMul(b, ivFloor(ivDiv(a, b))));
 }
 
+/// Float rounding of a double interval: monotone, so the rounded endpoints
+/// bound every rounded sample. A finite double past FLT_MAX rounds to ±inf.
+inline Interval ivF32(const Interval& a)
+{
+    if (a.bNaN) return IV_WHOLE;
+    return ivMake((double)(float) a.fLo, (double)(float) a.fHi); // exact: rounding is monotone
+}
+
+/// A comparison is 0 or 1 at every sample, NaN never; decided when the
+/// operand intervals cannot overlap in the relevant direction.
+inline Interval ivCompare(const Interval& a, const Interval& b, uint32_t nOp)
+{
+    if (a.bNaN || b.bNaN) return { 0.0, 1.0, false };
+    switch (nOp)
+    {
+        case TAPE_LT:
+            if (a.fHi < b.fLo)  return { 1.0, 1.0, false };
+            if (a.fLo >= b.fHi) return { 0.0, 0.0, false };
+            break;
+        case TAPE_LE:
+            if (a.fHi <= b.fLo) return { 1.0, 1.0, false };
+            if (a.fLo > b.fHi)  return { 0.0, 0.0, false };
+            break;
+        default: // TAPE_EQ
+            if (a.fHi < b.fLo || b.fHi < a.fLo) return { 0.0, 0.0, false };
+            break;
+    }
+    return { 0.0, 1.0, false };
+}
+
+/// The operand a select takes at every sample of the block, when the
+/// condition decides it; otherwise their union.
+inline Interval ivSelect(const Interval& c, const Interval& a, const Interval& b)
+{
+    if (!c.bNaN && (c.fLo > 0.0 || c.fHi < 0.0)) return a; // never 0: always a
+    if (!c.bNaN && c.fLo == 0.0 && c.fHi == 0.0) return b;  // always 0 (both zeros): always b
+    if (a.bNaN || b.bNaN) return IV_WHOLE;
+    return { std::min(a.fLo, b.fLo), std::max(a.fHi, b.fHi), false };
+}
+
 /// Interval-evaluates the tape over a block of sample positions, recording a
 /// branch decision per instruction (0 = undecided, 1 = always operand a,
-/// 2 = always operand b — meaningful only for MIN/MAX). Decisions use strict
+/// 2 = always operand b — meaningful only for MIN/MAX; for SELECT, the pair's
+/// operand a or b). Decisions use strict
 /// inequalities on conservative bounds: a.fHi < b.fLo means a < b pointwise
 /// across the block, so std::min/max returns operand a's exact double (bit
 /// pattern included) at every sample — ties are left undecided so the sign of
@@ -608,11 +683,32 @@ Interval oEvalTapeInterval( const uint32_t* pnInstructions,
             } break;
             case TAPE_POW:   oResult = ivPow(poReg[nA], poReg[nB]);                 break;
             case TAPE_EXP:   oResult = ivExp(poReg[nA]);                            break;
-            default:         oResult = ivLog(poReg[nA]);                            break; // TAPE_LOG
+            case TAPE_LOG:   oResult = ivLog(poReg[nA]);                            break;
+            case TAPE_F32:   oResult = ivF32(poReg[nA]);                            break;
+            case TAPE_LT: case TAPE_LE: case TAPE_EQ:
+                             oResult = ivCompare(poReg[nA], poReg[nB], nOp);         break;
+            case TAPE_SELECT:
+            {
+                const uint32_t nPair = pnInstructions[2 * nB + 1];
+                const Interval& c = poReg[nA];
+                oResult = ivSelect(c, poReg[nPair & 0xFFFFu], poReg[nPair >> 16]);
+                // A condition interval excludes NaN (comparisons never produce it), so a decided
+                // condition picks the same operand register at every sample of the block.
+                if (!c.bNaN && (c.fLo > 0.0 || c.fHi < 0.0))     pnChoice[i] = 1;
+                else if (!c.bNaN && c.fLo == 0.0 && c.fHi == 0.0) pnChoice[i] = 2;
+            } break;
+            default:         oResult = { 0.0, 0.0, false };                         break; // TAPE_PAIR
         }
         poReg[i] = oResult;
     }
     return poReg[nInstructionCount - 1];
+}
+
+/// The register a decided select reads: its pair's a (choice 1) or b (choice 2).
+inline uint32_t nSelectedOperand(const uint32_t* pnInstructions, uint32_t nPair, uint8_t nChoice)
+{
+    const uint32_t nAB = pnInstructions[2 * nPair + 1];
+    return nChoice == 1 ? (nAB & 0xFFFFu) : (nAB >> 16);
 }
 
 /// MPR-style tape shortening: given the branch decisions of an interval sweep
@@ -644,6 +740,10 @@ int32_t nShortenTape(   const uint32_t* pnInstructions,
         {
             pbLive[pnChoice[i] == 1 ? nA : nB] = 1;
         }
+        else if (nOp == TAPE_SELECT && pnChoice[i] != 0)
+        {
+            pbLive[nSelectedOperand(pnInstructions, nB, pnChoice[i])] = 1;
+        }
         else
         {
             if (bHasOperandA(nOp)) pbLive[nA] = 1;
@@ -665,6 +765,11 @@ int32_t nShortenTape(   const uint32_t* pnInstructions,
         if ((nOp == TAPE_MIN || nOp == TAPE_MAX) && pnChoice[i] != 0)
         {
             pnRemap[i] = pnRemap[pnChoice[i] == 1 ? nA : nB];
+            continue;
+        }
+        if (nOp == TAPE_SELECT && pnChoice[i] != 0)
+        {
+            pnRemap[i] = pnRemap[nSelectedOperand(pnInstructions, nB, pnChoice[i])];
             continue;
         }
         if (bHasOperandA(nOp)) nA = (uint32_t) pnRemap[nA];
@@ -898,6 +1003,7 @@ void SweepColumn(   TapeScratch&                  s,
                     int32_t                       nZ1,
                     openvdb::FloatGrid::Accessor& oAccess,
                     std::vector<openvdb::Coord>&  vecInterior,
+                    bool                          bFiniteOnly,
                     SlabFilterFn&&                bSlab,
                     WriteVoxelFn&&                WriteVoxel)
 {
@@ -912,6 +1018,14 @@ void SweepColumn(   TapeScratch&                  s,
     // evaluates.
     const Interval oColX = ivMake((double) oVoxelSize.fToMM(oCol.nColX0), (double) oVoxelSize.fToMM(oCol.nColX1));
     const Interval oColY = ivMake((double) oVoxelSize.fToMM(oCol.nColY0), (double) oVoxelSize.fToMM(oCol.nColY1));
+
+    // A checked render must see every nonfinite sample, so it prunes a block only
+    // when every sample in it rounds to a finite float; the dense loop reports
+    // the rest. An unchecked render prunes on any NaN-free bound, as before.
+    const auto bPrunable = [bFiniteOnly](const Interval& iv)
+    {
+        return !iv.bNaN && (!bFiniteOnly || (std::isfinite((float) iv.fLo) && std::isfinite((float) iv.fHi)));
+    };
 
     const auto InteriorFill = [&](int32_t nCZ, int32_t nSlabZ0, int32_t nSlabZ1)
     {
@@ -936,10 +1050,10 @@ void SweepColumn(   TapeScratch&                  s,
                                                 oColX, oColY, oColZ,
                                                 s.vecIv.data(), s.vecChoice.data());
 
-    if (!oColIv.bNaN && oColIv.fLo >= fBg)
+    if (bPrunable(oColIv) && oColIv.fLo >= fBg)
         return; // entire column outside the band: background either way
 
-    if (!oColIv.bNaN && oColIv.fHi <= -fBg)
+    if (bPrunable(oColIv) && oColIv.fHi <= -fBg)
     {
         for (int32_t nCZ = nCZ0; nCZ <= nCZ1; nCZ++)
             if (bSlab(nCZ))
@@ -962,10 +1076,10 @@ void SweepColumn(   TapeScratch&                  s,
                                                     oColX, oColY, oSlabZ,
                                                     s.vecIv.data(), s.vecChoice.data());
 
-        if (!oSlab.bNaN && oSlab.fLo >= fBg)
+        if (bPrunable(oSlab) && oSlab.fLo >= fBg)
             continue;
 
-        if (!oSlab.bNaN && oSlab.fHi <= -fBg)
+        if (bPrunable(oSlab) && oSlab.fHi <= -fBg)
         {
             InteriorFill(nCZ, nSlabZ0, nSlabZ1);
             continue;
@@ -1125,7 +1239,8 @@ void ParallelTapeFillGrid(  const openvdb::FloatGrid::Ptr& roGrid,
                             const uint32_t*                pnInstructions,
                             int32_t                        nInstructionCount,
                             const double*                  pfConstants,
-                            const SupportFootprint*        poSupport = nullptr)
+                            const SupportFootprint*        poSupport = nullptr,
+                            std::atomic<bool>*             pbNonFinite = nullptr)
 {
     const TapeBox oBox = oTapeBox(fBackground, oVoxelSize, oBBox);
 
@@ -1152,6 +1267,13 @@ void ParallelTapeFillGrid(  const openvdb::FloatGrid::Ptr& roGrid,
             // is a no-op upstream and is deliberately not replicated.
             const auto WriteVoxel = [&](int32_t x, int32_t y, int32_t z, float fSdf)
             {
+                // Checked: the callback path stops at a nonfinite distance, so the
+                // render is abandoned and the caller re-runs it on the callback.
+                if (pbNonFinite != nullptr && !std::isfinite(fSdf))
+                {
+                    pbNonFinite->store(true, std::memory_order_relaxed);
+                    return;
+                }
                 const float fValue = std::min(fSdf, fBackground);
                 const openvdb::Coord xyz(x, y, z);
                 oAccess.setValue(xyz, std::clamp(fValue, -fBackground, fBackground));
@@ -1162,17 +1284,23 @@ void ParallelTapeFillGrid(  const openvdb::FloatGrid::Ptr& roGrid,
             for (int32_t nCX = oRange.rows().begin(); nCX != oRange.rows().end(); nCX++)
             for (int32_t nCY = oRange.cols().begin(); nCY != oRange.cols().end(); nCY++)
             {
+                if (pbNonFinite != nullptr && pbNonFinite->load(std::memory_order_relaxed))
+                    return; // abandoned: nothing this task writes is kept
                 const SupportFootprint::Ranges* poRanges =
                     poSupport == nullptr ? nullptr : poSupport->poColumn(nCX, nCY);
                 if (poSupport != nullptr && poRanges == nullptr)
                     continue; // outside the mask's support — background either way
                 SweepColumn(s, pnInstructions, nInstructionCount, pfConstants, oVoxelSize, fBackground,
                             oTapeColumn(oBox, nCX, nCY), oBox.nZ0, oBox.nZ1, oAccess, vecInterior,
+                            pbNonFinite != nullptr,
                             [poRanges](int32_t nCZ)
                             { return poRanges == nullptr || SupportFootprint::bContains(*poRanges, nCZ); },
                             WriteVoxel);
             }
         });
+
+    if (pbNonFinite != nullptr && pbNonFinite->load())
+        return; // the target stays exactly as it was
 
     for (openvdb::FloatGrid::Ptr& roLocal : oLocalGrids)
         roGrid->tree().merge(roLocal->tree(), openvdb::MERGE_ACTIVE_STATES);
@@ -1242,7 +1370,7 @@ void ParallelTapeComposeGrid(   const openvdb::FloatGrid::Ptr& roGrid,
             for (int32_t nCY = oRange.cols().begin(); nCY != oRange.cols().end(); nCY++)
                 SweepColumn(s, pnInstructions, nInstructionCount, pfConstants, oVoxelSize, fBackground,
                             oTapeColumn(oBox, nCX, nCY), oBox.nZ0, oBox.nZ1, oAccess, vecInterior,
-                            [](int32_t) { return true; }, WriteVoxel);
+                            /*bFiniteOnly=*/false, [](int32_t) { return true; }, WriteVoxel);
         });
 
     // Serial application. A thread-local voxel is one of exactly three states:
@@ -1285,15 +1413,18 @@ void ParallelTapeComposeGrid(   const openvdb::FloatGrid::Ptr& roGrid,
 
 } // namespace
 
-/// Renders a tape-compiled implicit into a freshly created (empty) voxel field
-/// over the given bounds — the parallel counterpart of Voxels_RenderImplicit.
-PICOGK_API void Voxels_RenderImplicitTape(  PKINSTANCE      hLib,
-                                            PKVOXELS        hThis,
-                                            const PKBBox3*  poBBox,
-                                            const uint32_t* pnInstructions,
-                                            int32_t         nInstructionCount,
-                                            const double*   pfConstants,
-                                            int32_t         nConstantCount)
+namespace
+{
+
+/// The fresh-grid render both entries share; pbNonFinite selects the checked form.
+void RenderTapeIntoEmpty(   PKINSTANCE          hLib,
+                            PKVOXELS            hThis,
+                            const PKBBox3*      poBBox,
+                            const uint32_t*     pnInstructions,
+                            int32_t             nInstructionCount,
+                            const double*       pfConstants,
+                            int32_t             nConstantCount,
+                            std::atomic<bool>*  pbNonFinite)
 {
     if (poBBox == nullptr)
         throw std::invalid_argument("tape: null bounding box");
@@ -1308,7 +1439,82 @@ PICOGK_API void Voxels_RenderImplicitTape(  PKINSTANCE      hLib,
         throw std::invalid_argument("tape: target voxel field must be empty");
 
     ParallelTapeFillGrid(   roGrid, roVoxels->fBackgroundMM(), roVoxels->oVoxelSize(),
-                            *poBBox, pnInstructions, nInstructionCount, pfConstants);
+                            *poBBox, pnInstructions, nInstructionCount, pfConstants,
+                            /*poSupport=*/nullptr, pbNonFinite);
+}
+
+/// The upstream-compatible intersect both entries share; pbNonFinite selects the
+/// checked form, which leaves the target untouched when a sample is nonfinite.
+void IntersectTape( PKINSTANCE          hLib,
+                    PKVOXELS            hThis,
+                    const uint32_t*     pnInstructions,
+                    int32_t             nInstructionCount,
+                    const double*       pfConstants,
+                    int32_t             nConstantCount,
+                    std::atomic<bool>*  pbNonFinite);
+
+} // namespace
+
+/// Renders a tape-compiled implicit into a freshly created (empty) voxel field
+/// over the given bounds — the parallel counterpart of Voxels_RenderImplicit.
+PICOGK_API void Voxels_RenderImplicitTape(  PKINSTANCE      hLib,
+                                            PKVOXELS        hThis,
+                                            const PKBBox3*  poBBox,
+                                            const uint32_t* pnInstructions,
+                                            int32_t         nInstructionCount,
+                                            const double*   pfConstants,
+                                            int32_t         nConstantCount)
+{
+    RenderTapeIntoEmpty(hLib, hThis, poBBox, pnInstructions, nInstructionCount, pfConstants, nConstantCount,
+                        /*pbNonFinite=*/nullptr);
+}
+
+/// The checked counterpart of Voxels_RenderImplicitTape for tapes lifted from a
+/// C# method, whose callback path stops at the first nonfinite distance (Tau's
+/// adapter throws there, and a lifted `throw` is encoded as a NaN result).
+/// Returns 0 when the field rendered, or 1 when any sample was nonfinite, in
+/// which case the target is left empty and the caller re-renders on the
+/// callback to reproduce the exact failure. Malformed input throws, as above.
+PICOGK_API int32_t Voxels_RenderImplicitTapeChecked(PKINSTANCE      hLib,
+                                                    PKVOXELS        hThis,
+                                                    const PKBBox3*  poBBox,
+                                                    const uint32_t* pnInstructions,
+                                                    int32_t         nInstructionCount,
+                                                    const double*   pfConstants,
+                                                    int32_t         nConstantCount)
+{
+    std::atomic<bool> bNonFinite{false};
+    RenderTapeIntoEmpty(hLib, hThis, poBBox, pnInstructions, nInstructionCount, pfConstants, nConstantCount,
+                        &bNonFinite);
+    return bNonFinite.load() ? 1 : 0;
+}
+
+/// Evaluates a tape at nPoints float positions (x, y, z triples) exactly as the
+/// fill does (each coordinate widened to double, the result rounded to float
+/// once), so a caller can compare a lifted tape with the method it came from
+/// before rendering with it.
+PICOGK_API void Tape_EvaluatePoints(const uint32_t* pnInstructions,
+                                    int32_t         nInstructionCount,
+                                    const double*   pfConstants,
+                                    int32_t         nConstantCount,
+                                    const float*    pfPoints,
+                                    int32_t         nPoints,
+                                    float*          pfValues)
+{
+    ValidateTape(pnInstructions, nInstructionCount, nConstantCount);
+    if (nPoints < 0 || (nPoints > 0 && (pfPoints == nullptr || pfValues == nullptr)))
+        throw std::invalid_argument("tape: invalid point buffers");
+
+    std::vector<double> vecReg((size_t) nInstructionCount);
+    for (int32_t n = 0; n < nPoints; n++)
+    {
+        const double fX = (double) pfPoints[3 * n];
+        const double fY = (double) pfPoints[3 * n + 1];
+        const double fZ = (double) pfPoints[3 * n + 2];
+        for (int32_t i = 0; i < nInstructionCount; i++)
+            vecReg[(size_t) i] = dEvalOne(pnInstructions, i, pfConstants, fX, fY, fZ, vecReg.data());
+        pfValues[n] = (float) vecReg[(size_t) nInstructionCount - 1];
+    }
 }
 
 /// R9 — tape counterpart of Voxels_RenderImplicit into an EXISTING grid
@@ -1349,6 +1555,36 @@ PICOGK_API void Voxels_IntersectImplicitTape(   PKINSTANCE      hLib,
                                                 int32_t         nInstructionCount,
                                                 const double*   pfConstants,
                                                 int32_t         nConstantCount)
+{
+    IntersectTape(hLib, hThis, pnInstructions, nInstructionCount, pfConstants, nConstantCount,
+                  /*pbNonFinite=*/nullptr);
+}
+
+/// The checked counterpart of Voxels_IntersectImplicitTape (see
+/// Voxels_RenderImplicitTapeChecked): 0 when the intersection was applied, 1
+/// when a sample was nonfinite and the target was left as it was.
+PICOGK_API int32_t Voxels_IntersectImplicitTapeChecked( PKINSTANCE      hLib,
+                                                        PKVOXELS        hThis,
+                                                        const uint32_t* pnInstructions,
+                                                        int32_t         nInstructionCount,
+                                                        const double*   pfConstants,
+                                                        int32_t         nConstantCount)
+{
+    std::atomic<bool> bNonFinite{false};
+    IntersectTape(hLib, hThis, pnInstructions, nInstructionCount, pfConstants, nConstantCount, &bNonFinite);
+    return bNonFinite.load() ? 1 : 0;
+}
+
+namespace
+{
+
+void IntersectTape( PKINSTANCE          hLib,
+                    PKVOXELS            hThis,
+                    const uint32_t*     pnInstructions,
+                    int32_t             nInstructionCount,
+                    const double*       pfConstants,
+                    int32_t             nConstantCount,
+                    std::atomic<bool>*  pbNonFinite)
 {
     ValidateTape(pnInstructions, nInstructionCount, nConstantCount);
 
@@ -1391,7 +1627,10 @@ PICOGK_API void Voxels_IntersectImplicitTape(   PKINSTANCE      hLib,
     roImplicit->setTransform(openvdb::math::Transform::createLinearTransform(oVoxelSize));
 
     ParallelTapeFillGrid(   roImplicit, fFreshBackground, oVoxelSize,
-                            oBBoxMM, pnInstructions, nInstructionCount, pfConstants);
+                            oBBoxMM, pnInstructions, nInstructionCount, pfConstants,
+                            /*poSupport=*/nullptr, pbNonFinite);
+    if (pbNonFinite != nullptr && pbNonFinite->load())
+        return;
 
     // Upstream: swap grids, then BoolIntersect → csgIntersection(implicit,
     // original). Same operand order here; the implicit tree survives and is
@@ -1399,6 +1638,8 @@ PICOGK_API void Voxels_IntersectImplicitTape(   PKINSTANCE      hLib,
     openvdb::tools::csgIntersection(*roImplicit, *roGrid);
     roGrid->setTree(roImplicit->baseTreePtr());
 }
+
+} // namespace
 
 /// SKv2-0 V0.10 — U1-corrected, GP-1 support-restricted IntersectImplicit
 /// (tape path). Two changes vs Voxels_IntersectImplicitTape, which stays as

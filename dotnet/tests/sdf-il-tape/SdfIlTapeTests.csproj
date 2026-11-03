@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <TargetFramework>net11.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- The browser boundary's own source, compiled as the browser build compiles it. -->
+    <DefineConstants>$(DefineConstants);PICOGK_BROWSER</DefineConstants>
+    <!-- Release, as the host builds it: the lift reads the IL the compiler actually emits. -->
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../managed/SdfParallel.cs" Link="SdfParallel.cs" />
+    <Compile Include="../../managed/SdfIlTape.cs" Link="SdfIlTape.cs" />
+    <Compile Include="../../managed/SdfTape.cs" Link="SdfTape.cs" />
+    <Compile Include="../../managed/BrowserCallbacks.cs" Link="BrowserCallbacks.cs" />
+    <Compile Include="../sdf-parallel/Fields.cs" Link="Fields.cs" />
+    <Compile Include="../sdf-parallel/Planter.cs" Link="Planter.cs" />
+    <Compile Include="Stubs.cs" />
+    <Compile Include="Cases.cs" />
+    <Compile Include="TapeEvaluator.cs" />
+    <Compile Include="Program.cs" />
+  </ItemGroup>
+</Project>

@@ -46,7 +46,14 @@ export const CEILINGS = {
   // 40266384206: 6,283,811 raw, 1,321,607 gzip, 563,493 brotli. Option A
   // admits only brotli +0.5%; the raw and gzip ceilings stay unchanged.
   // https://github.com/taucad/picovoxel/actions/runs/40266384206
-  serial: { raw: 6_287_297, gzip: 1_321_909, brotli: 566_311 },
+  // Then CI run 41673216642: 6,281,314 raw, 1,323,354 gzip, 564,209 brotli.
+  // Cause: the IL-lift tape opcodes (F32, LT, LE, EQ, SELECT, PAIR) in
+  // src/pico-tape.cpp, in its scalar, SIMD, interval and shortening layers,
+  // plus the checked render/intersect entries and Tape_EvaluatePoints. Raw and
+  // brotli stay under their ceilings; gzip is admitted at that measurement
+  // plus 0.5% (rounded up). Multi stays under all three in the same run.
+  // https://github.com/taucad/picovoxel/actions/runs/41673216642
+  serial: { raw: 6_287_297, gzip: 1_329_971, brotli: 566_311 },
   // emcc 5.0.1, the same local build: 6,335,092 raw (+198,128); gzip-9 1,355,263
   // and brotli-11 589,958, plus 0.5% for the compressed ceilings. Then 6,345,219
   // raw (+10,127, same cause as serial); gzip-9 1,357,291 and brotli-11 591,620,

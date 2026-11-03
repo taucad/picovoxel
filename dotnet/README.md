@@ -138,6 +138,46 @@ The serial build and impure fields keep the plain callback.
 `tests/sdf-parallel` checks both halves against the serial loop's own values,
 and the parity fixture reports how many samples a column served.
 
+### Lifting a callback to a tape from its IL
+
+`managed/SdfIlTape.cs` is the faster path for the same fields: instead of
+evaluating the method per voxel, it executes the method's IL symbolically on the
+live instance and emits a tape, which the native evaluator then fills on every
+thread with interval pruning. It is tried only for a field `SdfPurity` proved
+pure, and only after the generator declined to register it.
+
+- **Known and sample-dependent values.** A constant, a field of the live
+  instance, a static the program set and an array element are read now and folded
+  with the runtime's own arithmetic. Everything derived from the sample becomes a
+  tape register, where a `float` step is the double step rounded once (`F32`), a
+  comparison is an IEEE comparison (`LT`, `LE`, `EQ`), and a library call is
+  replaced only by a leaf whose tape form is bit-exact — `Math.Max`'s NaN and
+  signed-zero rules are built from comparisons and selects, not from the
+  evaluator's `std::max`.
+- **Control flow becomes data flow.** Each branch on the sample splits the
+  state; paths that rejoin merge with a `SELECT` on their conditions. A loop is
+  unrolled when its trip count follows from known values.
+- **Failure.** A path that reaches `throw`, and a leaf that would throw
+  (`Math.Clamp` with `min > max`, `MathF.Sign` of NaN), contributes to a trap
+  condition; the root is NaN wherever it holds. The checked entries
+  (`Voxels_RenderImplicitTapeChecked`, `Voxels_IntersectImplicitTapeChecked`)
+  then leave the target untouched and report it, and the field re-renders on the
+  callback, which throws exactly as it always did.
+- **Admission.** Before the tape is used, `Tape_EvaluatePoints` evaluates it at
+  the bounds' corners and 256 fixed interior points, and every value must equal
+  the method's own bits, so a lift defect that changes any of those values
+  costs speed, never a byte. The check proves equality at those points, not at
+  every voxel: the guarantee everywhere else is the model's own exactness.
+  Anything outside the model refuses the lift with a reason (the internal
+  `BrowserImplicit.LastRefusal`, which the parity fixture reads by reflection),
+  and the field keeps the callback path.
+
+`tests/sdf-il-tape` lifts a corpus — the ShapeKernel gyroid, a lambda field, the
+`Min`/`Max` and trap semantics, branches, loops over known arrays, user structs,
+double arithmetic and the Twisted Gyroid Planter's own source — and compares each
+tape with its author method over a dense grid. `test/tape-lift-ops.test.ts`
+checks the new native operations against the dense callback fill.
+
 ## Geometry parity
 
 `tests/parity/GeometryParityFixture.cs` runs the pinned original gyroid and HeatX
@@ -273,6 +313,7 @@ Tau's `picogk-browser-archive.yml`, which calls it:
 | Input and admission rules hold                                      | `archive`, through the `dotnet/tests` suite                    |
 | The tape lifts the author's arithmetic exactly                      | `archive`, through `test-generator.mjs`                        |
 | Parallel callbacks are pure and serve the serial loop's values      | `archive`, through `test-generator.mjs`                        |
+| A tape lifted from IL equals the method it came from                | `archive`, through `test-generator.mjs`                        |
 | The adapted compiler is the pinned one                              | `archive`, through `test-roslyn.mjs` and `build-compiler.mjs`  |
 | The package restores from a local feed only and builds both targets | `archive`, through `build-package.mjs` and `test-package.mjs`  |
 | Emscripten equals the workload pin (I3)                             | `parity-gate`, from each engine archive's own metadata sidecar |

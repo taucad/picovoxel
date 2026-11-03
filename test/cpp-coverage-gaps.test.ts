@@ -181,7 +181,7 @@ function withTape(
 }
 
 // Opcodes and the instruction word, as src/tape.ts encodes them: [op, a | (b << 16)].
-const OP = { const: 0, x: 1, neg: 8, sub: 5, log: 19 } as const;
+const OP = { const: 0, x: 1, neg: 8, sub: 5, log: 19, select: 24, pair: 25 } as const;
 const word = (op: number, a = 0, b = 0) => [op, a | (b << 16)];
 
 /** Renders a raw tape into a fresh empty field; returns the field and what the call threw. */
@@ -228,9 +228,24 @@ test('tape validation rejects each malformed class exactly at its boundary, befo
   assertRejected(renderRawTape(halfSpace, [1], { nullInstructions: true }), 'null instruction stream');
   assertRendered(renderRawTape(halfSpace, [1]), 'three-instruction half-space');
 
-  // log(x) is the last opcode (19); one past it is unknown.
-  assertRejected(renderRawTape([...word(OP.x), ...word(20, 0)], []), 'opcode 20');
+  // pair (25) is the last opcode; one past it is unknown. (A bare pair is a valid, if useless,
+  // tape: its own register is 0 and nothing reads it. The IL lift's ops are exercised in
+  // test/tape-lift-ops.test.ts.)
+  assertRejected(renderRawTape([...word(OP.x), ...word(26, 0)], []), 'opcode 26');
   assertRendered(renderRawTape([...word(OP.x), ...word(OP.log, 0), ...word(OP.neg, 1)], []), 'opcode 19');
+
+  // select's b must name a pair, which is how the evaluator finds its two operands.
+  assertRejected(
+    renderRawTape([...word(OP.x), ...word(OP.const, 0), ...word(OP.select, 0, 1)], [1]),
+    'select whose b is not a pair',
+  );
+  assertRendered(
+    renderRawTape(
+      [...word(OP.x), ...word(OP.const, 0), ...word(OP.pair, 0, 1), ...word(OP.select, 0, 2)],
+      [1],
+    ),
+    'select over a pair',
+  );
 
   // CONST reads pool[a]: a = 1 needs two constants.
   const constOne = [...word(OP.x), ...word(OP.const, 1), ...word(OP.sub, 0, 1)];
@@ -249,7 +264,7 @@ test('tape validation rejects each malformed class exactly at its boundary, befo
     'operand b < i',
   );
 
-  assert.equal(pk.allocated.voxels - before, 11, 'one field per case, nothing more');
+  assert.equal(pk.allocated.voxels - before, 13, 'one field per case, nothing more');
 });
 
 test('tape entry points reject a null bounds box and a non-empty fresh-render target, leaving the target as it was', () => {

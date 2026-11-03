@@ -84,6 +84,30 @@ const ORACLES: Record<string, OracleTest[]> = {
       oracle: 'the upstream callback fill, byte for byte',
     },
   ],
+  Voxels_RenderImplicitTapeChecked: [
+    {
+      file: 'tape-lift-ops.test.ts',
+      title:
+        'the checked render renders a finite tape exactly as the plain one, and refuses a nonfinite sample',
+      // Through the file's `render(tape, { checked: true })` helper, which calls the export.
+      via: 'checked: true',
+      oracle: 'the plain tape render, and an untouched target on a trap',
+    },
+  ],
+  Voxels_IntersectImplicitTapeChecked: [
+    {
+      file: 'tape-lift-ops.test.ts',
+      title: 'the checked intersect applies a finite mask and leaves the target untouched on a nonfinite one',
+      oracle: 'the unmasked field, and its own grid hash on a trap',
+    },
+  ],
+  Tape_EvaluatePoints: [
+    {
+      file: 'tape-lift-ops.test.ts',
+      title: 'Tape_EvaluatePoints returns the fill\u2019s own value at each point, and validates its input',
+      oracle: 'the same tape evaluated in JS doubles',
+    },
+  ],
   Voxels_RenderImplicitTapeCompose: [
     {
       file: TIER2,
