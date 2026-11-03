@@ -34,6 +34,7 @@ const patches = ['browser-handles.patch', 'browser-callbacks.patch'];
 for (const name of patches) manifest.patches[name] = digest(readFileSync(join(here, 'patches', name)));
 manifest.callbackBridge = digest(readFileSync(join(here, 'native/callbacks.cpp')));
 manifest.managedCallbacks = digest(readFileSync(join(here, 'managed/BrowserCallbacks.cs')));
+manifest.managedParallel = digest(readFileSync(join(here, 'managed/SdfParallel.cs')));
 writeFileSync(join(output, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 const nativeCopy = join(output, 'native');
 mkdirSync(nativeCopy);
@@ -72,6 +73,7 @@ for (const variant of ['baseline', 'candidate', 'browser-interop']) {
         stdio: 'inherit',
       });
     copyFileSync(join(here, 'managed/BrowserCallbacks.cs'), join(staged, 'BrowserCallbacks.cs'));
+    copyFileSync(join(here, 'managed/SdfParallel.cs'), join(staged, 'SdfParallel.cs'));
   }
   copyFileSync(join(here, 'tests/desktop/Library.csproj'), join(project, 'library/Library.csproj'));
   copyFileSync(join(here, 'tests/desktop/Consumer.csproj'), join(project, 'Consumer.csproj'));

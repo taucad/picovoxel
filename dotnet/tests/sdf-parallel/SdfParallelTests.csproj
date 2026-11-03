@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <TargetFramework>net11.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- The browser boundary's own source, compiled as the browser build compiles it. -->
+    <DefineConstants>$(DefineConstants);PICOGK_BROWSER</DefineConstants>
+    <!-- Release, as the host builds it: the purity walk reads the IL the compiler actually emits. -->
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../managed/SdfParallel.cs" Link="SdfParallel.cs" />
+    <Compile Include="Program.cs" />
+    <Compile Include="Fields.cs" />
+    <Compile Include="Planter.cs" />
+  </ItemGroup>
+</Project>

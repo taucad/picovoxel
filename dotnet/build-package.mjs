@@ -115,6 +115,7 @@ stageFile(
 );
 stageFile('base/managed/BrowserCallbacks.cs', join(here, 'managed/BrowserCallbacks.cs'));
 stageFile('base/managed/SdfTape.cs', join(here, 'managed/SdfTape.cs'));
+stageFile('base/managed/SdfParallel.cs', join(here, 'managed/SdfParallel.cs'));
 stageFile('browser/AuthoringRetention.props', join(here, 'browser/AuthoringRetention.props'));
 stageFile('generator/PicoVoxel.Sdf.Generator.dll', generator);
 /**
