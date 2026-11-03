@@ -148,4 +148,18 @@ namespace PicoVoxel.Tests
         private Vector2 state;
         public float fSignedDistance(in Vector3 p) { state.X = p.X; return p.Length() - state.X * 0f - 1f; }
     }
+
+    // The same write through the struct's indexer setter, which a leaf call makes on its receiver.
+    public sealed class MutatesThroughIndexer : IImplicit
+    {
+        private Vector2 state = Vector2.One;
+        public float fSignedDistance(in Vector3 p) { state[0] = p.X; return p.Length() - state.X * 0f - 1f; }
+    }
+
+    // A child the author can reassign between renders: its verdict is not kept for the next render.
+    public sealed class Swappable(IImplicit child) : IImplicit
+    {
+        public IImplicit Child = child;
+        public float fSignedDistance(in Vector3 p) => Child.fSignedDistance(in p);
+    }
 }

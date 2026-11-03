@@ -36,26 +36,34 @@ internal static class SdfPurity
     /// <param name="reason">Why it is not, naming the first instruction or call that could not be proven.</param>
     internal static bool IsPure(IImplicit field, out string? reason)
     {
-        var verdict = Cache.GetValue(field, static candidate => new(Analyze((IImplicit)candidate)));
-        reason = verdict.Value.Reason;
-        return verdict.Value.Pure;
+        if (Cache.TryGetValue(field, out var cached))
+        {
+            reason = cached.Value.Reason;
+            return cached.Value.Pure;
+        }
+        var (pure, why, settled) = Analyze(field);
+        // A verdict that read a reassignable reference field is about the objects that field held then;
+        // the author may assign another before the next render, so only a settled verdict is kept.
+        if (settled) Cache.AddOrUpdate(field, new((pure, why)));
+        reason = why;
+        return pure;
     }
 
-    private static (bool, string?) Analyze(IImplicit field)
+    private static (bool Pure, string? Reason, bool Settled) Analyze(IImplicit field)
     {
         try
         {
             var method = Implementation(field.GetType(), typeof(IImplicit).GetMethod(nameof(IImplicit.fSignedDistance))!);
-            if (method is null) return (false, "the signed-distance implementation could not be resolved");
+            if (method is null) return (false, "the signed-distance implementation could not be resolved", true);
             var walk = new Walk();
             var receiver = field.GetType().IsValueType ? Value.Other : Value.Of(field);
             walk.Method(method, [receiver, Value.Point], 0);
-            return walk.Reason is null ? (true, null) : (false, walk.Reason);
+            return walk.Reason is null ? (true, null, walk.Settled) : (false, walk.Reason, walk.Settled);
         }
         catch (Exception error)
         {
             // An analysis failure is never a reason to run in parallel.
-            return (false, $"analysis failed: {error.GetType().Name}: {error.Message}");
+            return (false, $"analysis failed: {error.GetType().Name}: {error.Message}", false);
         }
     }
 
@@ -127,9 +135,11 @@ internal static class SdfPurity
     private sealed class Walk
     {
         internal string? Reason;
+        /// <summary>False once the walk read a reference field that is not readonly.</summary>
+        internal bool Settled = true;
         private int instructions;
         private readonly HashSet<(MethodBase, object?)> active = new();
-        private readonly Dictionary<(MethodBase, string), Value> finished = new();
+        private readonly Dictionary<(MethodBase, Arguments), Value> finished = new();
 
         private void Refuse(MethodBase method, string because) =>
             Reason ??= $"{method.DeclaringType?.FullName}.{method.Name}: {because}";
@@ -139,7 +149,7 @@ internal static class SdfPurity
         {
             if (Reason is not null) return Value.Other;
             if (depth > MaximumDepth) { Refuse(method, "calls nest too deeply to analyze"); return Value.Other; }
-            var key = Key(arguments);
+            var key = new Arguments(arguments);
             if (finished.TryGetValue((method, key), out var known)) return known;
             var receiver = arguments.Length > 0 ? arguments[0].Known : null;
             // Recursion cannot be bounded statically; it is not admitted.
@@ -153,15 +163,34 @@ internal static class SdfPurity
             finally { active.Remove((method, receiver)); }
         }
 
-        private static string Key(Value[] arguments)
+        /// <summary>A memo key that compares known objects by identity, never by a hash code that two can share.</summary>
+        private sealed class Arguments(Value[] values) : IEquatable<Arguments>
         {
-            var key = new System.Text.StringBuilder();
-            foreach (var argument in arguments)
+            private readonly Value[] values = values;
+
+            public bool Equals(Arguments? other)
             {
-                key.Append((int)argument.Kind).Append(':')
-                    .Append(argument.Known is null ? 0 : RuntimeHelpers.GetHashCode(argument.Known)).Append(';');
+                if (other is null || other.values.Length != values.Length) return false;
+                for (var index = 0; index < values.Length; index++)
+                {
+                    if (values[index].Kind != other.values[index].Kind || !ReferenceEquals(values[index].Known, other.values[index].Known))
+                        return false;
+                }
+                return true;
             }
-            return key.ToString();
+
+            public override bool Equals(object? obj) => Equals(obj as Arguments);
+
+            public override int GetHashCode()
+            {
+                var hash = new HashCode();
+                foreach (var value in values)
+                {
+                    hash.Add(value.Kind);
+                    hash.Add(value.Known is null ? 0 : RuntimeHelpers.GetHashCode(value.Known));
+                }
+                return hash.ToHashCode();
+            }
         }
 
         private Value Body(MethodBase method, Value[] arguments, int depth)
@@ -447,6 +476,7 @@ internal static class SdfPurity
                 // callback runs during it, so this is the value every sample would read.
                 if (owner.Kind == Value.Kinds.Object && owner.Known is { } instance && !field.IsStatic)
                 {
+                    if (!field.IsInitOnly) walk.Settled = false;
                     stack.Push(Value.Of(field.GetValue(instance)));
                     return Flow.Next;
                 }
@@ -497,7 +527,10 @@ internal static class SdfPurity
                 }
                 if (PureLeaf(target))
                 {
-                    // A leaf reads its arguments and writes only through a by-reference argument it was given.
+                    // A leaf reads its arguments and writes only through a by-reference argument it was given,
+                    // or, for a mutating member of a struct (an indexer's setter, say), through its receiver.
+                    if (op != 0x73 && !target.IsStatic && target.DeclaringType!.IsValueType && !ReadOnlyMember(target))
+                        Write(values[0], $"{target.Name} on its receiver");
                     var leafParameters = target.GetParameters();
                     for (var index = 0; index < leafParameters.Length; index++)
                     {
@@ -532,6 +565,11 @@ internal static class SdfPurity
     ];
 
     private static readonly HashSet<string> Mutators = ["CopyTo", "TryCopyTo"];
+
+    /// <summary>A struct member that cannot write its receiver: declared readonly, or on a readonly struct.</summary>
+    private static bool ReadOnlyMember(MethodBase method) =>
+        method.IsDefined(typeof(IsReadOnlyAttribute), false)
+        || method.DeclaringType!.IsDefined(typeof(IsReadOnlyAttribute), false);
 
     private static bool PureLeaf(MethodBase method)
     {
@@ -777,9 +815,33 @@ internal sealed class SdfColumnPrefetch(IImplicit field, int parallelism)
         var length = zs.Count;
         var total = (long)rows * length;
         if (total > 64L * 1024 * 1024) { disabled = true; return; }
-        var computed = values is not null && values.Length == total ? values : new float[total];
-        var failures = errors is not null && errors.Length == total ? errors : new ExceptionDispatchInfo?[total];
-        Array.Clear(failures);
+        float[] computed;
+        ExceptionDispatchInfo?[] failures;
+        try
+        {
+            computed = values is not null && values.Length == total ? values : new float[total];
+            failures = errors is not null && errors.Length == total ? errors : new ExceptionDispatchInfo?[total];
+            Array.Clear(failures);
+            Fill(x, rows, length, computed, failures);
+        }
+        catch (Exception)
+        {
+            // The method's own exceptions are captured per sample, so this is the prefetch itself failing
+            // (memory, the thread pool): serve nothing more, and the native loop calls the method directly.
+            disabled = true;
+            values = null;
+            errors = null;
+            return;
+        }
+        values = computed;
+        errors = failures;
+        columnX = x;
+        cursor = 0;
+        Interlocked.Increment(ref columns);
+    }
+
+    private void Fill(float x, int rows, int length, float[] computed, ExceptionDispatchInfo?[] failures)
+    {
         var rowZs = zs.ToArray();
         var columnYs = ys.ToArray();
         Parallel.For(0, rows, new ParallelOptions { MaxDegreeOfParallelism = parallelism }, row =>
@@ -795,11 +857,6 @@ internal sealed class SdfColumnPrefetch(IImplicit field, int parallelism)
                 catch (Exception failure) { failures[start + index] = ExceptionDispatchInfo.Capture(failure); }
             }
         });
-        values = computed;
-        errors = failures;
-        columnX = x;
-        cursor = 0;
-        Interlocked.Increment(ref columns);
     }
 
     private void Drop()

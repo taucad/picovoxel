@@ -44,6 +44,13 @@ ExpectImpure("lock", new Locks());
 ExpectImpure("recursion", new Recursive(3));
 ExpectImpure("impure child behind a combinator", new Wrapper(new Counting()));
 ExpectImpure("mutates its own struct field", new MutatesOwnStruct());
+ExpectImpure("mutates its own struct through an indexer", new MutatesThroughIndexer());
+{
+    var swappable = new Swappable(new Sphere(1));
+    ExpectPure("reassignable child, pure now", swappable);
+    swappable.Child = new Counting();
+    ExpectImpure("the same field after its child is reassigned", swappable);
+}
 ExpectImpure("impure lambda", new Lambda(p => { StaticCounting.Count++; return p.Length(); }));
 
 // The native per-voxel loop: x, then y, then z, each point vecToMM of its index, and an error from the
@@ -79,6 +86,7 @@ void ExpectSameAsSerial(string name, IImplicit field, int half, float voxel)
     SdfColumnPrefetch.ResetCounters();
     var serial = Drive(field, null, half, voxel);
     var prefetch = SdfColumnPrefetch.For(field);
+    if (prefetch is null && Environment.ProcessorCount < 2) { Pass($"{name}: serial only on one core, nothing to compare"); return; }
     if (prefetch is null) { Fail($"{name}: no prefetch (cores {Environment.ProcessorCount})"); return; }
     var parallel = Drive(field, prefetch, half, voxel);
     var side = 2 * half + 1;
@@ -109,6 +117,8 @@ if (SdfColumnPrefetch.For(new Counting()) is null) Pass("impure field: no prefet
 else Fail("impure field: prefetch created");
 
 // A loop whose order differs from the learned shape is served nothing wrong: mismatches fall back.
+if (Environment.ProcessorCount < 2) Pass("mismatched loop: serial only on one core, nothing to compare");
+else
 {
     var field = new Sphere(1.5f);
     var prefetch = SdfColumnPrefetch.For(field)!;
