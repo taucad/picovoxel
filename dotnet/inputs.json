@@ -7,7 +7,7 @@
   "roslyn": "5.9.0",
   "sources": {
     "picovoxel": {
-      "commit": "c84eab84957a8af0f032e9737c7bd5cd98b41ccb",
+      "commit": "8d316e12d48c45bac9850f14d2c8e877e66d1163",
       "paths": ["src", "patches", "scripts"]
     },
     "PicoGK": {
