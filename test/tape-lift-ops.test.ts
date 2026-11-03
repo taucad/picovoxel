@@ -273,6 +273,30 @@ test('LT, LE and EQ produce 0 or 1 and gate a SELECT, decided and undecided', ()
   expectSameAsCallback(b.tape, 'comparisons and selects');
 });
 
+test('LT and EQ on operands that mix coordinates run per sample in the vector evaluator', () => {
+  // Both comparisons mix z with x, so no interval decides them and the fill's y-only and z-only
+  // hoisting cannot lift them out of the sample loop: each reaches the per-lane evaluator.
+  const b = new Build();
+  const x = b.emit(OP.x);
+  const y = b.emit(OP.y);
+  const z = b.emit(OP.z);
+  const squared = b.emit(
+    OP.add,
+    b.emit(OP.add, b.emit(OP.mul, x, x), b.emit(OP.mul, y, y)),
+    b.emit(OP.mul, z, z),
+  );
+  const sphere = b.emit(OP.sub, b.emit(OP.sqrt, squared), b.constant(4));
+  const wave = b.emit(OP.sin, b.emit(OP.mul, b.emit(OP.sub, x, z), b.constant(2)));
+  const byWave = b.select(
+    b.emit(OP.lt, wave, b.constant(0.3)),
+    b.emit(OP.sub, sphere, b.constant(0.2)),
+    sphere,
+  );
+  const same = b.emit(OP.eq, b.emit(OP.mul, x, z), b.emit(OP.mul, z, x));
+  b.emit(OP.f32, b.select(same, byWave, b.emit(OP.add, byWave, b.constant(1))));
+  expectSameAsCallback(b.tape, 'mixed LT and EQ');
+});
+
 test('a SELECT whose operands are NaN or infinite is not pruned away', () => {
   // The taken arm is finite, but both arms are evaluated in interval arithmetic: an arm that can be
   // NaN (sqrt of a negative) or infinite (1/0) must block the block's classification, so the dense
@@ -400,7 +424,16 @@ test('Tape_EvaluatePoints returns the fill’s own value at each point, and vali
     b.emit(OP.add, b.emit(OP.mul, x, x), b.emit(OP.mul, y, y)),
     b.emit(OP.mul, z, z),
   );
-  b.emit(OP.f32, b.emit(OP.sub, b.emit(OP.sqrt, squared), b.constant(3)));
+  // A SELECT, so the scalar evaluator also steps over the PAIR that carries its operands.
+  const distance = b.emit(OP.sqrt, squared);
+  b.emit(
+    OP.f32,
+    b.select(
+      b.emit(OP.lt, x, b.constant(0)),
+      b.emit(OP.sub, distance, b.constant(3)),
+      b.emit(OP.sub, distance, b.constant(2)),
+    ),
+  );
   const tape = b.tape;
 
   const points = [0, 0, 0, 1.5, -2.25, 0.5, -6, 6, 6, 1e-20, 0, 0];
@@ -433,6 +466,17 @@ test('Tape_EvaluatePoints returns the fill’s own value at each point, and vali
         raw.Tape_EvaluatePoints(instructions, 2, constants, 0, pointer, count, values),
       ),
     ).toThrow();
+    // So are a negative point count and a missing buffer.
+    withTape(tape, ({ instructions, constants }) => {
+      const length = tape.words.length / 2;
+      const pool = tape.constants.length;
+      expect(() =>
+        raw.Tape_EvaluatePoints(instructions, length, constants, pool, pointer, -1, values),
+      ).toThrow();
+      expect(() =>
+        raw.Tape_EvaluatePoints(instructions, length, constants, pool, 0, count, values),
+      ).toThrow();
+    });
   } finally {
     pk.module._free(pointer);
     pk.module._free(values);
