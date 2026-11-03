@@ -211,11 +211,10 @@ inline double dEvalOne( const uint32_t* pnInstructions,
         case TAPE_LT:    return pfReg[nA] <  pfReg[nB] ? 1.0 : 0.0;
         case TAPE_LE:    return pfReg[nA] <= pfReg[nB] ? 1.0 : 0.0;
         case TAPE_EQ:    return pfReg[nA] == pfReg[nB] ? 1.0 : 0.0;
+        // One return and no block: a brace after a return is a line llvm-cov never sees run.
         case TAPE_SELECT:
-        {
-            const uint32_t nPair = pnInstructions[2 * nB + 1];
-            return pfReg[nA] != 0.0 ? pfReg[nPair & 0xFFFFu] : pfReg[nPair >> 16];
-        }
+            return pfReg[nA] != 0.0 ? pfReg[pnInstructions[2 * nB + 1] & 0xFFFFu]
+                                    : pfReg[pnInstructions[2 * nB + 1] >> 16];
         default:         return 0.0; // TAPE_PAIR — ValidateTape rejects everything else
     }
 }
