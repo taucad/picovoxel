@@ -1,0 +1,82 @@
+# picovoxel.xyz: the three.js demo (demo/), built from the wasm of a
+# successful CI push run on main and uploaded to Cloudflare Pages as the
+# production deployment, always from the newest such run. The
+# Pages project, the account and the deploy token are written to this
+# repository by tau-cloud (stacks/sites, docs/sites-stack.md).
+name: Pages
+
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: pages-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # `branches: [main]` matches the head branch name alone, and a fork pull
+    # request can be named main too, so the event, the head repository and the
+    # workflow file are checked as well.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.path == '.github/workflows/ci.yml' &&
+      github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Resolve the CI run
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        # Both triggers deploy the newest successful main push run, so a CI run
+        # that finishes after a newer one cannot put an older build back.
+        run: |
+          set -euo pipefail
+          IFS=$'\t' read -r run_id sha < <(
+            gh api "repos/$REPOSITORY/actions/workflows/ci.yml/runs?branch=main&event=push&status=success&per_page=1" \
+              --jq '.workflow_runs[0] | [.id, .head_sha] | @tsv'
+          )
+          [[ "$run_id" =~ ^[1-9][0-9]*$ ]] || { echo "::error::no successful main push run of ci.yml"; exit 1; }
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.source.outputs.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          node-version: '26'
+      - uses: ./.github/actions/download-verified-artifact
+        with:
+          pattern: wasm-*
+          path: .
+          merge-multiple: 'true'
+          expect: src/pico.mjs src/pico.wasm src/pico-multi.mjs src/pico-multi.wasm
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.source.outputs.run_id }}
+      - run: pnpm run build:demo
+      - run: scripts/assemble-site.sh site
+      - name: Deploy to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+          SHA: ${{ steps.source.outputs.sha }}
+        shell: bash
+        run: |
+          npx --yes wrangler@4.155.0 pages deploy site \
+            --project-name="$PROJECT" --branch=main \
+            --commit-hash="$SHA" --commit-dirty=true | tee deploy.log
+          url="$(grep -Eo 'https://[^ ]+\.pages\.dev' deploy.log | head -1)"
+          printf '## Cloudflare Pages\n\nProduction deploy of %s: %s\n' "$SHA" "$url" >> "$GITHUB_STEP_SUMMARY"
