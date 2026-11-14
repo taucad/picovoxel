@@ -50,5 +50,5 @@ preview.json
 # Checksum-pinned CI tools (DEPS.json, scripts/install-ci-tool.sh).
 .ci-tools/
 
-# picovoxel.xyz site, assembled by scripts/assemble-site.sh
+# picovoxel.xyz site, assembled by .github/scripts/assemble-site.sh
 /site/

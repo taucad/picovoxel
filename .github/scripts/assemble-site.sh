@@ -4,11 +4,11 @@
 # Pages _headers and _redirects. Run after `pnpm run build:demo`; the
 # `pages` job in ci.yml uploads site/ (tau-cloud stacks/sites).
 #
-# Usage: scripts/assemble-site.sh [out-dir]
+# Usage: .github/scripts/assemble-site.sh [out-dir]
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 OUT="${1:-$REPO_ROOT/site}"
 
 [[ -f "$REPO_ROOT/demo/dist/main.js" ]] || { printf 'demo/dist/main.js is missing: run pnpm run build:demo first\n' >&2; exit 1; }
