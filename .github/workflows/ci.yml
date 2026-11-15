@@ -127,7 +127,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_LATEST }}
       - uses: ./.github/actions/build-wasm
@@ -146,7 +146,7 @@ jobs:
         run: |
           source vendor/emsdk/emsdk_env.sh >/dev/null 2>&1
           EMCC_VERSION="$(emcc --version | head -n1)" node scripts/wasm-manifest.mjs '${{ matrix.variant }}'
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wasm-${{ matrix.variant }}
           path: |
@@ -261,7 +261,7 @@ jobs:
           node scripts/validate-pack.mjs candidate/*.tgz
           node -e "const m=require('./candidate/manifest.json');for(const p of m.packages)console.log(p.name+'@'+p.version, p.filename, p.integrity)" \
             | tee -a "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: npm-candidate
           path: candidate/
@@ -308,7 +308,7 @@ jobs:
         env:
           PICOVOXEL_R14_ARTIFACT: multi
       - if: matrix.node == env.NODE_LATEST
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: vitest-blob-unit
           path: .vitest-reports/
@@ -353,7 +353,7 @@ jobs:
       - name: 100% lines and functions per TU; regions and branches ratcheted
         run: node scripts/coverage-cpp-gate.mjs coverage/cpp/lcov.info coverage/cpp/summary.json
       - if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: lcov-cpp
           path: |
@@ -413,7 +413,7 @@ jobs:
           echo "shard $SHARD: ${files[*]}"
           # shellcheck disable=SC2086 # the flags are a word list by design
           pnpm exec vitest run "${files[@]}" $VITEST_BLOB_FLAGS --outputFile.blob=".vitest-reports/blob-$SHARD.json"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: vitest-blob-${{ matrix.shard }}
           path: .vitest-reports/
@@ -452,7 +452,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086 # the flags are a word list by design
           pnpm exec vitest run test/g0-gate.test.ts $VITEST_BLOB_FLAGS --outputFile.blob=.vitest-reports/blob-g0-gate.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: vitest-blob-g0-gate
           path: .vitest-reports/
@@ -520,7 +520,7 @@ jobs:
         with:
           persist-credentials: false
       - if: github.event_name != 'push'
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_LATEST }}
       - if: github.event_name != 'push'
@@ -603,7 +603,7 @@ jobs:
             gh api "repos/$REPO/issues/$PR/comments" -F body=@benchmark.md >/dev/null
           fi
       - if: always() && steps.compare.outcome != 'skipped'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: benchmark
           path: benchmark.json
@@ -632,7 +632,7 @@ jobs:
           expect: blob-unit.json blob-roverwheel.json blob-g0-gate.json blob-examples.json
       - name: Enforce 100% TypeScript coverage over every test file
         run: pnpm exec vitest run --merge-reports --coverage
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: lcov
           path: coverage/lcov.info
@@ -651,7 +651,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node }}
       - uses: ./.github/actions/download-verified-artifact
@@ -690,7 +690,7 @@ jobs:
         run: tar -xzf candidate/*.tgz --strip-components=1 package/dist
       - id: playwright
         run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ matrix.browser }}-${{ steps.playwright.outputs.version }}
@@ -750,7 +750,7 @@ jobs:
           --json preview.json
           --no-template
           './preview-packages/*'
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: pkg-pr-new-preview
           path: preview.json
@@ -767,7 +767,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_LATEST }}
       - uses: ./.github/actions/download-verified-artifact
@@ -814,11 +814,11 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: npm-candidate
           path: candidate
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_LATEST }}
           registry-url: https://registry.npmjs.org
@@ -883,7 +883,7 @@ jobs:
           name: npm-candidate
           path: candidate
           expect: manifest.json
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_LATEST }}
           registry-url: https://registry.npmjs.org
