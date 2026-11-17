@@ -500,6 +500,53 @@ const ORACLES: Record<string, OracleTest[]> = {
       oracle: 'the true minimum distance',
     },
   ],
+  K7_nPark: [
+    {
+      file: 'pager-k7.test.ts',
+      title:
+        'K15-1 / K17-1 (I3): frames are byte-identical across serial, pooled and pipelined, any slot count',
+      via: 'h.park(',
+      oracle: 'the serial encoder’s frames, byte for byte',
+    },
+  ],
+  K7_hRestore: [
+    {
+      file: 'pager-k7.test.ts',
+      title:
+        'K15-2: round trip — gridHash after park and restore, every mode and both codecs, destructive or not',
+      via: 'h.restore(',
+      oracle: 'the gridHash of the grid before it was parked',
+    },
+  ],
+  K7_nArena: [
+    {
+      file: 'pager-k7.test.ts',
+      title: 'K15-3 (D13): on a full heap the park runs on the reserve, and the restore matches',
+      via: 'h.arena(',
+      oracle: 'a park on an exhausted heap completes only on the reserve',
+    },
+  ],
+  K7_nRearm: [
+    {
+      file: 'pager-k7.test.ts',
+      title: 'K15-3 (D13): on a full heap the park runs on the reserve, and the restore matches',
+      oracle: 'the reserve is held again once the parked grid is freed',
+    },
+  ],
+  K7_nLastError: [
+    {
+      file: 'pager-k7.test.ts',
+      title: 'K15-8: an unsupported codec fails the configuration check as the "other" error, grid intact',
+      via: 'lastError',
+      oracle: 'error 2 with the grid hash unchanged',
+    },
+    {
+      file: 'pager-k7.test.ts',
+      title: 'K15-5: a restore on a full heap is out of memory, and the image restores once memory is back',
+      via: 'lastError',
+      oracle: 'error 1 on an exhausted heap, then a matching restore',
+    },
+  ],
 };
 
 const ROOT = join(import.meta.dirname, '..');

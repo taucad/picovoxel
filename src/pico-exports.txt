@@ -182,3 +182,8 @@ _MeshStream_nTriangleIndices
 _MeshStream_dTriangleCount
 _MeshStream_dVertexCount
 _MeshStream_Destroy
+_K7_nPark
+_K7_hRestore
+_K7_nArena
+_K7_nRearm
+_K7_nLastError

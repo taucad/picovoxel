@@ -48,7 +48,8 @@ esac
 # elsewhere deliberately, but there is no silent fallback to an unpatched checkout.
 EMSDK="${EMSDK:-$HERE/vendor/emsdk}"
 PICOGK_RUNTIME="${PICOGK_RUNTIME:-$HERE/vendor/PicoGKRuntime}"
-if ! { [ -x "$EMSDK/emsdk" ] && [ -d "$PICOGK_RUNTIME/Source" ] && [ -f "$HERE/vendor/xxhash/xxhash.h" ]; }; then
+if ! { [ -x "$EMSDK/emsdk" ] && [ -d "$PICOGK_RUNTIME/Source" ] && [ -f "$HERE/vendor/xxhash/xxhash.h" ] \
+  && [ -f "$HERE/vendor/lz4/lz4.c" ]; }; then
   echo "build-pico-module: missing vendor/ sources; run scripts/fetch-deps.sh first" >&2
   exit 1
 fi
@@ -91,7 +92,7 @@ PREFIX="${PREFIX:-$OUT/wasm-prefix$MT}"
 source "$EMSDK/emsdk_env.sh" >/dev/null 2>&1
 mkdir -p "$OUT" "$OUT_JS"
 
-# COVERAGE=1 — source-based C++ coverage. Only the ten own
+# COVERAGE=1 — source-based C++ coverage. Only the eleven own
 # TUs are instrumented; the generated core TU and the dep archives stay outside
 # the measured domain. The module is a library with EXIT_RUNTIME=0, so the
 # runtime's atexit writer never fires: the glue registers every instance
@@ -142,7 +143,7 @@ compile() { # <source> <object> [extra flags...]
   fi
 }
 
-echo "=== compile core + tape + bulk + props + offset + lattice + hash + boolean + zslice + query + stream TUs (-j$JOBS) ==="
+echo "=== compile core + tape + bulk + props + offset + lattice + hash + boolean + zslice + query + stream + park TUs (-j$JOBS) ==="
 compile "$OUT/PicoGKLibraryCore.cpp" "$OUT/pico_core_module$MT.o"
 compile "$HERE/src/pico-tape.cpp" "$OUT/pico_tape_module$MT.o" ${OWN_TU_FLAGS[@]+"${OWN_TU_FLAGS[@]}"}
 compile "$HERE/src/pico-bulk.cpp" "$OUT/pico_bulk_module$MT.o" ${OWN_TU_FLAGS[@]+"${OWN_TU_FLAGS[@]}"}
@@ -154,6 +155,16 @@ compile "$HERE/src/pico-boolean.cpp" "$OUT/pico_boolean_module$MT.o" ${OWN_TU_FL
 compile "$HERE/src/pico-zslice.cpp" "$OUT/pico_zslice_module$MT.o" ${OWN_TU_FLAGS[@]+"${OWN_TU_FLAGS[@]}"}
 compile "$HERE/src/pico-query.cpp" "$OUT/pico_query_module$MT.o" ${OWN_TU_FLAGS[@]+"${OWN_TU_FLAGS[@]}"}
 compile "$HERE/src/pico-stream.cpp" "$OUT/pico_stream_module$MT.o" ${OWN_TU_FLAGS[@]+"${OWN_TU_FLAGS[@]}"}
+# The pager's park TU (src/pico-park.cpp) and its frame codec: k7codec.c and LZ4 are C,
+# built with the same wasm flags and no exception flags (C throws nothing).
+compile "$HERE/src/pico-park.cpp" "$OUT/pico_park_module$MT.o" -I"$HERE/vendor/xxhash" -I"$HERE/src" \
+  ${OWN_TU_FLAGS[@]+"${OWN_TU_FLAGS[@]}"}
+# shellcheck disable=SC2086 # WASM_FLAGS is a flag list, split on purpose.
+emcc $WASM_FLAGS "-ffile-prefix-map=$HERE=." -I"$HERE/vendor/lz4" -c "$HERE/src/k7codec.c" -o "$OUT/k7codec$MT.o" &
+PIDS+=("$!")
+# shellcheck disable=SC2086
+emcc $WASM_FLAGS "-ffile-prefix-map=$HERE=." -c "$HERE/vendor/lz4/lz4.c" -o "$OUT/lz4$MT.o" &
+PIDS+=("$!")
 for pid in ${PIDS[@]+"${PIDS[@]}"}; do wait "$pid"; done
 
 echo "=== link -> $VARIANT.mjs ==="
@@ -163,6 +174,7 @@ em++ -std=c++20 $WASM_FLAGS $EH_FLAGS "-ffile-prefix-map=$HERE=." \
   "$OUT/pico_props_module$MT.o" "$OUT/pico_offset_module$MT.o" \
   "$OUT/pico_lattice_module$MT.o" "$OUT/pico_hash_module$MT.o" "$OUT/pico_boolean_module$MT.o" \
   "$OUT/pico_zslice_module$MT.o" "$OUT/pico_query_module$MT.o" "$OUT/pico_stream_module$MT.o" \
+  "$OUT/pico_park_module$MT.o" "$OUT/k7codec$MT.o" "$OUT/lz4$MT.o" \
   "$PREFIX/lib/libopenvdb.a" "$PREFIX/lib/libtbb.a" \
   -o "$OUT_JS/$VARIANT.mjs" \
   ${THREAD_LINK_FLAGS[@]+"${THREAD_LINK_FLAGS[@]}"} \

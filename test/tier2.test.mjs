@@ -1498,6 +1498,55 @@ test('C16 — invalid handles throw and the module survives every one', () => {
   fns.Library_DestroyInstance(lib);
 });
 
+// ── The park TU (src/pico-park.cpp) ───────────────────────────────────────────
+test('K7 — arena, park to a host sink, restore from a host source, rearm, last error', () => {
+  withLib(0.5, (lib) => {
+    const sphere = sphereOf(lib, 6);
+    const volume = fns.Voxels_fCalculateVolume(lib, sphere);
+    assert.ok(fns.K7_nArena(1, 64, 1, 0) > 0n, 'the arena fits');
+    const frames = [];
+    const sink = module.addFunction((pointer, bytes) => {
+      frames.push(module.HEAPU8.slice(pointer >>> 0, (pointer >>> 0) + bytes));
+      return 0;
+    }, 'iii');
+    const image = () => {
+      const out = new Uint8Array(frames.reduce((n, f) => n + f.length, 0));
+      let at = 0;
+      for (const f of frames) out.set(f, (at += f.length) - f.length);
+      return out;
+    };
+    let bytes = new Uint8Array(0);
+    let offset = 0;
+    const source = module.addFunction((pointer, capacity) => {
+      const take = Math.min(capacity, bytes.length - offset);
+      module.HEAPU8.set(bytes.subarray(offset, offset + take), pointer >>> 0);
+      offset += take;
+      return take;
+    }, 'iii');
+    try {
+      const written = fns.K7_nPark(lib, sphere, 4, 1, 1, 64, 1, sink); // destructive
+      assert.ok(written > 0n);
+      assert.equal(fns.K7_nLastError(), 0);
+      fns.Voxels_Destroy(lib, sphere);
+      assert.equal(fns.K7_nRearm(), 1);
+      bytes = image();
+      assert.equal(BigInt(bytes.length), written);
+      const restored = fns.K7_hRestore(lib, source);
+      assert.ok(restored, 'restored');
+      assert.equal(fns.Voxels_fCalculateVolume(lib, restored), volume);
+      fns.Voxels_Destroy(lib, restored);
+      bytes = new Uint8Array(0);
+      offset = 0;
+      assert.equal(fns.K7_hRestore(lib, source), 0n, 'an empty image');
+      assert.equal(fns.K7_nLastError(), 2);
+    } finally {
+      fns.K7_nArena(0, 64, 0, 0);
+      module.removeFunction(sink);
+      module.removeFunction(source);
+    }
+  });
+});
+
 // ── Library odds and ends ──────────────────────────────────────────────────────
 test('Library — info strings, conversions, voxel size', () => {
   withLib(0.5, (lib) => {

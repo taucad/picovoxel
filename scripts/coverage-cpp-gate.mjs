@@ -37,6 +37,24 @@ export const EXCLUSIONS = [
       'interruption, and Voxels_ClosestPointBatch passes none; the guard keeps the ' +
       'openvdb contract rather than a reachable path.',
   },
+  {
+    file: 'src/pico-park.cpp',
+    anchor: 'if (!o.nComp)',
+    block: ['o.nError = nErrOther;'],
+    reason:
+      'SlotSet::bConfig refuses a slot whose output room is below k7_bound and k7_bytes_bound, ' +
+      'and LZ4 and the stored codec never fail within their bound, so neither encoder returns 0; ' +
+      'the guard stops an empty frame from being stored and its leaves freed if that changed.',
+  },
+  {
+    file: 'src/pico-park.cpp',
+    anchor: 'if (nPipeError || nCollected != oHeader.nLeaves)',
+    block: ['return fail(nErrOther);'],
+    reason:
+      'Park slots only fail in the encoders (the excluded guard above), and the leaf iterator ' +
+      'visits exactly the leafCount() the header recorded; the check keeps a broken image from ' +
+      'being reported as parked.',
+  },
 ];
 
 /** Parses lcov into per-file maps of line number to hit count. */

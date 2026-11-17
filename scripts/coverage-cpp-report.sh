@@ -23,7 +23,7 @@ profiles=("$PROFILE_DIR"/*.profraw)
 # -ffile-prefix-map records the own TUs as relative src/pico-*.cpp, which llvm-cov's
 # positional SOURCES filter (real paths) never matches; filter the other roots out
 # instead: dep and vendored headers (build/, vendor/), the ImGui stand-in (shim/,
-# outside the ten own TUs) and absolute sysroot paths.
+# outside the eleven own TUs) and absolute sysroot paths.
 cd "$HERE"
 filter=(-ignore-filename-regex='^(build/|vendor/|shim/|/)')
 "$BIN/llvm-cov" export "$WASM" -instr-profile="$OUT_DIR/merged.profdata" -format=lcov "${filter[@]}" > "$OUT_DIR/lcov.info"
