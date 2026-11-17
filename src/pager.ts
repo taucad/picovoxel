@@ -292,9 +292,10 @@ export function createPager({ module, raw, store, threads, options }: CreatePage
         residentBytes -= entry.bytes;
         entries.delete(entry);
       }
-      // The park released the encode reserve. Take it back now, except when the heap is what ran
-      // out with the grid still whole (-2): that allocation would fail too (mimalloc traps on a
-      // full heap), so the next park that frees a grid takes it back instead.
+      // The park released the encode reserve. Take it back now, except after -2 (the grid is still
+      // whole): the heap may be what ran out, or the far store filled first, and re-taking it on a
+      // full heap would fail too (mimalloc traps there), so the next park that frees a grid takes
+      // it back instead.
       if (written !== -2) raw.K7_nRearm();
       if (outOfMemory) {
         throw outOfMemoryError('pager: parking a grid', {
