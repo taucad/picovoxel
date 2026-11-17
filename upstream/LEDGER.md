@@ -128,6 +128,8 @@ Every pull request is opened as a draft with one commit and an AI-assistance dis
 
 ## Ours, not upstream
 
-The multi-threaded build (`picovoxel/multi`) links mimalloc and the single-thread build links dlmalloc (`MALLOC=` in `scripts/build-pico-module.sh` overrides either). On 2026-07-26 and 2026-07-27, mimalloc made HeatX's multi-threaded construction stage 2.164× faster (CI 2.141–2.178) with output identical to dlmalloc in 64 comparisons; the raw samples are `bench/results/webgpu-v2/sk-0-exit-*.json`. It raised peak wasm heap 1.81× at 1.0 mm (0.866 → 1.567 GiB), about 1.3× at 0.5 mm; both allocators clear 0.5 mm and run out of memory at 0.4 mm.
+The multi-threaded build (`picovoxel/multi`) links mimalloc and the single-thread build links dlmalloc (`MALLOC=` in `scripts/build-pico-module.sh` overrides either). On 2026-07-26 and 2026-07-27, mimalloc made HeatX's multi-threaded construction stage 2.164× faster (CI 2.141–2.178) with output identical to dlmalloc in 64 comparisons; the raw samples are `bench/results/webgpu-v2/sk-0-exit-*.json`. It raised peak wasm heap 1.81× at 1.0 mm (0.866 → 1.567 GiB), about 1.3× at 0.5 mm; both allocators clear 0.5 mm.
+
+Both allocators also complete 0.4 mm on the multi-threaded build (3.34 GiB with dlmalloc, 3.76 GiB with mimalloc); an earlier line here said they run out of memory there, which was wrong. Without disposal the example first fails at 0.38 mm; disposing every intermediate at its last use completes 0.30 mm.
 
 A mesh corruption first blamed on mimalloc was picovoxel's own signed-shift heap read (U24 above): mimalloc only placed the staging buffer above 2 GiB, and a 400 MiB ballast reproduced the same corruption on dlmalloc. After the fix, mimalloc output is byte-identical to the dlmalloc single-thread build at 0.5, 0.6 and 0.7 mm (5 runs each, 2026-07-27). Nothing here is filed upstream.

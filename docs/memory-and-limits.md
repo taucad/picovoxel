@@ -55,6 +55,40 @@ const file = new Blob([header, ...chunks], { type: 'model/stl' });
 
 `toStl()` itself now writes native records straight into its output buffer, and `mesh.vertices` and `mesh.triangles` copy straight out of the mesh's own storage, so neither stages a second copy in the heap. `voxels.gridHash()` reads the grid in place instead of hashing a normalized copy, which needed as much memory again as the grid.
 
+## Grid paging
+
+The grid pager keeps a runtime's resident Voxels grids under a byte budget. When the grids exceed it, the least recently used ones are parked: compressed out of the wasm heap into memory the host holds beside it. A parked grid is restored the next time any call uses it. Output is byte-identical with the pager on or off, on both builds, and below the budget nothing is parked, so ordinary models never notice it.
+
+- **On by default.** The default budget is 2 GiB of resident grids, the headroom of the 4 GiB heap. `pager: false` turns it off.
+- **A runtime option.** Pass it to `createPico({ pager })` or `createPicoRuntime({ pager })`. Every session on a runtime shares the one heap the budget protects, so `runtime.createPico()` refuses a `pager` option with `PICO_INVALID_ARGUMENT`.
+- **Only Voxels.** Meshes, scalar fields and vector fields are never parked.
+- **The far store.** Parked grids go to JavaScript memory outside the wasm heap by default (`store: 'ram'`). `store: 'disk'` uses a scratch file instead: Node `fs`, or OPFS in a dedicated worker whose storage probes as disk-backed. A disk store that cannot open fails with `PICO_INVALID_ARGUMENT`; there is no silent fallback to RAM. The scratch directory is the pager's own, files of dead processes are swept, and the file is removed when the runtime is disposed.
+- **The arena.** At start the pager takes a small encode arena (one slot plus 8 MiB on `picovoxel`, `min(4, cores)` slots plus 8 MiB on `picovoxel/multi`, about 14 MB and 34 MB) so it can park on a nearly full heap. That heap is not available to the model.
+- **Metadata views.** Parking a grid disposes any `Metadata` view onto it: a view held across a park throws `PICO_DISPOSED`, and `voxels.metadata` hands out a fresh one.
+
+| Option          | Default                                         | Meaning                                                                                        |
+| --------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `budgetBytes`   | `2 ** 31`                                       | Resident grid bytes (the sum of `memUsage`) allowed when an operation ends                     |
+| `codec`         | `'lz4'`                                         | `'lz4'`, or `'none'` for compaction and byte shuffling only                                    |
+| `mode`          | `'pipelined'` on `/multi`, `'serial'` otherwise | How coding uses the thread pool: `'serial'`, `'pooled'` or `'pipelined'`; frames are identical |
+| `arena`         | see above                                       | `{ slots, reserveMiB }`: leaf batches coded at once, and the reserve released for each park    |
+| `store`         | `'ram'`                                         | `'ram'` or `'disk'`                                                                            |
+| `storeMaxBytes` | unbounded for RAM, 16 GiB for disk              | The store's size bound; a full store fails the park with `PICO_OUT_OF_MEMORY`                  |
+| `directory`     | the system temporary directory                  | `'disk'` only: the scratch directory (a path in Node, a directory name in OPFS)                |
+
+`session.footprint` reports `{ heapBytes, farBytes, pager }`: the size of linear memory, the bytes the far store holds on its host, and the pager's counters (resident and parked bytes, parks, restores, the arena). Every session on a runtime reports the same figures. A host that recycles workers by heap size should add `farBytes`, because parked grids live there and not in the heap.
+
+```js
+import { createPico } from 'picovoxel/multi';
+
+const pico = await createPico({ voxelSize: 0.38, pager: { budgetBytes: 512 * 2 ** 20 } });
+// ... build ...
+const { heapBytes, farBytes, pager } = pico.footprint;
+console.log(heapBytes, farBytes, pager.parks, pager.restores);
+```
+
+The pager is a capacity tool, not a speed tool. Parking and restoring cost time, so a budget well below what the model needs runs slower than in-core work; it lets work finish that would otherwise exceed the 4 GiB heap. A grid is never parked in the middle of the call that uses it.
+
 ### The `Symbol.dispose` shim
 
 Importing any picovoxel entry runs `Symbol.dispose ??= Symbol.for('Symbol.dispose')`. The check is a feature test: on an engine with a native `Symbol.dispose` nothing changes, and on one without it the symbol is defined before your code runs, so `using` in your transpiled code finds it. The shim only defines the symbol. The `using` syntax itself needs an engine that parses it, or a compiler such as TypeScript or esbuild that rewrites it.
@@ -75,14 +109,14 @@ According to MDN's browser compatibility data (read on 2026-09-28), native `Symb
 
 To watch the whole runtime, sample `session.module.HEAPU8.buffer.byteLength` from any of its sessions: they all report the same memory. `session.dispose()` frees that session's objects; `runtime.dispose()` disposes every open session and stops the thread pool.
 
-To watch memory yourself, read `session.memory` (bytes per object type), `session.allocated` (live object counts), `voxels.memUsage`, and `session.module.HEAPU8.buffer.byteLength`, the size of linear memory and therefore the session's peak so far.
+To watch memory yourself, read `session.memory` (bytes per object type), `session.allocated` (live object counts), `voxels.memUsage`, and `session.footprint`, whose `heapBytes` is the size of linear memory and therefore the runtime's peak so far, and whose `farBytes` counts the grids the pager parked outside it.
 
 ## Out-of-memory errors
 
-| Code                 | Raised when                                                                                                                                                                                                                                                              |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `PICO_OUT_OF_MEMORY` | picovoxel's own wasm allocation fails (STL chunks, strings, SDF tapes, metadata buffers), a guarded native call throws C++ `std::bad_alloc` at the 4 GiB limit, or a guarded native call aborts with a `WebAssembly.RuntimeError`, whose usual cause is exhausted memory |
-| `PICO_ALLOC_FAILED`  | a native call that creates an object returns a null handle                                                                                                                                                                                                               |
+| Code                 | Raised when                                                                                                                                                                                                                                                                                                                                                    |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PICO_OUT_OF_MEMORY` | picovoxel's own wasm allocation fails (STL chunks, strings, SDF tapes, metadata buffers), a guarded native call throws C++ `std::bad_alloc` at the 4 GiB limit, a guarded native call aborts with a `WebAssembly.RuntimeError`, whose usual cause is exhausted memory, or the grid pager runs out of heap or far-store space while parking or restoring a grid |
+| `PICO_ALLOC_FAILED`  | a native call that creates an object returns a null handle                                                                                                                                                                                                                                                                                                     |
 
 Not every exhaustion path is typed. A native call that picovoxel does not guard surfaces an allocation failure as an untyped `WebAssembly.Exception`. After any of these errors, treat the session as unusable: dispose it, then retry with a coarser `voxelSize`, smaller bounds, or intermediates disposed sooner.
 
@@ -120,11 +154,11 @@ Measured on 2026-07-27 on a 12-core Apple M2 Pro, running the repository's Helix
 |     0.5 mm |          2.16 GiB |            2.56 GiB |
 |     0.4 mm |      not measured |            3.76 GiB |
 
-At 0.4 mm the pthreads build left 0.24 GiB below the ceiling. The first failing voxel size for this model was not located. `node bench/heatx-sweep.mjs --sizes 1.0,0.5 --builds single,multi` repeats the measurement on your machine. For a model of your own, start coarse and step down while watching the linear-memory size.
+At 0.4 mm the pthreads build left 0.24 GiB below the ceiling. Without disposal this model first fails at 0.38 mm; the example now disposes every intermediate at its last use and completes 0.30 mm on the same build. `node bench/heatx-sweep.mjs --sizes 1.0,0.5 --builds single,multi` repeats the measurement on your machine. For a model of your own, start coarse and step down while watching the linear-memory size.
 
 ## Known limits
 
-- **The 4 GiB ceiling.** Per module, as above: per session with `createPico`, shared by every session on a runtime. Models that need more than that at the chosen voxel size fail with an out-of-memory error; a 64-bit build is not provided.
+- **The 4 GiB ceiling.** Per module, as above: per session with `createPico`, shared by every session on a runtime. The grid pager moves idle grids out of the heap, but every grid a single operation uses, and its result, must fit at once. Models that need more than that at the chosen voxel size fail with an out-of-memory error; a 64-bit build is not provided.
 - **GLB has no provenance slot.** picovoxel's GLB writer cannot record a lane, so `toGlb()` refuses fast-provenance geometry in every session unless the export passes `acceptLane: 'fast'`, and the acknowledged bytes record nothing. STL and `.vdb` exports carry the record. See [Lanes](lanes.md).
 - **`properties()` fills sealed cavities.** `properties()` follows PicoGK's `CalculateProperties`: it meshes the grid, converts the mesh back into a fresh grid with OpenVDB's `meshToLevelSet`, and measures that grid. The conversion tells inside from outside by sweeping and flood-filling inward from the outside of the part, and it treats every region it cannot reach as inside. A sealed cavity therefore becomes solid and its surface is dropped, and so does a cavity whose openings are all about two voxels wide or narrower.
 
