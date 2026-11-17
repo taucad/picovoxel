@@ -2,7 +2,7 @@
 // reaches it in real use and checked against an independent oracle: the dense JS-callback
 // twin for the tape evaluator, upstream's own export for the column-culled and tile-aware
 // repairs, and boundary pairs (the rejected tape next to the accepted one) for validation.
-// The coverage-cpp CI job measures the nine own C++ translation units over the light suite;
+// The coverage-cpp CI job measures the ten own C++ translation units over the light suite;
 // this file is what keeps them at 100% lines and functions.
 //
 // Three input classes are not producible through the product's own operations, so they
@@ -28,17 +28,30 @@ interface ForeignNode {
   active: boolean;
 }
 
+/** A tile of the root (spanning 4096³ voxels at a multiple of 4096) or of the level-2 node. */
+interface ForeignTile {
+  /** Root tiles: the tile origin. Level-2 tiles: the 128-aligned origin, each in [0, 4096). */
+  at: Vec3;
+  value: number;
+  active: boolean;
+}
+
 /**
  * Serializes one level-set FloatTree (5-4-3) as an uncompressed OpenVDB file, format 225:
  * root, one level-2 node, one level-1 node holding the given tiles and leaves; every other
- * value is an inactive background tile.
+ * value is an inactive tile of value `fill` (default: the background). `level2` places tiles
+ * in the level-2 node beside its one child, and `root` adds root tiles.
  */
 function foreignLevelSet(options: {
   voxelSize: number;
   background: number;
   nodes?: readonly ForeignNode[];
+  fill?: number;
+  level2?: readonly ForeignTile[];
+  root?: readonly ForeignTile[];
 }): Uint8Array {
-  const { voxelSize: s, background, nodes = [] } = options;
+  const { voxelSize: s, background, nodes = [], level2 = [], root = [] } = options;
+  const fill = options.fill ?? background;
   const chunks: Uint8Array[] = [];
   let length = 0;
   const put = (bytes: Uint8Array) => {
@@ -100,24 +113,31 @@ function foreignLevelSet(options: {
   const map = [s, s, 1 / s, 1 / s ** 2, 0.5 / s].flatMap((v) => [v, v, v]);
   put(new Uint8Array(Float64Array.from(map).buffer));
 
-  // Topology: one buffer; a root with no tiles and one child at the origin.
+  // Topology: one buffer; a root with the given tiles and one child at the origin.
   u32(1);
   f32s([background]);
-  u32(0);
+  u32(root.length);
   u32(1);
+  for (const tile of root) {
+    for (const c of tile.at) u32(c >>> 0);
+    f32s([tile.value]);
+    u8(tile.active ? 1 : 0);
+  }
   for (let i = 0; i < 3; i++) u32(0);
-  // Level-2 node: slot 0 is the level-1 node, every other slot an inactive background tile.
+  // Level-2 node: slot 0 is the level-1 node, every other slot a tile.
+  const slot2 = ([x, y, z]: Vec3) => ((x >> 7) << 10) | ((y >> 7) << 5) | (z >> 7);
+  const level2BySlot = new Map(level2.map((tile) => [slot2(tile.at), tile]));
   mask(32768, (n) => n === 0);
-  mask(32768, () => false);
+  mask(32768, (n) => level2BySlot.get(n)?.active === true);
   u8(NO_MASK_AND_ALL_VALS);
-  f32s(new Float32Array(32768).fill(background));
+  f32s(Array.from({ length: 32768 }, (_, n) => level2BySlot.get(n)?.value ?? fill));
   // Level-1 node: leaves are children; tiles carry their own value and active state.
   mask(4096, (n) => leafAt(n) !== undefined);
   mask(4096, (n) => bySlot.get(n)?.active === true && leafAt(n) === undefined);
   u8(NO_MASK_AND_ALL_VALS);
   f32s(
     Array.from({ length: 4096 }, (_, n) => {
-      const value = bySlot.get(n)?.value ?? background;
+      const value = bySlot.get(n)?.value ?? fill;
       return typeof value === 'number' ? value : 0;
     }),
   );
@@ -624,6 +644,94 @@ test('tube lattices on a band that is not a whole number of voxels fall back to 
     assert.equal(tubes.isEmpty, false);
     assert.equal(tubes.gridHash().hash, serial.gridHash().hash);
     assert.equal(tubes.equals(serial), true);
+  });
+});
+
+test('the streamed grid hash equals the copy-based oracle on foreign trees', async () => {
+  await withSession(1, (session, sessionRaw) => {
+    const hashes = (voxels: Voxels) => {
+      const at = session.module._malloc(48);
+      try {
+        const read = () => session.module.HEAPU8.slice(at, at + 40).join(',');
+        sessionRaw.Voxels_GetGridHash(session.handle, voxels.handle, at, at + 16, at + 24, at + 32);
+        const streamed = read();
+        sessionRaw.Voxels_GetGridHashCopy(session.handle, voxels.handle, at, at + 16, at + 24, at + 32);
+        return { streamed, copy: read() };
+      } finally {
+        session.module._free(at);
+      }
+    };
+    const mixed = solidLeaf(-3);
+    mixed.fill(3, 256);
+    const banded = solidLeaf(-3);
+    banded[7] = -0.5;
+    const cases: [string, Parameters<typeof foreignLevelSet>[0]][] = [
+      [
+        // A level-1 node that stays: active tiles and voxels, and leaves and tiles that
+        // collapse inside, collapse outside or stay mixed.
+        'mixed level-1 node',
+        {
+          voxelSize: 1,
+          background: 3,
+          nodes: [
+            { at: [0, 0, 0], value: -1, active: true },
+            { at: [8, 0, 0], value: banded, active: true },
+            { at: [16, 0, 0], value: solidLeaf(-3), active: false },
+            { at: [24, 0, 0], value: solidLeaf(3), active: false },
+            { at: [32, 0, 0], value: mixed, active: false },
+            { at: [40, 0, 0], value: -3, active: false },
+            { at: [48, 0, 0], value: 3, active: false },
+          ],
+        },
+      ],
+      [
+        'everything outside: the level-2 node collapses to an outside root tile',
+        { voxelSize: 1, background: 3 },
+      ],
+      [
+        'everything inside: the level-2 node collapses to an inside root tile',
+        { voxelSize: 1, background: 3, fill: -3 },
+      ],
+      [
+        // Mixed signs among the level-1 node's tiles: it stays, as does its parent.
+        'one outside tile in an inside node',
+        { voxelSize: 1, background: 3, fill: -3, nodes: [{ at: [64, 64, 64], value: 3, active: false }] },
+      ],
+      [
+        // An active level-2 tile voxelizes to 128³ active voxels and keeps its parent; the
+        // inside level-1 node then collapses to a tile within it.
+        'an active level-2 tile',
+        {
+          voxelSize: 1,
+          background: 3,
+          fill: -3,
+          level2: [
+            { at: [128, 0, 0], value: -1, active: true },
+            { at: [0, 128, 0], value: 3, active: false },
+          ],
+        },
+      ],
+      [
+        'root tiles inside and outside',
+        {
+          voxelSize: 1,
+          background: 3,
+          nodes: [{ at: [0, 0, 0], value: banded, active: true }],
+          root: [
+            { at: [4096, 0, 0], value: -3, active: false },
+            { at: [-4096, 0, 0], value: 3, active: false },
+          ],
+        },
+      ],
+    ];
+    const seen = new Set<string>();
+    for (const [label, options] of cases) {
+      const voxels = session.voxelsFromVdb(foreignLevelSet(options));
+      const { streamed, copy } = hashes(voxels);
+      assert.equal(streamed, copy, label);
+      seen.add(streamed);
+    }
+    assert.equal(seen.size, cases.length, 'every case is a different field');
   });
 });
 

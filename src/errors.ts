@@ -136,6 +136,28 @@ export function guard<A extends unknown[], R>(
   };
 }
 
+/**
+ * Runs `body`, then `cleanup`, and returns what `body` returned. When `body`
+ * throws, `cleanup` still runs and its own throw is dropped, so the caller sees
+ * the operation's error: after an out-of-memory abort every later call into the
+ * instance throws too, and that second error must not replace the first.
+ */
+export function withCleanup<T>(body: () => T, cleanup: () => void): T {
+  let result: T;
+  try {
+    result = body();
+  } catch (error) {
+    try {
+      cleanup();
+    } catch {
+      /* keep the operation's own error */
+    }
+    throw error;
+  }
+  cleanup();
+  return result;
+}
+
 /** Throws a typed, actionable error when a disposed wrapper is used. */
 export function assertLive(disposed: boolean, kind: string): void {
   if (disposed) {

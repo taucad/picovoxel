@@ -28,11 +28,19 @@ import {
   withSdfPointer,
   withSdfTape,
   withStrings,
+  type Disposable,
   type ResolvedLane,
   type SessionContext,
 } from './context.ts';
 import { DISPOSE } from './dispose.ts';
-import { PicoError, assertLive, guard, registerOutOfMemoryProbe, type OutOfMemoryProbe } from './errors.ts';
+import {
+  PicoError,
+  assertLive,
+  guard,
+  registerOutOfMemoryProbe,
+  withCleanup,
+  type OutOfMemoryProbe,
+} from './errors.ts';
 import {
   assertVoxelsOperand,
   wrapScalarField,
@@ -258,6 +266,21 @@ export interface Pico {
   readonly module: PicoWasmModule;
   /** Escape hatch: the raw Library handle. */
   readonly handle: bigint;
+  /**
+   * Runs `build` and disposes every object it created except what it returns:
+   * the returned wrapper itself, or the wrappers directly inside a returned
+   * array or plain object. Intermediates die when the callback returns
+   * instead of whenever the garbage collector next runs, which for a
+   * synchronous build is never before it finishes. Scopes nest; an inner
+   * scope's result belongs to the outer one. When `build` throws, everything
+   * it created is disposed and its error is rethrown. `build` must be
+   * synchronous: a returned promise is refused with `PICO_INVALID_ARGUMENT`,
+   * after disposing what was created.
+   *
+   * To free an intermediate before the scope ends, dispose it, or pass
+   * `{ consume: true }` to the operation that uses it last.
+   */
+  scope<T>(build: () => T): T;
   /** Deterministic teardown: frees every object this session owns. Idempotent. */
   dispose(): void;
   [Symbol.dispose](): void;
@@ -606,6 +629,7 @@ function openPicoSession(
       totalMemUsage: () => raw.Library_nTotalMemUsage(lib),
     }),
     wrapVoxels: (handle, provenance) => wrapVoxels(ctx, handle, provenance),
+    scopes: [],
   };
 
   const release = createSessionRelease(parts, ctx.dead, lib, scratch);
@@ -999,6 +1023,37 @@ function openPicoSession(
       return lib;
     },
 
+    scope<T>(build: () => T): T {
+      liveSession();
+      const created: Disposable[] = [];
+      ctx.scopes.push(created);
+      let result: T;
+      try {
+        result = build();
+      } catch (error) {
+        ctx.scopes.pop();
+        return withCleanup(
+          () => {
+            throw error;
+          },
+          () => disposeAll(created),
+        );
+      }
+      ctx.scopes.pop();
+      if (isPromiseLike(result)) {
+        disposeAll(created);
+        throw new PicoError(
+          'PICO_INVALID_ARGUMENT',
+          'pico.scope() takes a synchronous callback, and this one returned a promise: objects created after an ' +
+            'await would escape the scope. Build synchronously inside scope(), or dispose intermediates yourself.',
+        );
+      }
+      const keep = keptWrappers(result);
+      disposeAll(created.filter((wrapper) => !keep.has(wrapper)));
+      ctx.scopes.at(-1)?.push(...created.filter((wrapper) => keep.has(wrapper)));
+      return result;
+    },
+
     dispose() {
       if (ctx.dead.value) return; // idempotent (also after the runtime disposed this session)
       ctx.registry.unregister(session); // never both GC-free and explicit free
@@ -1022,6 +1077,36 @@ function openPicoSession(
  * default but ≈1 M band voxels and 50 CFL steps at 0.02 mm, all before the pool
  * engaged; these constants are the default-size numbers.
  */
+/** Disposes each wrapper in creation order; `dispose()` is idempotent, so already-freed ones are no-ops. */
+function disposeAll(wrappers: readonly Disposable[]): void {
+  for (const wrapper of wrappers) wrapper.dispose();
+}
+
+function isPromiseLike(value: unknown): boolean {
+  return (
+    (typeof value === 'object' || typeof value === 'function') &&
+    value !== null &&
+    typeof (value as { then?: unknown }).then === 'function'
+  );
+}
+
+/**
+ * What a `scope()` result keeps alive: the value itself, and the members of a
+ * returned array or plain object (one level deep).
+ */
+function keptWrappers(result: unknown): Set<unknown> {
+  const keep = new Set<unknown>([result]);
+  if (Array.isArray(result)) {
+    for (const item of result) keep.add(item);
+  } else if (typeof result === 'object' && result !== null) {
+    const prototype = Object.getPrototypeOf(result) as unknown;
+    if (prototype === Object.prototype || prototype === null) {
+      for (const item of Object.values(result)) keep.add(item);
+    }
+  }
+  return keep;
+}
+
 export const WARM_RADIUS_VOXELS = 4;
 export const WARM_OFFSET_VOXELS = 1;
 /** The warm-up's scratch session voxel size (mm). Any value does the same work; this is the old default. */

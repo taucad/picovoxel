@@ -86,6 +86,11 @@ export interface SessionContext {
    * the build fails on a runtime import cycle.
    */
   wrapVoxels(handle: bigint, provenance?: LaneSet): Voxels;
+  /**
+   * The open `pico.scope()` calls, innermost last. Each collects the wrappers
+   * created while it is the innermost, so it can dispose them on exit.
+   */
+  scopes: Disposable[][];
 }
 
 /** Anything the facade hands out: disposable, optionally so (GC is the backstop). */
@@ -100,12 +105,21 @@ const WRAPPER_SESSION = new WeakMap<object, SessionContext>();
 /**
  * The single registration point. Every wrapper factory calls this exactly
  * once: registers the handle for GC-driven free (token = the wrapper itself),
- * wires `[Symbol.dispose]` to the public dispose, and records session ownership.
+ * wires `[Symbol.dispose]` to the public dispose, records session ownership,
+ * and enrolls the wrapper in the innermost open `pico.scope()`. A wrapper its
+ * parent owns (a grid's `metadata`) passes `scoped: false`: the parent frees it.
  */
-export function adoptHandle(ctx: SessionContext, wrapper: Disposable, handle: bigint, free: FreeFn): void {
+export function adoptHandle(
+  ctx: SessionContext,
+  wrapper: Disposable,
+  handle: bigint,
+  free: FreeFn,
+  scoped = true,
+): void {
   ctx.registry.register(wrapper, { lib: ctx.lib, handle, free }, wrapper);
   (wrapper as unknown as Record<symbol, unknown>)[DISPOSE] = wrapper.dispose;
   WRAPPER_SESSION.set(wrapper, ctx);
+  if (scoped) ctx.scopes.at(-1)?.push(wrapper);
 }
 
 /** Operands from another Library instance corrupt nothing; they throw. */

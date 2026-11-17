@@ -68,17 +68,30 @@ export type {
   PicoWasmOverrides,
 } from './session.ts';
 export type {
+  ConsumeOptions,
   GetSliceOptions,
+  MeshChunk,
+  OffsetOptions,
   ShellOptions,
   SliceAxis,
   SliceMode,
+  StreamMeshOptions,
+  StreamMeshResult,
   ToMeshOptions,
   Voxels,
   VoxelSlice,
+  VoxelsStreamStlOptions,
 } from './voxels.ts';
 export type { Mesh, TransformOptions } from './mesh.ts';
 export { meshToStlBytes } from './stl.ts';
-export type { FromStlOptions, StlUnit, ToStlOptions } from './stl.ts';
+export type {
+  FromStlOptions,
+  StlChunkSink,
+  StlUnit,
+  StreamStlOptions,
+  StreamStlResult,
+  ToStlOptions,
+} from './stl.ts';
 export type { AddBeamOptions, Lattice } from './lattice.ts';
 export type { PolyLine } from './polyline.ts';
 export type { ScalarField, ScalarFieldSlice, VectorField } from './fields.ts';

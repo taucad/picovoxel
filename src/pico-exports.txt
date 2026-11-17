@@ -169,3 +169,16 @@ _Voxels_IntersectImplicitFast
 _Voxels_RayCastBatch
 _Voxels_RayCastBatchSubVoxel
 _Voxels_ClosestPointBatch
+_Voxels_GetGridHashCopy
+_Mesh_pVertexData
+_Mesh_pTriangleData
+_Mesh_GetStlRecords
+_MeshStream_pCreate
+_MeshStream_nNext
+_MeshStream_pData
+_MeshStream_nDataBytes
+_MeshStream_pTriangles
+_MeshStream_nTriangleIndices
+_MeshStream_dTriangleCount
+_MeshStream_dVertexCount
+_MeshStream_Destroy

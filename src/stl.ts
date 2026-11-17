@@ -52,6 +52,46 @@ export interface ToStlOptions {
   acceptLane?: 'fast';
 }
 
+/**
+ * Receives one chunk of a streamed STL. The view points into wasm memory and
+ * is valid only until the callback returns: copy it (`chunk.slice()`) or
+ * write it out first, and copy before any `await`.
+ */
+export type StlChunkSink = (chunk: Uint8Array) => void;
+
+/** Options for `Mesh.streamStl` and `Voxels.streamStl`. */
+export interface StreamStlOptions {
+  /**
+   * Hand the 84-byte header to the sink as the first chunk, so the chunks are
+   * the whole file in order (an append-only sink, such as a `WritableStream`,
+   * needs this). Default `false`: the sink receives the triangle records only,
+   * and the caller places the returned `header` first, which a seekable file
+   * or a chunk list does at no cost. `Voxels.streamStl` pays a counting pass
+   * of the mesher for it, because the count leads the file.
+   */
+  includeHeader?: boolean;
+  /**
+   * The most triangle records in one chunk (50 bytes each). Default 65,536,
+   * about 3.3 MB; the chunk buffer is the export's only transient of this
+   * size. `Voxels.streamStl` emits whole quads, so it rounds this down to an
+   * even count, and at least 2.
+   */
+  chunkTriangles?: number;
+  /** As `ToStlOptions.acceptLane`: acknowledges a non-exact export. */
+  acceptLane?: 'fast';
+}
+
+/** What a streamed STL export returns once every chunk has been written. */
+export interface StreamStlResult {
+  /**
+   * The finished 84-byte header (`PicoGK UNITS=mm`, the lane stamp for
+   * non-exact provenance, the triangle count). A fresh buffer the caller owns.
+   */
+  header: Uint8Array<ArrayBuffer>;
+  /** Triangles written; the file is `84 + 50 * triangleCount` bytes. */
+  triangleCount: number;
+}
+
 export interface FromStlOptions {
   /** 'auto' honours the UNITS= header, defaulting to mm. */
   unit?: StlUnit;
@@ -94,6 +134,45 @@ export function meshToStlBytes(
   return writeStlBytes(vertices, triangles, options, lane === 'fast' ? FAST_LANE_SET : EXACT_LANE_SET);
 }
 
+/**
+ * True when `options` export millimetres with no scale and no offset: the
+ * records are then the native identity records (`Mesh_GetStlRecords`,
+ * `MeshStream_*`), so the writer may stream them instead of transforming in JS.
+ */
+export function isIdentityStl(options: ToStlOptions): boolean {
+  const { unit = 'mm', scale = 1, offset = [0, 0, 0] } = options;
+  return (
+    unit === 'mm' &&
+    scale === 1 &&
+    Object.is(offset[0], 0) &&
+    Object.is(offset[1], 0) &&
+    Object.is(offset[2], 0)
+  );
+}
+
+/**
+ * Writes the 84-byte binary STL header into `bytes`: `PicoGK UNITS=xx`, the
+ * lane stamp for non-exact provenance, space padding to 80 bytes, then the
+ * little-endian triangle count.
+ */
+export function writeStlHeader(
+  bytes: Uint8Array,
+  triangleCount: number,
+  unit: Exclude<StlUnit, 'auto'>,
+  provenance: LaneSet,
+): void {
+  // The lane stamp only ever appears on non-exact exports, so every
+  // byte-locked exact fixture keeps its exact historical header.
+  const units = `PicoGK ${UNIT_HEADER[unit]}`;
+  let stamp = provenance.length === 0 ? '' : ` ${formatLaneToken(provenance)}`;
+  // ponytail: 80 bytes leave ~59 for members; only foreign tags can grow a set
+  // past that, and it then stamps the reserved `unknown` — still fast-like.
+  if (units.length + stamp.length > 80) stamp = ` ${formatLaneToken([UNKNOWN_LANE_MEMBER])}`;
+  const header = `${units}${stamp}`.padEnd(80, ' ');
+  for (let i = 0; i < 80; i++) bytes[i] = header.charCodeAt(i);
+  new DataView(bytes.buffer, bytes.byteOffset, 84).setUint32(80, triangleCount, true);
+}
+
 /** The STL writer itself; callers have already settled the export boundary for `provenance`. */
 export function writeStlBytes(
   vertices: Float32Array,
@@ -113,28 +192,15 @@ export function writeStlBytes(
 
   const bytes = new Uint8Array(84 + triangleCount * 50);
   const view = new DataView(bytes.buffer);
-  // The lane stamp only ever appears on non-exact exports, so every
-  // byte-locked exact fixture keeps its exact historical header.
-  const units = `PicoGK ${UNIT_HEADER[unit]}`;
-  let stamp = provenance.length === 0 ? '' : ` ${formatLaneToken(provenance)}`;
-  // ponytail: 80 bytes leave ~59 for members; only foreign tags can grow a set
-  // past that, and it then stamps the reserved `unknown` — still fast-like.
-  if (units.length + stamp.length > 80) stamp = ` ${formatLaneToken([UNKNOWN_LANE_MEMBER])}`;
-  const header = `${units}${stamp}`.padEnd(80, ' ');
-  for (let i = 0; i < 80; i++) bytes[i] = header.charCodeAt(i);
-  view.setUint32(80, triangleCount, true);
+  writeStlHeader(bytes, triangleCount, unit, provenance);
 
   // C# TransformToUnit: v += offset; v *= scale; v /= divider — float32 each step.
   // MI24: for millimetres, scale 1 and offset 0 every step is exact on a float32
   // input, so the chain is the identity except that -0 + 0 is +0; `value + 0`
   // keeps that and skips the per-component rounding. Object.is: an offset of -0
-  // keeps -0, so it takes the general path.
-  const identity =
-    divider === 1 &&
-    scale === 1 &&
-    Object.is(offset[0], 0) &&
-    Object.is(offset[1], 0) &&
-    Object.is(offset[2], 0);
+  // keeps -0, so it takes the general path. src/pico-stream.cpp writes the
+  // identity path's records natively, with the same arithmetic.
+  const identity = isIdentityStl(options);
   const transform = identity
     ? (value: number): number => value + 0
     : (value: number, axis: number): number =>

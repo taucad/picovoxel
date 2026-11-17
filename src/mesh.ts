@@ -1,6 +1,9 @@
 // Mesh wrapper. Bulk-first: vertices/triangles cross the ABI in two calls each way,
 // and every read out of wasm memory is copied — ALLOW_MEMORY_GROWTH
 // detaches heap views, so a returned subarray could silently empty later.
+// Reads copy straight out of the mesh's own storage (Mesh_pVertexData,
+// src/pico-stream.cpp), with no staging buffer in the heap, and STL export
+// streams native records in fixed-size chunks.
 // Geometry transforms (transform/mirror/merged) run in TS over the bulk arrays and
 // write back through the bulk imports, preserving indexing — and fixing an upstream
 // bug (mshCreateTransformed scales each triangle corner by a DIFFERENT axis component).
@@ -15,11 +18,19 @@ import {
   VEC3_BYTES,
   type SessionContext,
 } from './context.ts';
-import { assertLive, guard, PicoError } from './errors.ts';
+import { assertLive, guard, PicoError, withCleanup } from './errors.ts';
 import { createGlb } from './glb.ts';
 import { assertLaneExport, EXACT_LANE_SET, laneOf, unionLaneSets, type LaneSet } from './lanes.ts';
 import { provenanceOf, recordProvenance } from './metadata.ts';
-import { writeStlBytes, type ToStlOptions } from './stl.ts';
+import {
+  isIdentityStl,
+  writeStlBytes,
+  writeStlHeader,
+  type StlChunkSink,
+  type StreamStlOptions,
+  type StreamStlResult,
+  type ToStlOptions,
+} from './stl.ts';
 import type { Bounds, Mat4, Vec3 } from './types.ts';
 import type { Voxels } from './voxels.ts';
 
@@ -81,6 +92,20 @@ export interface Mesh {
    */
   toStl(options?: ToStlOptions): Uint8Array;
   /**
+   * Streams the binary STL of this mesh to `write` in chunks instead of
+   * returning one buffer: millimetres, the bytes `toStl()` returns. Each chunk
+   * is a view into wasm memory that is valid only during the call, so copy it
+   * (`chunk.slice()`) or write it out before returning; an asynchronous sink
+   * must copy before it awaits. No chunk exceeds `chunkTriangles` records.
+   *
+   * By default `write` receives the 50-byte triangle records only, and the
+   * result carries the 84-byte header for the caller to place first (for
+   * example `new Blob([result.header, ...chunks])`). With
+   * `includeHeader: true` the header is the first chunk, so the chunks are the
+   * whole file in order. Lane rules are those of `toStl()`.
+   */
+  streamStl(write: StlChunkSink, options?: StreamStlOptions): StreamStlResult;
+  /**
    * GLB container (positions + indices). GLB has no provenance slot, so non-exact provenance refuses with `PICO_LANE_EXPORT` in EVERY
    * session — including `lane: 'fast'` — unless acknowledged with
    * `{ acceptLane: 'fast' }`, and the acknowledged bytes record nothing.
@@ -90,10 +115,33 @@ export interface Mesh {
   readonly lane: 'exact' | 'fast';
   /** Raw ABI handle — escape hatch. */
   readonly handle: bigint;
-  /** Optional: GC reclaims un-disposed meshes. Idempotent. */
+  /**
+   * Frees the mesh now. Idempotent. Required for large meshes created inside
+   * one synchronous task: the garbage collector can only reclaim an
+   * un-disposed mesh after the task returns, so until then its memory counts
+   * against the 4 GiB heap. `pico.scope()` disposes for you.
+   */
   dispose(): void;
   [Symbol.dispose](): void;
 }
+
+/** STL records per streamed chunk unless `chunkTriangles` says otherwise: 3.3 MB. */
+const DEFAULT_CHUNK_TRIANGLES = 65_536;
+
+/** Validates `chunkTriangles`: a positive integer whose chunk fits an int32 byte count. */
+export function readChunkTriangles(options: { chunkTriangles?: number }): number {
+  const { chunkTriangles = DEFAULT_CHUNK_TRIANGLES } = options;
+  if (!Number.isInteger(chunkTriangles) || chunkTriangles < 1 || chunkTriangles > MAX_CHUNK_TRIANGLES) {
+    throw new PicoError(
+      'PICO_INVALID_ARGUMENT',
+      `streamStl chunkTriangles must be an integer in [1, ${MAX_CHUNK_TRIANGLES}], got ${chunkTriangles}.`,
+    );
+  }
+  return chunkTriangles;
+}
+
+/** The largest chunk whose bytes (50 per record) stay an int32. */
+const MAX_CHUNK_TRIANGLES = Math.floor(0x7fffffff / 50);
 
 /** Writes vertex/triangle arrays into a fresh raw mesh via the bulk-add imports. */
 export function bulkCreateMesh(
@@ -152,29 +200,45 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: LaneSet = EX
     return handle;
   };
 
-  const readAll = guard('Mesh_GetVertices/GetTriangles', () => {
+  // Zero-copy readback: the mesh's own std::vector storage is already the
+  // xyz and corner triples, so copy out of it directly. Nothing allocates
+  // between taking the addresses and copying, so the views cannot detach.
+  const readAll = guard('Mesh_pVertexData/pTriangleData', () => {
     const { module, raw, lib } = ctx;
     const vertexCount = raw.Mesh_nVertexCount(lib, handle);
     const triangleCount = raw.Mesh_nTriangleCount(lib, handle);
-    const vertexPointer = checkedMalloc(module, vertexCount * VEC3_BYTES, 'mesh vertices');
-    const trianglePointer = checkedMalloc(module, triangleCount * TRI_BYTES, 'mesh triangles');
-    try {
-      raw.Mesh_GetVertices(lib, handle, vertexPointer, vertexCount);
-      raw.Mesh_GetTriangles(lib, handle, trianglePointer, triangleCount);
-      refreshHeapViews(module);
-      return {
-        vertices: new Float32Array(
-          module.HEAPF32.subarray(vertexPointer >>> 2, (vertexPointer >>> 2) + vertexCount * 3),
-        ),
-        triangles: new Uint32Array(
-          module.HEAPU32.subarray(trianglePointer >>> 2, (trianglePointer >>> 2) + triangleCount * 3),
-        ),
-      };
-    } finally {
-      module._free(vertexPointer);
-      module._free(trianglePointer);
-    }
+    const vertexPointer = raw.Mesh_pVertexData(lib, handle) >>> 0;
+    const trianglePointer = raw.Mesh_pTriangleData(lib, handle) >>> 0;
+    refreshHeapViews(module);
+    return {
+      vertices: new Float32Array(
+        module.HEAPF32.subarray(vertexPointer >>> 2, (vertexPointer >>> 2) + vertexCount * 3),
+      ),
+      triangles: new Uint32Array(
+        module.HEAPU32.subarray(trianglePointer >>> 2, (trianglePointer >>> 2) + triangleCount * 3),
+      ),
+    };
   });
+
+  /**
+   * Hands `write` the native STL records of every triangle, at most
+   * `chunkTriangles` per call, from one reused heap buffer.
+   */
+  const streamRecords = (write: StlChunkSink, triangleCount: number, chunkTriangles: number): void => {
+    const { module, raw, lib } = ctx;
+    const records = guard('Mesh_GetStlRecords', raw.Mesh_GetStlRecords);
+    const buffer = checkedMalloc(module, Math.min(chunkTriangles, triangleCount) * 50, 'an STL chunk');
+    withCleanup(
+      () => {
+        for (let first = 0; first < triangleCount; first += chunkTriangles) {
+          const written = records(lib, handle, first, chunkTriangles, buffer);
+          refreshHeapViews(module);
+          write(module.HEAPU8.subarray(buffer, buffer + written * 50));
+        }
+      },
+      () => module._free(buffer),
+    );
+  };
 
   /** Pure vertex-remap derivation: same triangles, transformed vertex array. */
   const deriveVertices = (
@@ -327,8 +391,36 @@ export function wrapMesh(ctx: SessionContext, handle: bigint, lane: LaneSet = EX
     toStl(options: ToStlOptions = {}): Uint8Array {
       live();
       assertLaneExport('toStl', 'a mesh', lane, ctx.lane, options.acceptLane);
+      if (cached === null && isIdentityStl(options)) {
+        // The records stream into the one output buffer: no copy of the mesh
+        // exists in the heap or in JS on the way.
+        const triangleCount = ctx.raw.Mesh_nTriangleCount(ctx.lib, handle);
+        const bytes = new Uint8Array(84 + triangleCount * 50);
+        writeStlHeader(bytes, triangleCount, 'mm', lane);
+        let at = 84;
+        streamRecords(
+          (chunk) => {
+            bytes.set(chunk, at);
+            at += chunk.length;
+          },
+          triangleCount,
+          DEFAULT_CHUNK_TRIANGLES,
+        );
+        return bytes;
+      }
       const data = (cached ??= readAll());
       return writeStlBytes(data.vertices, data.triangles, options, lane);
+    },
+    streamStl(write: StlChunkSink, options: StreamStlOptions = {}): StreamStlResult {
+      live();
+      const chunkTriangles = readChunkTriangles(options);
+      assertLaneExport('streamStl', 'a mesh', lane, ctx.lane, options.acceptLane);
+      const triangleCount = ctx.raw.Mesh_nTriangleCount(ctx.lib, handle);
+      const header = new Uint8Array(84);
+      writeStlHeader(header, triangleCount, 'mm', lane);
+      if (options.includeHeader === true) write(header.slice());
+      streamRecords(write, triangleCount, chunkTriangles);
+      return { header, triangleCount };
     },
     toGlb(options: { acceptLane?: 'fast' } = {}): Uint8Array {
       live();

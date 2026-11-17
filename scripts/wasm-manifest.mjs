@@ -53,7 +53,14 @@ export const CEILINGS = {
   // brotli stay under their ceilings; gzip is admitted at that measurement
   // plus 0.5% (rounded up). Multi stays under all three in the same run.
   // https://github.com/taucad/picovoxel/actions/runs/41673216642
-  serial: { raw: 6_287_297, gzip: 1_329_971, brotli: 566_311 },
+  // Then 6,324,876 raw (+43,562 over that run's 6,281,314, which a local build
+  // of main reproduces byte for byte in all three sizes): src/pico-stream.cpp,
+  // the slab mesher behind streamStl/streamMesh (it instantiates OpenVDB's
+  // uniform VolumeToMesh passes per batch), the STL record writer and the
+  // zero-copy mesh pointers, plus the streamed grid hash in src/pico-hash.cpp.
+  // gzip-9 1,337,380 and brotli-11 572,487 (local build); the raw ceiling is
+  // that measurement and the compressed ceilings are it plus 0.5% (rounded up).
+  serial: { raw: 6_324_876, gzip: 1_344_067, brotli: 575_350 },
   // emcc 5.0.1, the same local build: 6,335,092 raw (+198,128); gzip-9 1,355,263
   // and brotli-11 589,958, plus 0.5% for the compressed ceilings. Then 6,345,219
   // raw (+10,127, same cause as serial); gzip-9 1,357,291 and brotli-11 591,620,
@@ -63,7 +70,9 @@ export const CEILINGS = {
   // 1,379,202 gzip, 594,665 brotli. Option A admits these compressed sizes
   // +0.5% (rounded up); the raw ceiling stays unchanged. Both measurements
   // match the approved 6.0.2 probe, so neither exceeds its headroom.
-  multi: { raw: 6_345_288, gzip: 1_386_099, brotli: 597_639 },
+  // Then 6,374,429 raw (+44,133 over main's 6,330,296, same cause as serial);
+  // gzip-9 1,388,669 and brotli-11 605,530 (local build), plus 0.5%.
+  multi: { raw: 6_374_429, gzip: 1_395_613, brotli: 608_558 },
 };
 
 /** Byte counts and digest for one file. */

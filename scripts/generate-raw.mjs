@@ -183,10 +183,22 @@ export const BULK_FUNCTIONS = [
       { name: 'poBBox', type: 'PKBBox3*', cwrap: 'number' },
     ],
   },
-  // The hash TU (src/pico-hash.cpp) — the canonical grid hash + its self-test
-  // densifier.
+  // The hash TU (src/pico-hash.cpp) — the canonical grid hash (streamed), the
+  // copy-based oracle it is tested against, and the self-test densifier.
   {
     name: 'Voxels_GetGridHash',
+    cwrapReturn: null,
+    args: [
+      { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+      { name: 'hThis', type: 'PKVOXELS', cwrap: 'bigint' },
+      { name: 'pnHash16', type: 'uint8_t*', cwrap: 'number' },
+      { name: 'pnActiveVoxels', type: 'uint64_t*', cwrap: 'number' },
+      { name: 'pnInsideTiles', type: 'uint64_t*', cwrap: 'number' },
+      { name: 'pnInsideOffVoxels', type: 'uint64_t*', cwrap: 'number' },
+    ],
+  },
+  {
+    name: 'Voxels_GetGridHashCopy',
     cwrapReturn: null,
     args: [
       { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
@@ -356,6 +368,87 @@ export const BULK_FUNCTIONS = [
       { name: 'pfConstants', type: 'double*', cwrap: 'number' },
       { name: 'nConstantCount', type: 'int32_t', cwrap: 'number' },
     ],
+  },
+  // The stream TU (src/pico-stream.cpp) — zero-copy mesh readback, STL records
+  // from a mesh, and the slab mesher behind voxels.streamStl/streamMesh. The
+  // stream is an opaque native pointer (void*), so it crosses as a number.
+  {
+    name: 'Mesh_pVertexData',
+    cwrapReturn: 'number',
+    args: [
+      { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+      { name: 'hThis', type: 'PKMESH', cwrap: 'bigint' },
+    ],
+  },
+  {
+    name: 'Mesh_pTriangleData',
+    cwrapReturn: 'number',
+    args: [
+      { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+      { name: 'hThis', type: 'PKMESH', cwrap: 'bigint' },
+    ],
+  },
+  {
+    name: 'Mesh_GetStlRecords',
+    cwrapReturn: 'number',
+    args: [
+      { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+      { name: 'hThis', type: 'PKMESH', cwrap: 'bigint' },
+      { name: 'nFirst', type: 'int32_t', cwrap: 'number' },
+      { name: 'nCount', type: 'int32_t', cwrap: 'number' },
+      { name: 'pnBuffer', type: 'uint8_t*', cwrap: 'number' },
+    ],
+  },
+  {
+    name: 'MeshStream_pCreate',
+    cwrapReturn: 'number',
+    args: [
+      { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+      { name: 'hVoxels', type: 'PKVOXELS', cwrap: 'bigint' },
+      { name: 'nMode', type: 'int32_t', cwrap: 'number' },
+      { name: 'nBatchLeaves', type: 'int32_t', cwrap: 'number' },
+      { name: 'nChunkTriangles', type: 'int32_t', cwrap: 'number' },
+    ],
+  },
+  {
+    name: 'MeshStream_nNext',
+    cwrapReturn: 'number',
+    args: [{ name: 'pStream', type: 'void*', cwrap: 'number' }],
+  },
+  {
+    name: 'MeshStream_pData',
+    cwrapReturn: 'number',
+    args: [{ name: 'pStream', type: 'void*', cwrap: 'number' }],
+  },
+  {
+    name: 'MeshStream_nDataBytes',
+    cwrapReturn: 'number',
+    args: [{ name: 'pStream', type: 'void*', cwrap: 'number' }],
+  },
+  {
+    name: 'MeshStream_pTriangles',
+    cwrapReturn: 'number',
+    args: [{ name: 'pStream', type: 'void*', cwrap: 'number' }],
+  },
+  {
+    name: 'MeshStream_nTriangleIndices',
+    cwrapReturn: 'number',
+    args: [{ name: 'pStream', type: 'void*', cwrap: 'number' }],
+  },
+  {
+    name: 'MeshStream_dTriangleCount',
+    cwrapReturn: 'number',
+    args: [{ name: 'pStream', type: 'void*', cwrap: 'number' }],
+  },
+  {
+    name: 'MeshStream_dVertexCount',
+    cwrapReturn: 'number',
+    args: [{ name: 'pStream', type: 'void*', cwrap: 'number' }],
+  },
+  {
+    name: 'MeshStream_Destroy',
+    cwrapReturn: null,
+    args: [{ name: 'pStream', type: 'void*', cwrap: 'number' }],
   },
 ];
 

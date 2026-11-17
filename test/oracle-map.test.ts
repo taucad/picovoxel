@@ -192,6 +192,18 @@ const ORACLES: Record<string, OracleTest[]> = {
       oracle: 'mutations move the hash',
     },
   ],
+  Voxels_GetGridHashCopy: [
+    {
+      file: TIER2,
+      title: 'C17 — grid hash: stable, representation-blind, content-sensitive',
+      oracle: 'the streamed hash, grid by grid',
+    },
+    {
+      file: 'cpp-coverage-gaps.test.ts',
+      title: 'the streamed grid hash equals the copy-based oracle on foreign trees',
+      oracle: 'the streamed hash of tiles, leaves and root entries',
+    },
+  ],
   Voxels_DensifyInterior: [
     {
       file: TIER2,
@@ -323,6 +335,156 @@ const ORACLES: Record<string, OracleTest[]> = {
       title: 'raycastBatch subVoxel: the truncated hits moved onto the surface, misses unchanged',
       via: 'raycastBatch',
       oracle: 'the analytic sphere and the truncated hit',
+    },
+  ],
+  Mesh_pVertexData: [
+    {
+      file: TIER2,
+      title: 'C22 — mesh streams: zero-copy readback, STL records, slab mesher ≡ the whole mesh',
+      oracle: 'the bulk copy-out exports',
+    },
+    {
+      file: 'streaming.test.ts',
+      title: 'mesh readback copies straight out of the mesh, with no staging buffer',
+      via: 'vertices',
+      oracle: 'the bytes before and after',
+    },
+  ],
+  Mesh_pTriangleData: [
+    {
+      file: TIER2,
+      title: 'C22 — mesh streams: zero-copy readback, STL records, slab mesher ≡ the whole mesh',
+      oracle: 'the bulk copy-out exports',
+    },
+  ],
+  Mesh_GetStlRecords: [
+    {
+      file: TIER2,
+      title: 'C22 — mesh streams: zero-copy readback, STL records, slab mesher ≡ the whole mesh',
+      oracle: 'the whole-mesh records, and range clamping',
+    },
+    {
+      file: 'streaming.test.ts',
+      title: 'toStl() and mesh.streamStl() write the bytes of the JavaScript STL writer',
+      via: 'streamStl',
+      oracle: 'writeStlBytes over the same arrays',
+    },
+  ],
+  MeshStream_pCreate: [
+    {
+      file: TIER2,
+      title: 'C22 — mesh streams: zero-copy readback, STL records, slab mesher ≡ the whole mesh',
+      oracle: 'the monolithic mesh, and an unknown mode',
+    },
+    {
+      file: 'streaming.test.ts',
+      title: 'voxels.streamStl writes the bytes of toMesh().toStl() at every batch and chunk size',
+      via: 'streamStl',
+      oracle: 'toMesh().toStl()',
+    },
+  ],
+  MeshStream_nNext: [
+    {
+      file: TIER2,
+      title: 'C22 — mesh streams: zero-copy readback, STL records, slab mesher ≡ the whole mesh',
+      oracle: 'the monolithic mesh',
+    },
+    {
+      file: 'streaming.test.ts',
+      title: 'voxels.streamStl writes the bytes of toMesh().toStl() at every batch and chunk size',
+      via: 'streamStl',
+      oracle: 'toMesh().toStl()',
+    },
+  ],
+  MeshStream_pData: [
+    {
+      file: TIER2,
+      title: 'C22 — mesh streams: zero-copy readback, STL records, slab mesher ≡ the whole mesh',
+      oracle: 'the whole-mesh records and vertices',
+    },
+    {
+      file: 'streaming.test.ts',
+      title: 'voxels.streamStl writes the bytes of toMesh().toStl() at every batch and chunk size',
+      via: 'streamStl',
+      oracle: 'toMesh().toStl()',
+    },
+  ],
+  MeshStream_nDataBytes: [
+    {
+      file: TIER2,
+      title: 'C22 — mesh streams: zero-copy readback, STL records, slab mesher ≡ the whole mesh',
+      oracle: 'the whole-mesh records and vertices',
+    },
+    {
+      file: 'streaming.test.ts',
+      title: 'voxels.streamStl writes the bytes of toMesh().toStl() at every batch and chunk size',
+      via: 'streamStl',
+      oracle: 'toMesh().toStl()',
+    },
+  ],
+  MeshStream_pTriangles: [
+    {
+      file: TIER2,
+      title: 'C22 — mesh streams: zero-copy readback, STL records, slab mesher ≡ the whole mesh',
+      oracle: 'the whole-mesh triangles',
+    },
+    {
+      file: 'streaming.test.ts',
+      title: 'streamMesh concatenates to the toMesh() arrays, element for element',
+      via: 'streamMesh',
+      oracle: 'toMesh()',
+    },
+  ],
+  MeshStream_nTriangleIndices: [
+    {
+      file: TIER2,
+      title: 'C22 — mesh streams: zero-copy readback, STL records, slab mesher ≡ the whole mesh',
+      oracle: 'the whole-mesh triangles',
+    },
+    {
+      file: 'streaming.test.ts',
+      title: 'streamMesh concatenates to the toMesh() arrays, element for element',
+      via: 'streamMesh',
+      oracle: 'toMesh()',
+    },
+  ],
+  MeshStream_dTriangleCount: [
+    {
+      file: TIER2,
+      title: 'C22 — mesh streams: zero-copy readback, STL records, slab mesher ≡ the whole mesh',
+      oracle: 'the mesh triangle count',
+    },
+    {
+      file: 'streaming.test.ts',
+      title: 'voxels.streamStl writes the bytes of toMesh().toStl() at every batch and chunk size',
+      via: 'streamStl',
+      oracle: 'toMesh().toStl()',
+    },
+  ],
+  MeshStream_dVertexCount: [
+    {
+      file: TIER2,
+      title: 'C22 — mesh streams: zero-copy readback, STL records, slab mesher ≡ the whole mesh',
+      oracle: 'the mesh vertex count',
+    },
+    {
+      file: 'streaming.test.ts',
+      title: 'streamMesh concatenates to the toMesh() arrays, element for element',
+      via: 'streamMesh',
+      oracle: 'toMesh()',
+    },
+  ],
+  MeshStream_Destroy: [
+    {
+      file: TIER2,
+      title: 'C22 — mesh streams: zero-copy readback, STL records, slab mesher ≡ the whole mesh',
+      oracle: 'every stream drained and freed',
+    },
+    {
+      file: 'streaming.test.ts',
+      title: 'voxels.streamStl writes the bytes of toMesh().toStl() at every batch and chunk size',
+      via: 'streamStl',
+      oracle: 'toMesh().toStl()',
     },
   ],
   Voxels_ClosestPointBatch: [
