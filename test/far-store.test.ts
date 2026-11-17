@@ -13,7 +13,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { hostname, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, test, vi } from 'vitest';
 import {
@@ -26,7 +26,12 @@ import {
   resizableArrayBuffersAvailable,
   type SyncFile,
 } from '../src/far/index.ts';
-import { nodeProcess, openNodeScratchFile, openOpfsScratchFile } from '../src/far/disk.ts';
+import {
+  defaultScratchName,
+  nodeProcess,
+  openNodeScratchFile,
+  openOpfsScratchFile,
+} from '../src/far/disk.ts';
 
 const KiB = 1024;
 
@@ -388,7 +393,9 @@ test('Node scratch default directory is the OS temp dir; outside Node it refuses
   store.write(1, bytes(100, 1));
   assert.equal(store.bytesHeld, 100);
   store.close();
-  assert.ok(existsSync(join(tmpdir(), 'picovoxel-far')));
+  assert.ok(existsSync(join(tmpdir(), defaultScratchName(hostname()))));
+  assert.equal(defaultScratchName('a/b c'), 'picovoxel-far-a_b_c');
+  assert.equal(defaultScratchName(''), 'picovoxel-far-host');
 
   vi.stubGlobal('process', { versions: {} });
   assert.equal(nodeProcess(), undefined);
