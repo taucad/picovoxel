@@ -108,6 +108,7 @@ interface NodeFs {
 
 interface NodeProcess {
   pid: number;
+  platform?: string;
   kill(pid: number, signal: number): boolean;
   getBuiltinModule?(id: string): unknown;
 }
@@ -135,6 +136,14 @@ export function pidNamespace(fs: Pick<NodeFs, 'readlinkSync'>): string | undefin
 }
 
 /**
+ * Whether a pid-based sweep is safe here: pids identify processes only within one PID namespace,
+ * and Linux containers can have separate ones. On Linux the namespace must be known (it is then
+ * part of the default directory name); elsewhere there are no container PID namespaces.
+ */
+export const canSweepByPid = (platform: string | undefined, namespace: string | undefined): boolean =>
+  platform !== 'linux' || namespace !== undefined;
+
+/**
  * The default Node scratch directory name: `picovoxel-far-<host>[-<pid namespace>]`, path-safe.
  * The sweep judges files by pid, so the directory must not be shared across PID namespaces;
  * containers can share a hostname and a temp mount yet have separate ones.
@@ -158,9 +167,12 @@ export function openNodeScratchFile(directory?: string): SyncFile {
   const os = process.getBuiltinModule!('node:os') as { tmpdir(): string; hostname(): string };
   // The default directory is per host and PID namespace, so a sweep never judges another
   // namespace's files by pid.
-  const dir = directory ?? path.join(os.tmpdir(), defaultScratchName(os.hostname(), pidNamespace(fs)));
+  const namespace = pidNamespace(fs);
+  const dir = directory ?? path.join(os.tmpdir(), defaultScratchName(os.hostname(), namespace));
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
-  if (!swept.has(dir)) {
+  // Without a known PID namespace on Linux a pid proves nothing, so files are left to the store's
+  // own removal on close instead of being swept.
+  if (!swept.has(dir) && canSweepByPid(process.platform, namespace)) {
     swept.add(dir);
     for (const name of fs.readdirSync(dir)) {
       const match = /^(\d+)-\d+\.bin$/.exec(name);

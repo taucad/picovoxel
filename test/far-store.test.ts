@@ -28,6 +28,7 @@ import {
   type SyncFile,
 } from '../src/far/index.ts';
 import {
+  canSweepByPid,
   defaultScratchName,
   nodeProcess,
   openNodeScratchFile,
@@ -305,6 +306,25 @@ async function withFs<T>(overrides: Record<string, unknown>, body: () => T): Pro
   }
 }
 
+test('Node scratch: on Linux with an unreadable PID namespace nothing is swept', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'picovoxel-far-nons-'));
+  const fs = process.getBuiltinModule('node:fs') as { readlinkSync: (path: string) => string };
+  const readlink = vi.spyOn(fs, 'readlinkSync').mockImplementation(() => {
+    throw new Error('EACCES');
+  });
+  const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('linux');
+  try {
+    const stale = join(dir, '999999999-1.bin'); // no such pid here, but it may be live elsewhere
+    writeFileSync(stale, 'x');
+    openNodeScratchFile(dir).close();
+    assert.equal(existsSync(stale), true, 'a pid outside a known namespace proves nothing');
+  } finally {
+    readlink.mockRestore();
+    platform.mockRestore();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('Node scratch: a sweeper that loses the race to unlink carries on; a vanished file still closes', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'picovoxel-far-race-'));
   try {
@@ -402,6 +422,9 @@ test('Node scratch default directory is the OS temp dir; outside Node it refuses
   assert.equal(defaultScratchName('', '42'), 'picovoxel-far-host-42');
   assert.equal(pidNamespace({ readlinkSync: () => 'pid:[4026531836]' }), '4026531836');
   assert.equal(pidNamespace({ readlinkSync: () => 'odd' }), undefined);
+  assert.equal(canSweepByPid('linux', '4026531836'), true);
+  assert.equal(canSweepByPid('linux', undefined), false);
+  assert.equal(canSweepByPid('darwin', undefined), true);
   assert.equal(
     pidNamespace({
       readlinkSync: () => {
