@@ -64,8 +64,11 @@ export const CEILINGS = {
   // pager's park and restore with its encode arena, and the frame codec
   // (src/k7codec.c with LZ4's lz4.c). gzip-9 1,348,765 and brotli-11 581,546;
   // the raw ceiling is that measurement and the compressed ceilings are it
-  // plus 0.5% (rounded up).
-  serial: { raw: 6_358_505, gzip: 1_355_509, brotli: 584_454 },
+  // plus 0.5% (rounded up). Then 6,358,882 raw (+377, CI run on 1d1d0e1): the
+  // review fixes to src/pico-park.cpp and src/k7codec.c (bounded block sizes,
+  // reserved slot vectors, the non-allocating drain); gzip-9 1,348,449 and
+  // brotli-11 581,324, plus 0.5%.
+  serial: { raw: 6_358_882, gzip: 1_355_192, brotli: 584_231 },
   // emcc 5.0.1, the same local build: 6,335,092 raw (+198,128); gzip-9 1,355,263
   // and brotli-11 589,958, plus 0.5% for the compressed ceilings. Then 6,345,219
   // raw (+10,127, same cause as serial); gzip-9 1,357,291 and brotli-11 591,620,
