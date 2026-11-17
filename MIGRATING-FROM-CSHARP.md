@@ -8,19 +8,19 @@ Fixes and reports that picovoxel offers to PicoGK and its dependencies are track
 
 ## Idiom rules (apply everywhere)
 
-| C# construct                                   | picovoxel rule                                                                                                             |
-| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Constructor overloads                          | Named factories with options objects (`new Voxels(...)` ×10 → `createVoxels({ shape })`, `clone()`, `mesh.toVoxels()`)     |
-| Operator overloads (`+`, `-`, `&`)             | Methods: `a.union(b)`, `a.subtract(b)`, `a.intersect(b)`                                                                   |
-| Mutate/copy pairs (`BoolAdd`/`voxBoolAdd`)     | **Pure copy-first methods only**; variadic forms (`union(...many)`) recover the aggregation performance of `voxBoolAddAll` |
-| Hungarian prefixes (`fVoxelSize`, `voxSphere`) | Dropped — TypeScript is the type annotation                                                                                |
-| `out`/`ref` params                             | Return objects: `CalculateProperties(out v, out b)` → `properties(): { volume, bounds }`                                   |
-| `bool Try…(out T)` duals                       | `T \| null` returns: `bClosestPointOnSurface` → `closestPointOnSurface(p): Vec3 \| null`                                   |
-| `IDisposable` + finalizer                      | Hidden: the GC frees wrappers via `FinalizationRegistry`; `dispose()` is optional; `using` still works                     |
-| Global `Library.oLibrary()`                    | Not ported — sessions are explicit (`createPico()`), never ambient                                                         |
-| File paths                                     | Bytes in, bytes out (`Uint8Array`); MEMFS is internal                                                                      |
-| `System.Numerics.Vector3`                      | `Vec3 = readonly [number, number, number]`                                                                                 |
-| Exceptions                                     | `PicoError` with a typed `code`                                                                                            |
+| C# construct                                   | picovoxel rule                                                                                                                                                                                                              |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Constructor overloads                          | Named factories with options objects (`new Voxels(...)` ×10 → `createVoxels({ shape })`, `clone()`, `mesh.toVoxels()`)                                                                                                      |
+| Operator overloads (`+`, `-`, `&`)             | Methods: `a.union(b)`, `a.subtract(b)`, `a.intersect(b)`                                                                                                                                                                    |
+| Mutate/copy pairs (`BoolAdd`/`voxBoolAdd`)     | **Pure copy-first methods**; variadic forms (`union(...many)`) recover the aggregation performance of `voxBoolAddAll`; `{ consume: true }` is the mutating form's memory profile: the receiver is used up instead of copied |
+| Hungarian prefixes (`fVoxelSize`, `voxSphere`) | Dropped — TypeScript is the type annotation                                                                                                                                                                                 |
+| `out`/`ref` params                             | Return objects: `CalculateProperties(out v, out b)` → `properties(): { volume, bounds }`                                                                                                                                    |
+| `bool Try…(out T)` duals                       | `T \| null` returns: `bClosestPointOnSurface` → `closestPointOnSurface(p): Vec3 \| null`                                                                                                                                    |
+| `IDisposable` + finalizer                      | The GC frees wrappers via `FinalizationRegistry` between tasks; `dispose()`, `{ consume: true }` or `pico.scope()` is required for large work inside one task; `using` still works                                          |
+| Global `Library.oLibrary()`                    | Not ported — sessions are explicit (`createPico()`), never ambient                                                                                                                                                          |
+| File paths                                     | Bytes in, bytes out (`Uint8Array`); MEMFS is internal                                                                                                                                                                       |
+| `System.Numerics.Vector3`                      | `Vec3 = readonly [number, number, number]`                                                                                                                                                                                  |
+| Exceptions                                     | `PicoError` with a typed `code`                                                                                                                                                                                             |
 
 ## Library → `createPico()` session
 
