@@ -95,10 +95,10 @@ export function createFileBackend(file: SyncFile, extentBytes = 2 ** 20): Extent
 
 /** The `node:fs` members the Node host uses. */
 interface NodeFs {
-  mkdirSync(path: string, options: { recursive: true }): unknown;
+  mkdirSync(path: string, options: { recursive: true; mode: number }): unknown;
   readdirSync(path: string): string[];
   unlinkSync(path: string): void;
-  openSync(path: string, flags: string): number;
+  openSync(path: string, flags: string, mode: number): number;
   writeSync(fd: number, buffer: Uint8Array, offset: number, length: number, position: number): number;
   readSync(fd: number, buffer: Uint8Array, offset: number, length: number, position: number): number;
   ftruncateSync(fd: number, length: number): void;
@@ -122,7 +122,13 @@ export function nodeProcess(): NodeProcess | undefined {
 const swept = new Set<string>();
 let fileCounter = 0;
 
-/** Opens a Node scratch file in `directory`, sweeping files left by dead processes on first use. */
+const errorCode = (error: unknown): string | undefined => (error as { code?: string } | null)?.code;
+
+/**
+ * Opens a Node scratch file in `directory`, sweeping files left by dead processes on first use.
+ * The directory is created owner-only and the file exclusively (`wx+`, mode 0600), so an
+ * existing path, a planted symlink included, is never opened: the next name is tried instead.
+ */
 export function openNodeScratchFile(directory?: string): SyncFile {
   const process = nodeProcess();
   if (!process) throw new FarStoreError('io', 'far store: the Node disk host needs Node 22.3 or later');
@@ -130,7 +136,7 @@ export function openNodeScratchFile(directory?: string): SyncFile {
   const path = process.getBuiltinModule!('node:path') as { join(...parts: string[]): string };
   const os = process.getBuiltinModule!('node:os') as { tmpdir(): string };
   const dir = directory ?? path.join(os.tmpdir(), 'picovoxel-far');
-  fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   if (!swept.has(dir)) {
     swept.add(dir);
     for (const name of fs.readdirSync(dir)) {
@@ -140,7 +146,9 @@ export function openNodeScratchFile(directory?: string): SyncFile {
       if (owner === process.pid) continue;
       try {
         process.kill(owner, 0); // still running: not ours to remove
-      } catch {
+      } catch (error) {
+        // Only ESRCH means no such process; EPERM is a live process of another user.
+        if (errorCode(error) !== 'ESRCH') continue;
         try {
           fs.unlinkSync(path.join(dir, name));
         } catch {
@@ -149,15 +157,29 @@ export function openNodeScratchFile(directory?: string): SyncFile {
       }
     }
   }
-  const file = path.join(dir, `${process.pid}-${++fileCounter}.bin`);
-  const fd = fs.openSync(file, 'w+');
+  let file: string;
+  let fd: number;
+  for (;;) {
+    file = path.join(dir, `${process.pid}-${++fileCounter}.bin`);
+    try {
+      fd = fs.openSync(file, 'wx+', 0o600);
+      break;
+    } catch (error) {
+      // Taken: a stale file of an earlier process with this pid, or a planted path.
+      if (errorCode(error) !== 'EEXIST') throw error;
+    }
+  }
   return {
     write: (bytes, at) => fs.writeSync(fd, bytes, 0, bytes.length, at),
     read: (into, at) => fs.readSync(fd, into, 0, into.length, at),
     truncate: (size) => fs.ftruncateSync(fd, size),
     close() {
       fs.closeSync(fd);
-      fs.unlinkSync(file);
+      try {
+        fs.unlinkSync(file);
+      } catch (error) {
+        if (errorCode(error) !== 'ENOENT') throw error; // already gone: a temp cleaner got there first
+      }
     },
   };
 }

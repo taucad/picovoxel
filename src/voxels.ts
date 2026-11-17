@@ -373,7 +373,12 @@ export interface Voxels {
    * export boundary does with it.
    */
   readonly lane: 'exact' | 'fast';
-  /** Raw ABI handle — escape hatch. */
+  /**
+   * Raw ABI handle — escape hatch. With the grid pager on, reading it restores a
+   * parked grid and keeps it resident until the next safe point: the end of the
+   * next Voxels operation, or the next Voxels created outside one. Use the handle
+   * before then; read it again afterwards.
+   */
   readonly handle: bigint;
   /**
    * Frees the grid now. Idempotent. Required for large work inside one
@@ -636,6 +641,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     return withCleanup(
       () => {
         ctx.raw.Voxels_GetVoxelDimensions(ctx.lib, live(), p, p + 4, p + 8, p + 12, p + 16, p + 20);
+        refreshHeapViews(ctx.module); // live() may have restored a parked grid, which can grow memory
         const i32 = (offset: number) => ctx.module.HEAP32[(p + offset) >>> 2]!;
         return { origin: [i32(0), i32(4), i32(8)] as Vec3, size: [i32(12), i32(16), i32(20)] as Vec3 };
       },
@@ -972,6 +978,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       guard('Voxels_GetProperties', () =>
         ctx.raw.Voxels_GetProperties(ctx.lib, live(), floats, floats + 4, box),
       )();
+      refreshHeapViews(ctx.module);
       return {
         volume: ctx.module.HEAPF32[floats >>> 2]!,
         area: ctx.module.HEAPF32[(floats + 4) >>> 2]!,
@@ -986,6 +993,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       guard('Voxels_GetGridHash', () =>
         ctx.raw.Voxels_GetGridHash(ctx.lib, live(), hashAt, countsAt, countsAt + 8, countsAt + 16),
       )();
+      refreshHeapViews(ctx.module);
       let hash = '';
       for (let i = 0; i < 4; i++) {
         const word = ctx.module.HEAPU32[(hashAt + 4 * i) >>> 2]!;

@@ -98,7 +98,13 @@ export interface PagerEntry {
 export interface Pager {
   /** Takes over a new grid's handle. */
   adopt(lib: bigint, handle: bigint): PagerEntry;
-  /** The entry's handle, restored and pinned for the current operation. */
+  /**
+   * The entry's handle, restored and pinned until the next safe point: the end of the
+   * outermost operation, or a grid created outside one. Outside any operation (the raw
+   * `handle` getter at depth 0) the pin lasts until that next safe point too, so every raw
+   * handle read since the last one stays valid together; the next safe point unpins them
+   * all and enforces the budget again.
+   */
   acquire(entry: PagerEntry): bigint;
   /** Re-measures a grid an operation changed in place. */
   touch(entry: PagerEntry): void;
@@ -286,6 +292,10 @@ export function createPager({ module, raw, store, threads, options }: CreatePage
         residentBytes -= entry.bytes;
         entries.delete(entry);
       }
+      // The park released the encode reserve. Take it back now, except when the heap is what ran
+      // out with the grid still whole (-2): that allocation would fail too (mimalloc traps on a
+      // full heap), so the next park that frees a grid takes it back instead.
+      if (written !== -2) raw.K7_nRearm();
       if (outOfMemory) {
         throw outOfMemoryError('pager: parking a grid', {
           cause,
@@ -351,6 +361,26 @@ export function createPager({ module, raw, store, threads, options }: CreatePage
     restores++;
   };
 
+  /** Frees an entry's grid, resident or parked; a no-op for one already gone. Never throws. */
+  const release = (entry: Entry): void => {
+    if (!entries.delete(entry)) return;
+    if (entry.state === 'resident') {
+      residentBytes -= entry.bytes;
+      try {
+        raw.Voxels_Destroy(entry.lib, entry.handle);
+      } catch {
+        /* the session was torn down first */
+      }
+    } else {
+      // Only resident and parked entries are in the set ('lost' ones leave it).
+      store.discard(entry.imageId);
+      parkedBytes -= entry.bytes;
+      parkedGrids--;
+    }
+    entry.state = 'gone';
+    entry.handle = 0n;
+  };
+
   const pin = (entry: Entry): void => {
     if (entry.pinned) return;
     entry.pinned = true;
@@ -379,11 +409,22 @@ export function createPager({ module, raw, store, threads, options }: CreatePage
       entry.bytes = measure(entry);
       entries.add(entry);
       residentBytes += entry.bytes;
+      if (depth > 0) {
+        pin(entry);
+        return entry;
+      }
+      // Created outside any Voxels operation (a session factory): a safe point. The pins of raw
+      // handles read since the last one end, and only the new grid is kept. When making room
+      // fails, the caller gets the error and never a wrapper, so the new grid is freed here.
+      unpinAll();
       pin(entry);
-      if (depth === 0) {
-        // Created outside any Voxels operation (a session factory): a safe point.
+      let failed = true;
+      try {
         makeRoom(0);
+        failed = false;
+      } finally {
         unpinAll();
+        if (failed) release(entry);
       }
       return entry;
     },
@@ -415,23 +456,7 @@ export function createPager({ module, raw, store, threads, options }: CreatePage
       entry.handle = 0n;
     },
     release(publicEntry) {
-      const entry = publicEntry as Entry;
-      if (!entries.delete(entry)) return;
-      if (entry.state === 'resident') {
-        residentBytes -= entry.bytes;
-        try {
-          raw.Voxels_Destroy(entry.lib, entry.handle);
-        } catch {
-          /* the session was torn down first */
-        }
-      } else {
-        // Only resident and parked entries are in the set ('lost' ones leave it).
-        store.discard(entry.imageId);
-        parkedBytes -= entry.bytes;
-        parkedGrids--;
-      }
-      entry.state = 'gone';
-      entry.handle = 0n;
+      release(publicEntry as Entry);
     },
     enter() {
       depth++;
@@ -477,13 +502,17 @@ export function createPager({ module, raw, store, threads, options }: CreatePage
       };
     },
     close() {
-      store.close();
       try {
-        raw.K7_nArena(0, BLOCK_LEAVES, 0, 0);
-        module.removeFunction(sink);
-        module.removeFunction(source);
-      } catch {
-        /* the module is going away with the runtime */
+        store.close();
+      } finally {
+        // Released even when the store fails to close; the store's error still propagates.
+        try {
+          raw.K7_nArena(0, BLOCK_LEAVES, 0, 0);
+          module.removeFunction(sink);
+          module.removeFunction(source);
+        } catch {
+          /* the module is going away with the runtime */
+        }
       }
     },
   };

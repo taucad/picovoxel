@@ -260,13 +260,22 @@ test('I2: a park out of heap (-2) is PICO_OUT_OF_MEMORY and leaves the grid resi
   const fake = fakeRuntime({ park: () => -2n, lastError: 1 });
   const pager = pagerOn(fake, { budgetBytes: MiB });
   const a = pager.adopt(1n, fake.grid(2));
+  const created = fake.grid(2);
   assert.throws(
-    () => pager.adopt(1n, fake.grid(2)),
+    () => pager.adopt(1n, created),
     isCode('PICO_OUT_OF_MEMORY', /parking a grid ran out of WebAssembly memory/),
   );
   assert.notEqual(a.handle, 0n);
   assert.equal(pager.stats.imageBytes, 0, 'the partial image is discarded');
+  assert.equal(fake.calls.rearms, 0, 'a full heap is not asked for the reserve again');
+  // The failed adopt hands no wrapper back, so it frees the grid it was given, once.
+  assert.deepEqual(fake.calls.destroys, [created]);
+  assert.equal(pager.stats.residentBytes, 2 * MiB);
   assert.equal(pager.acquire(a), a.handle);
+  // a was unpinned by the failed safe point: the next one can park it.
+  fake.script.park = undefined;
+  pager.adopt(1n, fake.grid(2));
+  assert.equal(a.handle, 0n);
 });
 
 test('I2: a far store that is full is PICO_OUT_OF_MEMORY naming the far store, cause kept', () => {
@@ -288,6 +297,7 @@ test('a park that fails for another reason (-1, error 2) is PICO_CALL_FAILED', (
   const pager = pagerOn(fake, { budgetBytes: MiB });
   pager.adopt(1n, fake.grid(2));
   assert.throws(() => pager.adopt(1n, fake.grid(2)), isCode('PICO_CALL_FAILED', /parking a grid failed/));
+  assert.equal(fake.calls.rearms, 1, 'the heap was not the problem: the reserve is taken back');
 });
 
 test('a park that failed after freeing leaves (-3) loses that grid loudly, never silently', () => {
@@ -300,6 +310,7 @@ test('a park that failed after freeing leaves (-3) loses that grid loudly, never
   assert.throws(() => pager.adopt(1n, fake.grid(2)), isCode('PICO_OUT_OF_MEMORY'));
   assert.equal(views, 1);
   assert.ok(fake.calls.destroys.includes(handle), 'the damaged grid is freed');
+  assert.equal(fake.calls.rearms, 1, 'the freed grid pays the reserve back');
   assert.throws(() => pager.acquire(a), isCode('PICO_OUT_OF_MEMORY', /lost when parking it failed/));
   pager.release(a); // no-op
   fake.script.park = () => -3n;
@@ -428,4 +439,35 @@ test('stats name the configuration; close releases the store and the arena, even
   assert.throws(() => store.write(1, new Uint8Array(1)), FarStoreError);
   const dying = fakeRuntime({ closeThrows: true });
   pagerOn(dying).close();
+  // A store that fails to close still lets the arena go, and its error reaches the caller.
+  const failing = fakeRuntime();
+  const broken = ramStore();
+  broken.close = () => {
+    throw new FarStoreError('io', 'scratch file gone');
+  };
+  assert.throws(() => pagerOn(failing, {}, broken).close(), /scratch file gone/);
+  assert.deepEqual(failing.calls.arena.at(-1), [0, 512, 0, 0]);
+});
+
+test('a raw handle read outside any operation stays resident until the next safe point', () => {
+  const fake = fakeRuntime();
+  const pager = pagerOn(fake, { budgetBytes: 2 * MiB });
+  const a = pager.adopt(1n, fake.grid(2));
+  const b = pager.adopt(1n, fake.grid(2)); // a parks
+  const c = pager.adopt(1n, fake.grid(2)); // b parks
+  // Depth 0, as the handle getter reads it: each restore makes room, but never by parking a
+  // grid read since the last safe point, so both raw handles stay valid together.
+  const aHandle = pager.acquire(a);
+  const bHandle = pager.acquire(b);
+  assert.deepEqual([a.handle, b.handle, c.handle === 0n], [aHandle, bHandle, true]);
+  assert.equal(pager.stats.residentBytes, 4 * MiB, 'over budget until the next safe point');
+  pager.enter();
+  pager.exit(false); // the next safe point unpins them and enforces the budget
+  assert.equal(pager.stats.residentBytes, 2 * MiB);
+  // A grid created outside an operation is a safe point too.
+  pager.acquire(a);
+  pager.acquire(b);
+  pager.adopt(1n, fake.grid(2));
+  assert.deepEqual([a.handle, b.handle], [0n, 0n]);
+  assert.equal(pager.stats.residentBytes, 2 * MiB);
 });

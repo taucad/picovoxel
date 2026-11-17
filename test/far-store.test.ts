@@ -3,9 +3,18 @@
 // which is the boundary I6a draws: this suite imports nothing outside src/far/.
 
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { afterEach, test, vi } from 'vitest';
 import {
   FarStoreError,
@@ -271,28 +280,103 @@ test('Node scratch: own directory, stale files of dead processes swept, live one
   }
 });
 
-test('Node scratch: a sweeper that loses the race to unlink carries on', async () => {
+const codeError = (code: string) => Object.assign(new Error(code), { code });
+
+/** Runs `body` with `node:fs` members replaced, as the Node host reads them. */
+async function withFs<T>(overrides: Record<string, unknown>, body: () => T): Promise<T> {
+  const fs = await import('node:fs');
+  const realGet = process.getBuiltinModule.bind(process);
+  const spy = vi
+    .spyOn(process, 'getBuiltinModule')
+    .mockImplementation((id: string) => (id === 'node:fs' ? { ...fs, ...overrides } : realGet(id)));
+  try {
+    return body();
+  } finally {
+    spy.mockRestore();
+  }
+}
+
+test('Node scratch: a sweeper that loses the race to unlink carries on; a vanished file still closes', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'picovoxel-far-race-'));
   try {
     writeFileSync(join(dir, '999999998-1.bin'), 'x');
-    const fs = await import('node:fs');
-    const realGet = process.getBuiltinModule.bind(process);
-    const spy = vi.spyOn(process, 'getBuiltinModule').mockImplementation((id: string) =>
-      id === 'node:fs'
-        ? {
-            ...fs,
-            unlinkSync() {
-              throw new Error('ENOENT');
-            },
-          }
-        : realGet(id),
+    await withFs(
+      {
+        unlinkSync() {
+          throw codeError('ENOENT');
+        },
+      },
+      () => {
+        const file = openNodeScratchFile(dir);
+        file.close(); // the name is already gone: nothing left to remove
+      },
     );
-    try {
-      const file = openNodeScratchFile(dir);
-      assert.throws(() => file.close(), /ENOENT/);
-    } finally {
-      spy.mockRestore();
+    await withFs(
+      {
+        unlinkSync() {
+          throw codeError('EACCES');
+        },
+      },
+      () => {
+        const file = openNodeScratchFile(dir);
+        assert.throws(() => file.close(), /EACCES/, 'any other unlink failure reaches the caller');
+      },
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('Node scratch: private and exclusive — 0700 directory, 0600 file, an existing path is never opened', async () => {
+  const dir = join(mkdtempSync(join(tmpdir(), 'picovoxel-far-mode-')), 'far');
+  try {
+    const file = openNodeScratchFile(dir);
+    const [created] = readdirSync(dir);
+    if (process.platform !== 'win32') {
+      assert.equal(statSync(dir).mode & 0o777, 0o700);
+      assert.equal(statSync(join(dir, created!)).mode & 0o777, 0o600);
     }
+    file.close();
+    // The next names are taken (a stale file of an earlier process with this pid, a planted
+    // symlink): each is skipped, never truncated or followed.
+    const counter = Number(/^\d+-(\d+)\.bin$/.exec(created!)![1]);
+    const target = join(dir, 'target.txt');
+    writeFileSync(target, 'keep');
+    writeFileSync(join(dir, `${process.pid}-${counter + 1}.bin`), 'stale');
+    symlinkSync(target, join(dir, `${process.pid}-${counter + 2}.bin`));
+    const next = openNodeScratchFile(dir);
+    next.write(new Uint8Array([1, 2, 3]), 0);
+    assert.equal(readFileSync(target, 'utf8'), 'keep');
+    assert.equal(readFileSync(join(dir, `${process.pid}-${counter + 1}.bin`), 'utf8'), 'stale');
+    assert.ok(existsSync(join(dir, `${process.pid}-${counter + 3}.bin`)));
+    next.close();
+    await withFs(
+      {
+        openSync() {
+          throw codeError('EACCES');
+        },
+      },
+      () => assert.throws(() => openNodeScratchFile(dir), /EACCES/, 'other open failures are not retried'),
+    );
+  } finally {
+    rmSync(dirname(dir), { recursive: true, force: true });
+  }
+});
+
+test('Node scratch: only ESRCH marks a dead owner; EPERM is a live process of another user', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'picovoxel-far-eperm-'));
+  try {
+    const other = join(dir, '999999997-1.bin');
+    writeFileSync(other, 'x');
+    const kill = vi.spyOn(process, 'kill').mockImplementation(() => {
+      throw codeError('EPERM');
+    });
+    try {
+      openNodeScratchFile(dir).close();
+    } finally {
+      kill.mockRestore();
+    }
+    assert.equal(existsSync(other), true, 'another user’s live file is kept');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

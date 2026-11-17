@@ -48,23 +48,32 @@ test('I1/I3: output is byte-identical with the pager forced on at a zero budget,
       [serialEntry, 'exact'],
       [multiEntry, 'fast'],
     ] as const) {
+      // Each runtime is disposed in its own finally: a failing iteration must not leave a
+      // pthread pool running or a disk store open.
       const off = await entry.createPico({ voxelSize: 0.5, lane, pager: false });
-      const reference = model(off);
-      off.dispose();
+      let reference: ReturnType<typeof model>;
+      try {
+        reference = model(off);
+      } finally {
+        off.dispose();
+      }
       for (const store of ['ram', 'disk'] as const) {
         const on = await entry.createPico({
           voxelSize: 0.5,
           lane,
           pager: { ...FORCED, store, directory: dir },
         });
-        assert.deepEqual(model(on), reference, `${lane} ${store}`);
-        const stats = on.footprint.pager!;
-        assert.ok(
-          stats.parks > 5 && stats.restores > 5,
-          `the pager worked: ${stats.parks} parks, ${stats.restores} restores`,
-        );
-        assert.equal(stats.store, store);
-        on.dispose();
+        try {
+          assert.deepEqual(model(on), reference, `${lane} ${store}`);
+          const stats = on.footprint.pager!;
+          assert.ok(
+            stats.parks > 5 && stats.restores > 5,
+            `the pager worked: ${stats.parks} parks, ${stats.restores} restores`,
+          );
+          assert.equal(stats.store, store);
+        } finally {
+          on.dispose();
+        }
       }
       for (const mode of ['serial', 'pooled', 'pipelined'] as const) {
         const on = await entry.createPico({
@@ -72,8 +81,11 @@ test('I1/I3: output is byte-identical with the pager forced on at a zero budget,
           lane,
           pager: { ...FORCED, mode, codec: 'none' },
         });
-        assert.deepEqual(model(on), reference, `${lane} ${mode} codec none`);
-        on.dispose();
+        try {
+          assert.deepEqual(model(on), reference, `${lane} ${mode} codec none`);
+        } finally {
+          on.dispose();
+        }
       }
     }
   } finally {

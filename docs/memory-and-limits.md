@@ -65,6 +65,7 @@ The grid pager keeps a runtime's resident Voxels grids under a byte budget. When
 - **The far store.** Parked grids go to JavaScript memory outside the wasm heap by default (`store: 'ram'`). `store: 'disk'` uses a scratch file instead: Node `fs`, or OPFS in a dedicated worker whose storage probes as disk-backed. A disk store that cannot open fails with `PICO_INVALID_ARGUMENT`; there is no silent fallback to RAM. The scratch directory is the pager's own, files of dead processes are swept, and the file is removed when the runtime is disposed.
 - **The arena.** At start the pager takes a small encode arena (one slot plus 8 MiB on `picovoxel`, `min(4, cores)` slots plus 8 MiB on `picovoxel/multi`, about 14 MB and 34 MB) so it can park on a nearly full heap. That heap is not available to the model.
 - **Metadata views.** Parking a grid disposes any `Metadata` view onto it: a view held across a park throws `PICO_DISPOSED`, and `voxels.metadata` hands out a fresh one.
+- **Raw handles.** Reading `voxels.handle` restores a parked grid and keeps it resident until the next safe point: the end of the next Voxels operation, or the next Voxels created outside one. Use the handle before then, and read it again afterwards.
 
 | Option          | Default                                         | Meaning                                                                                        |
 | --------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------- |
@@ -76,7 +77,7 @@ The grid pager keeps a runtime's resident Voxels grids under a byte budget. When
 | `storeMaxBytes` | unbounded for RAM, 16 GiB for disk              | The store's size bound; a full store fails the park with `PICO_OUT_OF_MEMORY`                  |
 | `directory`     | the system temporary directory                  | `'disk'` only: the scratch directory (a path in Node, a directory name in OPFS)                |
 
-`session.footprint` reports `{ heapBytes, farBytes, pager }`: the size of linear memory, the bytes the far store holds on its host, and the pager's counters (resident and parked bytes, parks, restores, the arena). Every session on a runtime reports the same figures. A host that recycles workers by heap size should add `farBytes`, because parked grids live there and not in the heap.
+`session.footprint` reports `{ heapBytes, farBytes, pager }`: the size of linear memory, the bytes the far store holds on its host, and the pager's counters (resident and parked bytes, parks, restores, the arena). Every session on a runtime reports the same figures. With `store: 'ram'`, a host that recycles workers by heap size should add `farBytes`, because parked grids live in the worker's memory beside the heap. With `store: 'disk'`, `farBytes` is the size of the scratch file: disk space, not worker memory, so leave it out of a recycling threshold and watch it against `storeMaxBytes` instead.
 
 ```js
 import { createPico } from 'picovoxel/multi';
