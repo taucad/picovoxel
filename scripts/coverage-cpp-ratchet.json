@@ -19,6 +19,10 @@
     "regions": 100,
     "branches": 100
   },
+  "src/pico-park.cpp": {
+    "regions": 98.7,
+    "branches": 83.9
+  },
   "src/pico-props.cpp": {
     "regions": 100,
     "branches": 70

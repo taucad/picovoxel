@@ -60,6 +60,8 @@ import type { SdfExpression } from './tape.ts';
 import type { Color, PicoWasmModule, SdfFunction, Vec3 } from './types.ts';
 import { withVdbBytes, wrapVdbFile, type VdbFile } from './vdb.ts';
 import { wrapVoxels, type Voxels } from './voxels.ts';
+import { openFarStore } from './far/index.ts';
+import { createPager, resolvePagerOptions, type Pager, type PagerOptions, type PagerStats } from './pager.ts';
 
 /** Emscripten module factory — the shape both generated glues export. */
 export type PicoGlueFactory = ((overrides?: object) => Promise<PicoWasmModule>) & {
@@ -108,6 +110,21 @@ export interface MemoryUsage {
 export type AllocatedCounts = Omit<MemoryUsage, 'total'>;
 
 /**
+ * Runtime-wide memory: the wasm heap and the pager's far store beside it. Every
+ * session on a runtime shares both, so every session reports the same figures.
+ * A host that recycles workers by heap size should add `farBytes`: grids the
+ * pager parked live there, not in the heap.
+ */
+export interface Footprint {
+  /** Bytes of wasm linear memory (the heap's current size, at most 4 GiB). */
+  heapBytes: number;
+  /** Bytes the far store holds on its host, RAM or disk; 0 with the pager off. */
+  farBytes: number;
+  /** The pager's figures; null with the pager off. */
+  pager: PagerStats | null;
+}
+
+/**
  * The Emscripten Module overrides picovoxel forwards to its glue. Both entries
  * take the same keys; `mainScriptUrlOrBlob` only has an effect on
  * `picovoxel/multi`. No other Emscripten Module key is supported.
@@ -154,6 +171,13 @@ export interface CreatePicoRuntimeOptions {
    * Mutually exclusive with `wasm.instantiateWasm`.
    */
   wasmModule?: WebAssembly.Module;
+  /**
+   * The grid pager, on by default: when the resident Voxels grids of the runtime
+   * exceed `budgetBytes` (default 2 GiB, the 4 GiB heap's headroom), the least
+   * recently used are parked, compressed, outside the wasm heap and restored on
+   * their next use. Output is byte-identical with it on or off. `false` turns it off.
+   */
+  pager?: PagerOptions | false;
 }
 
 /** Options that shape a session: one PicoGK Library instance. */
@@ -262,6 +286,8 @@ export interface Pico {
   readonly memory: MemoryUsage;
   /** PicoGK's own per-type allocation counters — the leak oracle. */
   readonly allocated: AllocatedCounts;
+  /** Runtime-wide heap and far-store bytes (see {@link Footprint}). */
+  readonly footprint: Footprint;
   /** Escape hatch: the raw Emscripten module. */
   readonly module: PicoWasmModule;
   /** Escape hatch: the raw Library handle. */
@@ -399,6 +425,46 @@ interface RuntimeParts {
   registry: HandleRegistry;
   /** Release closures of the open sessions — never the session wrappers, which they must not retain. */
   open: Set<() => void>;
+  /** The runtime's grid pager; undefined when turned off. */
+  pager: Pager | undefined;
+}
+
+/**
+ * Opens the runtime's pager and its far store. Options are validated before the
+ * store or the arena is taken; a disk store that cannot open is an argument error,
+ * never a silent fallback to RAM.
+ */
+async function openPager(
+  module: PicoWasmModule,
+  raw: PicoRaw,
+  options: PagerOptions | false | undefined,
+): Promise<Pager | undefined> {
+  if (options === false) return undefined;
+  const pagerOptions = options ?? {};
+  // The pthread glue sizes its pool by navigator.hardwareConcurrency, so it exists wherever PThread does.
+  const threads = module.PThread ? Math.max(1, navigator.hardwareConcurrency) : 1;
+  const resolved = resolvePagerOptions(pagerOptions, threads);
+  let store;
+  try {
+    store = await openFarStore({
+      kind: resolved.store,
+      maxBytes: resolved.storeMaxBytes,
+      directory: resolved.directory,
+    });
+  } catch (cause) {
+    throw new PicoError(
+      'PICO_INVALID_ARGUMENT',
+      `pager: the ${resolved.store} store could not open (see the cause). ` +
+        "Use store: 'ram', or open disk stores in Node or in a dedicated worker with persistent storage.",
+      { cause },
+    );
+  }
+  try {
+    return createPager({ module, raw, store, threads, options: pagerOptions });
+  } catch (error) {
+    store.close();
+    throw error;
+  }
 }
 
 /** A runtime plus its internal session opener; the opener can hand the session the runtime's teardown. */
@@ -445,11 +511,20 @@ async function startRuntime(
   if (pool) {
     Object.defineProperty(pool, 'runningWorkers', { get: () => Object.values(pool.pthreads) });
   }
+  const raw = bindPicoRaw(module);
+  let pager: Pager | undefined;
+  try {
+    pager = await openPager(module, raw, options.pager);
+  } catch (error) {
+    module.PThread?.terminateAllThreads();
+    throw error;
+  }
   const parts: RuntimeParts = {
     module,
-    raw: bindPicoRaw(module),
+    raw,
     registry: createHandleRegistry(),
     open: new Set(),
+    pager,
   };
   const unregisterProbe = registerOutOfMemoryProbe(module, createOutOfMemoryProbe(parts));
   let disposed = false;
@@ -461,14 +536,18 @@ async function startRuntime(
     // Teardown order: every open session first (a Set iterator tolerates the
     // deletions each release makes), then the pool.
     for (const release of parts.open) release();
-    // Join the module's pthread pool (multi glue only — absent on the serial glue).
-    // Nothing else ever joins the em-pthread workers, so they outlive every JS
-    // reference to this module, and at process teardown V8 can free the wasm backing
-    // store while a worker is still executing in it — SIGILL, timing-dependent
-    // (observed as vitest fork crashes; crash reports show an em-pthread faulting
-    // under a main-thread BackingStore free). The pool belongs to the
-    // runtime, so it dies here and never with a single session.
-    module.PThread?.terminateAllThreads();
+    try {
+      parts.pager?.close(); // a store error still propagates, after the pool is joined
+    } finally {
+      // Join the module's pthread pool (multi glue only — absent on the serial glue).
+      // Nothing else ever joins the em-pthread workers, so they outlive every JS
+      // reference to this module, and at process teardown V8 can free the wasm backing
+      // store while a worker is still executing in it — SIGILL, timing-dependent
+      // (observed as vitest fork crashes; crash reports show an em-pthread faulting
+      // under a main-thread BackingStore free). The pool belongs to the
+      // runtime, so it dies here and never with a single session.
+      module.PThread?.terminateAllThreads();
+    }
   };
 
   const openSession = (resolved: ResolvedSessionOptions, disposeRuntime?: () => void): Pico => {
@@ -479,11 +558,11 @@ async function startRuntime(
   const runtime = {
     // eslint-disable-next-line @typescript-eslint/require-await -- async so argument errors reject instead of throwing synchronously
     async createPico(sessionOptions: CreatePicoSessionOptions = {}): Promise<Pico> {
-      if ('wasm' in sessionOptions || 'wasmModule' in sessionOptions) {
+      if ('wasm' in sessionOptions || 'wasmModule' in sessionOptions || 'pager' in sessionOptions) {
         throw new PicoError(
           'PICO_INVALID_ARGUMENT',
           'runtime.createPico() takes session options only: the module is already instantiated. ' +
-            'Pass wasm / wasmModule to createPicoRuntime() instead.',
+            'Pass wasm / wasmModule / pager to createPicoRuntime() instead.',
         );
       }
       return openSession(resolveSessionOptions(sessionOptions));
@@ -516,10 +595,11 @@ export async function openPicoRuntime(
   if (misplaced.length > 0) {
     throw new PicoError(
       'PICO_INVALID_ARGUMENT',
-      `createPicoRuntime() takes runtime options only (wasm, wasmModule); ${misplaced.join(', ')} ` +
+      `createPicoRuntime() takes runtime options only (wasm, wasmModule, pager); ${misplaced.join(', ')} ` +
         'belong to each session: pass them to runtime.createPico(options).',
     );
   }
+  if (options.pager) resolvePagerOptions(options.pager, 1);
   return (await startRuntime(glue, options, warm)).runtime;
 }
 
@@ -545,6 +625,7 @@ export async function createPicoSession(
   warm?: (runtime: PicoRuntime) => Promise<void>,
 ): Promise<Pico> {
   const resolved = resolveSessionOptions(options);
+  if (options.pager) resolvePagerOptions(options.pager, 1); // bad pager options cost no instantiation either
   const { runtime, openSession } = await startRuntime(glue, options, warm);
   try {
     return openSession(resolved, () => {
@@ -576,6 +657,7 @@ function createSessionRelease(
     if (dead.value) return;
     dead.value = true; // teardown wins — wrappers stop freeing individually
     parts.open.delete(release);
+    parts.pager?.forgetLibrary(lib); // the instance's handles die with it; drop their park images
     parts.module._free(scratch);
     parts.raw.Library_DestroyInstance(lib);
   };
@@ -630,6 +712,7 @@ function openPicoSession(
     }),
     wrapVoxels: (handle, provenance) => wrapVoxels(ctx, handle, provenance),
     scopes: [],
+    pager: parts.pager,
   };
 
   const release = createSessionRelease(parts, ctx.dead, lib, scratch);
@@ -1013,6 +1096,16 @@ function openPicoSession(
         vectorFields: Number(raw.Library_nVectorFieldsAllocated(lib)),
         vdbFiles: Number(raw.Library_nVdbFilesAllocated(lib)),
         metadata: Number(raw.Library_nVdbMetasAllocated(lib)),
+      };
+    },
+
+    get footprint(): Footprint {
+      liveSession();
+      const stats = parts.pager?.stats ?? null;
+      return {
+        heapBytes: module.wasmMemory?.buffer.byteLength ?? module.HEAPU8.byteLength,
+        farBytes: stats?.farBytes ?? 0,
+        pager: stats,
       };
     },
 

@@ -450,6 +450,41 @@ export const BULK_FUNCTIONS = [
     cwrapReturn: null,
     args: [{ name: 'pStream', type: 'void*', cwrap: 'number' }],
   },
+  // The park TU (src/pico-park.cpp) — grid park and restore for the pager (src/pager.ts).
+  {
+    name: 'K7_nPark',
+    cwrapReturn: 'bigint',
+    args: [
+      { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+      { name: 'hThis', type: 'PKVOXELS', cwrap: 'bigint' },
+      { name: 'nTransform', type: 'int32_t', cwrap: 'number' },
+      { name: 'nCodec', type: 'int32_t', cwrap: 'number' },
+      { name: 'nLevel', type: 'int32_t', cwrap: 'number' },
+      { name: 'nBlockLeaves', type: 'int32_t', cwrap: 'number' },
+      { name: 'nFlags', type: 'int32_t', cwrap: 'number' },
+      { name: 'pfnSink', type: 'PKParkSink', cwrap: 'number' },
+    ],
+  },
+  {
+    name: 'K7_hRestore',
+    cwrapReturn: 'bigint',
+    args: [
+      { name: 'hLib', type: 'PKINSTANCE', cwrap: 'bigint' },
+      { name: 'pfnSource', type: 'PKParkSource', cwrap: 'number' },
+    ],
+  },
+  {
+    name: 'K7_nArena',
+    cwrapReturn: 'bigint',
+    args: [
+      { name: 'nSlots', type: 'int32_t', cwrap: 'number' },
+      { name: 'nBlockLeaves', type: 'int32_t', cwrap: 'number' },
+      { name: 'nReserveMiB', type: 'int32_t', cwrap: 'number' },
+      { name: 'nMode', type: 'int32_t', cwrap: 'number' },
+    ],
+  },
+  { name: 'K7_nRearm', cwrapReturn: 'number', args: [] },
+  { name: 'K7_nLastError', cwrapReturn: 'number', args: [] },
 ];
 
 function tsType(cwrapType, cType) {

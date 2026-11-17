@@ -60,7 +60,15 @@ export const CEILINGS = {
   // zero-copy mesh pointers, plus the streamed grid hash in src/pico-hash.cpp.
   // gzip-9 1,337,380 and brotli-11 572,487 (local build); the raw ceiling is
   // that measurement and the compressed ceilings are it plus 0.5% (rounded up).
-  serial: { raw: 6_324_876, gzip: 1_344_067, brotli: 575_350 },
+  // Then 6,358,505 raw (+33,629, local build): src/pico-park.cpp, the grid
+  // pager's park and restore with its encode arena, and the frame codec
+  // (src/k7codec.c with LZ4's lz4.c). gzip-9 1,348,765 and brotli-11 581,546;
+  // the raw ceiling is that measurement and the compressed ceilings are it
+  // plus 0.5% (rounded up). Then 6,358,882 raw (+377, CI run on 1d1d0e1): the
+  // review fixes to src/pico-park.cpp and src/k7codec.c (bounded block sizes,
+  // reserved slot vectors, the non-allocating drain); gzip-9 1,348,449 and
+  // brotli-11 581,324, plus 0.5%.
+  serial: { raw: 6_358_882, gzip: 1_355_192, brotli: 584_231 },
   // emcc 5.0.1, the same local build: 6,335,092 raw (+198,128); gzip-9 1,355,263
   // and brotli-11 589,958, plus 0.5% for the compressed ceilings. Then 6,345,219
   // raw (+10,127, same cause as serial); gzip-9 1,357,291 and brotli-11 591,620,
@@ -72,7 +80,13 @@ export const CEILINGS = {
   // match the approved 6.0.2 probe, so neither exceeds its headroom.
   // Then 6,374,429 raw (+44,133 over main's 6,330,296, same cause as serial);
   // gzip-9 1,388,669 and brotli-11 605,530 (local build), plus 0.5%.
-  multi: { raw: 6_374_429, gzip: 1_395_613, brotli: 608_558 },
+  // Then 6,409,397 raw (+34,968, same cause as serial, plus the pipelined
+  // mode on the oneTBB pool); gzip-9 1,402,125 and brotli-11 612,776 (local
+  // build), plus 0.5%. Then 6,409,935 raw (+538, CI run on 1d1d0e1): the
+  // review fixes to src/pico-park.cpp (bounded block sizes, reserved slot
+  // vectors, the non-allocating drain and the joined pipelined callbacks);
+  // gzip-9 1,402,394 and brotli-11 612,731, plus 0.5%.
+  multi: { raw: 6_409_935, gzip: 1_409_406, brotli: 615_795 },
 };
 
 /** Byte counts and digest for one file. */

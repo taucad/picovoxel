@@ -1,5 +1,5 @@
 # clang -fprofile-list for COVERAGE=1 builds: instrument only
-# functions defined in the ten own TUs. Header code instantiated inside them
+# functions defined in the eleven own TUs. Header code instantiated inside them
 # (OpenVDB, oneTBB, PicoGK, libc++, the ImGui shim) is outside the measured
 # domain. clang matches a function's own location first and falls back to the
 # main file, so the headers are skipped by name rather than via default:skip.

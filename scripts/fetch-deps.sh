@@ -3,9 +3,10 @@
 #
 # Every input to the wasm build is pinned: PicoGKRuntime at the SHA all measurements
 # certify (OQ1 default), the OpenVDB commit its submodule references, oneTBB at
-# v2022.2.0, emsdk at 6.0.2. Tarballs are sha256-verified; GitHub regenerates commit
-# tarballs on the fly, so if their compression ever changes the mismatch fails loudly
-# and the pin gets re-verified by hand — that is the intended failure mode.
+# v2022.2.0, LZ4 at a commit of its 1.11.1 line, emsdk at 6.0.2. Tarballs are
+# sha256-verified; GitHub regenerates commit tarballs on the fly, so if their
+# compression ever changes the mismatch fails loudly and the pin gets re-verified by
+# hand — that is the intended failure mode.
 #
 # emsdk is different: the emsdk repo is a thin manager and the toolchain binaries it
 # installs are verified by emsdk's own hash manifest. The manager itself is pinned to
@@ -31,6 +32,11 @@ ONETBB_SHA="06ce6212da6710f4bb2d20a1904b018aa44069bf"    # v2022.2.0
 ONETBB_SHA256="f588cbd1635ebe2dbc1ac4a82e7bcf9aa90be40c98259b237bb7ae288fac269e"
 XXHASH_TAG="v0.8.3"                                      # single header, BSD-2 (NOTICE)
 XXHASH_SHA256="17973c0dc49d9854ca26caa191f0e12f7a424b68858d9a78de3860d959d85e4b"
+LZ4_SHA="6b589e8053bd9c524138d78adec78fcaefa35cab"          # 1.11.1 line; lz4.c + lz4.h only, BSD-2 (NOTICE)
+# Raw files, like xxhash: a per-file SHA-256 is stable where a regenerated tarball is not.
+LZ4_C_SHA256="6befbbafe8d8f2fe6a8cb2d04572c3adb9a7fd01a00179f9bdf1a598616c6c52"
+LZ4_H_SHA256="a11e96dc1d4afbb028e42e01a7d4d2e1b99dac9b2787721eb53ddd15a491290a"
+LZ4_LICENSE_SHA256="8b58c446121a109ccf32edc094bba3010a3d85e4ee3702950db55e4d3e87736c"
 EMSDK_VERSION="6.0.2"
 EMSDK_MANAGER_SHA="ca38f487f28b7c3c16f8f70cd0e012099ac4b7e2" # emscripten-core/emsdk tag 6.0.2
 ACORN_VERSION="8.16.0"                                     # emscripten 6.0.2 package-lock.json
@@ -112,6 +118,31 @@ fi
 mkdir -p "$VENDOR/xxhash"
 cp "$DL/xxhash-$XXHASH_TAG.h" "$VENDOR/xxhash/xxhash.h"
 echo "fetch-deps: xxhash $XXHASH_TAG verified"
+
+# LZ4: the park-frame codec of src/k7codec.c (lz4.c and lz4.h; lz4hc is not built).
+# Same verify-always rule, per file, at the pinned commit.
+fetch_raw() { # <repo> <commit> <path> <sha256> <dest>
+  local repo="$1" commit="$2" path="$3" want="$4" dest="$5"
+  local cached
+  cached="$DL/$(basename "$repo")-${commit:0:8}-$(basename "$path")"
+  if [ ! -f "$cached" ]; then
+    echo "fetch-deps: downloading $(basename "$repo") $path @ ${commit:0:8}"
+    curl -sfL -o "$cached.tmp" "https://raw.githubusercontent.com/$repo/$commit/$path"
+    mv "$cached.tmp" "$cached"
+  fi
+  local got
+  got="$(shasum -a 256 "$cached" | cut -d' ' -f1)"
+  if [ "$got" != "$want" ]; then
+    echo "fetch-deps: FAIL sha256 mismatch for $repo $path (want $want got $got)" >&2
+    exit 1
+  fi
+  cp "$cached" "$dest"
+}
+mkdir -p "$VENDOR/lz4"
+fetch_raw lz4/lz4 "$LZ4_SHA" lib/lz4.c "$LZ4_C_SHA256" "$VENDOR/lz4/lz4.c"
+fetch_raw lz4/lz4 "$LZ4_SHA" lib/lz4.h "$LZ4_H_SHA256" "$VENDOR/lz4/lz4.h"
+fetch_raw lz4/lz4 "$LZ4_SHA" lib/LICENSE "$LZ4_LICENSE_SHA256" "$VENDOR/lz4/LICENSE"
+echo "fetch-deps: lz4 ${LZ4_SHA:0:8} verified"
 
 # emsdk: reuse a toolchain only at the pinned version, else install into vendor/.
 # The stamp records every pin the install depends on, so a pin bump reinstalls.

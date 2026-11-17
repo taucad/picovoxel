@@ -10,6 +10,14 @@ linkWorkspacePackages: true
 # lives here: `pnpm add` writes 1.2.3, never ^1.2.3.
 saveExact: true
 
+# Dev-only advisories with no patched release yet, ignored by the CI audit gate
+# until one ships; then replace the entry with an override above it. Operator
+# ruling 2026-11-17: GHSA-fc5q-39xc-vjpf (picomatch <=4.0.7, ReDoS), reached
+# only through the Nx tooling; drop it once picomatch 4.0.8 is published.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-fc5q-39xc-vjpf
+
 # Dev-only transitive advisories pinned to the patched releases as nanoraster
 # does: high ones fail the CI audit gate, moderate ones fail OSV on main.
 overrides:

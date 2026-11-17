@@ -37,6 +37,7 @@ import {
 import { readChunkTriangles, wrapMesh, type Mesh } from './mesh.ts';
 import { writeStlHeader, type StlChunkSink, type StreamStlOptions, type StreamStlResult } from './stl.ts';
 import type { SdfExpression } from './tape.ts';
+import type { Pager, PagerEntry } from './pager.ts';
 import type { Bounds, SdfFunction, Vec3 } from './types.ts';
 
 export type SliceAxis = 'x' | 'y' | 'z';
@@ -372,7 +373,12 @@ export interface Voxels {
    * export boundary does with it.
    */
   readonly lane: 'exact' | 'fast';
-  /** Raw ABI handle — escape hatch. */
+  /**
+   * Raw ABI handle — escape hatch. With the grid pager on, reading it restores a
+   * parked grid and keeps it resident until the next safe point: the end of the
+   * next Voxels operation, or the next Voxels created outside one. Use the handle
+   * before then; read it again afterwards.
+   */
   readonly handle: bigint;
   /**
    * Frees the grid now. Idempotent. Required for large work inside one
@@ -413,7 +419,8 @@ function readBatchLeaves(options: StreamMeshOptions): number {
  */
 export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: LaneSet): Voxels {
   let disposed = false;
-  let metadataCache: Metadata | null = null;
+  // A box, so the pager's park hook can drop the view without holding this wrapper.
+  const metadataCache: { value: Metadata | null } = { value: null };
   // Provenance — a non-empty set rides the grid as PicoVoxel.Lane, so it
   // survives copies and .vdb interchange with no serializer work.
   const lane = settleProvenance(
@@ -424,8 +431,13 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     ctx.raw.Voxels_Destroy,
     'getVoxels',
   );
+  // With the pager on, the entry owns the native handle: `handle` is refreshed on every
+  // use (live(), the handle getter), and a parked grid is restored there.
+  const pager = ctx.pager;
+  let entry: PagerEntry | undefined;
   const live = () => {
     assertLive(disposed, 'Voxels');
+    if (entry) handle = pager!.acquire(entry);
     return handle;
   };
 
@@ -434,11 +446,16 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
    * the handle, for a consuming call to hand to the result's wrapper.
    */
   const release = (): bigint => {
+    const owned = live(); // a parked grid is restored before it changes hands
     disposed = true;
-    metadataCache?.dispose();
-    metadataCache = null;
+    metadataCache.value?.dispose();
+    metadataCache.value = null;
     ctx.registry.unregister(voxels);
-    return handle;
+    if (entry) {
+      pager!.detach(entry); // the result's wrapper adopts the grid as a new entry
+      entry = undefined;
+    }
+    return owned;
   };
 
   /**
@@ -469,7 +486,11 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     try {
       guard(name, mutate)(copy);
     } catch (error) {
-      ctx.raw.Voxels_Destroy(ctx.lib, copy);
+      try {
+        ctx.raw.Voxels_Destroy(ctx.lib, copy);
+      } catch {
+        // An instance that aborted cannot free; the operation's own error stands (D16 audit).
+      }
       throw error;
     }
     return wrapVoxels(ctx, copy, resultLane);
@@ -617,13 +638,17 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
 
   const dims = () => {
     const p = checkedMalloc(ctx.module, 24, 'a dimensions scratch buffer');
-    try {
-      ctx.raw.Voxels_GetVoxelDimensions(ctx.lib, live(), p, p + 4, p + 8, p + 12, p + 16, p + 20);
-      const i32 = (offset: number) => ctx.module.HEAP32[(p + offset) >>> 2]!;
-      return { origin: [i32(0), i32(4), i32(8)] as Vec3, size: [i32(12), i32(16), i32(20)] as Vec3 };
-    } finally {
-      ctx.module._free(p);
-    }
+    return withCleanup(
+      () => {
+        ctx.raw.Voxels_GetVoxelDimensions(ctx.lib, live(), p, p + 4, p + 8, p + 12, p + 16, p + 20);
+        refreshHeapViews(ctx.module); // live() may have restored a parked grid, which can grow memory
+        const i32 = (offset: number) => ctx.module.HEAP32[(p + offset) >>> 2]!;
+        return { origin: [i32(0), i32(4), i32(8)] as Vec3, size: [i32(12), i32(16), i32(20)] as Vec3 };
+      },
+      () => {
+        ctx.module._free(p);
+      },
+    );
   };
 
   /** The mesh round-trip both properties() and bounds() are built on. */
@@ -632,11 +657,14 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       'Mesh_hCreateFromVoxels',
       ctx.raw.Mesh_hCreateFromVoxels(ctx.lib, live()),
     );
-    try {
-      return body(meshHandle);
-    } finally {
-      ctx.raw.Mesh_Destroy(ctx.lib, meshHandle);
-    }
+    return withCleanup(
+      () => {
+        return body(meshHandle);
+      },
+      () => {
+        ctx.raw.Mesh_Destroy(ctx.lib, meshHandle);
+      },
+    );
   };
 
   const readBoundsFrom = (meshHandle: bigint): Bounds => {
@@ -834,17 +862,20 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       // C# voxTrim (Voxels.cs:458-474): cube mesh over the box, then intersect
       // — on the shared-nothing export like the rest of the boolean family.
       const cube = cubeVoxels(ctx, bounds);
-      try {
-        const result = expectHandle(
-          'Voxels_hBoolIntersectCopy',
-          guard('Voxels_hBoolIntersectCopy', () =>
-            ctx.raw.Voxels_hBoolIntersectCopy(ctx.lib, live(), cube),
-          )(),
-        );
-        return wrapVoxels(ctx, result, lane);
-      } finally {
-        ctx.raw.Voxels_Destroy(ctx.lib, cube);
-      }
+      return withCleanup(
+        () => {
+          const result = expectHandle(
+            'Voxels_hBoolIntersectCopy',
+            guard('Voxels_hBoolIntersectCopy', () =>
+              ctx.raw.Voxels_hBoolIntersectCopy(ctx.lib, live(), cube),
+            )(),
+          );
+          return wrapVoxels(ctx, result, lane);
+        },
+        () => {
+          ctx.raw.Voxels_Destroy(ctx.lib, cube);
+        },
+      );
     },
     projectZSlice(options: { startZ: number; endZ: number }) {
       // The column-culled export, which counts the seal in voxels (upstream
@@ -947,6 +978,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       guard('Voxels_GetProperties', () =>
         ctx.raw.Voxels_GetProperties(ctx.lib, live(), floats, floats + 4, box),
       )();
+      refreshHeapViews(ctx.module);
       return {
         volume: ctx.module.HEAPF32[floats >>> 2]!,
         area: ctx.module.HEAPF32[(floats + 4) >>> 2]!,
@@ -961,6 +993,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       guard('Voxels_GetGridHash', () =>
         ctx.raw.Voxels_GetGridHash(ctx.lib, live(), hashAt, countsAt, countsAt + 8, countsAt + 16),
       )();
+      refreshHeapViews(ctx.module);
       let hash = '';
       for (let i = 0; i < 4; i++) {
         const word = ctx.module.HEAPU32[(hashAt + 4 * i) >>> 2]!;
@@ -1044,31 +1077,37 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       const castExport = subVoxel ? 'Voxels_RayCastBatchSubVoxel' : 'Voxels_RayCastBatch';
       const bytes = count * VEC3_BYTES;
       const pointer = checkedMalloc(ctx.module, 2 * bytes + bytes + count, 'a raycast batch buffer');
-      try {
-        ctx.module.HEAPF32.set(origins, pointer >>> 2);
-        ctx.module.HEAPF32.set(directions, (pointer + bytes) >>> 2);
-        guard(castExport, () =>
-          ctx.raw[castExport](
-            ctx.lib,
-            handle,
-            pointer,
-            pointer + bytes,
-            count,
-            pointer + 2 * bytes,
-            pointer + 3 * bytes,
-          ),
-        )();
-        refreshHeapViews(ctx.module);
-        const hits = new Float32Array(
-          ctx.module.HEAPF32.subarray((pointer + 2 * bytes) >>> 2, ((pointer + 2 * bytes) >>> 2) + count * 3),
-        );
-        const hit = new Uint8Array(
-          ctx.module.HEAPU8.subarray((pointer + 3 * bytes) >>> 0, ((pointer + 3 * bytes) >>> 0) + count),
-        );
-        return { hits, hit };
-      } finally {
-        ctx.module._free(pointer);
-      }
+      return withCleanup(
+        () => {
+          ctx.module.HEAPF32.set(origins, pointer >>> 2);
+          ctx.module.HEAPF32.set(directions, (pointer + bytes) >>> 2);
+          guard(castExport, () =>
+            ctx.raw[castExport](
+              ctx.lib,
+              handle,
+              pointer,
+              pointer + bytes,
+              count,
+              pointer + 2 * bytes,
+              pointer + 3 * bytes,
+            ),
+          )();
+          refreshHeapViews(ctx.module);
+          const hits = new Float32Array(
+            ctx.module.HEAPF32.subarray(
+              (pointer + 2 * bytes) >>> 2,
+              ((pointer + 2 * bytes) >>> 2) + count * 3,
+            ),
+          );
+          const hit = new Uint8Array(
+            ctx.module.HEAPU8.subarray((pointer + 3 * bytes) >>> 0, ((pointer + 3 * bytes) >>> 0) + count),
+          );
+          return { hits, hit };
+        },
+        () => {
+          ctx.module._free(pointer);
+        },
+      );
     },
     closestPointsOnSurface({ points }: { points: ArrayLike<number> }): {
       points: Float32Array;
@@ -1084,29 +1123,32 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       }
       const bytes = count * VEC3_BYTES;
       const pointer = checkedMalloc(ctx.module, 2 * bytes + count, 'a closest-point batch buffer');
-      try {
-        ctx.module.HEAPF32.set(points, pointer >>> 2);
-        guard('Voxels_ClosestPointBatch', () =>
-          ctx.raw.Voxels_ClosestPointBatch(
-            ctx.lib,
-            handle,
-            pointer,
-            count,
-            pointer + bytes,
-            pointer + 2 * bytes,
-          ),
-        )();
-        refreshHeapViews(ctx.module);
-        const out = new Float32Array(
-          ctx.module.HEAPF32.subarray((pointer + bytes) >>> 2, ((pointer + bytes) >>> 2) + count * 3),
-        );
-        const found = new Uint8Array(
-          ctx.module.HEAPU8.subarray((pointer + 2 * bytes) >>> 0, ((pointer + 2 * bytes) >>> 0) + count),
-        );
-        return { points: out, found };
-      } finally {
-        ctx.module._free(pointer);
-      }
+      return withCleanup(
+        () => {
+          ctx.module.HEAPF32.set(points, pointer >>> 2);
+          guard('Voxels_ClosestPointBatch', () =>
+            ctx.raw.Voxels_ClosestPointBatch(
+              ctx.lib,
+              handle,
+              pointer,
+              count,
+              pointer + bytes,
+              pointer + 2 * bytes,
+            ),
+          )();
+          refreshHeapViews(ctx.module);
+          const out = new Float32Array(
+            ctx.module.HEAPF32.subarray((pointer + bytes) >>> 2, ((pointer + bytes) >>> 2) + count * 3),
+          );
+          const found = new Uint8Array(
+            ctx.module.HEAPU8.subarray((pointer + 2 * bytes) >>> 0, ((pointer + 2 * bytes) >>> 0) + count),
+          );
+          return { points: out, found };
+        },
+        () => {
+          ctx.module._free(pointer);
+        },
+      );
     },
 
     dimensions: () => dims(),
@@ -1138,27 +1180,30 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
 
       const buffer = checkedMalloc(ctx.module, width * height * 4, 'a slice image buffer');
       const backgroundPtr = checkedMalloc(ctx.module, 4, 'the slice background value');
-      try {
-        if (interpolated) {
-          ctx.raw.Voxels_GetInterpolatedZSlice(ctx.lib, handle, at, buffer, backgroundPtr);
-        } else if (axis === 'z') {
-          ctx.raw.Voxels_GetZSlice(ctx.lib, handle, at, buffer, backgroundPtr);
-        } else if (axis === 'y') {
-          ctx.raw.Voxels_GetYSlice(ctx.lib, handle, at, buffer, backgroundPtr);
-        } else {
-          ctx.raw.Voxels_GetXSlice(ctx.lib, handle, at, buffer, backgroundPtr);
-        }
-        refreshHeapViews(ctx.module);
-        const background = ctx.module.HEAPF32[backgroundPtr >>> 2]!;
-        const data = new Float32Array(
-          ctx.module.HEAPF32.subarray(buffer >>> 2, (buffer >>> 2) + width * height),
-        );
-        applyMode(data, mode, background);
-        return { width, height, data, background };
-      } finally {
-        ctx.module._free(buffer);
-        ctx.module._free(backgroundPtr);
-      }
+      return withCleanup(
+        () => {
+          if (interpolated) {
+            ctx.raw.Voxels_GetInterpolatedZSlice(ctx.lib, handle, at, buffer, backgroundPtr);
+          } else if (axis === 'z') {
+            ctx.raw.Voxels_GetZSlice(ctx.lib, handle, at, buffer, backgroundPtr);
+          } else if (axis === 'y') {
+            ctx.raw.Voxels_GetYSlice(ctx.lib, handle, at, buffer, backgroundPtr);
+          } else {
+            ctx.raw.Voxels_GetXSlice(ctx.lib, handle, at, buffer, backgroundPtr);
+          }
+          refreshHeapViews(ctx.module);
+          const background = ctx.module.HEAPF32[backgroundPtr >>> 2]!;
+          const data = new Float32Array(
+            ctx.module.HEAPF32.subarray(buffer >>> 2, (buffer >>> 2) + width * height),
+          );
+          applyMode(data, mode, background);
+          return { width, height, data, background };
+        },
+        () => {
+          ctx.module._free(buffer);
+          ctx.module._free(backgroundPtr);
+        },
+      );
     },
 
     toMesh(options: ToMeshOptions = {}): Mesh {
@@ -1250,7 +1295,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     },
     get metadata(): Metadata {
       live();
-      return (metadataCache ??= wrapMetadata(
+      return (metadataCache.value ??= wrapMetadata(
         ctx,
         expectHandle('Metadata_hFromVoxels', ctx.raw.Metadata_hFromVoxels(ctx.lib, handle)),
       ));
@@ -1263,20 +1308,86 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     },
 
     get handle() {
+      if (entry && !disposed) handle = pager!.acquire(entry);
       return handle;
     },
     dispose() {
       if (disposed) return; // idempotent
       disposed = true;
-      metadataCache?.dispose();
+      metadataCache.value?.dispose();
       ctx.registry.unregister(voxels); // never both GC-free and explicit free
-      if (!ctx.dead.value) ctx.raw.Voxels_Destroy(ctx.lib, handle); // teardown already freed it
+      if (ctx.dead.value) return; // teardown already freed it
+      if (entry) pager!.release(entry);
+      else ctx.raw.Voxels_Destroy(ctx.lib, handle);
     },
   };
   tagFieldClass(ctx, ctx.raw.Metadata_hFromVoxels, handle, 'Voxels');
   recordProvenance(voxels, lane);
-  adoptHandle(ctx, voxels, handle, ctx.raw.Voxels_Destroy);
+  if (pager) {
+    entry = pager.adopt(ctx.lib, handle);
+    entry.onPark = dropMetadataView(metadataCache);
+    scopeOperations(voxels, pager, entry);
+    adoptHandle(ctx, voxels, handle, releaseEntry(pager, entry));
+  } else {
+    adoptHandle(ctx, voxels, handle, ctx.raw.Voxels_Destroy);
+  }
   return voxels as Voxels; // adoptHandle added [Symbol.dispose]
+}
+
+// ── Pager scopes ────────────────────────────────────────────────────────────
+// Module-level factories, so no closure the pager keeps shares wrapVoxels' scope
+// (V8 gives every closure in a function one context, which holds the wrapper).
+
+/** The park hook: a metadata view onto a destroyed grid must not outlive it. */
+function dropMetadataView(cache: { value: Metadata | null }): () => void {
+  return () => {
+    cache.value?.dispose();
+    cache.value = null;
+  };
+}
+
+/** The GC free of a paged grid: whatever state it is in, the pager frees it. */
+function releaseEntry(pager: Pager, entry: PagerEntry): () => void {
+  return () => pager.release(entry);
+}
+
+/** Members that are not operations on the grid. */
+const UNSCOPED = new Set(['handle', 'dispose', 'lane']);
+/** Operations that change the grid in place, so its size is measured again. */
+const IN_PLACE = new Set(['densifyInterior']);
+
+/**
+ * Makes every method and getter of a paged wrapper one pager operation scope:
+ * operands it acquires stay pinned until the outermost scope ends, which is the
+ * safe point where the budget is enforced. A failed operation skips the safe
+ * point, so its own error (often PICO_OUT_OF_MEMORY) is what the caller sees and
+ * nothing calls into an instance that may have aborted (D16).
+ */
+function scopeOperations(voxels: object, pager: Pager, entry: PagerEntry): void {
+  for (const [key, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(voxels))) {
+    if (UNSCOPED.has(key)) continue;
+    // Every other member is a method or a getter (test/surface-manifest.json lists them).
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- applied below with the wrapper as `this`
+    const inner = (descriptor.get ?? descriptor.value) as (...args: unknown[]) => unknown;
+    const inPlace = IN_PLACE.has(key);
+    const scoped = function (this: unknown, ...args: unknown[]): unknown {
+      pager.enter();
+      let failed = true;
+      try {
+        const result: unknown = inner.apply(this, args);
+        failed = false;
+        return result;
+      } finally {
+        if (!failed && inPlace) pager.touch(entry);
+        pager.exit(failed);
+      }
+    };
+    Object.defineProperty(
+      voxels,
+      key,
+      descriptor.get ? { ...descriptor, get: scoped } : { ...descriptor, value: scoped },
+    );
+  }
 }
 
 /**
@@ -1312,21 +1423,24 @@ function cubeVoxels(ctx: SessionContext, bounds: Bounds): bigint {
     [0, 5, 1], // bottom
   ];
   const meshHandle = expectHandle('Mesh_hCreate', ctx.raw.Mesh_hCreate(ctx.lib));
-  try {
-    for (const corner of corners) {
-      ctx.writeVec3(ctx.scratch, corner);
-      ctx.raw.Mesh_nAddVertex(ctx.lib, meshHandle, ctx.scratch);
-    }
-    for (const [a, b, c] of faces) {
-      ctx.module.HEAP32[(ctx.scratch >>> 2) + 0] = a!;
-      ctx.module.HEAP32[(ctx.scratch >>> 2) + 1] = b!;
-      ctx.module.HEAP32[(ctx.scratch >>> 2) + 2] = c!;
-      ctx.raw.Mesh_nAddTriangle(ctx.lib, meshHandle, ctx.scratch);
-    }
-    const target = expectHandle('Voxels_hCreate', ctx.raw.Voxels_hCreate(ctx.lib));
-    ctx.raw.Voxels_RenderMesh(ctx.lib, target, meshHandle);
-    return target;
-  } finally {
-    ctx.raw.Mesh_Destroy(ctx.lib, meshHandle);
-  }
+  return withCleanup(
+    () => {
+      for (const corner of corners) {
+        ctx.writeVec3(ctx.scratch, corner);
+        ctx.raw.Mesh_nAddVertex(ctx.lib, meshHandle, ctx.scratch);
+      }
+      for (const [a, b, c] of faces) {
+        ctx.module.HEAP32[(ctx.scratch >>> 2) + 0] = a!;
+        ctx.module.HEAP32[(ctx.scratch >>> 2) + 1] = b!;
+        ctx.module.HEAP32[(ctx.scratch >>> 2) + 2] = c!;
+        ctx.raw.Mesh_nAddTriangle(ctx.lib, meshHandle, ctx.scratch);
+      }
+      const target = expectHandle('Voxels_hCreate', ctx.raw.Voxels_hCreate(ctx.lib));
+      ctx.raw.Voxels_RenderMesh(ctx.lib, target, meshHandle);
+      return target;
+    },
+    () => {
+      ctx.raw.Mesh_Destroy(ctx.lib, meshHandle);
+    },
+  );
 }

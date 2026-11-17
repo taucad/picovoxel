@@ -56,6 +56,11 @@ whole session at once. Large work inside one task must free intermediates as it 
 cannot run until the task returns: call `dispose()` after an object's last use, pass `{ consume: true }` to the
 boolean or offset that uses it last, or build inside `pico.scope()`. `voxels.streamStl(write)` exports without
 holding the mesh or the file ([memory](https://github.com/taucad/picovoxel/blob/main/docs/memory-and-limits.md)).
+
+Voxels grids are paged by default: once a runtime's resident grids pass 2 GiB, the least recently used are
+compressed out of the wasm heap and restored on their next use, with identical output. `pico.footprint` reports
+the heap and the paged bytes side by side, and `createPico({ pager: false })` turns paging off
+([grid paging](https://github.com/taucad/picovoxel/blob/main/docs/memory-and-limits.md#grid-paging)).
 Replace `'picovoxel'` with `'picovoxel/multi'` for the multithreaded build.
 
 ## What you get
@@ -125,8 +130,8 @@ pico.dispose(); // frees this session only
 runtime.dispose(); // disposes open sessions, then stops the pool
 ```
 
-Each session keeps its own voxel size, lane and objects, but all of them share one heap and its 4 GiB
-ceiling, while the memory warning counts one session at a time
+Each session keeps its own voxel size, lane and objects, but all of them share one heap, its 4 GiB
+ceiling and the grid pager (`createPicoRuntime({ pager })`), while the memory warning counts one session at a time
 ([memory](https://github.com/taucad/picovoxel/blob/main/docs/memory-and-limits.md#sessions-sharing-a-runtime)).
 
 ## Compatibility
@@ -186,7 +191,7 @@ The build tools need Node `^22.18.0 || ^24.11.0 || >=26.0.0`; CI builds on Node 
 22.14.0. Neither wasm pair is committed: CI builds both, and the published binaries come from that run.
 Each build also writes `src/<variant>.exports.ts`, the export names its glue reads; for a wasm pair copied
 in from elsewhere, run `node scripts/generate-wasm-exports.mjs pico` (and `pico-multi`).
-The C++ this repository owns is ten translation units in `src/` that add exports; the patches that
+The C++ this repository owns is eleven translation units in `src/` that add exports; the patches that
 change PicoGKRuntime, OpenVDB and oneTBB are in `patches/`, and fixes offered upstream are in
 [`upstream/`](https://github.com/taucad/picovoxel/blob/main/upstream/README.md).
 
