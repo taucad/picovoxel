@@ -69,6 +69,8 @@ static void unshuffle4(const uint8_t* src, uint8_t* dst, size_t n) {
 
 // ── context ─────────────────────────────────────────────────────────────────
 K7Ctx* k7_create(uint32_t maxLeaves) {
+  // The bound keeps every size below (v, a, payloadCap) far from wrapping a wasm32 size_t.
+  if (maxLeaves == 0 || maxLeaves > K7_MAX_LEAVES) return 0;
   K7Ctx* c = (K7Ctx*)calloc(1, sizeof(K7Ctx));
   if (!c) return 0;
   c->maxLeaves = maxLeaves;

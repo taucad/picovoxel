@@ -162,6 +162,8 @@ function withExhaustedHeap<T>(pk: Pico, body: () => T): T {
 // ── K15 §7 ──────────────────────────────────────────────────────────────────
 
 test('K15-1 / K17-1 (I3): frames are byte-identical across serial, pooled and pipelined, any slot count', async () => {
+  // One baseline per shape and block across both builds: the serial and multi frames must agree too.
+  const references = new Map<string, number>();
   for (const entry of [serialEntry, multiEntry]) {
     const h = await harness(entry);
     try {
@@ -176,15 +178,15 @@ test('K15-1 / K17-1 (I3): frames are byte-identical across serial, pooled and pi
         const leaves = leafCount(h.raw, h.pk, voxels.handle);
         // Blocks below, equal to and above the slot count, and a leaf count off any multiple.
         for (const block of [7, Math.max(1, Math.ceil(leaves / 4)), 512]) {
-          let reference: number | undefined;
+          const key = `${name} block ${block}`;
           for (const slots of [1, 2, 4]) {
             for (const mode of MODES) {
               assert.ok(h.arena(slots, block, 8, mode) > 0);
               const { result, image } = h.park(voxels.handle, { block });
               assert.equal(result, image.length, `${name}: park reports the bytes it wrote`);
               const digest = fnv1a(image);
-              reference ??= digest;
-              assert.equal(digest, reference, `${name} block ${block} slots ${slots} mode ${mode}`);
+              if (!references.has(key)) references.set(key, digest);
+              assert.equal(digest, references.get(key), `${key} slots ${slots} mode ${mode}`);
             }
           }
         }
@@ -585,6 +587,12 @@ test('park failures: a sink that fails after leaves were freed is -3; a bad hand
     assert.deepEqual([other.result, other.lastError], [-1, 2], 'non-destructive park, store I/O failure');
     const bogus = h.park(987654321n, { block: 16 });
     assert.deepEqual([bogus.result, bogus.lastError], [-1, 2], 'an unknown handle');
+    // Blocks above 65536 leaves (restore's limit) are refused before anything is sized from them.
+    const huge = h.park(voxels.handle, { block: 2_097_152 });
+    assert.deepEqual([huge.result, huge.lastError], [-1, 2], 'a block too large to size');
+    assert.equal(h.arena(1, 65_537, 8, 0), -1, 'an arena block too large');
+    assert.equal(h.arena(65, 16, 8, 0), -1, 'more than 64 slots');
+    assert.ok(h.park(voxels.handle, { block: 16 }).result > 0, 'a refused arena leaves the arena as it was');
     const byDefault = h.park(voxels.handle, { block: 0 });
     assert.ok(byDefault.result > 0);
     assert.equal(
@@ -604,6 +612,30 @@ test('park failures: a sink that fails after leaves were freed is -3; a bad hand
   }
 });
 
+test('no heap but a hole: the slot table fits, a slot’s buffers do not, and nothing is left held', async () => {
+  const h = await harness(serialEntry);
+  try {
+    const { module } = h.pk;
+    const held: number[] = [];
+    try {
+      for (const size of [64 << 20, 1 << 20, 64 << 10, 1 << 10, 64, 16]) {
+        for (let pointer = module._malloc(size); pointer !== 0; pointer = module._malloc(size))
+          held.push(pointer);
+      }
+      module._free(held.shift()!); // the largest block: room for the slot table and a context, not
+      // for a 65536-leaf slot's 128 MiB value buffer
+      assert.equal(h.arena(4, 65_536, 0, 0), -2);
+      const again = module._malloc(1 << 19);
+      assert.notEqual(again, 0, 'the failed arena gave back what it took');
+      module._free(again);
+    } finally {
+      for (const pointer of held) module._free(pointer);
+    }
+  } finally {
+    h.dispose();
+  }
+});
+
 test('no heap: the arena, a park and a restore outside the arena are out of memory; a restore runs out mid-leaves', async () => {
   const h = await harness(serialEntry);
   try {
@@ -613,7 +645,10 @@ test('no heap: the arena, a park and a restore outside the arena are out of memo
     const before = voxels.gridHash().hash;
     withExhaustedHeap(h.pk, () => {
       assert.equal(h.arena(4, 4096, 0, 0), -2, 'arena slots do not fit');
-      h.arena(1, 512, 0, 0); // fails too: the arena is gone
+    });
+    // The failed arena gave back the one it replaced: fill that too, so nothing fits now.
+    withExhaustedHeap(h.pk, () => {
+      assert.equal(h.arena(64, 512, 0, 0), -2, 'not even the 64-slot table fits');
       const park = h.park(voxels.handle, { block: 64 });
       assert.deepEqual([park.result, park.lastError], [-2, 1], 'the local slot does not fit');
       assert.deepEqual(Object.values(h.restore(image)), [0n, 1], 'the restore slot does not fit');

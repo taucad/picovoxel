@@ -18,7 +18,15 @@ extern "C" {
 enum { K7T_COMPACT_SHUF = 4 };
 enum { K7C_NONE = 0, K7C_LZ4 = 1 /* level = acceleration, 1 default */ };
 
+/**
+ * The largest block: 65536 leaves. Every capacity a context or a park slot derives
+ * from it (about 268 MB) fits a wasm32 size_t with room to spare, so no size
+ * computation can wrap.
+ */
+#define K7_MAX_LEAVES 65536u
+
 typedef struct K7Ctx K7Ctx;
+/** NULL when out of memory, or for 0 or more than K7_MAX_LEAVES leaves. */
 K7Ctx* k7_create(uint32_t maxLeaves);
 void   k7_destroy(K7Ctx*);
 /** 0 ok; -1 for a transform or codec this build does not have. */

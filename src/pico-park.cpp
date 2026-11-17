@@ -70,6 +70,8 @@ struct Header { uint32_t nMagic; int32_t nTransform, nCodec, nLevel, nBlockLeave
 constexpr uint32_t nMagic       = 0x374b5650u; // "PVK7"
 constexpr size_t   nTopoChunk   = size_t(1) << 20;
 constexpr size_t   nFrameAt     = sizeof(Frame); // a slot's payload starts after room for its frame header
+constexpr int32_t  nMaxLeaves   = (int32_t) K7_MAX_LEAVES; // the largest block a park, restore or arena takes
+constexpr int32_t  nMaxSlots    = 64;                      // the pager's arena.slots bound
 constexpr int32_t  nErrMemory   = 1;
 constexpr int32_t  nErrOther    = 2;
 
@@ -123,10 +125,22 @@ struct SlotSet
         nBytes = 0;
     }
 
-    /// false = out of memory (the set is left empty).
+    /// false = out of memory (the set is left empty). nLeaves is at most nMaxLeaves, so no size wraps.
     bool bMake(size_t nSlots, uint32_t nLeaves)
     {
         Clear();
+        try
+        {
+            // Both vectors are sized before any slot buffer exists, so the push_back below never
+            // reallocates: it cannot throw with a slot's buffers held by nothing.
+            oSlots.reserve(nSlots);
+            oState = std::vector<std::atomic<int>>(nSlots);
+        }
+        catch (const std::bad_alloc&)
+        {
+            Clear();
+            return false;
+        }
         const size_t nPayload = 8 + (size_t) nLeaves * (LeafT::SIZE * 4 + 1 + LeafT::SIZE * 4) + 64;
         const size_t nOut = std::max(nPayload, nTopoChunk);
         const size_t nCap = nFrameAt + nOut + nOut / 64 + 4096 + nTopoChunk;
@@ -148,7 +162,6 @@ struct SlotSet
             oSlots.push_back(o);
             nBytes += (int64_t) (nCap + 2 * nPayload + sizeof(LeafT*) * nLeaves);
         }
-        oState = std::vector<std::atomic<int>>(nSlots);
         nBlockLeaves = nLeaves;
         return true;
     }
@@ -200,7 +213,22 @@ tbb::task_arena& oTaskArena()
     static tbb::task_arena oArena; // default concurrency: follows the instance's pool
     return oArena;
 }
+
+/// Mode-2 callbacks enqueued and not yet finished. Every Pipe waits for zero before it ends, so
+/// no callback still holds a slot or its state when K7_nArena frees or rebuilds the set.
+std::atomic<int> g_nTasks{0};
 #endif
+
+/// Waits while a pool task codes the slot (state 3). Never allocates and never throws.
+void WaitRunning(const std::atomic<int>& a) noexcept
+{
+#ifdef __EMSCRIPTEN_PTHREADS__
+    while (a.load(std::memory_order_acquire) == 3)
+        std::this_thread::yield();
+#else
+    (void) a; // no pool: nothing else codes a slot
+#endif
+}
 
 /// The mode a park or restore on these slots really runs in. Mode 2 needs a pool, so the
 /// serial build (no pthreads) always runs it as mode 1.
@@ -264,7 +292,10 @@ void RunSlot(Slot& o) noexcept
 }
 
 /// The ring. Launch hands the next slot to the mode; Retire returns the oldest launched slot, coded.
-/// The destructor drains every launched slot, so no task outlives the park or restore.
+/// The destructor drains every launched slot and joins every mode-2 callback, so no task outlives
+/// the park or restore. Between those, a callback whose slot the calling thread took may find the
+/// slot launched again and code that launch instead: harmless, as a launch is complete before it is
+/// queued and its own callback then finds it taken.
 struct Pipe
 {
     SlotSet& S;
@@ -277,10 +308,22 @@ struct Pipe
         for (auto& a : S.oState)
             a.store(0);
     }
+    /// Runs on every way out, including while std::bad_alloc unwinds, so it neither allocates nor
+    /// throws: a queued slot is claimed uncoded (an unwinding park or restore discards it) and a
+    /// running one is waited for. Then the mode-2 callbacks are joined.
     ~Pipe()
     {
         for (size_t q = nTail; q < nHead; ++q)
-            WaitDone(q % nRing);
+        {
+            int nQueued = 1;
+            std::atomic<int>& a = S.oState[q % nRing];
+            if (!a.compare_exchange_strong(nQueued, 2, std::memory_order_acq_rel))
+                WaitRunning(a);
+        }
+#ifdef __EMSCRIPTEN_PTHREADS__
+        while (g_nTasks.load(std::memory_order_acquire) != 0)
+            std::this_thread::yield();
+#endif
     }
 
     bool  bFull() const { return nHead - nTail == nRing; }
@@ -305,11 +348,14 @@ struct Pipe
         {
             oTaskArena().enqueue([p, pState] {
                 int nQueued = 1;
-                if (!pState->compare_exchange_strong(nQueued, 3, std::memory_order_acq_rel))
-                    return; // the calling thread took it
-                RunSlot(*p);
-                pState->store(2, std::memory_order_release);
+                if (pState->compare_exchange_strong(nQueued, 3, std::memory_order_acq_rel))
+                {
+                    RunSlot(*p);
+                    pState->store(2, std::memory_order_release);
+                } // else the calling thread took it
+                g_nTasks.fetch_sub(1, std::memory_order_release); // the callback's last touch
             });
+            g_nTasks.fetch_add(1, std::memory_order_relaxed); // after enqueue: a throwing enqueue left no task
         }
 #endif
     }
@@ -336,13 +382,7 @@ struct Pipe
     {
         std::atomic<int>& a = S.oState[s];
         if (a.load(std::memory_order_acquire) != 1)
-        {
-#ifdef __EMSCRIPTEN_PTHREADS__
-            while (a.load(std::memory_order_acquire) == 3) // mode 2: a pool task is coding it
-                std::this_thread::yield();
-#endif
-            return; // mode 0 coded it at launch
-        }
+            return WaitRunning(a); // mode 2: a pool task may be coding it; mode 0 coded it at launch
         if (nMode == 1)
             return RunWave();
 #ifdef __EMSCRIPTEN_PTHREADS__
@@ -353,8 +393,7 @@ struct Pipe
             a.store(2, std::memory_order_release);
             return;
         }
-        while (a.load(std::memory_order_acquire) == 3)
-            std::this_thread::yield();
+        WaitRunning(a);
 #endif
     }
 
@@ -522,6 +561,8 @@ PICOGK_API int64_t K7_nPark(PKINSTANCE hLib,
         const float fBg = oTree.background();
         if (nBlockLeaves < 1)
             nBlockLeaves = 512;
+        if (nBlockLeaves > nMaxLeaves)
+            return fail(nErrOther);
 
         SlotSet oLocal;
         SlotSet* poSlots = poSlotsFor(oLocal, (uint32_t) nBlockLeaves);
@@ -574,6 +615,9 @@ PICOGK_API int64_t K7_nPark(PKINSTANCE hLib,
         {
             PipeTopoBuf<decltype(room)> oBuf(oPipe, room);
             std::ostream oStream(&oBuf);
+            // A failure inside the buffer (std::bad_alloc while making room) must reach the catch
+            // below, not set badbit and let a truncated topology be finished and stored.
+            oStream.exceptions(std::ios_base::badbit);
             roGrid->writeMeta(oStream);
             roGrid->writeTransform(oStream);
             oTree.writeTopology(oStream, false);
@@ -636,7 +680,7 @@ PICOGK_API PKVOXELS K7_hRestore(PKINSTANCE hLib, PKParkSource pfnSource)
         Header oHeader;
         if (!oReader.bGet(oFrame, (uint8_t*) &oHeader, sizeof(Header)) || oFrame.nKind != 2 ||
             oFrame.nComp != sizeof(Header) || oHeader.nMagic != nMagic || oHeader.nBlockLeaves < 1 ||
-            oHeader.nBlockLeaves > (1 << 16))
+            oHeader.nBlockLeaves > nMaxLeaves)
             return fail(nErrOther);
 
         SlotSet oLocal;
@@ -713,9 +757,12 @@ PICOGK_API PKVOXELS K7_hRestore(PKINSTANCE hLib, PKParkSource pfnSource)
 
 /// Sets up the encode arena: nSlots codec slots of nBlockLeaves leaves, a reserve of nReserveMiB
 /// released at the start of every park, and the mode (0 serial, 1 pooled, 2 pipelined).
-/// nSlots 0 frees the arena. Returns the arena bytes, or -2 when out of memory.
+/// nSlots 0 frees the arena. Returns the arena bytes, -2 when out of memory, or -1 (nothing changed)
+/// for more than 64 slots or more than K7_MAX_LEAVES leaves per block.
 PICOGK_API int64_t K7_nArena(int32_t nSlots, int32_t nBlockLeaves, int32_t nReserveMiB, int32_t nMode)
 {
+    if (nSlots > nMaxSlots || nBlockLeaves > nMaxLeaves)
+        return -1;
     ReleaseReserve();
     g_nMode = std::clamp(nMode, 0, 2);
     g_nReserve = (size_t) std::max(nReserveMiB, 0) << 20;
