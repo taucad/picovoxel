@@ -79,8 +79,11 @@ export const CEILINGS = {
   // gzip-9 1,388,669 and brotli-11 605,530 (local build), plus 0.5%.
   // Then 6,409,397 raw (+34,968, same cause as serial, plus the pipelined
   // mode on the oneTBB pool); gzip-9 1,402,125 and brotli-11 612,776 (local
-  // build), plus 0.5%.
-  multi: { raw: 6_409_397, gzip: 1_409_136, brotli: 615_840 },
+  // build), plus 0.5%. Then 6,409,935 raw (+538, CI run on 1d1d0e1): the
+  // review fixes to src/pico-park.cpp (bounded block sizes, reserved slot
+  // vectors, the non-allocating drain and the joined pipelined callbacks);
+  // gzip-9 1,402,394 and brotli-11 612,731, plus 0.5%.
+  multi: { raw: 6_409_935, gzip: 1_409_406, brotli: 615_795 },
 };
 
 /** Byte counts and digest for one file. */
