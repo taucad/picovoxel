@@ -2,6 +2,34 @@
 
 Release entries are generated from Nx Version Plans. The first release is 0.1.0.
 
+## 0.3.0 (2026-11-17)
+
+### 🚀 Features
+
+- The tape evaluator takes six new opcodes for tapes lifted from compiled .NET code: `F32` (20) rounds a value to float, `LT`, `LE` and `EQ` (21 to 23) compare two values, and `SELECT` (24) picks one of the two operands its `PAIR` (25) names. They run in the scalar, SIMD and interval evaluators alike. The expression compiler never emits them, so the tapes it builds, and their output bytes, are unchanged. ([#47](https://github.com/taucad/picovoxel/pull/47))
+
+  New raw exports: `Voxels_RenderImplicitTapeChecked` and `Voxels_IntersectImplicitTapeChecked` fill as their unchecked forms do but return 1, leaving the target unchanged, if any sample is not finite; `Tape_EvaluatePoints` evaluates a tape at a list of points.
+
+- Grid paging: Voxels grids are paged by default. When a runtime's resident grids exceed the pager's budget (2 GiB by default, the headroom of the 4 GiB heap), the least recently used are parked, compressed with LZ4, outside the wasm heap, and restored on their next use. Output bytes are unchanged with paging on or off, and below the budget nothing is parked. `createPico({ pager })` and `createPicoRuntime({ pager })` take `budgetBytes`, `codec`, `mode` (`'serial'`, `'pooled'` or `'pipelined'`), `arena`, `store` (`'ram'` or a `'disk'` scratch file) and `storeMaxBytes`; `pager: false` turns it off. Paging out of heap or store space is `PICO_OUT_OF_MEMORY`. ([#56](https://github.com/taucad/picovoxel/pull/56))
+
+  `pico.footprint` reports the heap and the far store side by side (`heapBytes`, `farBytes`) with the pager's counters, for hosts that recycle workers by memory. A `Metadata` view held across a park throws `PICO_DISPOSED`; `voxels.metadata` hands out a fresh one.
+
+  A failed call's own error now always reaches the caller: cleanup after a failure no longer replaces it.
+
+  New raw exports: `K7_nPark`, `K7_hRestore`, `K7_nArena`, `K7_nRearm` and `K7_nLastError`, the park TU behind the pager. LZ4 is a new bundled dependency (BSD-2-Clause, see NOTICE).
+
+- Streamed export: `voxels.streamStl(write)` meshes a grid in batches of 128³-voxel nodes and hands each batch's binary STL records to `write`, so neither the mesh nor the file is ever held whole; the chunks are the bytes `toMesh().toStl()` returns. `voxels.streamMesh(onChunk)` streams the same mesh as indexed batches, and `mesh.streamStl(write)` streams an existing mesh. `{ includeHeader: true }` makes the chunks a complete file in order, for append-only sinks. ([#55](https://github.com/taucad/picovoxel/pull/55))
+
+  Intermediates can be freed as a build goes: the boolean and offset families take `{ consume: true }`, which disposes the receiver as part of the call (an offset then reuses its grid instead of copying it), and `pico.scope(build)` disposes everything `build` created except what it returns. Disposing is now documented as required for large work inside one task, and the HelixHeatX example frees every intermediate at its last use.
+
+  `toStl()`, `mesh.vertices` and `mesh.triangles` no longer stage a copy of the mesh in the heap, and `voxels.gridHash()` no longer copies the grid. Output bytes are unchanged.
+
+  New raw exports: `Mesh_pVertexData`, `Mesh_pTriangleData`, `Mesh_GetStlRecords`, the `MeshStream_*` slab mesher, and `Voxels_GetGridHashCopy`, the copy-based grid hash kept as the streamed hash's oracle.
+
+### ❤️ Thank You
+
+- Richard Fontein @rifont
+
 ## 0.2.1 (2026-10-26)
 
 ### 🩹 Fixes
