@@ -15,7 +15,7 @@ import {
   VEC3_BYTES,
   type SessionContext,
 } from './context.ts';
-import { assertLive, guard, PicoError } from './errors.ts';
+import { assertLive, guard, PicoError, withCleanup } from './errors.ts';
 import { laneOf, type LaneSet } from './lanes.ts';
 import {
   recordProvenance,
@@ -107,13 +107,16 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint, provenance?
   };
   const dims = () => {
     const p = checkedMalloc(ctx.module, 24, 'a dimensions scratch buffer');
-    try {
-      ctx.raw.ScalarField_GetVoxelDimensions(ctx.lib, live(), p, p + 4, p + 8, p + 12, p + 16, p + 20);
-      const i32 = (offset: number) => ctx.module.HEAP32[(p + offset) >>> 2]!;
-      return { origin: [i32(0), i32(4), i32(8)] as Vec3, size: [i32(12), i32(16), i32(20)] as Vec3 };
-    } finally {
-      ctx.module._free(p);
-    }
+    return withCleanup(
+      () => {
+        ctx.raw.ScalarField_GetVoxelDimensions(ctx.lib, live(), p, p + 4, p + 8, p + 12, p + 16, p + 20);
+        const i32 = (offset: number) => ctx.module.HEAP32[(p + offset) >>> 2]!;
+        return { origin: [i32(0), i32(4), i32(8)] as Vec3, size: [i32(12), i32(16), i32(20)] as Vec3 };
+      },
+      () => {
+        ctx.module._free(p);
+      },
+    );
   };
 
   const field = {
@@ -160,17 +163,22 @@ export function wrapScalarField(ctx: SessionContext, handle: bigint, provenance?
         throw new PicoError('PICO_INVALID_ARGUMENT', `getSlice index ${index} out of range [0, ${depth}).`);
       }
       const buffer = checkedMalloc(ctx.module, width * height * 4, 'a slice image buffer');
-      try {
-        ctx.raw.ScalarField_GetSlice(ctx.lib, handle, index, buffer);
-        refreshHeapViews(ctx.module);
-        return {
-          width,
-          height,
-          data: new Float32Array(ctx.module.HEAPF32.subarray(buffer >>> 2, (buffer >>> 2) + width * height)),
-        };
-      } finally {
-        ctx.module._free(buffer);
-      }
+      return withCleanup(
+        () => {
+          ctx.raw.ScalarField_GetSlice(ctx.lib, handle, index, buffer);
+          refreshHeapViews(ctx.module);
+          return {
+            width,
+            height,
+            data: new Float32Array(
+              ctx.module.HEAPF32.subarray(buffer >>> 2, (buffer >>> 2) + width * height),
+            ),
+          };
+        },
+        () => {
+          ctx.module._free(buffer);
+        },
+      );
     },
     bounds(): Bounds {
       const { origin, size } = dims();

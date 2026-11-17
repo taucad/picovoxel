@@ -172,21 +172,27 @@ export function bulkCreateMesh(
   const mesh = expectHandle('Mesh_hCreate', raw.Mesh_hCreate(lib));
   if (vertexCount > 0) {
     const vertexPointer = checkedMalloc(module, vertexCount * VEC3_BYTES, 'mesh vertices');
-    try {
-      module.HEAPF32.set(vertices, vertexPointer >>> 2);
-      raw.Mesh_AddVertices(lib, mesh, vertexPointer, vertexCount);
-    } finally {
-      module._free(vertexPointer);
-    }
+    withCleanup(
+      () => {
+        module.HEAPF32.set(vertices, vertexPointer >>> 2);
+        raw.Mesh_AddVertices(lib, mesh, vertexPointer, vertexCount);
+      },
+      () => {
+        module._free(vertexPointer);
+      },
+    );
   }
   if (triangleCount > 0) {
     const trianglePointer = checkedMalloc(module, triangleCount * TRI_BYTES, 'mesh triangles');
-    try {
-      module.HEAPU32.set(triangles, trianglePointer >>> 2);
-      raw.Mesh_AddTriangles(lib, mesh, trianglePointer, triangleCount);
-    } finally {
-      module._free(trianglePointer);
-    }
+    withCleanup(
+      () => {
+        module.HEAPU32.set(triangles, trianglePointer >>> 2);
+        raw.Mesh_AddTriangles(lib, mesh, trianglePointer, triangleCount);
+      },
+      () => {
+        module._free(trianglePointer);
+      },
+    );
   }
   return mesh;
 }

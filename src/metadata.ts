@@ -10,7 +10,7 @@ import {
   withStrings,
   type SessionContext,
 } from './context.ts';
-import { assertLive, guard, PicoError } from './errors.ts';
+import { assertLive, guard, PicoError, withCleanup } from './errors.ts';
 import { EXACT_LANE_SET, parseLaneSet, UNKNOWN_LANE_MEMBER, type LaneSet } from './lanes.ts';
 import type { Vec3 } from './types.ts';
 
@@ -73,13 +73,16 @@ export function tagFieldClass(
   className: 'Voxels' | 'ScalarField' | 'VectorField',
 ): void {
   const meta = expectHandle('Metadata_hFrom*', metaFrom(ctx.lib, fieldHandle));
-  try {
-    withStrings(ctx, ['PicoGK.Class', className], (namePtr, valuePtr) =>
-      ctx.raw.Metadata_SetStringValue(ctx.lib, meta, namePtr, valuePtr),
-    );
-  } finally {
-    ctx.raw.Metadata_Destroy(ctx.lib, meta);
-  }
+  withCleanup(
+    () => {
+      withStrings(ctx, ['PicoGK.Class', className], (namePtr, valuePtr) =>
+        ctx.raw.Metadata_SetStringValue(ctx.lib, meta, namePtr, valuePtr),
+      );
+    },
+    () => {
+      ctx.raw.Metadata_Destroy(ctx.lib, meta);
+    },
+  );
 }
 
 /**
@@ -132,14 +135,17 @@ function writeLaneTag(
   set: LaneSet,
 ): void {
   const meta = expectHandle('Metadata_hFrom*', metaFrom(ctx.lib, fieldHandle));
-  try {
-    withStrings(ctx, [LANE_METADATA_NAME, set.join(',')], (namePtr, valuePtr) => {
-      ctx.raw.MetaData_RemoveValue(ctx.lib, meta, namePtr);
-      ctx.raw.Metadata_SetStringValue(ctx.lib, meta, namePtr, valuePtr);
-    });
-  } finally {
-    ctx.raw.Metadata_Destroy(ctx.lib, meta);
-  }
+  withCleanup(
+    () => {
+      withStrings(ctx, [LANE_METADATA_NAME, set.join(',')], (namePtr, valuePtr) => {
+        ctx.raw.MetaData_RemoveValue(ctx.lib, meta, namePtr);
+        ctx.raw.Metadata_SetStringValue(ctx.lib, meta, namePtr, valuePtr);
+      });
+    },
+    () => {
+      ctx.raw.Metadata_Destroy(ctx.lib, meta);
+    },
+  );
 }
 
 /**
@@ -157,25 +163,31 @@ function readLaneTag(
   fieldHandle: bigint,
 ): LaneSet | null {
   const meta = expectHandle('Metadata_hFrom*', metaFrom(ctx.lib, fieldHandle));
-  try {
-    const type =
-      TYPE_NAMES[withStrings(ctx, [LANE_METADATA_NAME], (n) => ctx.raw.Metadata_nTypeAt(ctx.lib, meta, n))];
-    if (type === undefined) return null;
-    if (type !== 'string') return [UNKNOWN_LANE_MEMBER]; // float/vector: not our format, fast-like
-    const length =
-      withStrings(ctx, [LANE_METADATA_NAME], (n) => ctx.raw.Metadata_nStringLengthAt(ctx.lib, meta, n)) + 1;
-    const buffer = checkedMalloc(ctx.module, length, 'a metadata string buffer');
-    try {
-      withStrings(ctx, [LANE_METADATA_NAME], (n) =>
-        ctx.raw.Metadata_bGetStringAt(ctx.lib, meta, n, buffer, length),
+  return withCleanup(
+    () => {
+      const type =
+        TYPE_NAMES[withStrings(ctx, [LANE_METADATA_NAME], (n) => ctx.raw.Metadata_nTypeAt(ctx.lib, meta, n))];
+      if (type === undefined) return null;
+      if (type !== 'string') return [UNKNOWN_LANE_MEMBER]; // float/vector: not our format, fast-like
+      const length =
+        withStrings(ctx, [LANE_METADATA_NAME], (n) => ctx.raw.Metadata_nStringLengthAt(ctx.lib, meta, n)) + 1;
+      const buffer = checkedMalloc(ctx.module, length, 'a metadata string buffer');
+      return withCleanup(
+        () => {
+          withStrings(ctx, [LANE_METADATA_NAME], (n) =>
+            ctx.raw.Metadata_bGetStringAt(ctx.lib, meta, n, buffer, length),
+          );
+          return parseLaneSet(readCString(ctx, buffer));
+        },
+        () => {
+          ctx.module._free(buffer);
+        },
       );
-      return parseLaneSet(readCString(ctx, buffer));
-    } finally {
-      ctx.module._free(buffer);
-    }
-  } finally {
-    ctx.raw.Metadata_Destroy(ctx.lib, meta);
-  }
+    },
+    () => {
+      ctx.raw.Metadata_Destroy(ctx.lib, meta);
+    },
+  );
 }
 
 /**
@@ -241,12 +253,15 @@ export function wrapMetadata(ctx: SessionContext, handle: bigint): Metadata {
       const length =
         withStrings(ctx, [name], (n) => ctx.raw.Metadata_nStringLengthAt(ctx.lib, handle, n)) + 1;
       const buffer = checkedMalloc(ctx.module, length, 'a metadata string buffer');
-      try {
-        withStrings(ctx, [name], (n) => ctx.raw.Metadata_bGetStringAt(ctx.lib, handle, n, buffer, length));
-        return readCString(ctx, buffer);
-      } finally {
-        ctx.module._free(buffer);
-      }
+      return withCleanup(
+        () => {
+          withStrings(ctx, [name], (n) => ctx.raw.Metadata_bGetStringAt(ctx.lib, handle, n, buffer, length));
+          return readCString(ctx, buffer);
+        },
+        () => {
+          ctx.module._free(buffer);
+        },
+      );
     }
     if (type === 'float') {
       withStrings(ctx, [name], (n) => ctx.raw.Metadata_bGetFloatAt(ctx.lib, handle, n, ctx.scratch));
@@ -269,12 +284,15 @@ export function wrapMetadata(ctx: SessionContext, handle: bigint): Metadata {
       for (let i = 0; i < count; i++) {
         const length = ctx.raw.Metadata_nNameLengthAt(ctx.lib, handle, i) + 1;
         const buffer = checkedMalloc(ctx.module, length, 'a metadata string buffer');
-        try {
-          ctx.raw.Metadata_bGetNameAt(ctx.lib, handle, i, buffer, length); // i < count: cannot fail
-          result.push(readCString(ctx, buffer));
-        } finally {
-          ctx.module._free(buffer);
-        }
+        withCleanup(
+          () => {
+            ctx.raw.Metadata_bGetNameAt(ctx.lib, handle, i, buffer, length); // i < count: cannot fail
+            result.push(readCString(ctx, buffer));
+          },
+          () => {
+            ctx.module._free(buffer);
+          },
+        );
       }
       return result;
     },

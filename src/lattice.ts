@@ -21,7 +21,7 @@
 // caller could do with one that reading `handle` does not already do.
 
 import { adoptHandle, checkedMalloc, expectHandle, type SessionContext } from './context.ts';
-import { assertLive, guard, PicoError } from './errors.ts';
+import { assertLive, guard, PicoError, withCleanup } from './errors.ts';
 import { EXACT_LANE_SET } from './lanes.ts';
 import type { Vec3 } from './types.ts';
 import { wrapVoxels, type Voxels } from './voxels.ts';
@@ -113,15 +113,18 @@ export function wrapLattice(ctx: SessionContext, handle: bigint): Lattice {
     beamCount = 0;
     // One allocation: the 32 B-stride beam block, then the flag block after it.
     const pointer = checkedMalloc(ctx.module, floats * 4 + count * 4, 'the lattice beam batch');
-    try {
-      ctx.module.HEAPF32.set(beams.subarray(0, floats), pointer >>> 2);
-      ctx.module.HEAPU32.set(caps.subarray(0, count), (pointer >>> 2) + floats);
-      guard('Lattice_AddBeams', () =>
-        ctx.raw.Lattice_AddBeams(ctx.lib, handle, pointer, pointer + floats * 4, count),
-      )();
-    } finally {
-      ctx.module._free(pointer);
-    }
+    withCleanup(
+      () => {
+        ctx.module.HEAPF32.set(beams.subarray(0, floats), pointer >>> 2);
+        ctx.module.HEAPU32.set(caps.subarray(0, count), (pointer >>> 2) + floats);
+        guard('Lattice_AddBeams', () =>
+          ctx.raw.Lattice_AddBeams(ctx.lib, handle, pointer, pointer + floats * 4, count),
+        )();
+      },
+      () => {
+        ctx.module._free(pointer);
+      },
+    );
   };
 
   const flushSpheres = () => {
@@ -130,12 +133,15 @@ export function wrapLattice(ctx: SessionContext, handle: bigint): Lattice {
     const count = sphereCount;
     sphereCount = 0;
     const pointer = checkedMalloc(ctx.module, floats * 4, 'the lattice sphere batch');
-    try {
-      ctx.module.HEAPF32.set(spheres.subarray(0, floats), pointer >>> 2);
-      guard('Lattice_AddSpheres', () => ctx.raw.Lattice_AddSpheres(ctx.lib, handle, pointer, count))();
-    } finally {
-      ctx.module._free(pointer);
-    }
+    withCleanup(
+      () => {
+        ctx.module.HEAPF32.set(spheres.subarray(0, floats), pointer >>> 2);
+        guard('Lattice_AddSpheres', () => ctx.raw.Lattice_AddSpheres(ctx.lib, handle, pointer, count))();
+      },
+      () => {
+        ctx.module._free(pointer);
+      },
+    );
   };
 
   const flush = () => {
