@@ -5,9 +5,10 @@
 // it and never touch the module directly.
 
 import { DISPOSE } from './dispose.ts';
-import { PicoError } from './errors.ts';
+import { PicoError, withCleanup } from './errors.ts';
 import type { PicoRaw } from './raw.generated.ts';
 import type { LaneSet } from './lanes.ts';
+import type { Pager } from './pager.ts';
 import type { HandleRegistry } from './registry.ts';
 import { compileSdfExpression } from './tape.ts';
 import type { SdfExpression } from './tape.ts';
@@ -91,6 +92,8 @@ export interface SessionContext {
    * created while it is the innermost, so it can dispose them on exit.
    */
   scopes: Disposable[][];
+  /** The runtime's grid pager (src/pager.ts); undefined when `createPico({ pager: false })`. */
+  pager?: Pager;
 }
 
 /** Anything the facade hands out: disposable, optionally so (GC is the backstop). */
@@ -196,11 +199,14 @@ export function withStrings<T>(
     module.stringToUTF8(text, pointer, bytes);
     return pointer;
   });
-  try {
-    return body(...pointers);
-  } finally {
-    for (const pointer of pointers) module._free(pointer);
-  }
+  return withCleanup(
+    () => {
+      return body(...pointers);
+    },
+    () => {
+      for (const pointer of pointers) module._free(pointer);
+    },
+  );
 }
 
 /** Reads the NUL-terminated C string a call wrote into `pointer`. */
@@ -268,14 +274,17 @@ export function withSdfTape<T>(
   const instructionPointer = checkedMalloc(module, instructions.byteLength, 'the SDF tape instructions');
   // Never malloc(0): a constant-free tape still needs a valid pointer.
   const constantPointer = checkedMalloc(module, Math.max(constants.byteLength, 8), 'the SDF tape constants');
-  try {
-    module.HEAPU32.set(instructions, instructionPointer >>> 2);
-    module.HEAPF64.set(constants, constantPointer >>> 3);
-    return body(instructionPointer, instructions.length / 2, constantPointer, constants.length);
-  } finally {
-    module._free(constantPointer);
-    module._free(instructionPointer);
-  }
+  return withCleanup(
+    () => {
+      module.HEAPU32.set(instructions, instructionPointer >>> 2);
+      module.HEAPF64.set(constants, constantPointer >>> 3);
+      return body(instructionPointer, instructions.length / 2, constantPointer, constants.length);
+    },
+    () => {
+      module._free(constantPointer);
+      module._free(instructionPointer);
+    },
+  );
 }
 
 export interface MemoryWarningOptions {

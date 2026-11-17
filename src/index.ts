@@ -53,6 +53,7 @@ export type {
   CreateScalarFieldOptions,
   CreateVectorFieldOptions,
   CreateVoxelsOptions,
+  Footprint,
   MemoryUsage,
   Pico,
   PicoRuntime,
@@ -73,6 +74,7 @@ export type {
   VoxelSlice,
   VoxelsStreamStlOptions,
 } from './voxels.ts';
+export type { PagerCodec, PagerMode, PagerOptions, PagerStats } from './pager.ts';
 export type { Mesh, TransformOptions } from './mesh.ts';
 export { meshToStlBytes } from './stl.ts';
 export type {

@@ -9,8 +9,10 @@ import path from 'node:path';
 // (createPicoRuntime): +2 for dist/pico.exports.js and dist/pico-multi.exports.js,
 // the per-build export names the wasmModule pre-flight checks (generated beside
 // the CI-built wasm). PR3: +3 for the shipped compatibility.md, CHANGELOG.md
-// and BREAKING_CHANGES.md.
-const PACKAGE_FILE_COUNT_CEILING = 137;
+// and BREAKING_CHANGES.md. The grid pager: +6 for dist/pager.js, its
+// declaration (PagerOptions and PagerStats are public types) and the four
+// dist/far/ store modules, which stay internal (no declarations).
+const PACKAGE_FILE_COUNT_CEILING = 143;
 
 export const PACKAGE_FILES = [
   'BREAKING_CHANGES.md',
@@ -25,6 +27,10 @@ export const PACKAGE_FILES = [
   'dist/dispose.js',
   'dist/errors.d.ts',
   'dist/errors.js',
+  'dist/far/disk.js',
+  'dist/far/index.js',
+  'dist/far/ram.js',
+  'dist/far/store.js',
   'dist/fieldUtils.d.ts',
   'dist/fieldUtils.js',
   'dist/fields.d.ts',
@@ -77,6 +83,8 @@ export const PACKAGE_FILES = [
   'dist/numerics/quaternion.js',
   'dist/numerics/vector.d.ts',
   'dist/numerics/vector.js',
+  'dist/pager.d.ts',
+  'dist/pager.js',
   'dist/pico-multi.exports.js',
   'dist/pico-multi.mjs',
   'dist/pico-multi.wasm',

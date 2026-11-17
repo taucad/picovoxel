@@ -24,6 +24,7 @@
     "createVectorField",
     "createVoxels",
     "dispose",
+    "footprint",
     "handle",
     "lane",
     "memory",

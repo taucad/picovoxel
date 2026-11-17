@@ -1,8 +1,8 @@
 [
   {
-    "name": "core: picovoxel, /multi, /raw, /slicing, /three (25,715 B brotli at T1.2 on 38bdac8; 27,213 B at T4.2 with createPicoRuntime and the two generated export lists, 2026-09-28; 27,880 B with toMesh adaptivity, fastSweeping, raycastBatch subVoxel, the heap-view refresh and the empty GLB scene, 2026-10-23; 28,200 B with the native out-of-memory probe, 2026-10-25; 29,807 B with streamed export, consume and scope, 2026-11-17)",
+    "name": "core: picovoxel, /multi, /raw, /slicing, /three (25,715 B brotli at T1.2 on 38bdac8; 27,213 B at T4.2 with createPicoRuntime and the two generated export lists, 2026-09-28; 27,880 B with toMesh adaptivity, fastSweeping, raycastBatch subVoxel, the heap-view refresh and the empty GLB scene, 2026-10-23; 28,200 B with the native out-of-memory probe, 2026-10-25; 29,807 B with streamed export, consume and scope, 2026-11-17; 32,558 B with the grid pager and its far store (pager.js 1,880 B, far/ 2,809 B brotli on their own), 2026-11-17)",
     "path": ["dist/*.js", "!dist/shapekernel.js", "!dist/latticelibrary.js", "!dist/numerics.js"],
-    "limit": "29.9 kB"
+    "limit": "32.7 kB"
   },
   {
     "name": "picovoxel/shapekernel (13,309 B brotli at T1.2, 2026-09-27)",

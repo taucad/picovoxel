@@ -84,6 +84,29 @@ function isNativeOutOfMemory(exception: WebAssembly.Exception): boolean {
 }
 
 /**
+ * The one `PICO_OUT_OF_MEMORY` error for an exhausted heap or far store, shared by
+ * guard() and the grid pager so every out-of-memory path reads alike (I2).
+ * `where: 'heap'` (default): a native allocation failed at the wasm32 heap limit.
+ * `where: 'far'`: the pager's store outside the heap refused the bytes.
+ */
+export function outOfMemoryError(
+  operation: string,
+  options: { detail?: string; cause?: unknown; where?: 'heap' | 'far' } = {},
+): PicoError {
+  const { detail = '', cause, where = 'heap' } = options;
+  const what = detail ? ` (${detail})` : '';
+  const message =
+    where === 'heap'
+      ? `${operation} ran out of WebAssembly memory${what}: a native allocation failed ` +
+        'at the 4 GiB wasm32 heap limit, which picovoxel/multi shares. Dispose this session, then retry with ' +
+        'a coarser voxelSize, smaller bounds, or intermediates disposed sooner.'
+      : `${operation} ran out of memory${what}: the pager's far store outside the wasm heap is full ` +
+        '(its size bound, or the host refused memory or disk). Dispose this session, then retry with a larger ' +
+        'store bound, a coarser voxelSize, or intermediates disposed sooner.';
+  return new PicoError('PICO_OUT_OF_MEMORY', message, cause === undefined ? undefined : { cause });
+}
+
+/**
  * Wraps a raw ABI call so C++ exceptions become typed, actionable JS errors.
  * `operation` names the export; `describe` renders the arguments for the message.
  */
@@ -102,13 +125,7 @@ export function guard<A extends unknown[], R>(
       // generic failure the caller cannot act on.
       const detail = describe(...args);
       if (cause instanceof WebAssembly.Exception && isNativeOutOfMemory(cause)) {
-        throw new PicoError(
-          'PICO_OUT_OF_MEMORY',
-          `${operation} ran out of WebAssembly memory${detail ? ` (${detail})` : ''}: a native allocation failed ` +
-            'at the 4 GiB wasm32 heap limit, which picovoxel/multi shares. Dispose this session, then retry with ' +
-            'a coarser voxelSize, smaller bounds, or intermediates disposed sooner.',
-          { cause },
-        );
+        throw outOfMemoryError(operation, { detail, cause });
       }
       if (cause instanceof WebAssembly.Exception) {
         throw new PicoError(
