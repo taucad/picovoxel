@@ -22,6 +22,9 @@ Small models need no cleanup calls. Large work inside one task does: the garbage
 - **`using`.** Sessions and wrappers implement `[Symbol.dispose]`, so `using pico = await createPico()` disposes at the end of the block.
 
 ```js
+import { createPico } from 'picovoxel';
+
+const pico = await createPico({ voxelSize: 0.5 });
 const part = pico.scope(() => {
   const body = pico.createVoxels({ shape: 'sphere', radius: 40 });
   const shelled = body.shell({ offset: -2, consume: true }); // body is freed here
@@ -41,6 +44,10 @@ const part = pico.scope(() => {
 Each chunk is a view into wasm memory that is valid only while `write` runs: write it out or copy it (`chunk.slice()`) before returning, and copy before any `await`. By default `write` receives the triangle records only, and the call returns the 84-byte `header` to place first, which a chunk list or a seekable file does for free. `{ includeHeader: true }` makes the header the first chunk, for append-only sinks such as a `WritableStream`; on `voxels.streamStl` it costs one counting pass of the mesher. The streams export millimetres and follow the lane rules of `toStl()`.
 
 ```js
+import { createPico } from 'picovoxel';
+
+const pico = await createPico({ voxelSize: 0.5 });
+const part = pico.createVoxels({ shape: 'sphere', radius: 40 });
 const chunks = [];
 const { header } = part.streamStl((chunk) => chunks.push(chunk.slice()));
 const file = new Blob([header, ...chunks], { type: 'model/stl' });
