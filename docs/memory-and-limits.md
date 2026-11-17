@@ -84,7 +84,7 @@ import { createPico } from 'picovoxel/multi';
 const pico = await createPico({ voxelSize: 0.38, pager: { budgetBytes: 512 * 2 ** 20 } });
 // ... build ...
 const { heapBytes, farBytes, pager } = pico.footprint;
-console.log(heapBytes, farBytes, pager.parks, pager.restores);
+console.log(heapBytes, farBytes, pager?.parks, pager?.restores); // pager is null with `pager: false`
 ```
 
 The pager is a capacity tool, not a speed tool. Parking and restoring cost time, so a budget well below what the model needs runs slower than in-core work; it lets work finish that would otherwise exceed the 4 GiB heap. A grid is never parked in the middle of the call that uses it.
