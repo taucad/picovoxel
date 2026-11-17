@@ -103,6 +103,7 @@ interface NodeFs {
   readSync(fd: number, buffer: Uint8Array, offset: number, length: number, position: number): number;
   ftruncateSync(fd: number, length: number): void;
   closeSync(fd: number): void;
+  readlinkSync(path: string): string;
 }
 
 interface NodeProcess {
@@ -121,9 +122,25 @@ export function nodeProcess(): NodeProcess | undefined {
 
 const swept = new Set<string>();
 
-/** The default Node scratch directory name for a host: `picovoxel-far-<host>`, path-safe. */
-export const defaultScratchName = (host: string): string =>
-  `picovoxel-far-${host.replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 64) || 'host'}`;
+/**
+ * The PID namespace this process runs in, from Linux's `/proc/self/ns/pid` (`pid:[<inode>]`), or
+ * undefined where there is none to read (macOS, Windows, a sandbox without `/proc`).
+ */
+export function pidNamespace(fs: Pick<NodeFs, 'readlinkSync'>): string | undefined {
+  try {
+    return /\[(\d+)\]/.exec(fs.readlinkSync('/proc/self/ns/pid'))?.[1];
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The default Node scratch directory name: `picovoxel-far-<host>[-<pid namespace>]`, path-safe.
+ * The sweep judges files by pid, so the directory must not be shared across PID namespaces;
+ * containers can share a hostname and a temp mount yet have separate ones.
+ */
+export const defaultScratchName = (host: string, namespace?: string): string =>
+  `picovoxel-far-${host.replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 64) || 'host'}${namespace ? `-${namespace}` : ''}`;
 let fileCounter = 0;
 
 const errorCode = (error: unknown): string | undefined => (error as { code?: string } | null)?.code;
@@ -139,9 +156,9 @@ export function openNodeScratchFile(directory?: string): SyncFile {
   const fs = process.getBuiltinModule!('node:fs') as NodeFs;
   const path = process.getBuiltinModule!('node:path') as { join(...parts: string[]): string };
   const os = process.getBuiltinModule!('node:os') as { tmpdir(): string; hostname(): string };
-  // The default directory is per host: containers that share a temp mount have separate PID
-  // namespaces, so one's sweep must never judge another's files by pid.
-  const dir = directory ?? path.join(os.tmpdir(), defaultScratchName(os.hostname()));
+  // The default directory is per host and PID namespace, so a sweep never judges another
+  // namespace's files by pid.
+  const dir = directory ?? path.join(os.tmpdir(), defaultScratchName(os.hostname(), pidNamespace(fs)));
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   if (!swept.has(dir)) {
     swept.add(dir);

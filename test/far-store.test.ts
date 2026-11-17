@@ -8,6 +8,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  readlinkSync,
   rmSync,
   statSync,
   symlinkSync,
@@ -31,7 +32,10 @@ import {
   nodeProcess,
   openNodeScratchFile,
   openOpfsScratchFile,
+  pidNamespace,
 } from '../src/far/disk.ts';
+
+const nodeFs = { readlinkSync: (path: string) => readlinkSync(path) };
 
 const KiB = 1024;
 
@@ -393,9 +397,19 @@ test('Node scratch default directory is the OS temp dir; outside Node it refuses
   store.write(1, bytes(100, 1));
   assert.equal(store.bytesHeld, 100);
   store.close();
-  assert.ok(existsSync(join(tmpdir(), defaultScratchName(hostname()))));
+  assert.ok(existsSync(join(tmpdir(), defaultScratchName(hostname(), pidNamespace(nodeFs)))));
   assert.equal(defaultScratchName('a/b c'), 'picovoxel-far-a_b_c');
-  assert.equal(defaultScratchName(''), 'picovoxel-far-host');
+  assert.equal(defaultScratchName('', '42'), 'picovoxel-far-host-42');
+  assert.equal(pidNamespace({ readlinkSync: () => 'pid:[4026531836]' }), '4026531836');
+  assert.equal(pidNamespace({ readlinkSync: () => 'odd' }), undefined);
+  assert.equal(
+    pidNamespace({
+      readlinkSync: () => {
+        throw new Error('ENOENT');
+      },
+    }),
+    undefined,
+  );
 
   vi.stubGlobal('process', { versions: {} });
   assert.equal(nodeProcess(), undefined);
