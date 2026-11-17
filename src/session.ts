@@ -536,15 +536,18 @@ async function startRuntime(
     // Teardown order: every open session first (a Set iterator tolerates the
     // deletions each release makes), then the pool.
     for (const release of parts.open) release();
-    parts.pager?.close();
-    // Join the module's pthread pool (multi glue only — absent on the serial glue).
-    // Nothing else ever joins the em-pthread workers, so they outlive every JS
-    // reference to this module, and at process teardown V8 can free the wasm backing
-    // store while a worker is still executing in it — SIGILL, timing-dependent
-    // (observed as vitest fork crashes; crash reports show an em-pthread faulting
-    // under a main-thread BackingStore free). The pool belongs to the
-    // runtime, so it dies here and never with a single session.
-    module.PThread?.terminateAllThreads();
+    try {
+      parts.pager?.close(); // a store error still propagates, after the pool is joined
+    } finally {
+      // Join the module's pthread pool (multi glue only — absent on the serial glue).
+      // Nothing else ever joins the em-pthread workers, so they outlive every JS
+      // reference to this module, and at process teardown V8 can free the wasm backing
+      // store while a worker is still executing in it — SIGILL, timing-dependent
+      // (observed as vitest fork crashes; crash reports show an em-pthread faulting
+      // under a main-thread BackingStore free). The pool belongs to the
+      // runtime, so it dies here and never with a single session.
+      module.PThread?.terminateAllThreads();
+    }
   };
 
   const openSession = (resolved: ResolvedSessionOptions, disposeRuntime?: () => void): Pico => {

@@ -78,7 +78,9 @@ The grid pager keeps a runtime's resident Voxels grids under a byte budget. When
 | `storeMaxBytes` | unbounded for RAM, 16 GiB for disk              | The store's size bound; a full store fails the park with `PICO_OUT_OF_MEMORY`                  |
 | `directory`     | the system temporary directory                  | `'disk'` only: the scratch directory (a path in Node, a directory name in OPFS)                |
 
-`session.footprint` reports `{ heapBytes, farBytes, pager }`: the size of linear memory, the bytes the far store holds on its host, and the pager's counters (resident and parked bytes, parks, restores, the arena). Every session on a runtime reports the same figures. With `store: 'ram'`, a host that recycles workers by heap size should add `farBytes`, because parked grids live in the worker's memory beside the heap. With `store: 'disk'`, `farBytes` is the size of the scratch file: disk space, not worker memory, so leave it out of a recycling threshold and watch it against `storeMaxBytes` instead.
+`session.footprint` reports `{ heapBytes, farBytes, pager }`: the size of linear memory, the bytes the far store holds on its host, and the pager's counters (resident and parked bytes, parks, restores, the arena). Every session on a runtime reports the same figures.
+
+With `store: 'ram'`, a host that recycles workers by heap size should add `farBytes`, because parked grids live in the worker's memory beside the heap. With `store: 'disk'`, `farBytes` counts the bytes of the images the store holds, which is disk space, not worker memory, so leave it out of a recycling threshold. The scratch file itself can stay larger, because space freed by discarded images is reused rather than returned until the store is empty; `storeMaxBytes` bounds that file.
 
 ```js
 import { createPico } from 'picovoxel/multi';

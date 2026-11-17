@@ -113,7 +113,8 @@ test('I4: the default pager is on at a 2 GiB budget and parks nothing on an ordi
   }
   const multi = await multiEntry.createPico({ voxelSize: 0.5 });
   try {
-    assert.equal(multi.footprint.pager!.mode, 'pipelined');
+    // The default follows the pool: one hardware thread means a one-thread pool and 'serial'.
+    assert.equal(multi.footprint.pager!.mode, navigator.hardwareConcurrency > 1 ? 'pipelined' : 'serial');
   } finally {
     multi.dispose();
   }
