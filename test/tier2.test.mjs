@@ -1165,6 +1165,15 @@ test('C17 — grid hash: stable, representation-blind, content-sensitive', () =>
     fns.Voxels_GetGridHash(lib, other, hash, hash + 16, hash + 24, hash + 32);
     assert.notEqual(digest(), first, 'different content is a different hash');
 
+    // The streamed hash reads the live tree; the copy-based oracle normalizes a
+    // deep copy as the definition reads. Same digest and counts on each grid.
+    for (const grid of [sphere, dense, other]) {
+      fns.Voxels_GetGridHash(lib, grid, hash, hash + 16, hash + 24, hash + 32);
+      const streamed = [digest(), counts()];
+      fns.Voxels_GetGridHashCopy(lib, grid, hash, hash + 16, hash + 24, hash + 32);
+      assert.deepEqual([digest(), counts()], streamed, 'streamed hash ≡ copy-based oracle');
+    }
+
     fns.Voxels_Destroy(lib, dense);
     fns.Voxels_Destroy(lib, other);
     fns.Voxels_Destroy(lib, sphere);
@@ -1344,6 +1353,108 @@ test('C21 — RayCastBatch/ClosestPointBatch: counts and content sane', () => {
 });
 
 // ── C16 — negative tests (R16) ─────────────────────────────────────────────────
+// ── C22 — streamed meshing and export (src/pico-stream.cpp) ─────────────────────
+test('C22 — mesh streams: zero-copy readback, STL records, slab mesher ≡ the whole mesh', () => {
+  withLib(0.4, (lib) => {
+    const sphere = sphereOf(lib, 6);
+    const mesh = fns.Mesh_hCreateFromVoxels(lib, sphere);
+    const vertexCount = fns.Mesh_nVertexCount(lib, mesh);
+    const triangleCount = fns.Mesh_nTriangleCount(lib, mesh);
+    assert.ok(triangleCount > 1000, 'a real mesh');
+
+    // Zero-copy pointers read the same triples as the bulk copy-out exports.
+    const vertices = _malloc(vertexCount * 12);
+    const triangles = _malloc(triangleCount * 12);
+    fns.Mesh_GetVertices(lib, mesh, vertices, vertexCount);
+    fns.Mesh_GetTriangles(lib, mesh, triangles, triangleCount);
+    const vertexData = fns.Mesh_pVertexData(lib, mesh) >>> 0;
+    const triangleData = fns.Mesh_pTriangleData(lib, mesh) >>> 0;
+    assert.deepEqual(
+      module.HEAPU8.slice(vertexData, vertexData + vertexCount * 12),
+      module.HEAPU8.slice(vertices, vertices + vertexCount * 12),
+    );
+    assert.deepEqual(
+      module.HEAPU8.slice(triangleData, triangleData + triangleCount * 12),
+      module.HEAPU8.slice(triangles, triangles + triangleCount * 12),
+    );
+    _free(vertices);
+    _free(triangles);
+
+    // STL records: the range clamps to the mesh; out-of-range asks write nothing.
+    const records = _malloc(triangleCount * 50);
+    assert.equal(fns.Mesh_GetStlRecords(lib, mesh, 0, triangleCount + 5, records), triangleCount);
+    const whole = module.HEAPU8.slice(records, records + triangleCount * 50);
+    assert.equal(fns.Mesh_GetStlRecords(lib, mesh, 10, 3, records), 3);
+    assert.deepEqual(module.HEAPU8.slice(records, records + 150), whole.slice(500, 650));
+    for (const [first, count] of [
+      [-1, 3],
+      [0, 0],
+      [triangleCount, 1],
+    ]) {
+      assert.equal(fns.Mesh_GetStlRecords(lib, mesh, first, count, records), 0, `[${first}, +${count})`);
+    }
+    // A record is the normal then three corners as float32, and a zero attribute.
+    const view = new DataView(module.HEAPU8.buffer, records, 50);
+    fns.Mesh_GetStlRecords(lib, mesh, 0, 1, records);
+    const a = fns.Mesh_pTriangleData(lib, mesh) >>> 0;
+    const corner = module.HEAPU32[a >>> 2];
+    const v = (fns.Mesh_pVertexData(lib, mesh) >>> 0) + corner * 12;
+    assert.equal(view.getFloat32(12, true), module.HEAPF32[v >>> 2] + 0);
+    assert.equal(view.getUint16(48, true), 0);
+    _free(records);
+
+    // The slab mesher, one level-1 node per batch: STL mode reproduces the
+    // records, count mode the count, and indexed mode the vertices and indices.
+    assert.equal(fns.MeshStream_pCreate(lib, sphere, 3, 1, 64), 0, 'an unknown mode is refused');
+    const drain = (mode, chunkTriangles, each) => {
+      const stream = fns.MeshStream_pCreate(lib, sphere, mode, 0, chunkTriangles);
+      assert.notEqual(stream, 0);
+      let chunks = 0;
+      while (fns.MeshStream_nNext(stream) === 1) {
+        chunks++;
+        each?.(stream);
+      }
+      const counts = [fns.MeshStream_dTriangleCount(stream), fns.MeshStream_dVertexCount(stream)];
+      fns.MeshStream_Destroy(stream);
+      return { chunks, counts };
+    };
+    const streamed = [];
+    const stl = drain(0, 0, (stream) => {
+      const at = fns.MeshStream_pData(stream) >>> 0;
+      streamed.push(module.HEAPU8.slice(at, at + fns.MeshStream_nDataBytes(stream)));
+    });
+    assert.equal(stl.counts[0], triangleCount);
+    assert.ok(stl.chunks > 100, 'chunkTriangles 0 means one quad (two records) per chunk');
+    assert.deepEqual(Uint8Array.from(streamed.flatMap((chunk) => [...chunk])), whole);
+    assert.deepEqual(drain(2, 64).counts, [triangleCount, 0], 'count mode counts and emits nothing');
+
+    const meshVertices = [];
+    const meshIndices = [];
+    const indexed = drain(1, 64, (stream) => {
+      const at = fns.MeshStream_pData(stream) >>> 0;
+      meshVertices.push(...module.HEAPU8.slice(at, at + fns.MeshStream_nDataBytes(stream)));
+      const t = fns.MeshStream_pTriangles(stream) >>> 0;
+      meshIndices.push(...module.HEAPU32.slice(t >>> 2, (t >>> 2) + fns.MeshStream_nTriangleIndices(stream)));
+    });
+    assert.deepEqual(indexed.counts, [triangleCount, vertexCount]);
+    assert.deepEqual(
+      Uint8Array.from(meshVertices),
+      module.HEAPU8.slice(
+        fns.Mesh_pVertexData(lib, mesh) >>> 0,
+        (fns.Mesh_pVertexData(lib, mesh) >>> 0) + vertexCount * 12,
+      ),
+    );
+    const t = fns.Mesh_pTriangleData(lib, mesh) >>> 0;
+    assert.deepEqual(
+      Uint32Array.from(meshIndices),
+      module.HEAPU32.slice(t >>> 2, (t >>> 2) + triangleCount * 3),
+    );
+
+    fns.Mesh_Destroy(lib, mesh);
+    fns.Voxels_Destroy(lib, sphere);
+  });
+});
+
 test('C16 — invalid handles throw and the module survives every one', () => {
   const lib = fns.Library_hCreateInstance(0.5);
   const bogus = 987654321n;

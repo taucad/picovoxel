@@ -2,7 +2,11 @@
 //
 // PicoGK's booleans and offsets mutate the receiver in the ABI — every
 // derived op copies first via Voxels_hCreateCopy so the fluent form is pure and
-// `a.subtract(b)` never silently destroys `a`. Two soundness rules ride along:
+// `a.subtract(b)` never silently destroys `a`. `{ consume: true }` is the
+// explicit opposite: the receiver is disposed by the call, so an offset
+// mutates its grid in place (no copy) and a boolean frees it as soon as the
+// result exists — the diet shape research run 2026-11-16 (lane K1) measured
+// as the difference between 0.38 mm failing and 0.30 mm completing. Two soundness rules ride along:
 // emptiness is `isEmpty` (a−a keeps ~5% narrow-band "volume"), and correct
 // volume/bounds after booleans need the mesh round-trip (OpenVDB retains
 // distance-0 surface voxels).
@@ -18,9 +22,9 @@ import {
   withSdfTape,
   type SessionContext,
 } from './context.ts';
-import { assertLive, guard, PicoError } from './errors.ts';
+import { assertLive, guard, PicoError, withCleanup } from './errors.ts';
 import { wrapScalarField, type ScalarField } from './fields.ts';
-import { FAST_LANE_SET, laneOf, unionLaneSets, type LaneSet } from './lanes.ts';
+import { assertLaneExport, FAST_LANE_SET, laneOf, unionLaneSets, type LaneSet } from './lanes.ts';
 import type { Lattice } from './lattice.ts';
 import {
   provenanceOf,
@@ -30,7 +34,8 @@ import {
   wrapMetadata,
   type Metadata,
 } from './metadata.ts';
-import { wrapMesh, type Mesh } from './mesh.ts';
+import { readChunkTriangles, wrapMesh, type Mesh } from './mesh.ts';
+import { writeStlHeader, type StlChunkSink, type StreamStlOptions, type StreamStlResult } from './stl.ts';
 import type { SdfExpression } from './tape.ts';
 import type { Bounds, SdfFunction, Vec3 } from './types.ts';
 
@@ -51,7 +56,66 @@ export type GetSliceOptions =
   | { index: number; axis?: SliceAxis; mode?: SliceMode }
   | { z: number; interpolated: true; mode?: SliceMode };
 
-export interface ShellOptions {
+/**
+ * The opt-in for an operation that uses up its receiver. With
+ * `consume: true` the receiver is disposed by the call — whether it succeeds
+ * or throws — and any later use of it throws `PICO_DISPOSED`. In return the
+ * operation needs no copy of it: an offset reuses the receiver's grid for its
+ * result, and a boolean frees the receiver as soon as the result exists, so
+ * at no point do a large intermediate and its successor both stay alive. The
+ * result's bytes are those of the pure call. Default `false`.
+ */
+export interface ConsumeOptions {
+  consume?: boolean;
+}
+
+/**
+ * Options for {@link Voxels.offset} and {@link Voxels.smoothen}. With
+ * `consume: true` the offset runs on the receiver's own grid, in place.
+ */
+export interface OffsetOptions extends ConsumeOptions {
+  /** Millimetres; positive grows, negative shrinks. */
+  distance: number;
+  /** See {@link Voxels.offset}. */
+  fastRenorm?: boolean;
+  /** Opt-in sweep engine, `fast` (docs/lanes.md). */
+  fastSweeping?: boolean;
+}
+
+/** Options for {@link Voxels.streamMesh}. */
+export interface StreamMeshOptions {
+  /**
+   * The most surface leaves (8³ voxels each) one batch owns; a batch is always
+   * at least one 128³-voxel node. Default 4,096. Smaller batches lower the
+   * peak transient (about 40 MiB at the default) and cost more passes.
+   */
+  batchLeaves?: number;
+}
+
+/** Options for {@link Voxels.streamStl}. */
+export interface VoxelsStreamStlOptions extends StreamStlOptions, StreamMeshOptions {}
+
+/**
+ * One batch of the uniform mesh. Both arrays are views into wasm memory,
+ * valid only until the callback returns: copy what you keep.
+ */
+export interface MeshChunk {
+  /** The batch's new vertices, xyz triples in mm. */
+  vertices: Float32Array;
+  /**
+   * The batch's triangles as corner triples indexing the WHOLE mesh's
+   * vertices: earlier batches' vertices count, in order.
+   */
+  triangles: Uint32Array;
+}
+
+/** What {@link Voxels.streamMesh} returns once every chunk has been delivered. */
+export interface StreamMeshResult {
+  vertexCount: number;
+  triangleCount: number;
+}
+
+export interface ShellOptions extends ConsumeOptions {
   offset?: number;
   inner?: number;
   outer?: number;
@@ -118,10 +182,17 @@ export interface Voxels {
   clone(): Voxels;
   /** Pure union; variadic form aggregates into one clone (perf ≙ C# voxBoolAddAll). */
   union(...others: Voxels[]): Voxels;
+  /**
+   * Union with a trailing {@link ConsumeOptions}: `a.union(b, c, { consume: true })`
+   * disposes `a` once the result exists. Operands are never consumed.
+   */
+  union(...operands: [...others: Voxels[], options: ConsumeOptions]): Voxels;
   /** Pure subtraction of every operand. */
   subtract(...others: Voxels[]): Voxels;
+  /** Subtraction with a trailing {@link ConsumeOptions}; see `union`. */
+  subtract(...operands: [...others: Voxels[], options: ConsumeOptions]): Voxels;
   /** Pure intersection. */
-  intersect(other: Voxels): Voxels;
+  intersect(other: Voxels, options?: ConsumeOptions): Voxels;
   /** Content equality; `other` must belong to the same session. */
   equals(other: Voxels): boolean;
   /** THE emptiness oracle. Never test volume ≈ 0. */
@@ -140,24 +211,31 @@ export interface Voxels {
    *
    * `fastSweeping`: opt-in sweep engine, `fast` (docs/lanes.md).
    */
-  offset(options: { distance: number; fastRenorm?: boolean; fastSweeping?: boolean }): Voxels;
+  offset(options: OffsetOptions): Voxels;
   /** Two offsets in sequence (closing/opening when signs differ). */
-  doubleOffset(options: {
-    first: number;
-    second: number;
-    fastRenorm?: boolean;
-    fastSweeping?: boolean;
-  }): Voxels;
+  doubleOffset(
+    options: {
+      first: number;
+      second: number;
+      fastRenorm?: boolean;
+      fastSweeping?: boolean;
+    } & ConsumeOptions,
+  ): Voxels;
   /** In, 2× out, in again: strips detail below the distance threshold. */
-  smoothen(options: { distance: number; fastRenorm?: boolean; fastSweeping?: boolean }): Voxels;
+  smoothen(options: OffsetOptions): Voxels;
   /** Over-offset composition; fillet-like rounding (C# voxFillet). */
-  fillet(options: {
-    rounding: number;
-    finalSurfaceDistance?: number;
-    fastRenorm?: boolean;
-    fastSweeping?: boolean;
-  }): Voxels;
-  /** Shell: one-offset form ({offset}) or two-offset form ({inner, outer, smoothInner}). */
+  fillet(
+    options: {
+      rounding: number;
+      finalSurfaceDistance?: number;
+      fastRenorm?: boolean;
+      fastSweeping?: boolean;
+    } & ConsumeOptions,
+  ): Voxels;
+  /**
+   * Shell: one-offset form ({offset}) or two-offset form ({inner, outer, smoothInner}).
+   * `consume: true` disposes the receiver once the shell exists.
+   */
   shell(options: ShellOptions): Voxels;
   /** Everything outside the box is trimmed away (cube-mesh intersect, as C#). */
   trim(bounds: Bounds): Voxels;
@@ -260,6 +338,28 @@ export interface Voxels {
    * {@link ToMeshOptions} for the adaptive form.
    */
   toMesh(options?: ToMeshOptions): Mesh;
+  /**
+   * Streams the binary STL of the uniform mesh — the bytes
+   * `toMesh().toStl()` returns — to `write` in chunks, with no `Mesh` and no
+   * whole-file buffer: the grid is meshed in batches of 128³-voxel nodes, so
+   * the peak transient is one batch (about 40 MiB at the default
+   * `batchLeaves`).
+   *
+   * Chunks are views into wasm memory, valid only during the call; see
+   * {@link StlChunkSink}. Millimetres only (use `toMesh().toStl({ unit })`
+   * for other units). The header, `includeHeader` and lane rules are those of
+   * `Mesh.streamStl`; with `includeHeader: true` a counting pass of the
+   * mesher runs first, since the triangle count leads the file.
+   */
+  streamStl(write: StlChunkSink, options?: VoxelsStreamStlOptions): StreamStlResult;
+  /**
+   * Streams the uniform mesh as indexed batches. Concatenated in order, the
+   * chunks' vertices and triangles are exactly `toMesh()`'s `vertices` and
+   * `triangles`, element for element; each chunk's triangles index the whole
+   * mesh, so a consumer appends vertices and uses the indices as they are.
+   * The arrays are views valid only during the call. A chunk may be empty.
+   */
+  streamMesh(onChunk: (chunk: MeshChunk) => void, options?: StreamMeshOptions): StreamMeshResult;
   toScalarField(): ScalarField;
   readonly metadata: Metadata;
   readonly memUsage: number;
@@ -274,9 +374,34 @@ export interface Voxels {
   readonly lane: 'exact' | 'fast';
   /** Raw ABI handle — escape hatch. */
   readonly handle: bigint;
-  /** Optional: GC reclaims un-disposed voxels. Idempotent. */
+  /**
+   * Frees the grid now. Idempotent. Required for large work inside one
+   * synchronous task: the garbage collector can only reclaim an un-disposed
+   * grid after the task returns, so every intermediate a long build leaves
+   * behind counts against the 4 GiB heap until then. Dispose each one after
+   * its last use, pass `{ consume: true }`, or build inside `pico.scope()`.
+   */
   dispose(): void;
   [Symbol.dispose](): void;
+}
+
+/** What a native mesh stream hands out per chunk (MeshStream_pCreate's nMode). */
+const MeshStreamMode = { Stl: 0, Indexed: 1, Count: 2 } as const;
+type MeshStreamMode = (typeof MeshStreamMode)[keyof typeof MeshStreamMode];
+
+/** The default `batchLeaves`: about 40 MiB of transient per batch (K6). */
+const DEFAULT_BATCH_LEAVES = 4096;
+
+/** Validates `batchLeaves`: a positive int32. */
+function readBatchLeaves(options: StreamMeshOptions): number {
+  const { batchLeaves = DEFAULT_BATCH_LEAVES } = options;
+  if (!Number.isInteger(batchLeaves) || batchLeaves < 1 || batchLeaves > 0x7fffffff) {
+    throw new PicoError(
+      'PICO_INVALID_ARGUMENT',
+      `batchLeaves must be an integer in [1, 2147483647], got ${batchLeaves}.`,
+    );
+  }
+  return batchLeaves;
 }
 
 /**
@@ -304,8 +429,42 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     return handle;
   };
 
-  /** Copy-first derivation (the ABI mutates in place): clone, mutate the clone, wrap the clone. */
-  const derive = (name: string, mutate: (copy: bigint) => void, resultLane: LaneSet = lane): Voxels => {
+  /**
+   * Ends this wrapper's ownership of its grid without freeing it and returns
+   * the handle, for a consuming call to hand to the result's wrapper.
+   */
+  const release = (): bigint => {
+    disposed = true;
+    metadataCache?.dispose();
+    metadataCache = null;
+    ctx.registry.unregister(voxels);
+    return handle;
+  };
+
+  /**
+   * Runs a call with `{ consume }`: when set, the receiver is disposed once the
+   * call returns or throws (a no-op when the call already handed its grid to
+   * the result), and a dispose that throws after a failure never replaces the
+   * call's own error.
+   */
+  const consuming = <T>(options: ConsumeOptions, run: () => T): T =>
+    options.consume === true ? withCleanup(run, () => voxels.dispose()) : run();
+
+  /**
+   * Copy-first derivation (the ABI mutates in place): clone, mutate the clone,
+   * wrap the clone. Consuming (inside `consuming`): mutate this grid and hand
+   * it to the result; on a failure `consuming` frees the half-mutated grid.
+   */
+  const derive = (
+    name: string,
+    mutate: (copy: bigint) => void,
+    resultLane: LaneSet = lane,
+    consume = false,
+  ): Voxels => {
+    if (consume) {
+      guard(name, mutate)(live());
+      return wrapVoxels(ctx, release(), resultLane);
+    }
     const copy = expectHandle('Voxels_hCreateCopy', ctx.raw.Voxels_hCreateCopy(ctx.lib, live()));
     try {
       guard(name, mutate)(copy);
@@ -352,7 +511,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
    * Offset/DoubleOffset/TripleOffset exports do. ctx.scratch is BBOX_BYTES = 6
    * floats, and the longest sequence in the family is 3.
    */
-  const tunedOffset = (distancesMM: number[], scheme: number, normCount: number): Voxels =>
+  const tunedOffset = (distancesMM: number[], scheme: number, normCount: number, consume: boolean): Voxels =>
     derive(
       'Voxels_OffsetTuned',
       (copy) => {
@@ -361,6 +520,7 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
         ctx.raw.Voxels_OffsetTuned(ctx.lib, copy, ctx.scratch, distancesMM.length, scheme, normCount);
       },
       unionLaneSets(lane, FAST_LANE_SET), // the one value-changing op: provenance taints here
+      consume,
     );
 
   /**
@@ -368,13 +528,14 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
    * the per-op > session > library precedence, else the stock export.
    */
   const offsetBy = (
-    options: { fastRenorm?: boolean; fastSweeping?: boolean },
+    options: { fastRenorm?: boolean; fastSweeping?: boolean; consume?: boolean },
     distancesMM: number[],
     stock: () => Voxels,
   ): Voxels => {
-    if (options.fastSweeping === true) return tunedOffset(distancesMM, FAST_SWEEPING_SCHEME, -1);
+    const consume = options.consume === true;
+    if (options.fastSweeping === true) return tunedOffset(distancesMM, FAST_SWEEPING_SCHEME, -1, consume);
     if (options.fastRenorm ?? ctx.fastRenorm)
-      return tunedOffset(distancesMM, FAST_RENORM_SCHEME, FAST_RENORM_COUNT);
+      return tunedOffset(distancesMM, FAST_RENORM_SCHEME, FAST_RENORM_COUNT, consume);
     return stock();
   };
 
@@ -383,8 +544,41 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     return other.handle;
   };
 
-  /** Pairwise chain over a csg*Copy export; intermediates die eagerly. */
+  /**
+   * Splits a boolean's arguments into operands and a trailing
+   * {@link ConsumeOptions}: a plain object without a `handle` is the options.
+   */
+  const splitOperands = (args: (Voxels | ConsumeOptions)[]): [Voxels[], ConsumeOptions] => {
+    const last = args.at(-1);
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime guard for untyped JavaScript callers
+    if (typeof last === 'object' && last !== null && !('handle' in last)) {
+      return [args.slice(0, -1) as Voxels[], last];
+    }
+    return [args as Voxels[], {}];
+  };
+
+  /**
+   * Pairwise chain over a csg*Copy export; intermediates die eagerly. With
+   * `{ consume: true }` the receiver is disposed once the result exists (or
+   * the chain failed), and with no operands its grid passes to the result
+   * uncopied.
+   */
   const composeCopy = (
+    name: 'Voxels_hBoolAddCopy' | 'Voxels_hBoolSubtractCopy' | 'Voxels_hBoolIntersectCopy',
+    what: string,
+    args: (Voxels | ConsumeOptions)[],
+  ): Voxels => {
+    const [others, options] = splitOperands(args);
+    return consuming(options, () => {
+      if (options.consume === true && others.length === 0) {
+        live();
+        return wrapVoxels(ctx, release(), lane);
+      }
+      return chainCopy(name, what, others);
+    });
+  };
+
+  const chainCopy = (
     name: 'Voxels_hBoolAddCopy' | 'Voxels_hBoolSubtractCopy' | 'Voxels_hBoolIntersectCopy',
     what: string,
     others: Voxels[],
@@ -463,6 +657,38 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     }
   };
 
+  /**
+   * One pass of the slab mesher (src/pico-stream.cpp) over this grid's uniform
+   * mesh: `each` runs once per chunk the stream produces, and the stream is
+   * freed afterwards whether or not a chunk handler threw.
+   */
+  const meshStream = (
+    mode: MeshStreamMode,
+    batchLeaves: number,
+    chunkTriangles: number,
+    each: (stream: number) => void,
+  ): StreamMeshResult => {
+    const { raw, lib } = ctx;
+    const stream = guard('MeshStream_pCreate', raw.MeshStream_pCreate)(
+      lib,
+      live(),
+      mode,
+      batchLeaves,
+      chunkTriangles,
+    );
+    const next = guard('MeshStream_nNext', raw.MeshStream_nNext);
+    return withCleanup(
+      () => {
+        while (next(stream) === 1) each(stream);
+        return {
+          vertexCount: raw.MeshStream_dVertexCount(stream),
+          triangleCount: raw.MeshStream_dTriangleCount(stream),
+        };
+      },
+      () => raw.MeshStream_Destroy(stream),
+    );
+  };
+
   const voxels = {
     clone: (): Voxels =>
       wrapVoxels(ctx, expectHandle('Voxels_hCreateCopy', ctx.raw.Voxels_hCreateCopy(ctx.lib, live())), lane),
@@ -472,11 +698,12 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
     // copy in derive() plus upstream's operand deep copy). Variadic forms
     // chain pairwise, destroying intermediates immediately; the mutating
     // exports remain on the raw subpath.
-    union: (...others: Voxels[]): Voxels => composeCopy('Voxels_hBoolAddCopy', 'union operand', others),
-    subtract: (...others: Voxels[]): Voxels =>
-      composeCopy('Voxels_hBoolSubtractCopy', 'subtract operand', others),
-    intersect: (other: Voxels): Voxels =>
-      composeCopy('Voxels_hBoolIntersectCopy', 'intersect operand', [other]),
+    union: (...args: (Voxels | ConsumeOptions)[]): Voxels =>
+      composeCopy('Voxels_hBoolAddCopy', 'union operand', args),
+    subtract: (...args: (Voxels | ConsumeOptions)[]): Voxels =>
+      composeCopy('Voxels_hBoolSubtractCopy', 'subtract operand', args),
+    intersect: (other: Voxels, options: ConsumeOptions = {}): Voxels =>
+      composeCopy('Voxels_hBoolIntersectCopy', 'intersect operand', [other, options]),
 
     equals(other: Voxels): boolean {
       // O(stored) sign-set comparison, upstream-verdict-identical; the dense O(bbox³)
@@ -489,46 +716,83 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
       return guard('Voxels_bIsEmpty', () => ctx.raw.Voxels_bIsEmpty(ctx.lib, live()))();
     },
 
-    offset(options: { distance: number; fastRenorm?: boolean; fastSweeping?: boolean }) {
-      rejectLoosening(options, 'offset');
-      const distance = requireFinite(options.distance, 'distance', 'offset({ distance })');
-      return offsetBy(options, [distance], () =>
-        derive('Voxels_Offset', (copy) => ctx.raw.Voxels_Offset(ctx.lib, copy, distance)),
-      );
+    offset(options: OffsetOptions) {
+      return consuming(options, () => {
+        rejectLoosening(options, 'offset');
+        const distance = requireFinite(options.distance, 'distance', 'offset({ distance })');
+        return offsetBy(options, [distance], () =>
+          derive(
+            'Voxels_Offset',
+            (copy) => ctx.raw.Voxels_Offset(ctx.lib, copy, distance),
+            lane,
+            options.consume === true,
+          ),
+        );
+      });
     },
-    doubleOffset(options: { first: number; second: number; fastRenorm?: boolean; fastSweeping?: boolean }) {
-      rejectLoosening(options, 'doubleOffset');
-      const first = requireFinite(options.first, 'first', 'doubleOffset');
-      const second = requireFinite(options.second, 'second', 'doubleOffset');
-      return offsetBy(options, [first, second], () =>
-        derive('Voxels_DoubleOffset', (copy) => ctx.raw.Voxels_DoubleOffset(ctx.lib, copy, first, second)),
-      );
+    doubleOffset(
+      options: {
+        first: number;
+        second: number;
+        fastRenorm?: boolean;
+        fastSweeping?: boolean;
+      } & ConsumeOptions,
+    ) {
+      return consuming(options, () => {
+        rejectLoosening(options, 'doubleOffset');
+        const first = requireFinite(options.first, 'first', 'doubleOffset');
+        const second = requireFinite(options.second, 'second', 'doubleOffset');
+        return offsetBy(options, [first, second], () =>
+          derive(
+            'Voxels_DoubleOffset',
+            (copy) => ctx.raw.Voxels_DoubleOffset(ctx.lib, copy, first, second),
+            lane,
+            options.consume === true,
+          ),
+        );
+      });
     },
-    smoothen(options: { distance: number; fastRenorm?: boolean; fastSweeping?: boolean }) {
-      rejectLoosening(options, 'smoothen');
-      const distance = requireFinite(options.distance, 'distance', 'smoothen');
-      // TripleOffset is grow d / shrink 2d / grow d on one filter (PicoGKVdbVoxels.h:310-330).
-      return offsetBy(options, [distance, -2 * distance, distance], () =>
-        derive('Voxels_TripleOffset', (copy) => ctx.raw.Voxels_TripleOffset(ctx.lib, copy, distance)),
-      );
+    smoothen(options: OffsetOptions) {
+      return consuming(options, () => {
+        rejectLoosening(options, 'smoothen');
+        const distance = requireFinite(options.distance, 'distance', 'smoothen');
+        // TripleOffset is grow d / shrink 2d / grow d on one filter (PicoGKVdbVoxels.h:310-330).
+        return offsetBy(options, [distance, -2 * distance, distance], () =>
+          derive(
+            'Voxels_TripleOffset',
+            (copy) => ctx.raw.Voxels_TripleOffset(ctx.lib, copy, distance),
+            lane,
+            options.consume === true,
+          ),
+        );
+      });
     },
-    fillet(options: {
-      rounding: number;
-      finalSurfaceDistance?: number;
-      fastRenorm?: boolean;
-      fastSweeping?: boolean;
-    }) {
-      rejectLoosening(options, 'fillet');
-      // C# voxOverOffset composition (Voxels.cs:613-621): DoubleOffset(r, −r + final).
-      const rounding = requireFinite(options.rounding, 'rounding', 'fillet');
-      const final = requireFinite(options.finalSurfaceDistance ?? 0, 'finalSurfaceDistance', 'fillet');
-      return offsetBy(options, [rounding, -rounding + final], () =>
-        derive('Voxels_DoubleOffset', (copy) =>
-          ctx.raw.Voxels_DoubleOffset(ctx.lib, copy, rounding, -rounding + final),
-        ),
-      );
+    fillet(
+      options: {
+        rounding: number;
+        finalSurfaceDistance?: number;
+        fastRenorm?: boolean;
+        fastSweeping?: boolean;
+      } & ConsumeOptions,
+    ) {
+      return consuming(options, () => {
+        rejectLoosening(options, 'fillet');
+        // C# voxOverOffset composition (Voxels.cs:613-621): DoubleOffset(r, −r + final).
+        const rounding = requireFinite(options.rounding, 'rounding', 'fillet');
+        const final = requireFinite(options.finalSurfaceDistance ?? 0, 'finalSurfaceDistance', 'fillet');
+        return offsetBy(options, [rounding, -rounding + final], () =>
+          derive(
+            'Voxels_DoubleOffset',
+            (copy) => ctx.raw.Voxels_DoubleOffset(ctx.lib, copy, rounding, -rounding + final),
+            lane,
+            options.consume === true,
+          ),
+        );
+      });
     },
     shell(options: ShellOptions): Voxels {
+      if (options.consume === true)
+        return consuming(options, () => voxels.shell({ ...options, consume: false }));
       rejectLoosening(options, 'shell');
       const { fastRenorm, fastSweeping } = options;
       if (options.offset !== undefined) {
@@ -936,6 +1200,41 @@ export function wrapVoxels(ctx: SessionContext, handle: bigint, provenance?: Lan
         ),
         lane,
       );
+    },
+    streamStl(write: StlChunkSink, options: VoxelsStreamStlOptions = {}): StreamStlResult {
+      const chunkTriangles = readChunkTriangles(options);
+      const batchLeaves = readBatchLeaves(options);
+      assertLaneExport('streamStl', 'voxels', lane, ctx.lane, options.acceptLane);
+      const header = new Uint8Array(84);
+      if (options.includeHeader === true) {
+        const { triangleCount } = meshStream(MeshStreamMode.Count, batchLeaves, chunkTriangles, () => {});
+        writeStlHeader(header, triangleCount, 'mm', lane);
+        write(header.slice());
+      }
+      const { module, raw } = ctx;
+      const { triangleCount } = meshStream(MeshStreamMode.Stl, batchLeaves, chunkTriangles, (stream) => {
+        const pointer = raw.MeshStream_pData(stream) >>> 0;
+        const bytes = raw.MeshStream_nDataBytes(stream);
+        refreshHeapViews(module);
+        write(module.HEAPU8.subarray(pointer, pointer + bytes));
+      });
+      writeStlHeader(header, triangleCount, 'mm', lane);
+      return { header, triangleCount };
+    },
+    streamMesh(onChunk: (chunk: MeshChunk) => void, options: StreamMeshOptions = {}): StreamMeshResult {
+      const batchLeaves = readBatchLeaves(options);
+      const { module, raw } = ctx;
+      return meshStream(MeshStreamMode.Indexed, batchLeaves, 1, (stream) => {
+        const vertexPointer = raw.MeshStream_pData(stream) >>> 0;
+        const vertexFloats = raw.MeshStream_nDataBytes(stream) / 4;
+        const trianglePointer = raw.MeshStream_pTriangles(stream) >>> 0;
+        const indexCount = raw.MeshStream_nTriangleIndices(stream);
+        refreshHeapViews(module);
+        onChunk({
+          vertices: module.HEAPF32.subarray(vertexPointer >>> 2, (vertexPointer >>> 2) + vertexFloats),
+          triangles: module.HEAPU32.subarray(trianglePointer >>> 2, (trianglePointer >>> 2) + indexCount),
+        });
+      });
     },
     toScalarField(): ScalarField {
       return wrapScalarField(

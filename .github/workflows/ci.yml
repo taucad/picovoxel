@@ -316,7 +316,7 @@ jobs:
           if-no-files-found: error
 
   # The own C++ TUs at 100% lines and functions each, measured by source-based
-  # coverage (COVERAGE=1: clang profile instrumentation of the nine TUs only) over
+  # coverage (COVERAGE=1: clang profile instrumentation of the ten TUs only) over
   # the light files. The instrumented serial build replaces src/pico.* in this job
   # alone; the pthread pair comes from `wasm`, because the light files load both.
   # The gate script holds the audited exclusions; regions and branches may not

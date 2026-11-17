@@ -51,9 +51,12 @@ const stl = gyroid.toMesh().toStl(); // binary STL bytes
 pico.dispose();
 ```
 
-Objects need no per-handle cleanup: the garbage collector frees them, and `pico.dispose()` frees the whole
-session at once ([memory](https://github.com/taucad/picovoxel/blob/main/docs/memory-and-limits.md)). Replace `'picovoxel'` with `'picovoxel/multi'` for
-the multithreaded build.
+Small models need no per-handle cleanup: the garbage collector frees them, and `pico.dispose()` frees the
+whole session at once. Large work inside one task must free intermediates as it goes, because the collector
+cannot run until the task returns: call `dispose()` after an object's last use, pass `{ consume: true }` to the
+boolean or offset that uses it last, or build inside `pico.scope()`. `voxels.streamStl(write)` exports without
+holding the mesh or the file ([memory](https://github.com/taucad/picovoxel/blob/main/docs/memory-and-limits.md)).
+Replace `'picovoxel'` with `'picovoxel/multi'` for the multithreaded build.
 
 ## What you get
 
@@ -183,7 +186,7 @@ The build tools need Node `^22.18.0 || ^24.11.0 || >=26.0.0`; CI builds on Node 
 22.14.0. Neither wasm pair is committed: CI builds both, and the published binaries come from that run.
 Each build also writes `src/<variant>.exports.ts`, the export names its glue reads; for a wasm pair copied
 in from elsewhere, run `node scripts/generate-wasm-exports.mjs pico` (and `pico-multi`).
-The C++ this repository owns is nine translation units in `src/` that add exports; the patches that
+The C++ this repository owns is ten translation units in `src/` that add exports; the patches that
 change PicoGKRuntime, OpenVDB and oneTBB are in `patches/`, and fixes offered upstream are in
 [`upstream/`](https://github.com/taucad/picovoxel/blob/main/upstream/README.md).
 

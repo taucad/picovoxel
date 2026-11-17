@@ -12,12 +12,48 @@ Both builds (`picovoxel` and `picovoxel/multi`) are 32-bit WebAssembly linked wi
 
 ## Releasing memory
 
-Ordinary use needs no cleanup calls:
+Small models need no cleanup calls. Large work inside one task does: the garbage collector runs only between tasks, so every intermediate a synchronous build creates stays in the heap until the build returns.
 
-- **Garbage collection.** Every wrapper is registered with a `FinalizationRegistry`. When the wrapper is collected, its native handle is freed. Fluent chains such as `a.union(b).subtract(c)` drop their intermediates as soon as the chain ends, but the collector decides when they are freed.
+- **Garbage collection.** Every wrapper is registered with a `FinalizationRegistry`. When the wrapper is collected, its native handle is freed. Fluent chains such as `a.union(b).subtract(c)` drop their intermediates as soon as the chain ends, but the collector decides when they are freed, and it cannot run in the middle of a synchronous build.
 - **`session.dispose()`** frees every object the session owns in one call. It is idempotent. On the multi entry it also terminates the session's worker pool. Session methods throw `PICO_DISPOSED` afterwards; do not use wrappers from a disposed session (their own `dispose()` is a safe no-op).
-- **`dispose()` on any object** frees it now. It is optional and idempotent; using the object afterwards throws `PICO_DISPOSED`. Use it in tight loops that create large intermediates faster than the collector reclaims them.
+- **`dispose()` on any object** frees it now. It is idempotent; using the object afterwards throws `PICO_DISPOSED`. It is required for large work inside one task: dispose each intermediate after its last use. Disposing at last use is what moved the HelixHeatX example from failing at 0.38 mm to completing 0.30 mm on the same 4 GiB build.
+- **`{ consume: true }`.** The boolean family (`union`, `subtract`, `intersect`) and the offset family (`offset`, `doubleOffset`, `smoothen`, `fillet`, `shell`) take a `consume` option that disposes the receiver as part of the call, whether it succeeds or throws. An offset then reuses the receiver's grid instead of copying it, and a boolean frees the receiver as soon as the result exists. The result has the bytes of the pure call. Booleans take it as a trailing argument: `a.union(b, c, { consume: true })`. Operands are never consumed.
+- **`session.scope(build)`** runs `build` and disposes every object it created, except what it returns: the returned wrapper, or the wrappers directly inside a returned array or plain object. Scopes nest, and when `build` throws everything it created is disposed. `build` must be synchronous.
 - **`using`.** Sessions and wrappers implement `[Symbol.dispose]`, so `using pico = await createPico()` disposes at the end of the block.
+
+```js
+import { createPico } from 'picovoxel';
+
+const pico = await createPico({ voxelSize: 0.5 });
+const part = pico.scope(() => {
+  const body = pico.createVoxels({ shape: 'sphere', radius: 40 });
+  const shelled = body.shell({ offset: -2, consume: true }); // body is freed here
+  const hole = pico.createVoxels({ shape: 'beam', start: [0, 0, -50], end: [0, 0, 50], radius: 8 });
+  return shelled.subtract(hole, { consume: true }); // shelled is freed here; hole when the scope ends
+});
+```
+
+## Streaming export
+
+`voxels.toMesh().toStl()` holds the whole mesh and the whole file at once, and at fine voxel sizes that export is the largest allocation of a build. The streamed forms never hold either:
+
+- **`voxels.streamStl(write, options?)`** meshes the grid in batches of 128³-voxel nodes and passes each batch's binary STL records to `write`. The concatenated chunks are the bytes `toMesh().toStl()` returns. The peak transient is one batch, about 40 MiB at the default `batchLeaves` of 4,096.
+- **`voxels.streamMesh(onChunk, options?)`** passes each batch as `{ vertices, triangles }`. Concatenated in order they are `toMesh()`'s arrays, element for element; triangle indices already refer to the whole mesh.
+- **`mesh.streamStl(write, options?)`** streams an existing mesh's records in chunks of at most `chunkTriangles` (default 65,536, about 3.3 MB).
+
+Each chunk is a view into wasm memory that is valid only while `write` runs: write it out or copy it (`chunk.slice()`) before returning, and copy before any `await`. By default `write` receives the triangle records only, and the call returns the 84-byte `header` to place first, which a chunk list or a seekable file does for free. `{ includeHeader: true }` makes the header the first chunk, for append-only sinks such as a `WritableStream`; on `voxels.streamStl` it costs one counting pass of the mesher. The streams export millimetres and follow the lane rules of `toStl()`.
+
+```js
+import { createPico } from 'picovoxel';
+
+const pico = await createPico({ voxelSize: 0.5 });
+const part = pico.createVoxels({ shape: 'sphere', radius: 40 });
+const chunks = [];
+const { header } = part.streamStl((chunk) => chunks.push(chunk.slice()));
+const file = new Blob([header, ...chunks], { type: 'model/stl' });
+```
+
+`toStl()` itself now writes native records straight into its output buffer, and `mesh.vertices` and `mesh.triangles` copy straight out of the mesh's own storage, so neither stages a second copy in the heap. `voxels.gridHash()` reads the grid in place instead of hashing a normalized copy, which needed as much memory again as the grid.
 
 ### The `Symbol.dispose` shim
 
@@ -43,10 +79,10 @@ To watch memory yourself, read `session.memory` (bytes per object type), `sessio
 
 ## Out-of-memory errors
 
-| Code                 | Raised when                                                                                                                                                                                                                                                                |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PICO_OUT_OF_MEMORY` | picovoxel's own wasm allocation fails (mesh staging, strings, SDF tapes, metadata buffers), a guarded native call throws C++ `std::bad_alloc` at the 4 GiB limit, or a guarded native call aborts with a `WebAssembly.RuntimeError`, whose usual cause is exhausted memory |
-| `PICO_ALLOC_FAILED`  | a native call that creates an object returns a null handle                                                                                                                                                                                                                 |
+| Code                 | Raised when                                                                                                                                                                                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `PICO_OUT_OF_MEMORY` | picovoxel's own wasm allocation fails (STL chunks, strings, SDF tapes, metadata buffers), a guarded native call throws C++ `std::bad_alloc` at the 4 GiB limit, or a guarded native call aborts with a `WebAssembly.RuntimeError`, whose usual cause is exhausted memory |
+| `PICO_ALLOC_FAILED`  | a native call that creates an object returns a null handle                                                                                                                                                                                                               |
 
 Not every exhaustion path is typed. A native call that picovoxel does not guard surfaces an allocation failure as an untyped `WebAssembly.Exception`. After any of these errors, treat the session as unusable: dispose it, then retry with a coarser `voxelSize`, smaller bounds, or intermediates disposed sooner.
 

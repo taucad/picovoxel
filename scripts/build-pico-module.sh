@@ -91,7 +91,7 @@ PREFIX="${PREFIX:-$OUT/wasm-prefix$MT}"
 source "$EMSDK/emsdk_env.sh" >/dev/null 2>&1
 mkdir -p "$OUT" "$OUT_JS"
 
-# COVERAGE=1 — source-based C++ coverage. Only the nine own
+# COVERAGE=1 — source-based C++ coverage. Only the ten own
 # TUs are instrumented; the generated core TU and the dep archives stay outside
 # the measured domain. The module is a library with EXIT_RUNTIME=0, so the
 # runtime's atexit writer never fires: the glue registers every instance
@@ -142,7 +142,7 @@ compile() { # <source> <object> [extra flags...]
   fi
 }
 
-echo "=== compile core + tape + bulk + props + offset + lattice + hash + boolean + zslice + query TUs (-j$JOBS) ==="
+echo "=== compile core + tape + bulk + props + offset + lattice + hash + boolean + zslice + query + stream TUs (-j$JOBS) ==="
 compile "$OUT/PicoGKLibraryCore.cpp" "$OUT/pico_core_module$MT.o"
 compile "$HERE/src/pico-tape.cpp" "$OUT/pico_tape_module$MT.o" ${OWN_TU_FLAGS[@]+"${OWN_TU_FLAGS[@]}"}
 compile "$HERE/src/pico-bulk.cpp" "$OUT/pico_bulk_module$MT.o" ${OWN_TU_FLAGS[@]+"${OWN_TU_FLAGS[@]}"}
@@ -153,6 +153,7 @@ compile "$HERE/src/pico-hash.cpp" "$OUT/pico_hash_module$MT.o" -I"$HERE/vendor/x
 compile "$HERE/src/pico-boolean.cpp" "$OUT/pico_boolean_module$MT.o" ${OWN_TU_FLAGS[@]+"${OWN_TU_FLAGS[@]}"}
 compile "$HERE/src/pico-zslice.cpp" "$OUT/pico_zslice_module$MT.o" ${OWN_TU_FLAGS[@]+"${OWN_TU_FLAGS[@]}"}
 compile "$HERE/src/pico-query.cpp" "$OUT/pico_query_module$MT.o" ${OWN_TU_FLAGS[@]+"${OWN_TU_FLAGS[@]}"}
+compile "$HERE/src/pico-stream.cpp" "$OUT/pico_stream_module$MT.o" ${OWN_TU_FLAGS[@]+"${OWN_TU_FLAGS[@]}"}
 for pid in ${PIDS[@]+"${PIDS[@]}"}; do wait "$pid"; done
 
 echo "=== link -> $VARIANT.mjs ==="
@@ -161,7 +162,7 @@ em++ -std=c++20 $WASM_FLAGS $EH_FLAGS "-ffile-prefix-map=$HERE=." \
   "$OUT/pico_core_module$MT.o" "$OUT/pico_bulk_module$MT.o" "$OUT/pico_tape_module$MT.o" \
   "$OUT/pico_props_module$MT.o" "$OUT/pico_offset_module$MT.o" \
   "$OUT/pico_lattice_module$MT.o" "$OUT/pico_hash_module$MT.o" "$OUT/pico_boolean_module$MT.o" \
-  "$OUT/pico_zslice_module$MT.o" "$OUT/pico_query_module$MT.o" \
+  "$OUT/pico_zslice_module$MT.o" "$OUT/pico_query_module$MT.o" "$OUT/pico_stream_module$MT.o" \
   "$PREFIX/lib/libopenvdb.a" "$PREFIX/lib/libtbb.a" \
   -o "$OUT_JS/$VARIANT.mjs" \
   ${THREAD_LINK_FLAGS[@]+"${THREAD_LINK_FLAGS[@]}"} \

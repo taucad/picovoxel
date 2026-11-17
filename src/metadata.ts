@@ -322,6 +322,6 @@ export function wrapMetadata(ctx: SessionContext, handle: bigint): Metadata {
       if (!ctx.dead.value) ctx.raw.Metadata_Destroy(ctx.lib, handle); // teardown already freed it
     },
   };
-  adoptHandle(ctx, metadata, handle, ctx.raw.Metadata_Destroy);
+  adoptHandle(ctx, metadata, handle, ctx.raw.Metadata_Destroy, false); // its field owns it
   return metadata as Metadata; // adoptHandle added [Symbol.dispose]
 }

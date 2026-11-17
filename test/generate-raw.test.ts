@@ -9,7 +9,7 @@ import abi from '../src/abi.json' with { type: 'json' };
 
 const source = generateRawSource(abi);
 
-test('manifest count: 141 core + 28 own-TU bindings, viewer surface excluded', () => {
+test('manifest count: 141 core + 41 own-TU bindings, viewer surface excluded', () => {
   assert.equal(abi.functions.filter((f: { viewer: boolean }) => !f.viewer).length, 141);
   // 4 bulk-mesh + 3 tape entries (fresh fill + the two R9 compose variants)
   // + 2 SK-0.3 bulk lattice entries + SK-0.5's Voxels_GetProperties
@@ -21,10 +21,12 @@ test('manifest count: 141 core + 28 own-TU bindings, viewer surface excluded', (
   // + SKv2-0 V0.10's IntersectImplicit{,Tape}Fast pair (F17 + U1)
   // + SKv2-0 V0.11's RayCastBatch/ClosestPointBatch (P8)
   // + Library_nExceptionKind, which tells std::bad_alloc from other native throws
-  // + the IL-lift checked render/intersect pair and Tape_EvaluatePoints.
-  assert.equal(BULK_FUNCTIONS.length, 28);
+  // + the IL-lift checked render/intersect pair and Tape_EvaluatePoints
+  // + the streamed-export TU: two zero-copy mesh pointers, Mesh_GetStlRecords
+  //   and the nine MeshStream_* calls, plus the copy-based grid-hash oracle.
+  assert.equal(BULK_FUNCTIONS.length, 41);
   const bound = source.match(/^ {2}'[A-Za-z0-9_]+',$/gm) ?? [];
-  assert.equal(bound.length, 169, 'the export list must carry every binding');
+  assert.equal(bound.length, 182, 'the export list must carry every binding');
   assert.ok(!/Viewer_|Gui_/.test(source), 'viewer exports must never be bound');
 });
 
