@@ -59,6 +59,22 @@ function readAll(
   return { into, offset };
 }
 
+/**
+ * Runs `body` as if outside Node by hiding `process.getBuiltinModule`, which is what `nodeProcess()`
+ * checks. The global `process` itself is never replaced: vitest's worker IPC calls
+ * `process.nextTick`, and a stub without it loops on errors until the heap runs out.
+ */
+async function withoutNodeHost<T>(body: () => T | Promise<T>): Promise<T> {
+  const host = process as { getBuiltinModule?: unknown };
+  const saved = host.getBuiltinModule;
+  host.getBuiltinModule = undefined;
+  try {
+    return await body();
+  } finally {
+    host.getBuiltinModule = saved;
+  }
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -434,12 +450,13 @@ test('Node scratch default directory is the OS temp dir; outside Node it refuses
     undefined,
   );
 
-  vi.stubGlobal('process', { versions: {} });
-  assert.equal(nodeProcess(), undefined);
-  assert.throws(
-    () => openNodeScratchFile(),
-    (error: unknown) => error instanceof FarStoreError && error.kind === 'io',
-  );
+  await withoutNodeHost(() => {
+    assert.equal(nodeProcess(), undefined);
+    assert.throws(
+      () => openNodeScratchFile(),
+      (error: unknown) => error instanceof FarStoreError && error.kind === 'io',
+    );
+  });
 });
 
 test('openFarStore ram: unbounded by default, bounded on request', async () => {
@@ -573,20 +590,21 @@ test('OPFS scratch: a close whose removal is refused does not throw', async () =
 });
 
 test('openFarStore disk outside Node: OPFS when the probe says disk-backed, refused otherwise', async () => {
-  vi.stubGlobal('process', { versions: {} });
-  fakeOpfs();
-  const store = await openFarStore({ kind: 'disk', directory: 'opfs-open-test' });
-  assert.equal(store.kind, 'disk');
-  store.close();
-  fakeOpfs({ readDelayUs: 200 });
-  await assert.rejects(
-    () => openFarStore({ kind: 'disk' }),
-    (error: unknown) =>
-      error instanceof FarStoreError && error.kind === 'io' && /dedicated worker/.test(error.message),
-  );
-  vi.stubGlobal('navigator', {});
-  await assert.rejects(
-    () => openOpfsScratchFile(),
-    (error: unknown) => error instanceof FarStoreError,
-  );
+  await withoutNodeHost(async () => {
+    fakeOpfs();
+    const store = await openFarStore({ kind: 'disk', directory: 'opfs-open-test' });
+    assert.equal(store.kind, 'disk');
+    store.close();
+    fakeOpfs({ readDelayUs: 200 });
+    await assert.rejects(
+      () => openFarStore({ kind: 'disk' }),
+      (error: unknown) =>
+        error instanceof FarStoreError && error.kind === 'io' && /dedicated worker/.test(error.message),
+    );
+    vi.stubGlobal('navigator', {});
+    await assert.rejects(
+      () => openOpfsScratchFile(),
+      (error: unknown) => error instanceof FarStoreError,
+    );
+  });
 });
